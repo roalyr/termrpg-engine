@@ -8,9 +8,9 @@ This document specifies the technical architecture, mechanical contracts, domain
 
 ### Core Tenets
 
-1. **Zero External Dependencies:** Built strictly on the Python 3 standard library (`pathlib`, `typing`, `json`, `os`, `sys`, `enum`). No third-party packages, no build steps.
+1. **Zero External Dependencies:** Built strictly on the Python 3 standard library (`pathlib`, `typing`, `json`, `os`, `sys`, `enum`, `tty`, `termios`). No third-party packages, no build steps.
 2. **Pure Functional Unidirectional Dataflow:** State is strictly immutable (`typing.NamedTuple`). State transitions are executed via pure reducers: `Action × State → State'`. No OOP classes, no internal mutation, no hidden object states.
-3. **Sequential Stream Interface:** Emits clean, sequential `stdout` and captures `stdin`. No curses, no ANSI escape codes for screen clearing. Line-buffered stream I/O that is token-efficient and resilient across mobile terminals and LLM execution runners.
+3. **Non-Blocking Raw Input Interface:** The input loop reads single raw keystrokes via `tty`/`termios` without requiring Enter. WASD keys navigate the player cursor on the Zone 2 minimap. No `readline`-style blocking prompt is displayed during normal movement. A conventional `> ` prompt is only surfaced for free-text commands (`inspect`, `pack`, etc.) that require typed argument strings. Emits clean sequential `stdout`; no ANSI cursor repositioning or screen clearing.
 4. **Grounded Hard Sci-Fi Space Opera:** Everyday lived reality of commoners, orbital technicians, shift workers, and dock hands across orbital platforms, habitat rings, agricultural domes, and low-gravity stellar bodies (moons, asteroids). Deep gravity-well planets with punishing escape velocities are excluded. Intra-human violence exists alongside physical space hazards (vacuum, pressure differentials, radiation). Language is direct, utilitarian, and dry; technobabble, cyberpunk cliches, and jury-rigging tropes are prohibited.
 5. **Lateral Qualitative Progression:** All traditional RPG tropes—manual stat distribution menus, numerical level bloat, and arbitrary tiered loot grids—are eliminated. Character advancement is tracked via an authored qualitative progression tree that unlocks situational interaction verbs, environmental tolerances, and clearance credentials.
 
@@ -28,11 +28,15 @@ This document specifies the technical architecture, mechanical contracts, domain
 ### 2.2 System Architecture Overview
 
 ```
-                        +----------------------+
-                        |   User / Agent Input |
-                        +----------+-----------+
-                                   |
-                                   v
+                  +-------------------------------+
+                  | Raw Keystroke / Typed Command |
+                  | (tty/termios, no Enter needed)|
+                  +---------------+---------------+
+                                  |
+          +-------------+---------+----------+
+          |  WASD key   |   Interact (e)     |  Typed cmd
+          |  (move)     |   (on entity tile) |  (inspect, pack …)
+          v             v                    v
 +------------------+     +-------------------+     +------------------+
 | Current State    | --> | Dispatch & Pure   | --> | Next Immutable   |
 | (NamedTuple)     |     | Reducer Functions |     | State Snapshot   |
@@ -158,7 +162,7 @@ class GridPlacement(NamedTuple):
     col: int                   # 0-indexed column on the grid
 
 class Edge(NamedTuple):
-    id: str                    # Edge identifier used with `leave` command
+    id: str                    # Edge identifier
     target_node_id: str        # Destination node ID
     label: str                 # Display label (e.g., "Berth 04", "Subdeck")
     gated_by_fixture: Optional[str]  # Fixture ID that must be OPEN to traverse
@@ -234,10 +238,13 @@ class GameState(NamedTuple):
     visited_nodes: FrozenSet[str]         # Explored node IDs (for map & attunement)
     depth_ticks: Mapping[int, int]        # Ticks survived per depth without critical exposure
     cycle: int                            # Global simulation tick counter
+    player_row: int                       # Player cursor row on current node grid (0-indexed)
+    player_col: int                       # Player cursor column on current node grid (0-indexed)
     message_buffer: Tuple[str, ...]       # Queued output messages for next render
     action_log: Tuple[str, ...]           # Recent action history (max 20 entries)
     flavor_enabled: bool                  # Toggle for atmospheric prose
     active_view: str                      # "compartment" or "map_topology"
+    proximity_menu_active: bool           # True when Zone 5 is showing the interaction menu
     is_running: bool                      # False = exit after next persist
 ```
 
@@ -304,7 +311,7 @@ The player has an `Exposure` record with three accumulation tracks. Each tick sp
 | :--- | :--- | :--- |
 | Nominal | 0.0 – 4.9 | No effect |
 | Stressed | 5.0 – 9.9 | Warning messages in Zone 5. `inspect` accuracy degrades (appends "[readings unclear]" to descriptions). |
-| Critical | 10.0+ | All `use` and `leave` actions have a 1-tick delay (forced `wait` inserted before execution). The message buffer warns of imminent incapacitation. |
+| Critical | 10.0+ | All `use` and `[G] Go` actions have a 1-tick delay (forced `wait` inserted before execution). The message buffer warns of imminent incapacitation. |
 | Incapacitated | 15.0+ in any track | Game over. The reducer sets `is_running = False` and emits a final narrative line. Save is preserved for reload. |
 
 **Recovery:** Returning to a Depth 0 pressurized node reduces all exposure tracks by 2.0 per tick (minimum 0.0). There is no healing item; recovery requires retreating to safety.
@@ -315,23 +322,58 @@ The player has an `Exposure` record with three accumulation tracks. Each tick sp
 
 ## 5. Interaction Mechanics & Command Vocabulary
 
-### 5.1 Omni-Reach Interaction Model
+### 5.1 WASD Navigation Model
 
-Within the active compartment node, the player does not step tile-by-tile. Every fixture, actor, and exit rendered on the N×N grid is within immediate interaction reach. The grid is a spatial reference display, not a movement surface.
+The player is represented by a cursor position `(row, col)` on the Zone 2 N×N grid, stored in `GameState`. Movement is driven by raw single-keystrokes; no Enter key is required.
 
-### 5.2 Command Tokenization
+**Movement Keys (non-blocking, tick-advancing):**
 
-All user input is normalized to lowercase, split on whitespace, and matched as `[verb, *args]` against the dispatch table. Unknown verbs emit `"Unknown command. Type 'help' for available actions."` to the `message_buffer`.
+| Key | Direction |
+| :--- | :--- |
+| `w` | Up (row − 1) |
+| `s` | Down (row + 1) |
+| `a` | Left (col − 1) |
+| `d` | Right (col + 1) |
 
-### 5.3 System Command Grammar
+Movement is blocked at wall tiles (border cells). Each successful move advances the tick. On arrival at a tile occupied by a fixture, actor, or edge hatch, Zone 5 immediately presents a **proximity interaction menu** (see §5.2) — no separate command needed. Stepping onto an empty floor tile shows no menu.
 
-| Verb | Syntax | Reducer Logic | Advances Tick? |
+**Player Cursor Glyph:** A dedicated cursor marker `@` is rendered at the player's current grid position. If a fixture or actor shares that tile, the entity glyph takes priority in display, but the cursor is still registered there for interaction purposes.
+
+### 5.2 Proximity Interaction Menu
+
+When the player cursor lands on a tile with an entity (fixture or actor), Zone 5 auto-displays a numbered option list. The player presses a single digit key to select — no typed command required.
+
+**Menu Construction Rules:**
+- Always includes: `[I] Inspect`
+- If entity is a **fixture** with a usable `on_use_effect` and the player (or party) holds a matching-tagged item: `[U] Use <item_name>`
+- If entity is a **fixture** with a traversable edge (`grants_edge` → `OPEN` state): `[G] Go through → <edge_label>`
+- If entity is an **actor**: `[T] Talk`
+- Always includes: `[X] Cancel` (clears menu, stays on tile)
+
+```text
+ZONE 5:
+  [I] Inspect   [U] Use fitting_copper   [T] Talk   [X] Cancel
+```
+
+Selecting an option dispatches the corresponding action to the reducer directly, identical to the equivalent typed command. Zone 5 reverts to the message buffer after the action resolves.
+
+### 5.3 Command Tokenization (Typed Commands)
+
+Typed commands remain available for non-movement, non-interaction actions. Input drops into a conventional `> ` prompt (Zone 6) only when needed. All input is normalized to lowercase, split on whitespace, and matched as `[verb, *args]` against the dispatch table. Unknown verbs emit `"Unknown command. Type 'help' for available actions."` to the `message_buffer`.
+
+### 5.4 System Command Grammar
+
+| Verb / Key | Syntax | Reducer Logic | Advances Tick? |
 | :--- | :--- | :--- | :--- |
+| `w` / `a` / `s` / `d` | *(raw key)* | Moves player cursor one tile in the corresponding direction. On landing on an entity tile, triggers proximity menu in Zone 5. Blocked by wall tiles. | Yes |
+| `e` / `[I]` | *(proximity menu)* | Equivalent to `inspect <entity_id>` for the tile under cursor. | No |
+| `[U]` | *(proximity menu)* | Equivalent to `use <best_match_item_id> <fixture_id>` for the tile under cursor. Auto-selects the first inventory item whose tags satisfy the fixture's `required_tag`. | Yes |
+| `[G]` | *(proximity menu)* | Traverses the open edge granted by the fixture under cursor. Equivalent to former `leave <edge_id>`. Checks capability requirements. | Yes |
+| `[T]` | *(proximity menu)* | Equivalent to `talk <actor_id>` for the actor under cursor. | Yes |
 | `inspect` | `inspect <target_id>` | Looks up fixture, actor, or inventory item by ID. Appends description + state to `message_buffer`. If target is a fixture: includes state and required_tag hint. If actor: includes status and dialogue_idle (or dialogue_post_trade if trade_completed). Does not modify game state beyond message_buffer. | No |
-| `talk` | `talk <actor_id>` | Checks actor exists in current node. If actor has incomplete trade AND player inventory contains an item with matching `trade_required_tag`: executes trade (see §5.4). Otherwise: appends actor's `dialogue_idle` (or `dialogue_post_trade`) to `message_buffer`. | Yes |
-| `use` | `use <item_id> <fixture_id>` | Validates item is in inventory. Validates fixture is in current node. Checks if ANY tag in item.tags matches fixture.required_tag. On match: executes the fixture's `on_use_effect` (see §5.5), reduces item integrity by 1 (removed from inventory at 0), transitions fixture state. On failure: appends `"That doesn't work here."` to message_buffer. | Yes |
-| `wait` | `wait` | Advances cycle by 1. Runs tick processor (§5.6). | Yes |
-| `leave` | `leave <edge_id>` | Looks up edge by ID in current node's edges. Checks: (1) if edge has `gated_by_fixture`, that fixture's state must be `OPEN`; (2) if edge has `requires_capability`, player must have it in `unlocked_capabilities`. On success: sets `current_node_id` to edge's `target_node_id`, advances cycle, runs tick processor. On failure: appends reason to message_buffer. | Yes |
+| `talk` | `talk <actor_id>` | Checks actor exists in current node. If actor has incomplete trade AND player inventory contains an item with matching `trade_required_tag`: executes trade (see §5.5). Otherwise: appends actor's `dialogue_idle` (or `dialogue_post_trade`) to `message_buffer`. | Yes |
+| `use` | `use <item_id> <fixture_id>` | Validates item is in inventory. Validates fixture is in current node. Checks if ANY tag in item.tags matches fixture.required_tag. On match: executes the fixture's `on_use_effect` (see §5.6), reduces item integrity by 1 (removed from inventory at 0), transitions fixture state. On failure: appends `"That doesn't work here."` to message_buffer. | Yes |
+| `wait` | `wait` | Advances cycle by 1. Runs tick processor (§5.7). | Yes |
 | `map` | `map` | Sets `active_view = "map_topology"`. | No |
 | `back` | `back` | Sets `active_view = "compartment"` (only valid from map view). | No |
 | `log` | `log` | Appends last 10 entries of `action_log` to `message_buffer`. | No |
@@ -342,7 +384,7 @@ All user input is normalized to lowercase, split on whitespace, and matched as `
 | `help` | `help` | Appends verb listing with syntax to `message_buffer`. | No |
 | `quit` | `quit` / `q` | Sets `is_running = False`. Persistence layer saves before exit. | No |
 
-### 5.4 Trade Protocol (`talk` with Eligible Actor)
+### 5.5 Trade Protocol (`talk` with Eligible Actor)
 
 When `talk <actor_id>` is issued and all conditions are met, the trade executes atomically within the reducer:
 
@@ -355,7 +397,7 @@ When `talk <actor_id>` is issued and all conditions are met, the trade executes 
    e. The actor's `dialogue_post_trade` is appended to `message_buffer`.
 3. **Post-Trade:** Subsequent `talk` commands to this actor return `dialogue_post_trade`. The actor remains in the node but offers no further trades.
 
-### 5.5 Fixture Use Effects (`on_use_effect`)
+### 5.6 Fixture Use Effects (`on_use_effect`)
 
 When `use <item_id> <fixture_id>` succeeds (tag match), the fixture's `on_use_effect` determines the outcome:
 
@@ -368,7 +410,7 @@ When `use <item_id> <fixture_id>` succeeds (tag match), the fixture's `on_use_ef
 
 **State Transition Validation:** If a fixture is already `OPEN` or `SPENT`, `use` on it appends `"Already done."` to `message_buffer` and does not advance the tick.
 
-### 5.6 Tick Processor (`core/tick.py`)
+### 5.7 Tick Processor (`core/tick.py`)
 
 The tick processor is a pure function called after every tick-advancing action: `process_tick(state: GameState) -> GameState`. It executes the following steps in order:
 
@@ -379,6 +421,7 @@ The tick processor is a pure function called after every tick-advancing action: 
 5. **Integrity Decay:** For every sustenance item in inventory, decrement integrity by 1 if `cycle % 10 == 0` (every 10 ticks). Remove items at integrity 0 and append `"<item_name> is used up."` to message_buffer.
 6. **Action Log:** Append a summary of the action that triggered this tick to `action_log` (keep max 20 entries, drop oldest).
 
+
 ---
 
 ## 6. UI Viewport & Terminal Constraints
@@ -388,7 +431,8 @@ The tick processor is a pure function called after every tick-advancing action: 
 * Terminal width must satisfy >= 40 columns.
 * Viewport is rendered as sequential newline-separated text. No ANSI escape sequences for cursor repositioning. Each render cycle prints a complete frame below the previous input.
 * Visual grids are bounded to N x N where N <= 8 (max grid width = 15 character columns, leaving >= 22 for Zone 3).
-* **Prohibited:** Emojis, ANSI color codes, player `@` icon.
+* **Prohibited:** Emojis, ANSI color codes.
+* **Player Cursor:** `@` marks the player's current tile on the Zone 2 grid. When an entity occupies the same tile, the entity glyph is displayed instead, but the cursor remains registered for proximity interaction.
 * **Permitted:** Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`), block elements (`█ ▓ ▒ ░`), math/technical symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ▲ ~ ◆ ■`).
 
 ### 6.2 Dynamic Zone Width Calculation
@@ -412,11 +456,11 @@ For the default N=5: `zone2=13, zone3=24`. For N=8: `zone2=19, zone3=18`. Both a
 │ ATM:101kPa TMP:21C RAD:NOM          │    current vitals from base_vitals.
 +──────────────────────────────────────+
 │ ZONE 2: MAP    │ ZONE 3: STATUS     │ <- Split Upper Viewport
-│ (N×N Grid)     │                    │    Zone 2: Spatial grid with
-│ ┌─────────┐    │ CYCLE: 088         │    fixture/actor glyphs.
+│ (N×N Grid)     │                    │    Zone 2: Spatial grid. Player
+│ ┌─────────┐    │ CYCLE: 088         │    cursor @ moves via WASD.
 │ │ · · = · │    │ EXPOSURE: NOM      │    Zone 3: Tick counter, exposure
 │ │ · ⌸ · · │    │                    │    status, and compact inventory.
-│ │ · · · · │    │ PACK:              │
+│ │ · @ · · │    │ PACK:              │
 │ │ · · ⚲ · │    │  fitting_copper(1) │
 │ └─────────┘    │  flask_water(3)    │
 +────────────────+────────────────────+
@@ -425,21 +469,21 @@ For the default N=5: `zone2=13, zone3=24`. For N=8: `zone2=19, zone3=18`. Both a
 │  ⌸ : Water spigot [spigot_01]       │    brackets for command targeting.
 │  ⚲ : Survey pylon [pylon_01]        │
 +──────────────────────────────────────+
-│ ZONE 5: MESSAGES                     │ <- message_buffer contents.
-│  Kael: "Need a collar for this      │    Trade dialogue, inspect output,
-│  hydraulic line."                    │    warnings, and error messages
-│  [!] Radiation elevated.             │    all render here.
+│ ZONE 5: MESSAGES / INTERACTION MENU  │ <- message_buffer contents OR
+│  [I] Inspect  [G] Go → Berth 04     │    proximity menu when cursor is
+│  [X] Cancel                         │    on an entity tile. Menu clears
+│  [!] Radiation elevated.            │    after selection or [X].
 +──────────────────────────────────────+
-│ > _                                  │ <- ZONE 6: INPUT PROMPT
-+──────────────────────────────────────+
+│ > _   (typed cmds: inspect, pack…)   │ <- ZONE 6: CONDITIONAL INPUT
++──────────────────────────────────────+   Raw keystroke mode otherwise.
 ```
 
 **Zone Rendering Rules:**
 - **Zone 1:** Always rendered. 2 lines: node name + vitals.
-- **Zone 2 + 3:** Side-by-side. Zone 2 width is computed from node grid size. Zone 3 fills remainder.
-- **Zone 4:** Legend block. One line per placed fixture/actor: `<glyph> : <name> [<id>]`. The `[<id>]` suffix is the target string used in commands.
-- **Zone 5:** Message buffer. Rendered and then cleared. If empty, zone is omitted. Max 6 lines displayed; older messages truncate.
-- **Zone 6:** Bare `> ` prompt. No command hints in the prompt line (they are available via `help`).
+- **Zone 2 + 3:** Side-by-side. Zone 2 width is computed from node grid size. Zone 3 fills remainder. Player `@` is drawn at `(player_row, player_col)`; entity glyphs take priority when co-located.
+- **Zone 4:** Legend block. One line per placed fixture/actor: `<glyph> : <name> [<id>]`. The `[<id>]` suffix is the target string used in typed commands.
+- **Zone 5:** Dual-purpose. In **message mode** (default): renders `message_buffer` then clears it (max 6 lines, older messages truncate; omitted if empty). In **proximity-menu mode** (when cursor lands on entity tile): replaces buffer with the interaction option list (§5.2). Menu is dismissed by selection or `[X]`.
+- **Zone 6:** Shown only when a typed command is needed (e.g. `inspect`, `pack`). Bare `> ` prompt. During raw keystroke navigation, Zone 6 is omitted or shows a passive key-hint line: `WASD: move  E: inspect  M: map  Q: quit`.
 
 ### 6.4 Dedicated Map Topology View (`map`)
 
@@ -471,7 +515,7 @@ TOPOLOGY [SECTOR GRAPH]
 [smlt] Smelter Flat        [crtr] Crater Rim
 [mine] Deep Mine (D:1)    [tube] Lava Tube (D:1)
 ────────────────────────────────────────
-CMD: back / leave <edge_id>
+CMD: back (return to compartment view — navigate via WASD on re-entry)
 > 
 ```
 
@@ -520,7 +564,7 @@ Begin? [y/n]:
 | Step 3: Routine | Choice 1: Scraper | `character.past_work = "seam_scraper"`; `unlocked_capabilities` += `{"seal_fitting"}` |
 | | Choice 2: Tender | `character.past_work = "algae_tender"`; `unlocked_capabilities` += `{"bio_filter"}` |
 | | Choice 3: Handler | `character.past_work = "cargo_handler"`; `unlocked_capabilities` += `{"heavy_lift"}` |
-| All | — | `current_node_id = "stn_a_bunkroom"`; `cycle = 0`; `exposure = Exposure(0,0,0)` |
+| All | — | `current_node_id = "stn_a_bunkroom"`; `cycle = 0`; `exposure = Exposure(0,0,0)`; `player_row = node.size // 2`; `player_col = node.size // 2`; `proximity_menu_active = False` |
 
 **Starting location is always `stn_a_bunkroom`**. The character creation flow was simplified from the original 5-step version to remove a starting-location choice that referenced undefined nodes. Starting in the bunkroom provides a safe Depth 0 tutorial space.
 
@@ -1586,7 +1630,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
 The renderer constructs the N×N grid dynamically from node data rather than storing pre-baked row strings:
 
 ```python
-def build_grid(node: Node) -> Tuple[str, ...]:
+def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
     """Construct N×N grid rows from node walls, floor, and placements."""
     n = node.size
     # Initialize grid with floor tiles
@@ -1604,6 +1648,10 @@ def build_grid(node: Node) -> Tuple[str, ...]:
                  node.actors.get(placement.entity_id)
         if entity:
             grid[placement.row][placement.col] = entity.glyph
+
+    # Overlay player cursor (@) — only if the cell is a floor tile (entity glyphs take priority)
+    if grid[player_row][player_col] == node.grid_floor:
+        grid[player_row][player_col] = '@'
 
     # Convert to display strings
     return tuple(' '.join(row) for row in grid)
@@ -1640,15 +1688,16 @@ When an LLM agent implements or refactors this repository, it must adhere to thi
 
 ### Phase 3: Pure State Reducers (`core/reducers.py`)
 
-**Task:** Implement one pure function per verb from §5.3.
+**Task:** Implement one pure function per verb/action from §5.4.
 
 **Function Signatures:**
 ```python
+def reduce_move(state: GameState, direction: str) -> GameState          # direction: "w"|"a"|"s"|"d"
+def reduce_interact_go(state: GameState) -> GameState                   # traverse edge at cursor tile
 def reduce_inspect(state: GameState, target_id: str) -> GameState
 def reduce_talk(state: GameState, actor_id: str) -> GameState
 def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState
 def reduce_wait(state: GameState) -> GameState
-def reduce_leave(state: GameState, edge_id: str) -> GameState
 # Non-tick commands:
 def reduce_map(state: GameState) -> GameState
 def reduce_back(state: GameState) -> GameState
@@ -1663,15 +1712,17 @@ def reduce_help(state: GameState) -> GameState
 **Acceptance Criteria:**
 - Every reducer is a pure function: `GameState -> GameState`. No I/O, no globals, no side effects.
 - State updates use `state._replace(...)` and construct fresh immutable tuples/mappings.
-- Tick-advancing reducers (`talk`, `use`, `wait`, `leave`) call the tick processor from `core/tick.py` before returning.
-- The trade protocol (§5.4) is implemented inside `reduce_talk`.
-- The fixture use effect table (§5.5) is implemented inside `reduce_use`.
+- `reduce_move`: clamps to grid bounds; blocked by wall tiles (border cells). On landing on an entity tile, sets `proximity_menu_active = True` and populates `message_buffer` with the menu options (§5.2). Advances tick.
+- `reduce_interact_go`: looks up the entity at `(player_row, player_col)`, finds its open `grants_edge`, checks capability, transitions `current_node_id`, resets `player_row`/`player_col` to grid centre of new node, advances tick.
+- Tick-advancing reducers (`reduce_move`, `reduce_interact_go`, `reduce_talk`, `reduce_use`, `reduce_wait`) call the tick processor from `core/tick.py` before returning.
+- The trade protocol (§5.5) is implemented inside `reduce_talk`.
+- The fixture use effect table (§5.6) is implemented inside `reduce_use`.
 - All error cases append descriptive messages to `message_buffer` and return state without advancing the tick.
 - Attunement checks (§8.1) are evaluated inside the tick processor.
 
 ### Phase 4: Tick Processor (`core/tick.py`)
 
-**Task:** Implement the tick processing pipeline from §5.6.
+**Task:** Implement the tick processing pipeline from §5.7.
 
 **Function Signature:**
 ```python
@@ -1679,7 +1730,7 @@ def process_tick(state: GameState, action_summary: str) -> GameState
 ```
 
 **Acceptance Criteria:**
-- Implements all 6 steps from §5.6 in order.
+- Implements all 6 steps from §5.7 in order.
 - Exposure formulas match §4.3 exactly.
 - Attunement mitigation checks reference `unlocked_capabilities`.
 - Sustenance decay triggers every 10 cycles.
@@ -1693,12 +1744,13 @@ def process_tick(state: GameState, action_summary: str) -> GameState
 **Acceptance Criteria:**
 - `render_frame(state: GameState, terminal_width: int) -> str` returns a complete frame string.
 - Dynamic zone width calculation per §6.2.
-- Grid is built via the algorithm in §10.
-- Zone 4 legend entries show `[id]` suffix for command targeting.
-- Zone 5 renders `message_buffer` contents (max 6 lines).
+- Grid is built via the algorithm in §10; player `@` is overlaid at `(player_row, player_col)` unless that cell holds an entity glyph.
+- Zone 4 legend entries show `[id]` suffix for typed command targeting.
+- Zone 5 renders proximity menu when `state.proximity_menu_active`, otherwise renders `message_buffer` (max 6 lines).
+- Zone 6 renders `WASD: move  E: inspect  M: map  Q: quit` during raw keystroke mode; switches to bare `> ` prompt only when a typed command is solicited.
 - `render_topology(state: GameState, terminal_width: int) -> str` renders the map view per §6.4.
 - Terminal width < 40 emits a resize warning string instead of the frame.
-- `ui/text_tools.py` provides `wrap_text(text: str, width: int) -> Tuple[str, ...]` and `check_terminal() -> int`.
+- `ui/text_tools.py` provides `wrap_text(text: str, width: int) -> Tuple[str, ...]`, `check_terminal() -> int`, and `read_raw_key() -> str` (uses `tty`/`termios` to return a single character without blocking on Enter).
 
 ### Phase 6: Atomic Persistence (`core/persistence.py`)
 
@@ -1707,20 +1759,27 @@ def process_tick(state: GameState, action_summary: str) -> GameState
 **Acceptance Criteria:**
 - `save_state(state: GameState, save_dir: Path) -> None` writes to `saves/<name>/state.json` atomically (write to temp file, then rename).
 - `load_state(save_dir: Path, presets: ...) -> Optional[GameState]` returns `None` if no save exists.
-- Serialization handles all NamedTuple nesting, Enums, FrozenSets, and Mappings.
+- Serialization handles all NamedTuple nesting, Enums, FrozenSets, and Mappings, including the new `player_row`, `player_col`, and `proximity_menu_active` fields.
 - Save occurs after every tick-advancing action.
 
 ### Phase 7: Input Runner (`main.py`)
 
-**Task:** Implement the top-level I/O loop.
+**Task:** Implement the top-level raw-keystroke I/O loop.
 
 **Acceptance Criteria:**
-- On startup: check for existing save. If found, load it. If not, run character creation (§7).
+- On startup: check for existing save. If found, load it. If not, run character creation (§7). Character creation uses conventional `input()` prompts.
 - Clone presets if missing (Phase 2).
-- Main loop: `print(render_frame(state))` → `input("> ")` → tokenize → dispatch → reduce → persist if ticked → repeat.
+- Main loop (raw keystroke mode):
+  1. `print(render_frame(state))` — emit the full frame.
+  2. `key = read_raw_key()` — read a single character without blocking on Enter.
+  3. If `key` is `w`/`a`/`s`/`d`: dispatch `reduce_move`.
+  4. If `state.proximity_menu_active` and `key` is `i`/`u`/`g`/`t`/`x`: dispatch the corresponding proximity action reducer.
+  5. If `key` is a typed-command initiator (`:`/`/` or any printable non-WASD key): collect remaining input via `input("> ")`, tokenize, dispatch to the matching reducer.
+  6. Reduce → persist if ticked → loop.
 - `KeyboardInterrupt` and `EOFError` trigger clean save and exit.
-- `quit` / `q` saves and exits.
-- The loop is the **only** place with I/O side effects (`print`, `input`, file writes). All other modules are pure.
+- `q` / `quit` saves and exits.
+- The loop is the **only** place with I/O side effects (`print`, `input`, `read_raw_key`, file writes). All other modules are pure.
+
 
 ---
 
