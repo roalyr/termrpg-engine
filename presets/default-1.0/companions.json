@@ -1,0 +1,9 @@
+[
+  {
+    "id": "comp_radek",
+    "name": "Radek",
+    "title": "Cargo Rigger",
+    "status": "Ready to work",
+    "capability_tag": "two_person_lift"
+  }
+]

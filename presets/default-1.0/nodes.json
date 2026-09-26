@@ -1,0 +1,994 @@
+[
+  {
+    "id": "stn_a_bunkroom",
+    "name": "Deck 4 - Shared Bunkroom",
+    "cluster": "station_alpha",
+    "size": 5,
+    "depth": 0,
+    "environment": "pressurized",
+    "base_vitals": {
+      "pressure_kpa": 101.3,
+      "radiation_msv": 0.1,
+      "temperature_c": 20
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "hatch_berth": {
+        "id": "hatch_berth",
+        "glyph": "=",
+        "name": "Transit Hatch",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_berth",
+        "on_use_effect": null,
+        "description": "Standard oval pressure seal leading to the primary berths."
+      },
+      "spigot_01": {
+        "id": "spigot_01",
+        "glyph": "⌸",
+        "name": "Water Spigot",
+        "state": "active",
+        "required_tag": "refillable",
+        "grants_edge": null,
+        "on_use_effect": "refill",
+        "description": "Push-valve tap metering gray-line recycled water."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "hatch_berth",
+        "row": 0,
+        "col": 2
+      },
+      {
+        "entity_id": "spigot_01",
+        "row": 3,
+        "col": 1
+      }
+    ],
+    "edges": {
+      "to_berth": {
+        "id": "to_berth",
+        "target_node_id": "stn_a_berth",
+        "label": "Berth 04",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      }
+    },
+    "description": "Narrow compartment lined with fold-down bunks. Recycled air tastes of copper and cleaning solvent."
+  },
+  {
+    "id": "stn_a_berth",
+    "name": "Berth 04 - Transfer Platform",
+    "cluster": "station_alpha",
+    "size": 7,
+    "depth": 0,
+    "environment": "pressurized",
+    "base_vitals": {
+      "pressure_kpa": 101.3,
+      "radiation_msv": 0.2,
+      "temperature_c": 18
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "hatch_bunks": {
+        "id": "hatch_bunks",
+        "glyph": "◆",
+        "name": "Bunkroom Hatch",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_bunks",
+        "on_use_effect": null,
+        "description": "Hatch back to the shared sleeping quarters."
+      },
+      "cargo_hoist": {
+        "id": "cargo_hoist",
+        "glyph": "⎅",
+        "name": "Cargo Hoist Platform",
+        "state": "locked",
+        "required_tag": "dock_clearance",
+        "grants_edge": "to_subdeck",
+        "on_use_effect": "unlock",
+        "description": "Chain-driven freight platform descending into the lower conduit well."
+      },
+      "shuttle_gate": {
+        "id": "shuttle_gate",
+        "glyph": "=",
+        "name": "Shuttle Boarding Gate",
+        "state": "sealed",
+        "required_tag": "transit_clearance",
+        "grants_edge": "to_shuttle",
+        "on_use_effect": "unlock",
+        "description": "Flexible boarding seal clamped to the exterior hopper vessel."
+      },
+      "freight_skid": {
+        "id": "freight_skid",
+        "glyph": "▓",
+        "name": "Lashed Freight Skid",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": null,
+        "description": "Heavy cargo skid lashed down with tension clamps. Manifest reads: machine parts, Luna-bound."
+      },
+      "hab_hatch": {
+        "id": "hab_hatch",
+        "glyph": "≡",
+        "name": "Hab Ring Corridor",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_hab",
+        "on_use_effect": null,
+        "description": "Wide corridor hatch leading up to the hab ring common gallery."
+      }
+    },
+    "actors": {
+      "npc_kael": {
+        "id": "npc_kael",
+        "glyph": "K",
+        "name": "Kael",
+        "title": "Dock Stevedore",
+        "status": "Checking tension clamps on freight skid",
+        "trade_offered_id": "pass_work",
+        "trade_required_tag": "seal_fitting",
+        "trade_completed": false,
+        "dialogue_idle": "Hopper to the moon pad is spooling. Need a replacement collar for this hydraulic line before I can endorse any passes.",
+        "dialogue_post_trade": "Collar's seated. Here — shift pass, endorsed. Radek down on the sub-deck could use a hand with the cargo platform.",
+        "companion_unlock": null
+      }
+    },
+    "placements": [
+      {
+        "entity_id": "hatch_bunks",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "freight_skid",
+        "row": 2,
+        "col": 2
+      },
+      {
+        "entity_id": "npc_kael",
+        "row": 2,
+        "col": 4
+      },
+      {
+        "entity_id": "hab_hatch",
+        "row": 3,
+        "col": 0
+      },
+      {
+        "entity_id": "shuttle_gate",
+        "row": 3,
+        "col": 6
+      },
+      {
+        "entity_id": "cargo_hoist",
+        "row": 5,
+        "col": 3
+      }
+    ],
+    "edges": {
+      "to_bunks": {
+        "id": "to_bunks",
+        "target_node_id": "stn_a_bunkroom",
+        "label": "Bunkroom",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      },
+      "to_hab": {
+        "id": "to_hab",
+        "target_node_id": "stn_a_hab",
+        "label": "Hab Ring",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      },
+      "to_shuttle": {
+        "id": "to_shuttle",
+        "target_node_id": "shuttle_ab",
+        "label": "Shuttle Hopper",
+        "gated_by_fixture": "shuttle_gate",
+        "requires_capability": null
+      },
+      "to_subdeck": {
+        "id": "to_subdeck",
+        "target_node_id": "stn_a_sub",
+        "label": "Sub-Deck",
+        "gated_by_fixture": "cargo_hoist",
+        "requires_capability": null
+      }
+    },
+    "description": "Open transfer bay smelling of hydraulic fluid and ozone. Cargo skids line the deck under industrial lighting."
+  },
+  {
+    "id": "stn_a_sub",
+    "name": "Sub-Deck - Conduit Well",
+    "cluster": "station_alpha",
+    "size": 6,
+    "depth": 1,
+    "environment": "depressurizing",
+    "base_vitals": {
+      "pressure_kpa": 65.0,
+      "radiation_msv": 2.0,
+      "temperature_c": -25
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "hoist_up": {
+        "id": "hoist_up",
+        "glyph": "⎅",
+        "name": "Cargo Hoist (Up)",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_berth",
+        "on_use_effect": null,
+        "description": "Chain platform ascending back to Berth 04."
+      },
+      "jammed_valve": {
+        "id": "jammed_valve",
+        "glyph": "■",
+        "name": "Jammed Pressure Valve",
+        "state": "disabled",
+        "required_tag": "force_lever",
+        "grants_edge": null,
+        "on_use_effect": "repair",
+        "description": "Manual shutoff valve seized by thermal contraction. Frozen in the closed position."
+      }
+    },
+    "actors": {
+      "npc_radek": {
+        "id": "npc_radek",
+        "glyph": "R",
+        "name": "Radek",
+        "title": "Cargo Rigger",
+        "status": "Crouched by a frozen conduit junction",
+        "trade_offered_id": "ration_dry",
+        "trade_required_tag": "force_lever",
+        "trade_completed": false,
+        "dialogue_idle": "Valve's seized. Can't move freight until someone levers it open. Got a bar?",
+        "dialogue_post_trade": "That did it. Pressure's equalizing. Take this ration — I packed extra. I'll stick around if you're heading deeper.",
+        "companion_unlock": "comp_radek"
+      }
+    },
+    "placements": [
+      {
+        "entity_id": "hoist_up",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "jammed_valve",
+        "row": 3,
+        "col": 1
+      },
+      {
+        "entity_id": "npc_radek",
+        "row": 3,
+        "col": 4
+      }
+    ],
+    "edges": {
+      "to_berth": {
+        "id": "to_berth",
+        "target_node_id": "stn_a_berth",
+        "label": "Berth 04 (Up)",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      }
+    },
+    "description": "Low-ceilinged conduit passage. Frost crusts the pipe manifolds. The air is thin and bites cold."
+  },
+  {
+    "id": "stn_a_hab",
+    "name": "Hab Ring - Common Gallery",
+    "cluster": "station_alpha",
+    "size": 6,
+    "depth": 0,
+    "environment": "pressurized",
+    "base_vitals": {
+      "pressure_kpa": 101.3,
+      "radiation_msv": 0.1,
+      "temperature_c": 21
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "hatch_to_berth": {
+        "id": "hatch_to_berth",
+        "glyph": "=",
+        "name": "Berth Access Hatch",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_berth",
+        "on_use_effect": null,
+        "description": "Wide corridor hatch leading down to the transfer berths."
+      },
+      "notice_board": {
+        "id": "notice_board",
+        "glyph": "≡",
+        "name": "Station Notice Board",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": null,
+        "description": "Laminated postings: shift rosters, water ration schedules, a missing-persons notice dated three cycles back."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "hatch_to_berth",
+        "row": 5,
+        "col": 3
+      },
+      {
+        "entity_id": "notice_board",
+        "row": 2,
+        "col": 2
+      }
+    ],
+    "edges": {
+      "to_berth": {
+        "id": "to_berth",
+        "target_node_id": "stn_a_berth",
+        "label": "Berth 04",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      }
+    },
+    "description": "Curved corridor segment with brushed-metal walls. Handrails run at waist height. Faint hum of air recyclers."
+  },
+  {
+    "id": "shuttle_ab",
+    "name": "Inter-Station Shuttle",
+    "cluster": "transit",
+    "size": 4,
+    "depth": 0,
+    "environment": "pressurized",
+    "base_vitals": {
+      "pressure_kpa": 98.0,
+      "radiation_msv": 1.5,
+      "temperature_c": 16
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "gate_alpha": {
+        "id": "gate_alpha",
+        "glyph": "◆",
+        "name": "Station Alpha Umbilical",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_stn_a",
+        "on_use_effect": null,
+        "description": "Docking collar sealed to Station Alpha's Berth 04."
+      },
+      "gate_beta": {
+        "id": "gate_beta",
+        "glyph": "=",
+        "name": "Station Beta Umbilical",
+        "state": "sealed",
+        "required_tag": "transit_clearance",
+        "grants_edge": "to_stn_b",
+        "on_use_effect": "unlock",
+        "description": "Docking collar to Station Beta's Dock Ring. Requires transit token."
+      },
+      "gate_luna": {
+        "id": "gate_luna",
+        "glyph": "▲",
+        "name": "Lunar Descent Hatch",
+        "state": "sealed",
+        "required_tag": "transit_clearance",
+        "grants_edge": "to_luna",
+        "on_use_effect": "unlock",
+        "description": "Descent module hatch for the surface run to Lunar Pad."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "gate_alpha",
+        "row": 0,
+        "col": 1
+      },
+      {
+        "entity_id": "gate_beta",
+        "row": 0,
+        "col": 2
+      },
+      {
+        "entity_id": "gate_luna",
+        "row": 3,
+        "col": 1
+      }
+    ],
+    "edges": {
+      "to_stn_a": {
+        "id": "to_stn_a",
+        "target_node_id": "stn_a_berth",
+        "label": "Station Alpha",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      },
+      "to_stn_b": {
+        "id": "to_stn_b",
+        "target_node_id": "stn_b_dock",
+        "label": "Station Beta",
+        "gated_by_fixture": "gate_beta",
+        "requires_capability": null
+      },
+      "to_luna": {
+        "id": "to_luna",
+        "target_node_id": "luna_pad",
+        "label": "Lunar Surface",
+        "gated_by_fixture": "gate_luna",
+        "requires_capability": null
+      }
+    },
+    "description": "Cramped shuttle cabin with four acceleration couches. Viewport shows the slow rotation of station superstructure."
+  },
+  {
+    "id": "stn_b_dock",
+    "name": "Dock Ring - Bay 7",
+    "cluster": "station_beta",
+    "size": 6,
+    "depth": 0,
+    "environment": "pressurized",
+    "base_vitals": {
+      "pressure_kpa": 100.5,
+      "radiation_msv": 0.3,
+      "temperature_c": 19
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "shuttle_return": {
+        "id": "shuttle_return",
+        "glyph": "◆",
+        "name": "Shuttle Docking Port",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_shuttle",
+        "on_use_effect": null,
+        "description": "Umbilical back to the inter-station shuttle."
+      },
+      "hatch_array": {
+        "id": "hatch_array",
+        "glyph": "=",
+        "name": "Array Corridor Hatch",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_array",
+        "on_use_effect": null,
+        "description": "Pressure hatch leading to the communications array hub."
+      },
+      "hatch_fuel": {
+        "id": "hatch_fuel",
+        "glyph": "▲",
+        "name": "Fuel Spur Access",
+        "state": "sealed",
+        "required_tag": "id_verified",
+        "grants_edge": "to_fuel",
+        "on_use_effect": "unlock",
+        "description": "Heavy blast door to the fuel processing spur. ID verification required."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "shuttle_return",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "hatch_array",
+        "row": 3,
+        "col": 0
+      },
+      {
+        "entity_id": "hatch_fuel",
+        "row": 3,
+        "col": 5
+      }
+    ],
+    "edges": {
+      "to_shuttle": {
+        "id": "to_shuttle",
+        "target_node_id": "shuttle_ab",
+        "label": "Shuttle",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      },
+      "to_array": {
+        "id": "to_array",
+        "target_node_id": "stn_b_array",
+        "label": "Array Hub",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      },
+      "to_fuel": {
+        "id": "to_fuel",
+        "target_node_id": "stn_b_fuel",
+        "label": "Fuel Spur",
+        "gated_by_fixture": "hatch_fuel",
+        "requires_capability": null
+      }
+    },
+    "description": "Wide docking bay with magnetic clamp rails and loading gantries. The air smells of fuel volatiles and sealant."
+  },
+  {
+    "id": "stn_b_array",
+    "name": "Array Hub - Comms Center",
+    "cluster": "station_beta",
+    "size": 5,
+    "depth": 0,
+    "environment": "pressurized",
+    "base_vitals": {
+      "pressure_kpa": 101.0,
+      "radiation_msv": 0.2,
+      "temperature_c": 20
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "hatch_dock": {
+        "id": "hatch_dock",
+        "glyph": "◆",
+        "name": "Dock Ring Hatch",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_dock",
+        "on_use_effect": null,
+        "description": "Corridor back to Dock Ring Bay 7."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "hatch_dock",
+        "row": 4,
+        "col": 2
+      }
+    ],
+    "edges": {
+      "to_dock": {
+        "id": "to_dock",
+        "target_node_id": "stn_b_dock",
+        "label": "Dock Ring",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      }
+    },
+    "description": "Hexagonal chamber packed with signal processing racks. Status LEDs blink in steady patterns. Quiet."
+  },
+  {
+    "id": "stn_b_fuel",
+    "name": "Fuel Spur - Processing Bay",
+    "cluster": "station_beta",
+    "size": 5,
+    "depth": 0,
+    "environment": "pressurized",
+    "base_vitals": {
+      "pressure_kpa": 99.0,
+      "radiation_msv": 1.0,
+      "temperature_c": 22
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "hatch_dock_fuel": {
+        "id": "hatch_dock_fuel",
+        "glyph": "◆",
+        "name": "Dock Ring Hatch",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_dock",
+        "on_use_effect": null,
+        "description": "Blast door back to Dock Ring."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "hatch_dock_fuel",
+        "row": 4,
+        "col": 2
+      }
+    ],
+    "edges": {
+      "to_dock": {
+        "id": "to_dock",
+        "target_node_id": "stn_b_dock",
+        "label": "Dock Ring",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      }
+    },
+    "description": "Processing bay with pressurized fuel lines running floor to ceiling. Warning placards on every surface."
+  },
+  {
+    "id": "luna_pad",
+    "name": "Lunar Surface Pad",
+    "cluster": "lunar_base",
+    "size": 7,
+    "depth": 0,
+    "environment": "vacuum",
+    "base_vitals": {
+      "pressure_kpa": 0.0,
+      "radiation_msv": 25.0,
+      "temperature_c": -80
+    },
+    "grid_floor": "~",
+    "grid_wall": "░",
+    "fixtures": {
+      "lander_hatch": {
+        "id": "lander_hatch",
+        "glyph": "▲",
+        "name": "Lander Ascent Hatch",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_shuttle",
+        "on_use_effect": null,
+        "description": "Ascent module hatch back to the shuttle."
+      },
+      "dome_airlock": {
+        "id": "dome_airlock",
+        "glyph": "=",
+        "name": "Habitat Dome Airlock",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_dome",
+        "on_use_effect": null,
+        "description": "Reinforced airlock cylinder leading into the pressurized dome."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "lander_hatch",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "dome_airlock",
+        "row": 6,
+        "col": 3
+      }
+    ],
+    "edges": {
+      "to_shuttle": {
+        "id": "to_shuttle",
+        "target_node_id": "shuttle_ab",
+        "label": "Shuttle (Ascent)",
+        "gated_by_fixture": null,
+        "requires_capability": "vacuum_traverse"
+      },
+      "to_dome": {
+        "id": "to_dome",
+        "target_node_id": "luna_dome",
+        "label": "Habitat Dome",
+        "gated_by_fixture": null,
+        "requires_capability": "vacuum_traverse"
+      }
+    },
+    "description": "Flat regolith landing apron under unfiltered starlight. Boot prints fade into gray dust. Silence."
+  },
+  {
+    "id": "luna_dome",
+    "name": "Habitat Dome - Central Bay",
+    "cluster": "lunar_base",
+    "size": 7,
+    "depth": 0,
+    "environment": "pressurized",
+    "base_vitals": {
+      "pressure_kpa": 95.0,
+      "radiation_msv": 3.0,
+      "temperature_c": 17
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "airlock_pad": {
+        "id": "airlock_pad",
+        "glyph": "=",
+        "name": "Surface Pad Airlock",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_pad",
+        "on_use_effect": null,
+        "description": "Airlock back to the open surface pad."
+      },
+      "hatch_smelter": {
+        "id": "hatch_smelter",
+        "glyph": "◆",
+        "name": "Smelter Corridor",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_smelter",
+        "on_use_effect": null,
+        "description": "Heated corridor leading to the smelting facility."
+      },
+      "hatch_crater": {
+        "id": "hatch_crater",
+        "glyph": "▲",
+        "name": "Crater Rim Access",
+        "state": "sealed",
+        "required_tag": "heavy_duty",
+        "grants_edge": "to_crater",
+        "on_use_effect": "unlock",
+        "description": "Heavy exterior hatch to the crater rim observation path."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "airlock_pad",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "hatch_smelter",
+        "row": 3,
+        "col": 0
+      },
+      {
+        "entity_id": "hatch_crater",
+        "row": 3,
+        "col": 6
+      }
+    ],
+    "edges": {
+      "to_pad": {
+        "id": "to_pad",
+        "target_node_id": "luna_pad",
+        "label": "Surface Pad",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      },
+      "to_smelter": {
+        "id": "to_smelter",
+        "target_node_id": "luna_smelter",
+        "label": "Smelter Flat",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      },
+      "to_crater": {
+        "id": "to_crater",
+        "target_node_id": "luna_crater",
+        "label": "Crater Rim",
+        "gated_by_fixture": "hatch_crater",
+        "requires_capability": null
+      }
+    },
+    "description": "Geodesic dome interior with hydroponic trays and water recyclers. Artificial daylight panels overhead."
+  },
+  {
+    "id": "luna_smelter",
+    "name": "Smelter Flat - Processing Floor",
+    "cluster": "lunar_base",
+    "size": 6,
+    "depth": 0,
+    "environment": "pressurized",
+    "base_vitals": {
+      "pressure_kpa": 93.0,
+      "radiation_msv": 5.0,
+      "temperature_c": 35
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "hatch_dome_smelter": {
+        "id": "hatch_dome_smelter",
+        "glyph": "◆",
+        "name": "Dome Corridor",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_dome",
+        "on_use_effect": null,
+        "description": "Corridor back to the habitat dome."
+      },
+      "mine_shaft": {
+        "id": "mine_shaft",
+        "glyph": "⎅",
+        "name": "Mine Shaft Cage",
+        "state": "locked",
+        "required_tag": "two_person_lift",
+        "grants_edge": "to_mine",
+        "on_use_effect": "unlock",
+        "description": "Two-person cage lift descending into the deep mine. Requires two operators."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "hatch_dome_smelter",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "mine_shaft",
+        "row": 5,
+        "col": 3
+      }
+    ],
+    "edges": {
+      "to_dome": {
+        "id": "to_dome",
+        "target_node_id": "luna_dome",
+        "label": "Habitat Dome",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      },
+      "to_mine": {
+        "id": "to_mine",
+        "target_node_id": "luna_mine",
+        "label": "Deep Mine",
+        "gated_by_fixture": "mine_shaft",
+        "requires_capability": null
+      }
+    },
+    "description": "Industrial floor vibrating with furnace resonance. Ore dust coats every surface. Heat radiates from smelting crucibles."
+  },
+  {
+    "id": "luna_crater",
+    "name": "Crater Rim - Observation Path",
+    "cluster": "lunar_base",
+    "size": 6,
+    "depth": 0,
+    "environment": "vacuum",
+    "base_vitals": {
+      "pressure_kpa": 0.0,
+      "radiation_msv": 30.0,
+      "temperature_c": -120
+    },
+    "grid_floor": "~",
+    "grid_wall": "░",
+    "fixtures": {
+      "hatch_dome_crater": {
+        "id": "hatch_dome_crater",
+        "glyph": "◆",
+        "name": "Dome Access",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_dome",
+        "on_use_effect": null,
+        "description": "Hatch back to the habitat dome."
+      },
+      "tube_entrance": {
+        "id": "tube_entrance",
+        "glyph": "⎅",
+        "name": "Lava Tube Descent",
+        "state": "sealed",
+        "required_tag": "force_lever",
+        "grants_edge": "to_tube",
+        "on_use_effect": "unlock",
+        "description": "Bolted hatch covering a natural lava tube opening. Pry marks around the rim."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "hatch_dome_crater",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "tube_entrance",
+        "row": 5,
+        "col": 3
+      }
+    ],
+    "edges": {
+      "to_dome": {
+        "id": "to_dome",
+        "target_node_id": "luna_dome",
+        "label": "Habitat Dome",
+        "gated_by_fixture": null,
+        "requires_capability": "vacuum_traverse"
+      },
+      "to_tube": {
+        "id": "to_tube",
+        "target_node_id": "luna_tube",
+        "label": "Lava Tube",
+        "gated_by_fixture": "tube_entrance",
+        "requires_capability": null
+      }
+    },
+    "description": "Narrow path carved into the crater wall. Earth hangs above the horizon line. No sound at all."
+  },
+  {
+    "id": "luna_mine",
+    "name": "Deep Mine - Primary Shaft",
+    "cluster": "lunar_base",
+    "size": 5,
+    "depth": 1,
+    "environment": "depressurizing",
+    "base_vitals": {
+      "pressure_kpa": 50.0,
+      "radiation_msv": 15.0,
+      "temperature_c": -30
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "cage_up": {
+        "id": "cage_up",
+        "glyph": "⎅",
+        "name": "Mine Cage (Up)",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_smelter",
+        "on_use_effect": null,
+        "description": "Cage lift back to the smelter floor."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "cage_up",
+        "row": 0,
+        "col": 2
+      }
+    ],
+    "edges": {
+      "to_smelter": {
+        "id": "to_smelter",
+        "target_node_id": "luna_smelter",
+        "label": "Smelter Flat (Up)",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      }
+    },
+    "description": "Rough-hewn shaft descending into basalt. Drill marks line the walls. Cold seeps from the rock."
+  },
+  {
+    "id": "luna_tube",
+    "name": "Lava Tube - Natural Chamber",
+    "cluster": "lunar_base",
+    "size": 6,
+    "depth": 1,
+    "environment": "low_temp",
+    "base_vitals": {
+      "pressure_kpa": 40.0,
+      "radiation_msv": 8.0,
+      "temperature_c": -45
+    },
+    "grid_floor": "·",
+    "grid_wall": "░",
+    "fixtures": {
+      "ascent_hatch": {
+        "id": "ascent_hatch",
+        "glyph": "⎅",
+        "name": "Crater Rim Ascent",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_crater",
+        "on_use_effect": null,
+        "description": "Ladder and hatch back up to the crater rim."
+      }
+    },
+    "actors": {},
+    "placements": [
+      {
+        "entity_id": "ascent_hatch",
+        "row": 0,
+        "col": 3
+      }
+    ],
+    "edges": {
+      "to_crater": {
+        "id": "to_crater",
+        "target_node_id": "luna_crater",
+        "label": "Crater Rim (Up)",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      }
+    },
+    "description": "Vast natural tube of frozen basalt. The ceiling vanishes into darkness. Something drips in the distance."
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "seam_discipline",
+    "name": "Seam Discipline",
+    "description": "Inspect sealed fixtures to reveal leak state and required tool tags.",
+    "prerequisite": null,
+    "unlock_condition": "use_fixture",
+    "unlock_parameter": "spigot_01",
+    "attuned": false
+  },
+  {
+    "id": "bulkhead_ear",
+    "name": "Bulkhead Ear",
+    "description": "Inspect sealed edge fixtures to reveal destination pressure before opening.",
+    "prerequisite": "seam_discipline",
+    "unlock_condition": "visit_node",
+    "unlock_parameter": "stn_a_sub",
+    "attuned": false
+  },
+  {
+    "id": "cold_bypass",
+    "name": "Cold-Line Bypass",
+    "description": "Halves temperature exposure accumulation rate.",
+    "prerequisite": null,
+    "unlock_condition": "survive_depth",
+    "unlock_parameter": "1",
+    "attuned": false
+  },
+  {
+    "id": "vacuum_walk",
+    "name": "Vacuum Walk",
+    "description": "Halves pressure exposure accumulation. Grants vacuum_traverse capability.",
+    "prerequisite": "cold_bypass",
+    "unlock_condition": "complete_trade",
+    "unlock_parameter": "npc_kael",
+    "attuned": false
+  },
+  {
+    "id": "deep_well",
+    "name": "Deep-Well Attunement",
+    "description": "Halves radiation exposure accumulation rate.",
+    "prerequisite": "bulkhead_ear",
+    "unlock_condition": "survive_depth",
+    "unlock_parameter": "2",
+    "attuned": false
+  },
+  {
+    "id": "trench_hardened",
+    "name": "Trench Hardened",
+    "description": "All exposure thresholds increased by 5.0 (stressed at 10, critical at 15, incapacitated at 20).",
+    "prerequisite": "vacuum_walk",
+    "unlock_condition": "visit_node",
+    "unlock_parameter": "luna_mine",
+    "attuned": false
+  }
+]
