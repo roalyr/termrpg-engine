@@ -431,9 +431,9 @@ The tick processor is a pure function called after every tick-advancing action: 
 * Terminal width must satisfy >= 40 columns.
 * Viewport is rendered as sequential newline-separated text. The terminal is cleared prior to each render cycle to provide a persistent, flicker-free viewport.
 * Visual grids are bounded to N x N where N <= 8 (max grid width = 15 character columns, leaving >= 22 for Zone 3).
-* **Prohibited:** Emojis, ANSI color codes.
-* **Player Cursor:** `@` marks the player's current tile on the Zone 2 grid. When an entity occupies the same tile, the entity glyph is displayed instead, but the cursor remains registered for proximity interaction.
-* **Permitted:** Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`), block elements (`█ ▓ ▒ ░`), math/technical symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ▲ ~ ◆ ■`).
+* **Prohibited:** Emojis, ANSI 16/256/RGB color palettes.
+* **Player Cursor:** `@` marks the player's current tile on the Zone 2 grid. When the player cursor overlaps with an item, fixture, or actor tile, the entity glyph is displayed with inverted colors (`\033[7m`), clearly indicating cursor position while preserving the entity icon.
+* **Permitted:** Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`), block elements (`█ ▓ ▒ ░`), math/technical symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ▲ ~ ◆ ■`), ANSI reverse-video video inversion (`\033[7m`) for cursor overlap.
 
 ### 6.2 Dynamic Zone Width Calculation
 
@@ -1649,9 +1649,12 @@ def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
         if entity:
             grid[placement.row][placement.col] = entity.glyph
 
-    # Overlay player cursor (@) — only if the cell is a floor tile (entity glyphs take priority)
-    if grid[player_row][player_col] == node.grid_floor:
+    # Overlay player cursor (@) on floor; invert entity glyph color on overlap
+    cell = grid[player_row][player_col]
+    if cell == node.grid_floor:
         grid[player_row][player_col] = '@'
+    else:
+        grid[player_row][player_col] = f"\033[7m{cell}\033[0m"
 
     # Convert to display strings
     return tuple(' '.join(row) for row in grid)

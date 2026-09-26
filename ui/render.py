@@ -1,13 +1,13 @@
 from typing import Tuple, List, Optional
 from core.types import GameState, Node, Fixture, Actor
-from ui.text_tools import wrap_text
+from ui.text_tools import wrap_text, pad_visible
 from ui.topology_view import render_topology
 
 
 def build_grid(node: Node, player_row: int = -1, player_col: int = -1) -> Tuple[str, ...]:
     """
     Constructs N×N grid rows from node walls, floor, placements, and player cursor
-    strictly according to §10 of the GDD.
+    strictly according to §10 of the GDD. Inverts entity tile color on player overlap.
     """
     n = node.size
     grid = [[node.grid_floor] * n for _ in range(n)]
@@ -24,8 +24,12 @@ def build_grid(node: Node, player_row: int = -1, player_col: int = -1) -> Tuple[
             grid[placement.row][placement.col] = entity.glyph
 
     if 0 <= player_row < n and 0 <= player_col < n:
-        if grid[player_row][player_col] == node.grid_floor:
+        cell = grid[player_row][player_col]
+        if cell == node.grid_floor:
             grid[player_row][player_col] = '@'
+        else:
+            # Overlap with item/entity tile: invert the item tile color
+            grid[player_row][player_col] = f"\033[7m{cell}\033[0m"
 
     return tuple(' '.join(row) for row in grid)
 
@@ -77,7 +81,7 @@ def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = Fals
     z2_bot = "└" + "─" * (z2_w - 2) + "┘"
     z2_rows.append(z2_top)
     for row in grid_rows:
-        z2_rows.append("│" + f"{row:^{z2_w - 2}}" + "│")
+        z2_rows.append("│" + pad_visible(row, z2_w - 2, align='^') + "│")
     z2_rows.append(z2_bot)
 
     # Format Zone 3 (Status)

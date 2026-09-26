@@ -3,7 +3,7 @@ from pathlib import Path
 from core.presets import init_game_state
 from ui.render import render_frame, build_grid
 from ui.topology_view import render_topology
-from ui.text_tools import wrap_text, check_terminal, clear_terminal
+from ui.text_tools import wrap_text, check_terminal, clear_terminal, visible_len
 import io
 import sys
 
@@ -32,8 +32,8 @@ class TestUI(unittest.TestCase):
                 if line.startswith(">"):
                     continue
                 self.assertEqual(
-                    len(line), 40,
-                    f"Node {node_id} line {idx} len is {len(line)} != 40: '{line}'"
+                    visible_len(line), 40,
+                    f"Node {node_id} line {idx} visible len is {visible_len(line)} != 40: '{line}'"
                 )
 
     def test_render_frame_viewport_under_40(self):
@@ -52,10 +52,10 @@ class TestUI(unittest.TestCase):
         row2 = grid[2].split()
         self.assertEqual(row2[2], "@")
 
-        # Player co-located with spigot at (3, 1) -> entity glyph takes priority
+        # Player co-located with spigot at (3, 1) -> entity glyph takes priority with inverted color
         grid_co = build_grid(node, 3, 1)
         row3 = grid_co[3].split()
-        self.assertEqual(row3[1], "⌸")
+        self.assertEqual(row3[1], "\033[7m⌸\033[0m")
 
     def test_render_frame_proximity_menu(self):
         st = self.state._replace(

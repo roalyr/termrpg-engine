@@ -1,6 +1,30 @@
 import os
+import re
 import shutil
 from typing import Tuple, List
+
+ANSI_ESCAPE_RE = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+
+
+def visible_len(text: str) -> int:
+    """Returns the visible character length of text, ignoring ANSI escape sequences."""
+    return len(ANSI_ESCAPE_RE.sub('', text))
+
+
+def pad_visible(text: str, width: int, align: str = '^') -> str:
+    """Pads a string to target width based on visible character length."""
+    vlen = visible_len(text)
+    total_pad = max(0, width - vlen)
+    if align == '^':
+        left = total_pad // 2
+        right = total_pad - left
+        return " " * left + text + " " * right
+    elif align == '<':
+        return text + " " * total_pad
+    elif align == '>':
+        return " " * total_pad + text
+    return text
+
 
 def check_terminal() -> int:
     """Returns terminal column width, defaulting to 40 on error or non-interactive shells."""
