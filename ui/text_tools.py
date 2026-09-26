@@ -52,3 +52,14 @@ def read_raw_key() -> str:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
     return ch
 
+
+def clear_terminal() -> None:
+    """Clears the terminal screen and resets cursor position."""
+    import sys
+    if os.name == "nt":
+        os.system("cls")
+    else:
+        sys.stdout.write("\033[H\033[2J")
+        sys.stdout.flush()
+
+

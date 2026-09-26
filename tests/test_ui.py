@@ -3,7 +3,9 @@ from pathlib import Path
 from core.presets import init_game_state
 from ui.render import render_frame, build_grid
 from ui.topology_view import render_topology
-from ui.text_tools import wrap_text, check_terminal
+from ui.text_tools import wrap_text, check_terminal, clear_terminal
+import io
+import sys
 
 class TestUI(unittest.TestCase):
     def setUp(self):
@@ -67,6 +69,17 @@ class TestUI(unittest.TestCase):
     def test_render_frame_key_hints(self):
         frame = render_frame(self.state, 40)
         self.assertIn("WASD: move", frame)
+        self.assertIn("/: cmd", frame)
+
+    def test_clear_terminal(self):
+        old_stdout = sys.stdout
+        sys.stdout = io.StringIO()
+        try:
+            clear_terminal()
+            output = sys.stdout.getvalue()
+            self.assertIn("\033[H\033[2J", output)
+        finally:
+            sys.stdout = old_stdout
 
 if __name__ == "__main__":
     unittest.main()

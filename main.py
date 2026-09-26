@@ -7,7 +7,7 @@ from core.presets import init_game_state, ensure_presets
 from core.persistence import save_state, load_state
 from core.actions import dispatch_action
 from ui.render import render_frame
-from ui.text_tools import check_terminal, read_raw_key
+from ui.text_tools import check_terminal, read_raw_key, clear_terminal
 
 DEFAULT_PRESET_DIR = Path("presets/default-1.0")
 DEFAULT_SAVES_DIR = Path("saves")
@@ -155,6 +155,7 @@ def main() -> None:
     # Main raw-keystroke I/O game loop per §11 Phase 7
     try:
         while state.is_running:
+            clear_terminal()
             term_w = check_terminal()
             output = render_frame(state, term_w)
             print(output, end="", flush=True)
@@ -175,17 +176,14 @@ def main() -> None:
                         action_input = k_lower
                     elif k_lower == 'q':
                         action_input = "quit"
-                    elif key in ('\r', '\n'):
-                        action_input = ""
-                    elif key in (':', '/'):
-                        # Solicit typed command
-                        print("\n> ", end="", flush=True)
-                        action_input = input().strip()
+                    elif key == '/':
+                        # Slash initiates command entry; all other typing is prevented
+                        print("\n/ ", end="", flush=True)
+                        cmd = input().strip()
+                        action_input = "/" + cmd if cmd else ""
                     else:
-                        # Any other printable character: start typed command
-                        print(f"\n> {key}", end="", flush=True)
-                        rest = input()
-                        action_input = (key + rest).strip()
+                        # All other input is consumed without opening prompt
+                        action_input = ""
                 else:
                     line = sys.stdin.readline()
                     if not line:

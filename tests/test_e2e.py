@@ -18,9 +18,13 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertEqual(state.cycle, 0)
         self.assertTrue(any(i.id == "fitting_copper" for i in state.character.inventory))
 
-        # Inspect fixture
-        state = dispatch_action(state, "inspect spigot_01")
+        # Inspect fixture with slash command
+        state = dispatch_action(state, "/inspect spigot_01")
         self.assertTrue(any("Water Spigot" in m for m in state.message_buffer))
+
+        # Check pack with slash command
+        pack_state = dispatch_action(state, "/pack")
+        self.assertTrue(any("CARRIED GEAR" in m for m in pack_state.message_buffer))
 
         # Try leaving through to_berth
         state = dispatch_action(state, "leave to_berth")

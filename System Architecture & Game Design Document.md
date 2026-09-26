@@ -10,7 +10,7 @@ This document specifies the technical architecture, mechanical contracts, domain
 
 1. **Zero External Dependencies:** Built strictly on the Python 3 standard library (`pathlib`, `typing`, `json`, `os`, `sys`, `enum`, `tty`, `termios`). No third-party packages, no build steps.
 2. **Pure Functional Unidirectional Dataflow:** State is strictly immutable (`typing.NamedTuple`). State transitions are executed via pure reducers: `Action × State → State'`. No OOP classes, no internal mutation, no hidden object states.
-3. **Non-Blocking Raw Input Interface:** The input loop reads single raw keystrokes via `tty`/`termios` without requiring Enter. WASD keys navigate the player cursor on the Zone 2 minimap. No `readline`-style blocking prompt is displayed during normal movement. A conventional `> ` prompt is only surfaced for free-text commands (`inspect`, `pack`, etc.) that require typed argument strings. Emits clean sequential `stdout`; no ANSI cursor repositioning or screen clearing.
+3. **Non-Blocking Raw Input Interface:** The input loop reads single raw keystrokes via `tty`/`termios` without requiring Enter. WASD keys navigate the player cursor on the Zone 2 minimap. All arbitrary input is consumed; typed commands are explicitly initiated with a leading slash `/` (`/command`). The terminal screen is cleared before rendering each frame.
 4. **Grounded Hard Sci-Fi Space Opera:** Everyday lived reality of commoners, orbital technicians, shift workers, and dock hands across orbital platforms, habitat rings, agricultural domes, and low-gravity stellar bodies (moons, asteroids). Deep gravity-well planets with punishing escape velocities are excluded. Intra-human violence exists alongside physical space hazards (vacuum, pressure differentials, radiation). Language is direct, utilitarian, and dry; technobabble, cyberpunk cliches, and jury-rigging tropes are prohibited.
 5. **Lateral Qualitative Progression:** All traditional RPG tropes—manual stat distribution menus, numerical level bloat, and arbitrary tiered loot grids—are eliminated. Character advancement is tracked via an authored qualitative progression tree that unlocks situational interaction verbs, environmental tolerances, and clearance credentials.
 
@@ -429,7 +429,7 @@ The tick processor is a pure function called after every tick-advancing action: 
 ### 6.1 Viewport Constraints
 
 * Terminal width must satisfy >= 40 columns.
-* Viewport is rendered as sequential newline-separated text. No ANSI escape sequences for cursor repositioning. Each render cycle prints a complete frame below the previous input.
+* Viewport is rendered as sequential newline-separated text. The terminal is cleared prior to each render cycle to provide a persistent, flicker-free viewport.
 * Visual grids are bounded to N x N where N <= 8 (max grid width = 15 character columns, leaving >= 22 for Zone 3).
 * **Prohibited:** Emojis, ANSI color codes.
 * **Player Cursor:** `@` marks the player's current tile on the Zone 2 grid. When an entity occupies the same tile, the entity glyph is displayed instead, but the cursor remains registered for proximity interaction.
@@ -474,8 +474,8 @@ For the default N=5: `zone2=13, zone3=24`. For N=8: `zone2=19, zone3=18`. Both a
 │  [X] Cancel                         │    on an entity tile. Menu clears
 │  [!] Radiation elevated.            │    after selection or [X].
 +──────────────────────────────────────+
-│ > _   (typed cmds: inspect, pack…)   │ <- ZONE 6: CONDITIONAL INPUT
-+──────────────────────────────────────+   Raw keystroke mode otherwise.
+│ WASD: move  /: cmd  M: map  Q: quit  │ <- ZONE 6: NAVIGATION / HINT BAR
++──────────────────────────────────────+   '/' opens command entry prompt.
 ```
 
 **Zone Rendering Rules:**
@@ -483,7 +483,7 @@ For the default N=5: `zone2=13, zone3=24`. For N=8: `zone2=19, zone3=18`. Both a
 - **Zone 2 + 3:** Side-by-side. Zone 2 width is computed from node grid size. Zone 3 fills remainder. Player `@` is drawn at `(player_row, player_col)`; entity glyphs take priority when co-located.
 - **Zone 4:** Legend block. One line per placed fixture/actor: `<glyph> : <name> [<id>]`. The `[<id>]` suffix is the target string used in typed commands.
 - **Zone 5:** Dual-purpose. In **message mode** (default): renders `message_buffer` then clears it (max 6 lines, older messages truncate; omitted if empty). In **proximity-menu mode** (when cursor lands on entity tile): replaces buffer with the interaction option list (§5.2). Menu is dismissed by selection or `[X]`.
-- **Zone 6:** Shown only when a typed command is needed (e.g. `inspect`, `pack`). Bare `> ` prompt. During raw keystroke navigation, Zone 6 is omitted or shows a passive key-hint line: `WASD: move  E: inspect  M: map  Q: quit`.
+- **Zone 6:** Passive key-hint line: `WASD: move  /: cmd  M: map  Q: quit`. Command entry is initiated exclusively with `/`; all other non-action keystrokes are silently consumed without interrupting navigation.
 
 ### 6.4 Dedicated Map Topology View (`map`)
 
@@ -1747,10 +1747,10 @@ def process_tick(state: GameState, action_summary: str) -> GameState
 - Grid is built via the algorithm in §10; player `@` is overlaid at `(player_row, player_col)` unless that cell holds an entity glyph.
 - Zone 4 legend entries show `[id]` suffix for typed command targeting.
 - Zone 5 renders proximity menu when `state.proximity_menu_active`, otherwise renders `message_buffer` (max 6 lines).
-- Zone 6 renders `WASD: move  E: inspect  M: map  Q: quit` during raw keystroke mode; switches to bare `> ` prompt only when a typed command is solicited.
+- Zone 6 renders `WASD: move  /: cmd  M: map  Q: quit` during raw keystroke mode; switches to `/ ` prompt when slash command entry is initiated.
 - `render_topology(state: GameState, terminal_width: int) -> str` renders the map view per §6.4.
 - Terminal width < 40 emits a resize warning string instead of the frame.
-- `ui/text_tools.py` provides `wrap_text(text: str, width: int) -> Tuple[str, ...]`, `check_terminal() -> int`, and `read_raw_key() -> str` (uses `tty`/`termios` to return a single character without blocking on Enter).
+- `ui/text_tools.py` provides `wrap_text(text: str, width: int) -> Tuple[str, ...]`, `check_terminal() -> int`, `clear_terminal() -> None`, and `read_raw_key() -> str` (uses `tty`/`termios` to return a single character without blocking on Enter).
 
 ### Phase 6: Atomic Persistence (`core/persistence.py`)
 
@@ -1770,15 +1770,18 @@ def process_tick(state: GameState, action_summary: str) -> GameState
 - On startup: check for existing save. If found, load it. If not, run character creation (§7). Character creation uses conventional `input()` prompts.
 - Clone presets if missing (Phase 2).
 - Main loop (raw keystroke mode):
-  1. `print(render_frame(state))` — emit the full frame.
-  2. `key = read_raw_key()` — read a single character without blocking on Enter.
-  3. If `key` is `w`/`a`/`s`/`d`: dispatch `reduce_move`.
-  4. If `state.proximity_menu_active` and `key` is `i`/`u`/`g`/`t`/`x`: dispatch the corresponding proximity action reducer.
-  5. If `key` is a typed-command initiator (`:`/`/` or any printable non-WASD key): collect remaining input via `input("> ")`, tokenize, dispatch to the matching reducer.
-  6. Reduce → persist if ticked → loop.
+  1. `clear_terminal()` — clear terminal screen before rendering.
+  2. `print(render_frame(state))` — emit the full frame.
+  3. `key = read_raw_key()` — read a single character without blocking on Enter.
+  4. If `key` is `w`/`a`/`s`/`d`: dispatch `reduce_move`.
+  5. If `state.proximity_menu_active` and `key` is `i`/`u`/`g`/`t`/`x`: dispatch the corresponding proximity action reducer.
+  6. If `key` is `m`/`b`/`e`: dispatch matching shortcut.
+  7. If `key` is `/`: initiate command entry via `input("\n/ ")`, tokenize (stripping leading slash), dispatch to matching reducer.
+  8. All other raw input is consumed silently without opening a prompt.
+  9. Reduce → persist if ticked → loop.
 - `KeyboardInterrupt` and `EOFError` trigger clean save and exit.
 - `q` / `quit` saves and exits.
-- The loop is the **only** place with I/O side effects (`print`, `input`, `read_raw_key`, file writes). All other modules are pure.
+- The loop is the **only** place with I/O side effects (`print`, `input`, `read_raw_key`, `clear_terminal`, file writes). All other modules are pure.
 
 
 ---

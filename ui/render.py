@@ -175,7 +175,7 @@ def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = Fals
             "> "
         ]
     else:
-        hint = " WASD: move  E: inspect  M: map  Q: quit"
+        hint = " WASD: move  /: cmd  M: map  Q: quit"
         zone6_lines = [
             border_horiz,
             f"│{hint[:w - 2]:<{w - 2}}│",

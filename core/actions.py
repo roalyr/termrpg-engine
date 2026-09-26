@@ -11,8 +11,11 @@ from core.reducers import (
 
 
 def tokenize_command(raw_input: str) -> Tuple[str, ...]:
-    """Tokenizes and normalizes user input into lowercased terms."""
+    """Tokenizes and normalizes user input into lowercased terms, supporting leading slash."""
     cleaned = raw_input.strip()
+    if not cleaned:
+        return ()
+    cleaned = cleaned.lstrip("/")
     if not cleaned:
         return ()
     return tuple(cleaned.lower().split())
