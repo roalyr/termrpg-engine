@@ -507,13 +507,13 @@ Advancement is non-linear and structured across three distinct operational branc
 ```
 QUALITATIVE PROGRESSION TREE:
 
-[ Engineering & Fabrication ]
+[ Engineering ]
   seam_discipline ───> scrap_fabrication ───> bulkhead_ear ───> conduit_mastery
 
-[ Survival & Void Resilience ]
+[ Survival ]
   cold_bypass ───────> vacuum_walk ─────────> deep_well ───────> trench_hardened
 
-[ Operations & Field Logistics ]
+[ Exploration ]
   scavenger_instinct ─> crew_coordination ─> signal_analysis ─> wayfarer
 ```
 
@@ -521,18 +521,18 @@ QUALITATIVE PROGRESSION TREE:
 
 | ID | Name | Branch | Prerequisite | Condition Type | Parameter | Mechanical Effect |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `seam_discipline` | Seam Discipline | Engineering | None | `use_fixture` | `spigot_01` | Inspecting fixtures reveals leak rates, required tool tags, and structural wear. |
-| `scrap_fabrication` | Scrap Fabrication | Engineering | `seam_discipline` | `use_fixture` | `salvage_bin` | Enables crafting replacement fittings and levers at any active workshop or smelter. |
-| `bulkhead_ear` | Bulkhead Ear | Engineering | `scrap_fabrication`| `visit_node` | `stn_a_sub` | Inspecting edge portals reveals destination pressure and temperature prior to opening. |
-| `conduit_mastery` | Conduit Mastery | Engineering | `bulkhead_ear` | `use_fixture` | `jammed_valve` | Manual overrides and repairs consume zero tool integrity on standard fixtures. |
-| `cold_bypass` | Cold-Line Bypass | Survival | None | `survive_depth` | `1` | Halves temperature exposure accumulation rate in sub-zero nodes. |
-| `vacuum_walk` | Vacuum Walk | Survival | `cold_bypass` | `visit_node` | `luna_pad` | Halves pressure debt accumulation; grants `vacuum_traverse` capability tag. |
-| `deep_well` | Deep-Well Attunement | Survival | `vacuum_walk` | `survive_depth` | `1` | Halves radiation dose accumulation rate in deep mining and conduit nodes. |
-| `trench_hardened` | Trench Hardened | Survival | `deep_well` | `visit_node` | `luna_mine` | All exposure thresholds increased by +5.0 (Stressed: 10, Critical: 15, Incapacitated: 20). |
-| `scavenger_instinct` | Scavenger's Eye | Operations | None | `use_fixture` | `personal_locker` | Highlights hidden salvage caches in rooms; doubles yield from scavenged fixtures. |
-| `crew_coordination` | Crew Coordination | Operations | `scavenger_instinct`| `complete_trade` | `npc_radek` | Companions provide passive +2.0 environmental hazard resistance to the entire party. |
-| `signal_analysis` | Signal Analysis | Operations | `crew_coordination`| `use_fixture` | `comms_rack` | Decodes encrypted station data logs and reveals telemetry on notice boards. |
-| `wayfarer` | Void Wayfarer | Operations | `signal_analysis` | `visit_node` | `luna_dome` | Sustenance decay interval doubled to every 20 ticks; eliminates shuttle token costs. |
+| `seam_discipline` | Fixing Leaks | Engineering | None | `use_fixture` | `spigot_01` | Inspect pipes and valves to see leaks and required tools. |
+| `scrap_fabrication` | Making Parts | Engineering | `seam_discipline` | `use_fixture` | `salvage_bin` | Make pipe fittings and prybars at a workbench or smelter. |
+| `bulkhead_ear` | Hear Pressure | Engineering | `scrap_fabrication`| `visit_node` | `stn_a_sub` | Check air pressure behind closed doors before opening them. |
+| `conduit_mastery` | Careful Hands | Engineering | `bulkhead_ear` | `use_fixture` | `jammed_valve` | Tools do not wear out when fixing standard pipes and valves. |
+| `cold_bypass` | Cold Tolerance | Survival | None | `survive_depth` | `1` | Take half as much damage from freezing cold. |
+| `vacuum_walk` | Vacuum Suit | Survival | `cold_bypass` | `visit_node` | `luna_pad` | Take half as much damage from low pressure. Can walk in vacuum. |
+| `deep_well` | Lead Skin | Survival | `vacuum_walk` | `survive_depth` | `1` | Take half as much damage from radiation. |
+| `trench_hardened` | Iron Body | Survival | `deep_well` | `visit_node` | `luna_mine` | Can take 5 more points of exposure before getting hurt or passing out. |
+| `scavenger_instinct` | Sharp Eye | Exploration | None | `use_fixture` | `personal_locker` | Find more scrap and gear when searching lockers and bins. |
+| `crew_coordination` | Teamwork | Exploration | `scavenger_instinct`| `complete_trade` | `npc_radek` | Companions help the whole crew resist cold, radiation, and low pressure. |
+| `signal_analysis` | Radio Ears | Exploration | `crew_coordination`| `use_fixture` | `comms_rack` | Read locked station logs and radio signals on notice boards. |
+| `wayfarer` | Deep Traveler | Exploration | `signal_analysis` | `visit_node` | `luna_dome` | Food and water last twice as long. Shuttle rides are free. |
 
 ### 8.2 Inventory Assets Reference
 
@@ -1836,8 +1836,8 @@ Companions represent fellow crew members recruited across the stations. They tra
 [
   {
     "id": "seam_discipline",
-    "name": "Seam Discipline",
-    "description": "Inspect sealed fixtures to reveal leak state, tool requirements, and structural wear.",
+    "name": "Fixing Leaks",
+    "description": "Inspect pipes and valves to see leaks and required tools.",
     "prerequisite": null,
     "unlock_condition": "use_fixture",
     "unlock_parameter": "spigot_01",
@@ -1845,8 +1845,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "scrap_fabrication",
-    "name": "Scrap Fabrication",
-    "description": "Enables crafting replacement fittings and levers at active workshops or smelters.",
+    "name": "Making Parts",
+    "description": "Make pipe fittings and prybars at a workbench or smelter.",
     "prerequisite": "seam_discipline",
     "unlock_condition": "use_fixture",
     "unlock_parameter": "salvage_bin",
@@ -1854,8 +1854,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "bulkhead_ear",
-    "name": "Bulkhead Ear",
-    "description": "Inspect sealed edge fixtures to reveal destination pressure before opening.",
+    "name": "Hear Pressure",
+    "description": "Check air pressure behind closed doors before opening them.",
     "prerequisite": "scrap_fabrication",
     "unlock_condition": "visit_node",
     "unlock_parameter": "stn_a_sub",
@@ -1863,8 +1863,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "conduit_mastery",
-    "name": "Conduit Mastery",
-    "description": "Manual overrides and repairs consume zero tool integrity on standard fixtures.",
+    "name": "Careful Hands",
+    "description": "Tools do not wear out when fixing standard pipes and valves.",
     "prerequisite": "bulkhead_ear",
     "unlock_condition": "use_fixture",
     "unlock_parameter": "jammed_valve",
@@ -1872,8 +1872,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "cold_bypass",
-    "name": "Cold-Line Bypass",
-    "description": "Halves temperature exposure accumulation rate in sub-zero nodes.",
+    "name": "Cold Tolerance",
+    "description": "Take half as much damage from freezing cold.",
     "prerequisite": null,
     "unlock_condition": "survive_depth",
     "unlock_parameter": "1",
@@ -1881,8 +1881,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "vacuum_walk",
-    "name": "Vacuum Walk",
-    "description": "Halves pressure exposure accumulation; grants vacuum_traverse capability.",
+    "name": "Vacuum Suit",
+    "description": "Take half as much damage from low pressure. Can walk in vacuum.",
     "prerequisite": "cold_bypass",
     "unlock_condition": "visit_node",
     "unlock_parameter": "luna_pad",
@@ -1890,8 +1890,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "deep_well",
-    "name": "Deep-Well Attunement",
-    "description": "Halves radiation exposure accumulation rate in deep mining and conduit nodes.",
+    "name": "Lead Skin",
+    "description": "Take half as much damage from radiation.",
     "prerequisite": "vacuum_walk",
     "unlock_condition": "survive_depth",
     "unlock_parameter": "1",
@@ -1899,8 +1899,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "trench_hardened",
-    "name": "Trench Hardened",
-    "description": "All exposure thresholds increased by 5.0 (stressed at 10, critical at 15, incapacitated at 20).",
+    "name": "Iron Body",
+    "description": "Can take 5 more points of exposure before getting hurt or passing out.",
     "prerequisite": "deep_well",
     "unlock_condition": "visit_node",
     "unlock_parameter": "luna_mine",
@@ -1908,8 +1908,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "scavenger_instinct",
-    "name": "Scavenger's Eye",
-    "description": "Reveals hidden salvage caches in rooms; doubles yield from scavenged fixtures.",
+    "name": "Sharp Eye",
+    "description": "Find more scrap and gear when searching lockers and bins.",
     "prerequisite": null,
     "unlock_condition": "use_fixture",
     "unlock_parameter": "personal_locker",
@@ -1917,8 +1917,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "crew_coordination",
-    "name": "Crew Coordination",
-    "description": "Companions provide passive +2.0 environmental hazard resistance to the entire party.",
+    "name": "Teamwork",
+    "description": "Companions help the whole crew resist cold, radiation, and low pressure.",
     "prerequisite": "scavenger_instinct",
     "unlock_condition": "complete_trade",
     "unlock_parameter": "npc_radek",
@@ -1926,8 +1926,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "signal_analysis",
-    "name": "Signal Analysis",
-    "description": "Decodes encrypted station data logs and reveals telemetry on notice boards.",
+    "name": "Radio Ears",
+    "description": "Read locked station logs and radio signals on notice boards.",
     "prerequisite": "crew_coordination",
     "unlock_condition": "use_fixture",
     "unlock_parameter": "comms_rack",
@@ -1935,8 +1935,8 @@ Companions represent fellow crew members recruited across the stations. They tra
   },
   {
     "id": "wayfarer",
-    "name": "Void Wayfarer",
-    "description": "Sustenance decay interval doubled to 20 ticks; eliminates shuttle token costs.",
+    "name": "Deep Traveler",
+    "description": "Food and water last twice as long. Shuttle rides are free.",
     "prerequisite": "signal_analysis",
     "unlock_condition": "visit_node",
     "unlock_parameter": "luna_dome",

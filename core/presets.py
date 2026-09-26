@@ -916,8 +916,8 @@ DEFAULT_COMPANIONS = [
 DEFAULT_TREE = [
   {
     "id": "seam_discipline",
-    "name": "Seam Discipline",
-    "description": "Inspect sealed fixtures to reveal leak state and required tool tags.",
+    "name": "Fixing Leaks",
+    "description": "Inspect pipes and valves to see leaks and required tools.",
     "prerequisite": None,
     "unlock_condition": "use_fixture",
     "unlock_parameter": "spigot_01",
@@ -925,8 +925,8 @@ DEFAULT_TREE = [
   },
   {
     "id": "bulkhead_ear",
-    "name": "Bulkhead Ear",
-    "description": "Inspect sealed edge fixtures to reveal destination pressure before opening.",
+    "name": "Hear Pressure",
+    "description": "Check air pressure behind closed doors before opening them.",
     "prerequisite": "seam_discipline",
     "unlock_condition": "visit_node",
     "unlock_parameter": "stn_a_sub",
@@ -934,8 +934,8 @@ DEFAULT_TREE = [
   },
   {
     "id": "cold_bypass",
-    "name": "Cold-Line Bypass",
-    "description": "Halves temperature exposure accumulation rate.",
+    "name": "Cold Tolerance",
+    "description": "Take half as much damage from freezing cold.",
     "prerequisite": None,
     "unlock_condition": "survive_depth",
     "unlock_parameter": "1",
@@ -943,8 +943,8 @@ DEFAULT_TREE = [
   },
   {
     "id": "vacuum_walk",
-    "name": "Vacuum Walk",
-    "description": "Halves pressure exposure accumulation. Grants vacuum_traverse capability.",
+    "name": "Vacuum Suit",
+    "description": "Take half as much damage from low pressure. Can walk in vacuum.",
     "prerequisite": "cold_bypass",
     "unlock_condition": "complete_trade",
     "unlock_parameter": "npc_kael",
@@ -952,8 +952,8 @@ DEFAULT_TREE = [
   },
   {
     "id": "deep_well",
-    "name": "Deep-Well Attunement",
-    "description": "Halves radiation exposure accumulation rate.",
+    "name": "Lead Skin",
+    "description": "Take half as much damage from radiation.",
     "prerequisite": "bulkhead_ear",
     "unlock_condition": "survive_depth",
     "unlock_parameter": "2",
@@ -961,8 +961,8 @@ DEFAULT_TREE = [
   },
   {
     "id": "trench_hardened",
-    "name": "Trench Hardened",
-    "description": "All exposure thresholds increased by 5.0 (stressed at 10, critical at 15, incapacitated at 20).",
+    "name": "Iron Body",
+    "description": "Can take 5 more points of exposure before getting hurt or passing out.",
     "prerequisite": "vacuum_walk",
     "unlock_condition": "visit_node",
     "unlock_parameter": "luna_mine",
