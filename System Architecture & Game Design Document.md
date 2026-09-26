@@ -4,15 +4,16 @@
 
 ## 1. Executive Summary & Core Design Tenets
 
-This document specifies the technical architecture, mechanical contracts, domain models, and UX presentation for a minimalist, text-driven RPG built in pure Python 3. The system is designed for execution in constrained terminal environments (e.g., mobile Termux shells) and optimized for ingestion and iterative implementation by autonomous LLM agents.
+This document specifies the technical architecture, mechanical contracts, domain models, and UX presentation for a minimalist, text-driven open-world RPG built in pure Python 3. The system is designed for execution in constrained terminal environments (e.g., mobile Termux shells) and optimized for ingestion and iterative implementation by autonomous LLM agents.
 
 ### Core Tenets
 
-1. **Zero External Dependencies:** Built strictly on the Python 3 standard library (`pathlib`, `typing`, `json`, `os`, `sys`, `enum`, `tty`, `termios`). No third-party packages, no build steps.
-2. **Pure Functional Unidirectional Dataflow:** State is strictly immutable (`typing.NamedTuple`). State transitions are executed via pure reducers: `Action × State → State'`. No OOP classes, no internal mutation, no hidden object states.
-3. **Non-Blocking Raw Input Interface:** The input loop reads single raw keystrokes via `tty`/`termios` without requiring Enter. WASD keys navigate the player cursor on the Zone 2 minimap. All arbitrary input is consumed; typed commands are explicitly initiated with a leading slash `/` (`/command`). The terminal screen is cleared before rendering each frame.
-4. **Grounded Hard Sci-Fi Space Opera:** Everyday lived reality of commoners, orbital technicians, shift workers, and dock hands across orbital platforms, habitat rings, agricultural domes, and low-gravity stellar bodies (moons, asteroids). Deep gravity-well planets with punishing escape velocities are excluded. Intra-human violence exists alongside physical space hazards (vacuum, pressure differentials, radiation). Language is direct, utilitarian, and dry; technobabble, cyberpunk cliches, and jury-rigging tropes are prohibited.
-5. **Lateral Qualitative Progression:** All traditional RPG tropes—manual stat distribution menus, numerical level bloat, and arbitrary tiered loot grids—are eliminated. Character advancement is tracked via an authored qualitative progression tree that unlocks situational interaction verbs, environmental tolerances, and clearance credentials.
+1. **Zero External Dependencies:** Built strictly on the Python 3 standard library (`pathlib`, `typing`, `json`, `os`, `sys`, `enum`, `tty`, `termios`). No third-party packages, no external build steps.
+2. **Pure Functional Unidirectional Dataflow:** State is strictly immutable (`typing.NamedTuple`). State transitions are executed exclusively via pure reducers: `Action × State → State'`. No OOP classes with mutable attributes, no internal side effects, no hidden object state.
+3. **Non-Blocking Raw Input Interface:** The input loop reads single raw keystrokes via `tty`/`termios` without requiring Enter. WASD keys navigate the player cursor on the Zone 2 minimap. All arbitrary input is consumed; typed commands are explicitly initiated with a leading slash `/` (`/command`). The terminal screen is cleared prior to each render cycle to provide a persistent, flicker-free viewport.
+4. **Grounded Hard Sci-Fi Space Opera & Living World:** Everyday lived reality of commoners, orbital technicians, shift workers, and dock hands across orbital platforms, habitat rings, agricultural domes, and low-gravity stellar bodies (moons, asteroids). Deep gravity-well planets with punishing escape velocities are excluded. Physical space hazards (vacuum, pressure differentials, cryogenic cold, ionizing radiation) govern survival. Language is direct, utilitarian, and dry; technobabble, fantasy tropes, and cyberpunk cliches are prohibited.
+5. **Open-World Emergence & Lateral Agency:** The game world is an open spatial web, not a linear quest funnel. Players possess genuine freedom to explore all 14 nodes across 4 clusters, choose their own survival priorities, and solve challenges through diverse disciplines: technical engineering, environmental resilience, or logistics and crew coordination. Artificial choke-points and single-key locks are replaced with multiple traversal pathways (service ducts, crawlways, mechanical overrides, companion aid) and realistic environmental gating.
+6. **Qualitative Progression Over Numerical Bloat:** Traditional RPG tropes—stat point distribution, XP grinding, numerical level bloat, and tiered loot matrices—are completely eliminated. Character advancement is tracked via an authored qualitative progression tree that unlocks interaction verbs, physical tolerances, fabrication recipes, and clearance credentials.
 
 ---
 
@@ -22,7 +23,7 @@ This document specifies the technical architecture, mechanical contracts, domain
 
 * **Platform:** Python 3.10+ Standard Library.
 * **Terminal Constraints:** Designed for viewport widths >= 40 columns. The engine reads terminal width once per render via `os.get_terminal_size()`. If columns < 40, the engine suspends rendering and emits a resize warning to stdout.
-* **Persistence:** Deterministic auto-save after every tick-advancing action into `saves/<character_name>/state.json`.
+* **Persistence:** Deterministic auto-save after every tick-advancing action into `saves/<character_name>/state.json`. Restored games always resume with `is_running = True` and handle incapacitation revival deterministically.
 * **Preset Cloning & Modding:** Hardcoded default assets are cloned on initial startup into `presets/default-1.0/`. The runtime engine loads definitions exclusively from the active preset folder, enabling clean resets and total-conversion modding without manual file backups.
 
 ### 2.2 System Architecture Overview
@@ -34,8 +35,8 @@ This document specifies the technical architecture, mechanical contracts, domain
                   +---------------+---------------+
                                   |
           +-------------+---------+----------+
-          |  WASD key   |   Interact (e)     |  Typed cmd
-          |  (move)     |   (on entity tile) |  (inspect, pack …)
+          |  WASD key   |   Proximity key    |  Typed cmd (/...)
+          |  (move)     |   (i, u, g, t, s)  |  (/inspect, /pack …)
           v             v                    v
 +------------------+     +-------------------+     +------------------+
 | Current State    | --> | Dispatch & Pure   | --> | Next Immutable   |
@@ -58,103 +59,114 @@ This document specifies the technical architecture, mechanical contracts, domain
 ```
 project_root/
 │
-├── main.py                     # Entrypoint: I/O loop, char creation, dispatch
-├── core/
-│   ├── types.py                # NamedTuples, TypeAliases, Enums
-│   ├── reducers.py             # Pure state transition functions (one per verb)
-│   ├── tick.py                 # Tick processor: vitals update, integrity decay
-│   ├── actions.py              # Command tokenizer & dispatch table
-│   ├── presets.py              # Preset cloner, JSON deserializer
-│   └── persistence.py          # Atomic JSON state serializer/deserializer
-├── ui/
-│   ├── render.py               # 6-zone viewport renderer (<=40 cols)
-│   ├── topology_view.py        # Dedicated node graph / transit map renderer
-│   └── text_tools.py           # Terminal width checker, text wrapping utils
-├── presets/
-│   └── default-1.0/            # Cloned editable JSON assets
-│       ├── items.json          # Item definitions
-│       ├── nodes.json          # World graph nodes
-│       ├── companions.json     # Companion definitions
-│       └── tree.json           # Progression tree definitions
-└── saves/
-    └── <character_name>/       # Auto-saved session snapshots
-        └── state.json
+├── core/                           # Pure functional domain layer
+│   ├── __init__.py
+│   ├── types.py                    # Domain models, Enums, NamedTuples
+│   ├── actions.py                  # Action definitions & tokenization dispatcher
+│   ├── reducers.py                 # Pure reducer functions (Action x State -> State)
+│   ├── tick.py                     # Tick processing pipeline (exposure, decay, tree)
+│   ├── persistence.py              # Save / Load / Init serialization
+│   └── presets.py                  # Seed asset loaders & fallback dictionaries
+│
+├── ui/                             # Pure presentation layer (string output)
+│   ├── __init__.py
+│   ├── render.py                   # 6-zone viewport assembler
+│   ├── text_tools.py               # Raw input, ANSI clearing, visible length math
+│   └── topology_view.py            # ASCII node map renderer
+│
+├── presets/                        # User-editable JSON preset datasets
+│   └── default-1.0/
+│       ├── items.json              # Item definitions, tags, integrities
+│       ├── nodes.json              # Full 14-node world topology, fixtures, actors
+│       ├── companions.json         # Recruitable crew members & capabilities
+│       └── tree.json               # 3-branch qualitative progression tree
+│
+├── saves/                          # Persistent runtime save files (git-ignored)
+│   └── <character_name>/
+│       └── state.json
+│
+├── tests/                          # Automated unit and E2E test suite
+│   ├── test_types.py
+│   ├── test_presets.py
+│   ├── test_reducers.py
+│   ├── test_tick.py
+│   ├── test_persistence.py
+│   ├── test_ui.py
+│   └── test_e2e.py
+│
+├── main.py                         # Non-blocking input loop & runtime entry point
+└── System Architecture & Game Design Document.md
 ```
 
 ---
 
 ## 3. Data Schema & Domain Models (`core/types.py`)
 
-All structures are immutable `NamedTuple` classes. All enum-like fields use `enum.Enum`. Collections use immutable tuple and frozenset types.
-
 ### 3.1 Enumerations
 
 ```python
-from enum import Enum
-
 class ItemCategory(Enum):
-    CREDENTIAL = "credential"
-    UTILITY = "utility"
-    SUSTENANCE = "sustenance"
-    RECORD = "record"
+    CREDENTIAL = "credential"  # Passes, tokens, identity manifests
+    UTILITY = "utility"        # Tools, repair components, wiring, prybars
+    SUSTENANCE = "sustenance"  # Water, rations, biomass, emergency medical packs
+    RECORD = "record"          # Data slates, dice, personal journals, charts
+    MATERIAL = "material"      # Raw ore, scrap metal, refined components
 
 class FixtureState(Enum):
-    SEALED = "sealed"       # Closed, requires tag to open
-    OPEN = "open"           # Passable / usable, no restriction
-    LOCKED = "locked"       # Closed, requires tag to unlock
-    ACTIVE = "active"       # Functional, accepts use interactions
-    SPENT = "spent"         # Consumed / broken, no further interaction
-    DISABLED = "disabled"   # Non-functional, requires repair
+    SEALED = "sealed"       # Closed, requires tool/tag or manual override
+    OPEN = "open"           # Passable / accessible without restriction
+    LOCKED = "locked"       # Keyed or credential-gated hatch/container
+    ACTIVE = "active"       # Functional mechanism (spigots, vats, crucibles)
+    SPENT = "spent"         # Exhausted resource node or scavenged container
+    DISABLED = "disabled"   # Damaged machinery requiring repair or bypass
 
 class Environment(Enum):
-    PRESSURIZED = "pressurized"     # Nominal atmosphere
-    DEPRESSURIZING = "depressurizing"  # Partial atmosphere, cold
-    VACUUM = "vacuum"               # No atmosphere
-    HIGH_RAD = "high_rad"           # Elevated radiation
-    LOW_TEMP = "low_temp"           # Extreme cold
+    PRESSURIZED = "pressurized"        # Nominal atmosphere (101.3 kPa, 20°C)
+    DEPRESSURIZING = "depressurizing"  # Partial air loss, cold, failing scrubbers
+    VACUUM = "vacuum"                  # Complete absence of pressure (0.0 kPa)
+    HIGH_RAD = "high_rad"              # Dangerous radiation field (>15 mSv)
+    LOW_TEMP = "low_temp"              # Cryogenic conditions (<-40°C)
 
 class ExposureType(Enum):
-    PRESSURE = "pressure"
-    RADIATION = "radiation"
-    TEMPERATURE = "temperature"
+    PRESSURE = "pressure"      # Decompression debt
+    RADIATION = "radiation"    # Ionizing dose
+    TEMPERATURE = "temperature"# Hypothermic / thermal stress
 ```
 
 ### 3.2 Core Domain Structures
 
 ```python
-from typing import NamedTuple, Tuple, Mapping, Optional, FrozenSet
-
 class Item(NamedTuple):
-    id: str                    # Unique item identifier (e.g., "fitting_copper")
+    id: str                    # Unique identifier (e.g. "tool_prybar")
     name: str                  # Display name
     category: str              # ItemCategory value
-    tags: Tuple[str, ...]      # Capability tags (e.g., ("seal_fitting", "conductive"))
-    integrity: int             # Current condition / charges remaining
-    max_integrity: int         # 0 = indestructible/permanent; >0 = degrades
-    description: str           # In-world description
+    tags: Tuple[str, ...]      # Functional tags (e.g. ("force_lever", "heavy_duty"))
+    integrity: int             # Current condition / remaining charges
+    max_integrity: int         # 0 = indestructible; >0 = degrades with use
+    description: str           # Utility-focused hard sci-fi description
 
 class Fixture(NamedTuple):
-    id: str                    # Unique fixture identifier (e.g., "hatch_berth")
-    glyph: str                 # Single character rendered on grid
+    id: str                    # Unique fixture identifier (e.g. "salvage_bin")
+    glyph: str                 # Single glyph rendered on minimap
     name: str                  # Display name
     state: str                 # FixtureState value
-    required_tag: Optional[str]  # Item/capability tag required to change state
-    grants_edge: Optional[str]   # Edge ID in node.edges that this fixture gates
-    on_use_effect: Optional[str] # Effect key: "refill", "repair", "unlock", None
-    description: str
+    required_tag: Optional[str]# Tag required to change state or operate
+    grants_edge: Optional[str] # Edge ID in node.edges that this fixture gates
+    on_use_effect: Optional[str]# "unlock", "refill", "repair", "scavenge", "harvest", "smelt", "override", "log"
+    description: str           # Physical description with interactive clues
 
 class Actor(NamedTuple):
-    id: str                    # Unique actor identifier (e.g., "npc_kael")
-    glyph: str                 # Single character rendered on grid
+    id: str                    # Unique actor identifier (e.g. "npc_mira")
+    glyph: str                 # Single glyph rendered on minimap
     name: str                  # Display name
-    title: str                 # Role/occupation (e.g., "Dock Stevedore")
-    status: str                # Current activity description
-    trade_offered_id: Optional[str]    # Item ID this actor will give
-    trade_required_tag: Optional[str]  # Tag the actor demands to complete trade
-    trade_completed: bool              # Whether this actor's trade has been fulfilled
-    dialogue_idle: str                 # Line spoken before trade or if no trade
-    dialogue_post_trade: Optional[str] # Line spoken after trade is completed
-    companion_unlock: Optional[str]    # Companion ID unlocked by completing trade (or None)
+    title: str                 # Profession / role (e.g. "Hab Botanist")
+    status: str                # Current observational activity
+    trade_offered_id: Optional[str]    # Item offered in primary exchange
+    trade_required_tag: Optional[str]  # Required tag for trade (or category tag)
+    trade_completed: bool              # Whether primary trade fulfilled
+    dialogue_idle: str                 # Initial ambient dialogue & rumors
+    dialogue_post_trade: Optional[str] # Follow-up dialogue acknowledging changes
+    companion_unlock: Optional[str]    # Companion ID recruited on alliance
 
 class GridPlacement(NamedTuple):
     entity_id: str             # Fixture or Actor ID
@@ -162,161 +174,168 @@ class GridPlacement(NamedTuple):
     col: int                   # 0-indexed column on the grid
 
 class Edge(NamedTuple):
-    id: str                    # Edge identifier
+    id: str                    # Edge identifier (e.g. "to_subdeck")
     target_node_id: str        # Destination node ID
-    label: str                 # Display label (e.g., "Berth 04", "Subdeck")
-    gated_by_fixture: Optional[str]  # Fixture ID that must be OPEN to traverse
-    requires_capability: Optional[str]  # Capability tag player must have
+    label: str                 # Display label (e.g. "Sub-Deck Conduits")
+    gated_by_fixture: Optional[str]  # Fixture that must be OPEN to traverse
+    requires_capability: Optional[str]# Capability tag player must possess
 
 class NodeVitals(NamedTuple):
-    pressure_kpa: float        # 101.3 = nominal; 0.0 = vacuum
-    radiation_msv: float       # 0.0 = shielded; >50.0 = lethal unprotected
-    temperature_c: int         # Celsius
+    pressure_kpa: float        # Atmospheric pressure (101.3 nominal, 0.0 vacuum)
+    radiation_msv: float       # Ambient radiation field
+    temperature_c: int         # Ambient temperature in Celsius
 
 class Node(NamedTuple):
-    id: str                    # Unique node identifier
+    id: str                    # Unique node ID
     name: str                  # Display name
-    cluster: str               # Cluster grouping (e.g., "station_alpha")
+    cluster: str               # Cluster grouping ("station_alpha", "transit", etc.)
     size: int                  # Grid dimension N (N x N, where N <= 8)
-    depth: int                 # Vertical depth (0 = surface/concourse)
+    depth: int                 # Vertical depth (0 = surface/concourse, 1+ = subterranean)
     environment: str           # Environment enum value
-    base_vitals: NodeVitals    # Nominal environmental readings for this node
-    grid_floor: str            # Single glyph used for empty floor tiles
-    grid_wall: str             # Single glyph used for wall/boundary tiles
-    fixtures: Mapping[str, Fixture]      # Keyed by fixture ID
-    actors: Mapping[str, Actor]          # Keyed by actor ID
-    placements: Tuple[GridPlacement, ...] # Where each fixture/actor sits on the grid
-    edges: Mapping[str, Edge]            # Keyed by edge ID
-    description: str                     # Short ambient description of this space
+    base_vitals: NodeVitals    # Nominal sensor readings
+    grid_floor: str            # Empty floor glyph (e.g. "·", "~")
+    grid_wall: str             # Border wall glyph (e.g. "░", "█")
+    fixtures: Mapping[str, Fixture]       # Fixtures keyed by ID
+    actors: Mapping[str, Actor]           # Actors keyed by ID
+    placements: Tuple[GridPlacement, ...] # Entity coordinates
+    edges: Mapping[str, Edge]             # Adjacency edges
+    description: str                      # Concise sensory prose
 ```
 
-### 3.3 Player & Companion Structures
+### 3.3 Player, Companion & Progression Structures
 
 ```python
 class Companion(NamedTuple):
-    id: str                    # Unique companion identifier
+    id: str                    # Unique companion ID (e.g. "comp_radek")
     name: str                  # Display name
-    title: str                 # Role (e.g., "Cargo Rigger")
-    status: str                # Current state description
-    capability_tag: Optional[str]  # Tag contributed to party (e.g., "two_person_lift")
+    title: str                 # Role (e.g. "Cargo Rigger")
+    status: str                # Current status
+    capability_tag: Optional[str]  # Contributed party tag ("two_person_lift", "signal_boost")
 
 class Exposure(NamedTuple):
-    pressure_debt: float       # Accumulated decompression stress (0.0 = healthy)
-    radiation_dose: float      # Accumulated radiation (0.0 = clean)
-    thermal_stress: float      # Accumulated cold/heat stress (0.0 = comfortable)
+    pressure_debt: float       # Decompression stress (0.0 = clean)
+    radiation_dose: float      # Accumulated dose (0.0 = clean)
+    thermal_stress: float      # Cold/heat accumulation (0.0 = comfortable)
 
 class PlayerCharacter(NamedTuple):
-    name: str
-    past_work: str             # Chosen survival context string
-    personal_anchor: Item      # Mundane starting possession (also in inventory)
-    inventory: Tuple[Item, ...] # All carried items including personal_anchor
-    unlocked_capabilities: FrozenSet[str]  # Earned traversal tags & clearances
-    exposure: Exposure         # Accumulated environmental harm
+    name: str                  # Character callsign
+    past_work: str             # Background routine ("seam_scraper", "algae_tender", "cargo_handler")
+    personal_anchor: Item      # Starting keepsake item
+    inventory: Tuple[Item, ...] # Carried items
+    unlocked_capabilities: FrozenSet[str]  # Earned capabilities and clearances
+    exposure: Exposure         # Environmental damage record
 
-### 3.4 Progression Tree Schema
-
-```python
 class TreeNode(NamedTuple):
-    id: str                              # Capability tag granted on attunement
-    name: str                            # Display name
-    description: str                     # What this attunement enables
-    prerequisite: Optional[str]          # TreeNode ID that must be attuned first
-    unlock_condition: str                # Condition type: see §8.1 for valid values
-    unlock_parameter: str                # Parameter for the condition (node_id, depth, etc.)
-    attuned: bool                        # Whether the player has earned this
-```
+    id: str                    # Capability granted upon attunement
+    name: str                  # Display name
+    description: str           # Detailed mechanical effect
+    prerequisite: Optional[str]# Required prerequisite TreeNode ID
+    unlock_condition: str      # Condition type: "visit_node", "survive_depth", "complete_trade", "use_fixture", "inspect_count"
+    unlock_parameter: str      # Parameter for unlock condition evaluation
+    attuned: bool              # Attunement state
 
-### 3.5 Game State Model
-
-```python
 class GameState(NamedTuple):
     character: PlayerCharacter
     current_node_id: str
     nodes: Mapping[str, Node]
-    companions: Tuple[Companion, ...]     # Active party members
-    tree: Tuple[TreeNode, ...]            # Progression tree nodes
-    visited_nodes: FrozenSet[str]         # Explored node IDs (for map & attunement)
-    depth_ticks: Mapping[int, int]        # Ticks survived per depth without critical exposure
-    cycle: int                            # Global simulation tick counter
-    player_row: int                       # Player cursor row on current node grid (0-indexed)
-    player_col: int                       # Player cursor column on current node grid (0-indexed)
-    message_buffer: Tuple[str, ...]       # Queued output messages for next render
-    action_log: Tuple[str, ...]           # Recent action history (max 20 entries)
-    flavor_enabled: bool                  # Toggle for atmospheric prose
-    active_view: str                      # "compartment" or "map_topology"
-    proximity_menu_active: bool           # True when Zone 5 is showing the interaction menu
-    is_running: bool                      # False = exit after next persist
+    companions: Tuple[Companion, ...]
+    tree: Tuple[TreeNode, ...]
+    visited_nodes: FrozenSet[str]
+    depth_ticks: Mapping[int, int]
+    cycle: int
+    player_row: int
+    player_col: int
+    message_buffer: Tuple[str, ...]
+    action_log: Tuple[str, ...]
+    flavor_enabled: bool
+    active_view: str                  # "compartment" or "map_topology"
+    proximity_menu_active: bool       # True when Zone 5 presents proximity options
+    is_running: bool
 ```
 
 ---
 
 ## 4. World Graph Topology & Progressive Spatial Scaling
 
-### 4.1 Topology Structure
+### 4.1 Open World Graph Topology
 
-The world is an adjacency graph of discrete spatial nodes representing ship compartments, station rings, cargo shuttles, and lunar surface sites. Surface-to-orbit transit is routine and accessible via shuttle hops. Deep gravity-well planets are excluded.
+The game world is a multi-path, non-linear spatial graph representing 14 functional compartments across 4 interconnected clusters. Rather than forcing the player down a single quest sequence, nodes offer multiple entry and exit points, maintenance ducts, and bypass routes:
 
 ```
-TOPOLOGY (ADJACENCY GRAPH):
+WORLD TOPOLOGY (MULTI-PATH ADJACENCY GRAPH):
 
-[Station Alpha]                   [Station Beta]
-   Hab Ring (stn_a_hab)             Array Hub (stn_b_array)
-      │                                │
-   Berth 04 (stn_a_berth)          Fuel Spur (stn_b_fuel)
-      │                                │
-   Sub-Deck (stn_a_sub) D:1        Dock Ring (stn_b_dock)
-      :                                :
-   <Shuttle Hop>                    <Shuttle Hop>
-      :                                :
-      └───────────────┬────────────────┘
-                      : (orbital burn)
-             =====[Surface Pad]=====
-                      │
-                [Habitat Dome]
-                /            \
-       [Smelter Flat]     [Crater Rim]
-            ║                 ║
-      [Deep Mine] D:1    [Lava Tube] D:1
+[Station Alpha: Habitation & Transit Hub]
+   Shared Bunkroom (stn_a_bunkroom) <══════> Hab Ring Gallery (stn_a_hab)
+        │                 \ (service vent)        │
+        │ (transit hatch)  \                      │ (corridor hatch)
+        v                   v                     v
+   Berth 04 Platform (stn_a_berth) <══════════════╝
+        │                      \ (conduit bypass)
+        │ (cargo hoist)         v
+   Sub-Deck Conduits (stn_a_sub) [D:1 Depressurizing]
+        │
+   <Shuttle Hopper> (shuttle_ab) [Inter-Station Orbital Transit]
+     /              \
+    / (orbital burn) \ (station transfer)
+   v                  v
+[Lunar Base: Surface & Depths]          [Station Beta: Industrial & Comms]
+   Surface Pad (luna_pad) [Vacuum]         Dock Ring Bay 7 (stn_b_dock)
+      │                                      │           │
+   Habitat Dome (luna_dome) [Pressurized]  Array Hub   Fuel Spur
+     /          \                          (stn_b_array) (stn_b_fuel)
+    /            \
+Smelter Flat   Crater Rim (luna_crater) [Vacuum]
+(luna_smelter)     │
+    ║              ║ (lava tube descent)
+Deep Mine      Lava Tube (luna_tube) [D:1 Basalt Cavern]
+(luna_mine) [D:1]
 ```
 
-**Node ID Conventions:**
-- Station Alpha: `stn_a_hab`, `stn_a_berth`, `stn_a_sub`
-- Station Beta: `stn_b_array`, `stn_b_fuel`, `stn_b_dock`
-- Transit: `shuttle_ab` (shared shuttle node between stations)
-- Lunar: `luna_pad`, `luna_dome`, `luna_smelter`, `luna_crater`, `luna_mine`, `luna_tube`
+#### Multi-Path Traversal & Anti-Linear Bypass Design
+1. **Sub-Deck Access (Station Alpha):**
+   - *Primary Route:* Cargo Hoist Platform from Berth 04 (requires `dock_clearance`, or forced with `force_lever`, or companion assistance from Radek).
+   - *Alternative Route:* Service Crawlway from the Bunkroom (unlocked with `seal_fitting` or `wrench` by removing maintenance grilles).
+2. **Shuttle Boarding (Transit Cluster):**
+   - *Route A:* Present Stamped Work Pass (`dock_clearance`) or Transit Token (`transit_clearance`).
+   - *Route B:* Technical Umbilical Override (player with `seal_fitting` or `wrench` calibrates docking collar directly).
+   - *Route C:* Freight Skid Stowaway (examine and manipulate the tension clamps on the freight skid in Berth 04).
+3. **Station Beta Access:**
+   - Unlocked via shuttle transfer. The Dock Ring grants immediate access to the Comms Array Hub and Fuel Processing Spur.
+4. **Lunar Surface & Subterranean Depths:**
+   - The shuttle lands on `luna_pad`. Because the surface is unpressurized vacuum, traversal is gated by **environmental survival and preparation** rather than locked doors. Players can make a dash across the regolith into the pressurized `luna_dome`.
+   - Access to the subterranean depths (`luna_mine` and `luna_tube`) is possible via the Smelter Cage Lift or the Crater Rim Descent Hatch.
 
-### 4.2 Progressive Spatial Scaling
+### 4.2 Progressive Spatial Scaling & Environmental Gating
 
-Challenge does not rely on arbitrary enemy stats or mob scaling. Difficulty scales through two vectors:
+Challenge scales through authentic environmental hostility and operational logistics rather than arbitrary enemy hit points:
 
-1. **Radial Transit Scaling (Horizontal):** Each shuttle hop costs a `transit_clearance` tagged credential (consumed on use). Nodes far from civil docks have no vendor actors to replace spent supplies. Sustenance items degrade 1 integrity per hop.
-2. **Vertical Depth Scaling (Vertical):** Nodes with `depth > 0` impose progressive environmental hazards via their `base_vitals`:
-   - `Depth 0`: Pressurized, nominal temperature (18–22°C), shielded radiation. No exposure accumulation.
-   - `Depth 1`: Depressurizing conduits (50–80 kPa), cold pockets (-20°C to -40°C), structural debris requiring `force_lever` tagged tools on fixtures. Exposure accumulates at +1.0 per tick for each out-of-tolerance vital.
-   - `Depth 2+`: Unpressurized vacuum (0 kPa), extreme radiation (>50 mSv), requiring specific attunement capabilities from the progression tree to halve exposure rates.
+1. **Environmental Gating Over Keycard Gating:**
+   - Safe Pressurized Havens (`depth == 0`, `environment == "pressurized"`): `stn_a_bunkroom`, `stn_a_berth`, `stn_a_hab`, `stn_b_dock`, `stn_b_array`, `stn_b_fuel`, `luna_dome`, `luna_smelter`. Exposure naturally recovers here by 2.0 per tick.
+   - Hostile Subterranean Conduits (`depth == 1`): `stn_a_sub`, `luna_mine`, `luna_tube`. Depressurized atmospheres, freezing cold, and unshielded rock. Ticks accumulated here count toward progression tree survival milestones.
+   - Unprotected Vacuum (`environment == "vacuum"`): `luna_pad`, `luna_crater`. Zero pressure, cosmic radiation, and temperature extremes. Exploration requires planning, rapid movement, and attunement capabilities.
+2. **Resource Logistics:**
+   - Sustenance items (`flask_water`, `ration_dry`, `algae_paste`) lose 1 integrity every 10 ticks. Players must utilize water spigots, harvest algae basins, or trade with station cooks to sustain long expeditions.
 
 ### 4.3 Exposure & Consequence Model
 
-The player has an `Exposure` record with three accumulation tracks. Each tick spent in a hostile environment accumulates exposure based on the delta between node vitals and safe thresholds:
+Each tick in a hostile environment accumulates exposure based on the delta between node vitals and safe human biological tolerances:
 
-| Vital | Safe Threshold | Accumulation Formula (per tick) |
+| Vital | Safe Tolerance | Accumulation Formula (per tick) |
 | :--- | :--- | :--- |
-| Pressure | >= 90 kPa | `+max(0, (90 - node_pressure) / 30)` |
-| Radiation | <= 5 mSv | `+max(0, (node_radiation - 5) / 15)` |
-| Temperature | >= -10°C | `+max(0, (-10 - node_temp) / 20)` |
+| Pressure | >= 90.0 kPa | `+max(0.0, (90.0 - node_pressure) / 30.0)` |
+| Radiation | <= 5.0 mSv | `+max(0.0, (node_radiation - 5.0) / 15.0)` |
+| Temperature | >= -10.0°C | `+max(0.0, (-10.0 - node_temp) / 20.0)` |
 
-**Consequence Thresholds (per track):**
+**Consequence Thresholds:**
 
-| Exposure Level | Threshold | Effect |
+| Exposure Level | Threshold | Behavioral Effect |
 | :--- | :--- | :--- |
-| Nominal | 0.0 – 4.9 | No effect |
-| Stressed | 5.0 – 9.9 | Warning messages in Zone 5. `inspect` accuracy degrades (appends "[readings unclear]" to descriptions). |
-| Critical | 10.0+ | All `use` and `[G] Go` actions have a 1-tick delay (forced `wait` inserted before execution). The message buffer warns of imminent incapacitation. |
-| Incapacitated | 15.0+ in any track | Game over. The reducer sets `is_running = False` and emits a final narrative line. Save is preserved for reload. |
+| Nominal | 0.0 – 4.9 | Full operational capacity. |
+| Stressed | 5.0 – 9.9 | Cautionary telemetry alerts in Zone 5. `inspect` readings report blurred diagnostic telemetry. |
+| Critical | 10.0 – 14.9 | Imminent collapse warning. Forced physiological delay on physical actions. |
+| Incapacitated | 15.0+ | Systems fail; unconsciousness. The engine halts execution (`is_running = False`). On subsequent reload, emergency medical protocols revive the player in the bunkroom with cleared exposure. |
 
-**Recovery:** Returning to a Depth 0 pressurized node reduces all exposure tracks by 2.0 per tick (minimum 0.0). There is no healing item; recovery requires retreating to safety.
-
-**Attunement Mitigation:** Certain progression tree capabilities halve the accumulation rate for specific exposure types (see §8.1).
+*Progression Tree Mitigations:* Capabilities like `vacuum_walk`, `deep_well`, `cold_bypass`, and `trench_hardened` halve accumulation rates or increase thresholds by +5.0.
 
 ---
 
@@ -324,103 +343,100 @@ The player has an `Exposure` record with three accumulation tracks. Each tick sp
 
 ### 5.1 WASD Navigation Model
 
-The player is represented by a cursor position `(row, col)` on the Zone 2 N×N grid, stored in `GameState`. Movement is driven by raw single-keystrokes; no Enter key is required.
+Movement on the Zone 2 N×N grid is non-blocking and driven by single raw keystrokes:
 
-**Movement Keys (non-blocking, tick-advancing):**
+| Key | Direction | Coordinate Delta |
+| :--- | :--- | :--- |
+| `w` | North / Up | `row - 1` |
+| `s` | South / Down | `row + 1` |
+| `a` | West / Left | `col - 1` |
+| `d` | East / Right | `col + 1` |
 
-| Key | Direction |
-| :--- | :--- |
-| `w` | Up (row − 1) |
-| `s` | Down (row + 1) |
-| `a` | Left (col − 1) |
-| `d` | Right (col + 1) |
+- Border walls block movement. Each valid move increments `cycle` by 1 and runs the tick processor.
+- Player position is indicated by `@`. When overlapping a fixture or actor tile, the tile glyph is displayed in ANSI inverted video (`\033[7m{glyph}\033[0m`).
+- Stepping onto any tile containing an entity (fixture or actor) automatically activates the **Proximity Interaction Menu** in Zone 5.
 
-Movement is blocked at wall tiles (border cells). Each successful move advances the tick. On arrival at a tile occupied by a fixture, actor, or edge hatch, Zone 5 immediately presents a **proximity interaction menu** (see §5.2) — no separate command needed. Stepping onto an empty floor tile shows no menu.
+### 5.2 Contextual Proximity Interaction Menu
 
-**Player Cursor Glyph:** A dedicated cursor marker `@` is rendered at the player's current grid position. If a fixture or actor shares that tile, the entity glyph takes priority in display, but the cursor is still registered there for interaction purposes.
-
-### 5.2 Proximity Interaction Menu
-
-When the player cursor lands on a tile with an entity (fixture or actor), Zone 5 auto-displays a numbered option list. The player presses a single digit key to select — no typed command required.
-
-**Menu Construction Rules:**
-- Always includes: `[I] Inspect`
-- If entity is a **fixture** with a usable `on_use_effect` and the player (or party) holds a matching-tagged item: `[U] Use <item_name>`
-- If entity is a **fixture** with a traversable edge (`grants_edge` → `OPEN` state): `[G] Go through → <edge_label>`
-- If entity is an **actor**: `[T] Talk`
-- Always includes: `[X] Cancel` (clears menu, stays on tile)
+When the cursor rests on an entity tile, Zone 5 presents an enumerated action list. Single-key presses trigger actions directly:
 
 ```text
-ZONE 5:
-  [I] Inspect   [U] Use fitting_copper   [T] Talk   [X] Cancel
+ZONE 5 (Proximity Menu):
+  [I] Inspect   [U] Use prybar   [S] Scavenge bin   [G] Go -> Berth 04   [X] Cancel
 ```
 
-Selecting an option dispatches the corresponding action to the reducer directly, identical to the equivalent typed command. Zone 5 reverts to the message buffer after the action resolves.
+**Dynamic Menu Construction Rules:**
+- `[I] Inspect`: Always present. Inspects the physical condition, state, and environmental cues of the entity under cursor.
+- `[U] Use <item>`: Present if the entity is a fixture with an active `on_use_effect` and the player inventory or active companion party holds a matching tag.
+- `[S] Search / Scavenge`: Present if the entity is a container, salvage bin, locker, or terminal with unclaimed resources or data.
+- `[G] Go through -> <edge_label>`: Present if the entity is an edge portal in `OPEN` state.
+- `[T] Talk`: Present if the entity is an actor.
+- `[X] Cancel`: Dismisses the menu, returning Zone 5 to normal message log display.
 
-### 5.3 Command Tokenization (Typed Commands)
+### 5.3 Command Grammar & Slash Command System
 
-Typed commands remain available for non-movement, non-interaction actions. Input drops into a conventional `> ` prompt (Zone 6) only when needed. All input is normalized to lowercase, split on whitespace, and matched as `[verb, *args]` against the dispatch table. Unknown verbs emit `"Unknown command. Type 'help' for available actions."` to the `message_buffer`.
+Arbitrary non-slash keystrokes are silently consumed by the input loop to prevent accidental input pollution. Typing a leading slash `/` initiates full command entry in Zone 6:
 
-### 5.4 System Command Grammar
-
-| Verb / Key | Syntax | Reducer Logic | Advances Tick? |
+| Action / Verb | Syntax | Execution Details | Advances Tick? |
 | :--- | :--- | :--- | :--- |
-| `w` / `a` / `s` / `d` | *(raw key)* | Moves player cursor one tile in the corresponding direction. On landing on an entity tile, triggers proximity menu in Zone 5. Blocked by wall tiles. | Yes |
-| `e` / `[I]` | *(proximity menu)* | Equivalent to `inspect <entity_id>` for the tile under cursor. | No |
-| `[U]` | *(proximity menu)* | Equivalent to `use <best_match_item_id> <fixture_id>` for the tile under cursor. Auto-selects the first inventory item whose tags satisfy the fixture's `required_tag`. | Yes |
-| `[G]` | *(proximity menu)* | Traverses the open edge granted by the fixture under cursor. Equivalent to former `leave <edge_id>`. Checks capability requirements. | Yes |
-| `[T]` | *(proximity menu)* | Equivalent to `talk <actor_id>` for the actor under cursor. | Yes |
-| `inspect` | `inspect <target_id>` | Looks up fixture, actor, or inventory item by ID. Appends description + state to `message_buffer`. If target is a fixture: includes state and required_tag hint. If actor: includes status and dialogue_idle (or dialogue_post_trade if trade_completed). Does not modify game state beyond message_buffer. | No |
-| `talk` | `talk <actor_id>` | Checks actor exists in current node. If actor has incomplete trade AND player inventory contains an item with matching `trade_required_tag`: executes trade (see §5.5). Otherwise: appends actor's `dialogue_idle` (or `dialogue_post_trade`) to `message_buffer`. | Yes |
-| `use` | `use <item_id> <fixture_id>` | Validates item is in inventory. Validates fixture is in current node. Checks if ANY tag in item.tags matches fixture.required_tag. On match: executes the fixture's `on_use_effect` (see §5.6), reduces item integrity by 1 (removed from inventory at 0), transitions fixture state. On failure: appends `"That doesn't work here."` to message_buffer. | Yes |
-| `wait` | `wait` | Advances cycle by 1. Runs tick processor (§5.7). | Yes |
-| `map` | `map` | Sets `active_view = "map_topology"`. | No |
-| `back` | `back` | Sets `active_view = "compartment"` (only valid from map view). | No |
-| `log` | `log` | Appends last 10 entries of `action_log` to `message_buffer`. | No |
-| `pack` | `pack` | Appends formatted inventory listing (name, integrity, tags) to `message_buffer`. | No |
-| `character` | `character` | Appends progression tree view to `message_buffer` showing all nodes, attunement status, and next available unlock conditions. | No |
-| `party` | `party` | Appends companion listing (name, title, status, capability) to `message_buffer`. | No |
-| `flavor` | `flavor [on\|off]` | Toggles `flavor_enabled`. Appends confirmation to `message_buffer`. | No |
-| `help` | `help` | Appends verb listing with syntax to `message_buffer`. | No |
-| `quit` | `quit` / `q` | Sets `is_running = False`. Persistence layer saves before exit. | No |
+| `w`/`a`/`s`/`d` | *(single key)* | Moves cursor 1 tile; auto-opens proximity menu on entity tiles. | Yes |
+| `i` / `e` | *(single key / menu)* | Inspects entity under player cursor. | No |
+| `u` | *(single key / menu)* | Applies matching item or capability to fixture under cursor. | Yes |
+| `s` | *(single key / menu)* | Scavenges/searches container fixture under cursor. | Yes |
+| `g` | *(single key / menu)* | Traverses open hatch or umbilical under cursor. | Yes |
+| `t` | *(single key / menu)* | Initiates dialogue/barter with actor under cursor. | Yes |
+| `x` | *(single key / menu)* | Clears proximity menu and restores standard message buffer. | No |
+| `/inspect` | `/inspect <target>` | Examines fixture, actor, or inventory item by ID. | No |
+| `/use` | `/use <item> <fixture>` | Directly applies item to fixture in the current room. | Yes |
+| `/talk` | `/talk <actor>` | Engages dialogue, barter, or recruitment with specified actor. | Yes |
+| `/wait` | `/wait` | Pauses for 1 cycle; processes exposure and environmental decay. | Yes |
+| `/map` | `/map` | Opens dedicated ASCII cluster and node topology view. | No |
+| `/back` | `/back` | Exits map topology view and returns to compartment view. | No |
+| `/pack` | `/pack` | Displays inventory items, conditions, integrity, and capability tags. | No |
+| `/character`| `/character` | Displays qualitative progression tree status and unlock criteria. | No |
+| `/party` | `/party` | Lists recruited companions and their active party capability tags. | No |
+| `/log` | `/log` | Prints the 10 most recent chronological action entries. | No |
+| `/flavor` | `/flavor [on\|off]` | Toggles atmospheric prose rendering in Zone 4. | No |
+| `/help` | `/help` | Displays complete command syntax and operational hints. | No |
+| `/quit` | `/quit` | Deterministically saves state to disk and exits engine. | No |
 
-### 5.5 Trade Protocol (`talk` with Eligible Actor)
+### 5.4 Multi-Stage NPC Interaction & Dynamic Barter Protocol
 
-When `talk <actor_id>` is issued and all conditions are met, the trade executes atomically within the reducer:
+NPCs are persistent actors with distinct motivations, dialogue reactivity, and roleplay utility:
 
-1. **Preconditions:** Actor's `trade_completed == False` AND player inventory contains at least one item where `trade_required_tag in item.tags`.
-2. **Execution:**
-   a. The first matching item in inventory has integrity reduced by 1. If integrity reaches 0, the item is removed from inventory.
-   b. The actor's `trade_offered_id` item is looked up from the preset item definitions and added to player inventory at full integrity.
-   c. The actor record is updated: `trade_completed = True`.
-   d. If the actor has `companion_unlock`, the corresponding companion is added to `companions`.
-   e. The actor's `dialogue_post_trade` is appended to `message_buffer`.
-3. **Post-Trade:** Subsequent `talk` commands to this actor return `dialogue_post_trade`. The actor remains in the node but offers no further trades.
+1. **Contextual & Background Awareness:**
+   - Dialogue reflects player background (`seam_scraper`, `algae_tender`, `cargo_handler`). NPCs offer unique insights, trade discounts, or direct favors to fellow craftspeople.
+   - Dialogue updates dynamically when players have visited hazardous nodes (e.g. visiting Lunar Mine or Lava Tube) or recruited specific companions.
+2. **Flexible Multi-Tag Barter:**
+   - Rather than demanding a single rigid quest item, NPCs accept any inventory item that satisfies their required trade tag (e.g., `seal_fitting`, `barter_token`, `salvage`, `conductive`, or `sustenance`).
+   - Completing a barter trade decrements item integrity by 1 (consumed if 0), grants the actor's offered item, sets `trade_completed = True`, and updates the actor's dialogue.
+3. **Companion Recruitment:**
+   - Specific actors can be recruited into the player's permanent crew (`companion_unlock` field). Companions contribute their capability tags (`two_person_lift`, `signal_boost`, `bio_filter`) to the entire party.
 
-### 5.6 Fixture Use Effects (`on_use_effect`)
+### 5.5 Expanded Fixture Functionality & Environmental Systems
 
-When `use <item_id> <fixture_id>` succeeds (tag match), the fixture's `on_use_effect` determines the outcome:
+Fixtures represent the physical affordances of each compartment:
 
-| Effect Key | Behavior |
+| Effect Key | Description & Mechanical Behavior |
 | :--- | :--- |
-| `"unlock"` | Fixture state transitions: `SEALED → OPEN` or `LOCKED → OPEN`. The edge gated by `grants_edge` becomes traversable. |
-| `"refill"` | The used item's integrity is restored to `max_integrity`. Fixture remains `ACTIVE`. |
-| `"repair"` | Fixture state transitions: `DISABLED → ACTIVE`. No item consumed (integrity still decremented by 1 from the base `use` logic). |
-| `None` | No additional effect beyond the standard item integrity decrement. Fixture state unchanged. |
+| `"unlock"` | Changes fixture state from `SEALED`/`LOCKED` to `OPEN`. Grants passage through associated edge. |
+| `"refill"` | Restores used container item's integrity to `max_integrity` (e.g. refilling canteens at water taps). |
+| `"repair"` | Restores `DISABLED` machinery to `ACTIVE` using tools, clearing hazards or stabilizing room vitals. |
+| `"scavenge"` | Searches lockers, tool racks, or debris piles; transfers discovered item to inventory and transitions fixture to `SPENT`. |
+| `"harvest"` | Collects organic biomass or algae paste from active hydroponic tanks. Decrements fixture yield or charges. |
+| `"smelt"` | Refines raw ore or scrap metal at the smelter crucible into replacement tools, pipe collars, or prybars. |
+| `"override"` | Bypasses an electrical or pneumatic lock without keys using conductive wire, spanners, or technical skill. |
+| `"log"` | Displays technical schematics, audio recordings, or station telemetry, providing environmental lore and clues. |
 
-**State Transition Validation:** If a fixture is already `OPEN` or `SPENT`, `use` on it appends `"Already done."` to `message_buffer` and does not advance the tick.
+### 5.6 Tick Processor Pipeline (`core/tick.py`)
 
-### 5.7 Tick Processor (`core/tick.py`)
-
-The tick processor is a pure function called after every tick-advancing action: `process_tick(state: GameState) -> GameState`. It executes the following steps in order:
-
-1. **Cycle Increment:** `cycle += 1`.
-2. **Exposure Accumulation:** Calculate exposure deltas from current node's `base_vitals` against safe thresholds (§4.3 table). If player has mitigating attunements, halve the relevant delta. Add deltas to `exposure` tracks.
-3. **Exposure Recovery:** If current node is `depth == 0` and `environment == "pressurized"`, reduce all exposure tracks by 2.0 (min 0.0).
-4. **Exposure Consequences:** Check each track against thresholds. Append appropriate warnings to `message_buffer`. If any track >= 15.0, set `is_running = False` and append incapacitation narrative.
-5. **Integrity Decay:** For every sustenance item in inventory, decrement integrity by 1 if `cycle % 10 == 0` (every 10 ticks). Remove items at integrity 0 and append `"<item_name> is used up."` to message_buffer.
-6. **Action Log:** Append a summary of the action that triggered this tick to `action_log` (keep max 20 entries, drop oldest).
-
+Every tick-advancing action triggers a 6-step pure state reduction:
+1. `cycle += 1`
+2. **Exposure Accumulation:** Calculate pressure, radiation, and temperature deltas. Apply reductions from progression capabilities.
+3. **Exposure Recovery:** In Depth 0 Pressurized nodes, reduce all exposure tracks by 2.0 (minimum 0.0).
+4. **Exposure Consequences:** Evaluate Stressed (5.0), Critical (10.0), and Incapacitated (15.0) limits.
+5. **Progression Tree Attunement:** Check unlock conditions across all un-attuned nodes whose prerequisites are satisfied. Attuned nodes unlock new capability tags.
+6. **Sustenance & Asset Decay:** Every 10 cycles (`cycle % 10 == 0`), decrement integrity of sustenance items by 1. Update action log history (max 20 entries).
 
 ---
 
@@ -428,216 +444,124 @@ The tick processor is a pure function called after every tick-advancing action: 
 
 ### 6.1 Viewport Constraints
 
-* Terminal width must satisfy >= 40 columns.
-* Viewport is rendered as sequential newline-separated text. The terminal is cleared prior to each render cycle to provide a persistent, flicker-free viewport.
-* Visual grids are bounded to N x N where N <= 8 (max grid width = 15 character columns, leaving >= 22 for Zone 3).
-* **Prohibited:** Emojis, ANSI 16/256/RGB color palettes.
-* **Player Cursor:** `@` marks the player's current tile on the Zone 2 grid. When the player cursor overlaps with an item, fixture, or actor tile, the entity glyph is displayed with inverted colors (`\033[7m`), clearly indicating cursor position while preserving the entity icon.
-* **Permitted:** Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`), block elements (`█ ▓ ▒ ░`), math/technical symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ▲ ~ ◆ ■`), ANSI reverse-video video inversion (`\033[7m`) for cursor overlap.
+* Minimum terminal size: 40 columns by 20 rows.
+* Rendered via ANSI terminal clearing and sequential string construction.
+* Zone 2 minimap displays up to 8×8 grid. Entity glyphs with player cursor overlap are rendered in inverted video (`\033[7m`).
+* Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`) and unicode symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ▲ ~ ◆ ■ *`) are permitted. Emojis and arbitrary ANSI color palettes are prohibited.
 
-### 6.2 Dynamic Zone Width Calculation
-
-The renderer calculates zone widths dynamically based on the current node's grid size:
+### 6.2 The 6-Zone Layout Specification
 
 ```
-terminal_width = max(40, os.get_terminal_size().columns)
-grid_char_width = (node.size * 2) - 1  # Each glyph + space, minus trailing
-zone2_width = grid_char_width + 4       # 2 border chars + 2 padding
-zone3_width = terminal_width - zone2_width - 3  # 3 = middle border + outer borders
+┌─ Zone 1: Location Header ──────────────────────────┐
+│ STN ALPHA: Berth 04              C:0042  P:101.3kPa│
+├───────────────┬────────────────────────────────────┤
+│ Zone 2: Grid  │ Zone 3: Vitals & Status            │
+│  ░ ░ ░ = ░ ░  │ Pressure: 101.3 kPa  (Nominal)     │
+│  ░ · · · · ░  │ Radiation:  0.2 mSv  (Clean)       │
+│  ░ · ▓ · K ░  │ Temp:        18 C    (Nominal)     │
+│  ≡ · · @ · =  │ Exposure: [0.0 / 0.0 / 0.0]        │
+│  ░ · · · · ░  │ Crew: Vaelen (Scraper)             │
+│  ░ ░ ░ ⎅ ░ ░  │ Party: Radek (Rigger)              │
+├───────────────┴────────────────────────────────────┤
+│ Zone 4: Compartment & Sensor Prose                 │
+│ Open transfer bay smelling of hydraulic fluid and  │
+│ ozone. Cargo skids line the deck under harsh tubes.│
+├────────────────────────────────────────────────────┤
+│ Zone 5: Dynamic Message Buffer / Proximity Menu    │
+│ [I] Inspect   [U] Use prybar   [T] Talk   [X] Exit │
+├────────────────────────────────────────────────────┤
+│ Zone 6: Persistent Command Bar / Prompt            │
+│ /: cmd  wasd: move  i: inspect  u: use  g: go  t: talk
+└────────────────────────────────────────────────────┘
 ```
-
-For the default N=5: `zone2=13, zone3=24`. For N=8: `zone2=19, zone3=18`. Both are viable.
-
-### 6.3 The 6-Zone Layout Specification
-
-```text
-+──────────────────────────────────────+ <- ZONE 1: LOCATION HEADER
-│ LOCATION NAME [CLUSTER]             │    Node name, cluster tag, and
-│ ATM:101kPa TMP:21C RAD:NOM          │    current vitals from base_vitals.
-+──────────────────────────────────────+
-│ ZONE 2: MAP    │ ZONE 3: STATUS     │ <- Split Upper Viewport
-│ (N×N Grid)     │                    │    Zone 2: Spatial grid. Player
-│ ┌─────────┐    │ CYCLE: 088         │    cursor @ moves via WASD.
-│ │ · · = · │    │ EXPOSURE: NOM      │    Zone 3: Tick counter, exposure
-│ │ · ⌸ · · │    │                    │    status, and compact inventory.
-│ │ · @ · · │    │ PACK:              │
-│ │ · · ⚲ · │    │  fitting_copper(1) │
-│ └─────────┘    │  flask_water(3)    │
-+────────────────+────────────────────+
-│ ZONE 4: LEGEND                       │ <- Glyph key from node.fixtures
-│  = : Transit hatch (sealed)         │    and node.actors. Shows ID in
-│  ⌸ : Water spigot [spigot_01]       │    brackets for command targeting.
-│  ⚲ : Survey pylon [pylon_01]        │
-+──────────────────────────────────────+
-│ ZONE 5: MESSAGES / INTERACTION MENU  │ <- message_buffer contents OR
-│  [I] Inspect  [G] Go → Berth 04     │    proximity menu when cursor is
-│  [X] Cancel                         │    on an entity tile. Menu clears
-│  [!] Radiation elevated.            │    after selection or [X].
-+──────────────────────────────────────+
-│ WASD: move  /: cmd  M: map  Q: quit  │ <- ZONE 6: NAVIGATION / HINT BAR
-+──────────────────────────────────────+   '/' opens command entry prompt.
-```
-
-**Zone Rendering Rules:**
-- **Zone 1:** Always rendered. 2 lines: node name + vitals.
-- **Zone 2 + 3:** Side-by-side. Zone 2 width is computed from node grid size. Zone 3 fills remainder. Player `@` is drawn at `(player_row, player_col)`; entity glyphs take priority when co-located.
-- **Zone 4:** Legend block. One line per placed fixture/actor: `<glyph> : <name> [<id>]`. The `[<id>]` suffix is the target string used in typed commands.
-- **Zone 5:** Dual-purpose. In **message mode** (default): renders `message_buffer` then clears it (max 6 lines, older messages truncate; omitted if empty). In **proximity-menu mode** (when cursor lands on entity tile): replaces buffer with the interaction option list (§5.2). Menu is dismissed by selection or `[X]`.
-- **Zone 6:** Passive key-hint line: `WASD: move  /: cmd  M: map  Q: quit`. Command entry is initiated exclusively with `/`; all other non-action keystrokes are silently consumed without interrupting navigation.
-
-### 6.4 Dedicated Map Topology View (`map`)
-
-Invoked via `map`. Replaces the 6-zone view with an ASCII adjacency graph:
-
-```text
-TOPOLOGY [SECTOR GRAPH]
-────────────────────────────────────────
- STATION ALPHA        STATION BETA
- [hab] ── [*brt]      [arr] ── [fuel]
-            │            \    /
-          (D:1)          [dock]
-          [sub]            │
-            : shuttle      : shuttle
-            :··············:
-                   :
-          ════════[pad]════════ (Surface)
-                   │
-               [dome]
-               /      \
-          [smlt]      [crtr]
-            ║            ║
-          [mine]D:1   [tube]D:1
-────────────────────────────────────────
-[*brt] Berth 04 (HERE)     [hab] Hab Ring
-[sub]  Sub-Deck (D:1)      [arr] Array Hub
-[fuel] Fuel Spur            [dock] Dock Ring
-[pad]  Lunar Surface Pad   [dome] Habitat Dome
-[smlt] Smelter Flat        [crtr] Crater Rim
-[mine] Deep Mine (D:1)    [tube] Lava Tube (D:1)
-────────────────────────────────────────
-CMD: back (return to compartment view — navigate via WASD on re-entry)
-> 
-```
-
-**Map Legend Rules:** Current node is prefixed with `*`. Nodes the player has visited are shown with their short ID. Unvisited nodes reachable by one hop are shown. Unreachable nodes (2+ hops or gated) are shown as `[???]`.
 
 ---
 
 ## 7. Character Creation Sequence
 
-Character creation runs as a sequential CLI flow. Each step maps directly to a field on `PlayerCharacter` and the initial `GameState`.
-
-```text
-[STEP 1: IDENTIFIER]
-Enter callsign or name:
-> Vaelen
-
-[STEP 2: THE PERSONAL ANCHOR]
-What did you keep in your pocket?
-  1. A copper pipe fitting (clean threads).
-  2. A stamped paper work-pass (expired).
-  3. A pair of steel dice (pips worn flat).
-> 1
-
-[STEP 3: THE ROUTINE]
-What did you do for work?
-  1. Pipe cleaning and seam scraping.
-  2. Algae-bed tending and filter rinsing.
-  3. Cargo handling and skid lashing.
-> 1
-
-[STEP 4: CONFIRMATION]
-Vaelen. Former scraper, copper fitting in pocket.
-Starting in: Deck 4 - Shared Bunkroom.
-Begin? [y/n]:
-> y
-```
-
 ### 7.1 Creation-to-State Mapping
 
-| Step | Selection | State Effect |
-| :--- | :--- | :--- |
-| Step 1: Name | Free text | `character.name` |
-| Step 2: Anchor | Choice 1: `fitting_copper` | `character.personal_anchor` = item; also placed in `character.inventory` |
-| | Choice 2: `pass_work` | Same mapping |
-| | Choice 3: `dice_steel` | Same mapping (item must be defined in items.json) |
-| Step 3: Routine | Choice 1: Scraper | `character.past_work = "seam_scraper"`; `unlocked_capabilities` += `{"seal_fitting"}` |
-| | Choice 2: Tender | `character.past_work = "algae_tender"`; `unlocked_capabilities` += `{"bio_filter"}` |
-| | Choice 3: Handler | `character.past_work = "cargo_handler"`; `unlocked_capabilities` += `{"heavy_lift"}` |
-| All | — | `current_node_id = "stn_a_bunkroom"`; `cycle = 0`; `exposure = Exposure(0,0,0)`; `player_row = node.size // 2`; `player_col = node.size // 2`; `proximity_menu_active = False` |
+Character creation establishes personal background, starting equipment, and an authentic roleplay identity:
 
-**Starting location is always `stn_a_bunkroom`**. The character creation flow was simplified from the original 5-step version to remove a starting-location choice that referenced undefined nodes. Starting in the bunkroom provides a safe Depth 0 tutorial space.
+| Step | Selection | In-Game Mechanical Effect |
+| :--- | :--- | :--- |
+| **Step 1: Callsign** | Free text input | Stored in `character.name`. |
+| **Step 2: Personal Anchor** | 1. Copper Pipe Fitting (`fitting_copper`) | Utility item; provides `seal_fitting`, `conductive`. |
+| | 2. Stamped Work Pass (`pass_work`) | Credential; provides `dock_clearance`, `id_verified`. |
+| | 3. Steel Dice (`dice_steel`) | Record item; provides `morale`, `barter_token`. |
+| | 4. Chalk Slate (`slate_tally`) | Record item; provides `record`, `marking`, `lore`. |
+| **Step 3: Past Routine** | 1. Seam Scraper (`seam_scraper`) | `unlocked_capabilities += {"seal_fitting"}`. Can inspect weld integrity, bypass stuck seals, and craft basic fittings. |
+| | 2. Algae Tender (`algae_tender`) | `unlocked_capabilities += {"bio_filter"}`. Can harvest biomass, service scrubbers, and identify potable fluids. |
+| | 3. Cargo Handler (`cargo_handler`) | `unlocked_capabilities += {"heavy_lift"}`. Can brute-force seized levers, lift heavy bulkheads, and handle dense freight. |
+
+*Initial Spawn:* Player begins in `stn_a_bunkroom` at grid center `(node.size // 2, node.size // 2)`, with `cycle = 0`, zero exposure, and empty message buffers.
 
 ---
 
 ## 8. Progression, Capabilities & Party Mechanics
 
-### 8.1 Qualitative Progression Tree
+### 8.1 Three-Branch Qualitative Progression Tree
 
-Character progression is an authored directed tree accessed via `character`. Each `TreeNode` has a specific `unlock_condition` that determines how it is earned.
+Advancement is non-linear and structured across three distinct operational branches:
 
 ```
-PROGRESSION TREE:
+QUALITATIVE PROGRESSION TREE:
 
-[seam_discipline] ──── [bulkhead_ear] ──── [deep_well]
-        │
-[cold_bypass] ──────── [vacuum_walk] ──── [trench_hardened]
+[ Engineering & Fabrication ]
+  seam_discipline ───> scrap_fabrication ───> bulkhead_ear ───> conduit_mastery
+
+[ Survival & Void Resilience ]
+  cold_bypass ───────> vacuum_walk ─────────> deep_well ───────> trench_hardened
+
+[ Operations & Field Logistics ]
+  scavenger_instinct ─> crew_coordination ─> signal_analysis ─> wayfarer
 ```
 
-**Unlock Condition Types:**
+#### Tree Node Specification
 
-| Condition Type | Parameter | Trigger |
-| :--- | :--- | :--- |
-| `"visit_node"` | Node ID | Player enters the specified node for the first time |
-| `"survive_depth"` | Depth int as string | Player completes 5 ticks at the specified depth without reaching Critical exposure |
-| `"complete_trade"` | Actor ID | Player completes a trade with the specified actor |
-| `"use_fixture"` | Fixture ID | Player successfully uses the specified fixture |
+| ID | Name | Branch | Prerequisite | Condition Type | Parameter | Mechanical Effect |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `seam_discipline` | Seam Discipline | Engineering | None | `use_fixture` | `spigot_01` | Inspecting fixtures reveals leak rates, required tool tags, and structural wear. |
+| `scrap_fabrication` | Scrap Fabrication | Engineering | `seam_discipline` | `use_fixture` | `salvage_bin` | Enables crafting replacement fittings and levers at any active workshop or smelter. |
+| `bulkhead_ear` | Bulkhead Ear | Engineering | `scrap_fabrication`| `visit_node` | `stn_a_sub` | Inspecting edge portals reveals destination pressure and temperature prior to opening. |
+| `conduit_mastery` | Conduit Mastery | Engineering | `bulkhead_ear` | `use_fixture` | `jammed_valve` | Manual overrides and repairs consume zero tool integrity on standard fixtures. |
+| `cold_bypass` | Cold-Line Bypass | Survival | None | `survive_depth` | `1` | Halves temperature exposure accumulation rate in sub-zero nodes. |
+| `vacuum_walk` | Vacuum Walk | Survival | `cold_bypass` | `visit_node` | `luna_pad` | Halves pressure debt accumulation; grants `vacuum_traverse` capability tag. |
+| `deep_well` | Deep-Well Attunement | Survival | `vacuum_walk` | `survive_depth` | `1` | Halves radiation dose accumulation rate in deep mining and conduit nodes. |
+| `trench_hardened` | Trench Hardened | Survival | `deep_well` | `visit_node` | `luna_mine` | All exposure thresholds increased by +5.0 (Stressed: 10, Critical: 15, Incapacitated: 20). |
+| `scavenger_instinct` | Scavenger's Eye | Operations | None | `use_fixture` | `personal_locker` | Highlights hidden salvage caches in rooms; doubles yield from scavenged fixtures. |
+| `crew_coordination` | Crew Coordination | Operations | `scavenger_instinct`| `complete_trade` | `npc_radek` | Companions provide passive +2.0 environmental hazard resistance to the entire party. |
+| `signal_analysis` | Signal Analysis | Operations | `crew_coordination`| `use_fixture` | `comms_rack` | Decodes encrypted station data logs and reveals telemetry on notice boards. |
+| `wayfarer` | Void Wayfarer | Operations | `signal_analysis` | `visit_node` | `luna_dome` | Sustenance decay interval doubled to every 20 ticks; eliminates shuttle token costs. |
 
-**Tree Node Definitions:**
+### 8.2 Inventory Assets Reference
 
-| ID | Name | Prerequisite | Condition | Parameter | Effect |
+| ID | Name | Category | Tags | Max Integrity | Operational Utility |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `seam_discipline` | Seam Discipline | None | `use_fixture` | `spigot_01` | `inspect` on sealed fixtures reveals leak state and required tool tag |
-| `bulkhead_ear` | Bulkhead Ear | `seam_discipline` | `visit_node` | `stn_a_sub` | `inspect` on sealed edges reveals destination node's pressure level before opening |
-| `cold_bypass` | Cold-Line Bypass | None | `survive_depth` | `1` | Halves `temperature` exposure accumulation rate |
-| `vacuum_walk` | Vacuum Walk | `cold_bypass` | `complete_trade` | `npc_kael` | Halves `pressure` exposure accumulation rate; unlocks `vacuum_traverse` capability tag |
-| `deep_well` | Deep-Well Attunement | `bulkhead_ear` | `survive_depth` | `2` | Halves `radiation` exposure accumulation rate |
-| `trench_hardened` | Trench Hardened | `vacuum_walk` | `visit_node` | `luna_mine` | All exposure thresholds increased by 5.0 (Stressed at 10, Critical at 15, Incapacitated at 20) |
+| `fitting_copper` | Copper Pipe Fitting | utility | `seal_fitting`, `conductive` | 1 | Seals fluid/gas leaks; bypasses low-voltage relays. |
+| `pass_work` | Stamped Work Pass | credential | `dock_clearance`, `id_verified` | 0 | Authorizes cargo hoist operation and standard shuttle boarding. |
+| `dice_steel` | Steel Dice | record | `morale`, `barter_token` | 0 | Milled steel cubes; accepted by dockers and miners as trade collateral. |
+| `slate_tally` | Chalk Slate | record | `record`, `marking`, `lore` | 0 | Displays scratched station manifests, codes, and historical tallies. |
+| `chit_transit` | Transit Token | credential | `transit_clearance` | 1 | Stamped token granting single-hop shuttle boarding. |
+| `tool_prybar` | Thermal Pry-Bar | utility | `force_lever`, `heavy_duty` | 4 | Heavy lever for jammed valves, sealed hatches, and stubborn crates. |
+| `tool_spanner` | Filter Spanner | utility | `bio_filter`, `wrench` | 3 | Sized for biological filtration couplings and mechanical bolts. |
+| `flask_water` | Insulated Canteen | sustenance | `hydration`, `refillable` | 3 | Drinking flask; refillable at active water taps. Decays over cycles. |
+| `ration_dry` | Compressed Ration | sustenance | `nutrition` | 3 | Calorie bar; satisfies metabolic requirements. Decays over cycles. |
+| `algae_paste` | Fresh Algae Paste | sustenance | `nutrition`, `biomass` | 2 | Nutrient slurry harvested from active hydroponic tanks. |
+| `wire_spool` | Insulated Copper Wire | utility | `conductive`, `electrical` | 2 | Used for rewiring damaged consoles and electrical overrides. |
+| `seal_patch` | Silicone Seal Patch | utility | `vacuum_seal`, `adhesive` | 2 | Emergency patch for repairing leaking valves and breached conduits. |
+| `scrap_metal` | Basalt Scrap Metal | material | `salvage`, `conductive` | 0 | Salvaged plates; used as raw stock in the smelter crucible. |
+| `ore_sample` | High-Grade Lunar Ore | material | `mineral`, `smeltable` | 0 | Heavy basalt core extracted from deep mining veins. |
 
-**Attunement Check:** After each tick, the tick processor checks all un-attuned tree nodes whose prerequisites are met. If the current action satisfies the node's unlock condition, the node is attuned: its `id` is added to `unlocked_capabilities`, a message is appended to `message_buffer`, and the tree node's `attuned` flag is set to `True` in state.
+### 8.3 Companion Roster & Party Synergy
 
-### 8.2 Inventory Assets
+Companions represent fellow crew members recruited across the stations. They travel with the player and contribute specialized capabilities:
 
-Items represent material possessions with narrative and physical utility. All items are defined in `presets/default-1.0/items.json`.
-
-| ID | Name | Category | Tags | Max Integrity | Notes |
+| ID | Name | Title | Cluster Source | Capability Tag | Function & Synergy |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `fitting_copper` | Copper Pipe Fitting | utility | `seal_fitting`, `conductive` | 1 | Anchor option. Consumed on first use. |
-| `pass_work` | Stamped Work Pass | credential | `dock_clearance`, `id_verified` | 0 | Anchor option. Indestructible. |
-| `dice_steel` | Steel Dice | record | `morale`, `barter_token` | 0 | Anchor option. Indestructible. |
-| `chit_transit` | Transit Token | credential | `transit_clearance` | 1 | Consumed on shuttle hop. |
-| `tool_prybar` | Thermal Pry-Bar | utility | `force_lever`, `heavy_duty` | 4 | Opens stuck hatches and debris. |
-| `flask_water` | Insulated Canteen | sustenance | `hydration`, `refillable` | 3 | Refilled at active spigots. Decays per §5.6. |
-| `ration_dry` | Compressed Ration | sustenance | `nutrition` | 3 | Decays per §5.6. No refill. |
-| `tool_spanner` | Filter Spanner | utility | `bio_filter`, `wrench` | 3 | Used on biological filtration fixtures. |
-| `slate_tally` | Chalk Slate | record | `record`, `marking` | 0 | Indestructible. Narrative item. |
-
-### 8.3 Companions & Party
-
-Companions are persistent crew members unlocked via specific actor trades (§5.4, `companion_unlock` field). They are **not** inventory items.
-
-**Companion Definitions (`companions.json`):**
-
-| ID | Name | Title | Capability Tag | Unlock Source |
-| :--- | :--- | :--- | :--- | :--- |
-| `comp_radek` | Radek | Cargo Rigger | `two_person_lift` | Actor `npc_kael` trade |
-| `comp_mira` | Mira | Array Technician | `signal_boost` | Actor in Station Beta (TBD) |
-
-**Party Mechanics:**
-- Companions contribute their `capability_tag` to available capabilities during `use` checks. When the player uses an item on a fixture, the system checks both `item.tags` and all companion `capability_tag` values for a match against `fixture.required_tag`.
-- Some fixtures have `required_tag` values that only companions provide (e.g., `"two_person_lift"` for heavy cargo hatches), creating hard gates that require party recruitment.
-- Companions persist across node transitions. They cannot be dismissed, lost, or killed in v1.0 scope.
-- The `party` command displays each companion's name, title, and current status.
+| `comp_radek` | Radek | Cargo Rigger | Station Alpha (Sub-Deck) | `two_person_lift` | Operates heavy industrial lifts, assists in prying sealed doors, and hauls freight. |
+| `comp_tarek` | Tarek | Array Specialist | Station Beta (Dock / Array) | `signal_boost` | Decodes encrypted station data, intercepts distress traffic, and hacks consoles. |
+| `comp_mira` | Mira | Hab Botanist | Station Alpha (Hab Ring) | `bio_filter` | Optimizes life support scrubbers, harvests algae rations, and purges exposure toxins. |
 
 ---
 
@@ -675,6 +599,15 @@ Companions are persistent crew members unlocked via specific actor trades (§5.4
     "description": "Two milled steel cubes, pips worn flat from rolling on deck plate."
   },
   {
+    "id": "slate_tally",
+    "name": "Chalk Slate",
+    "category": "record",
+    "tags": ["record", "marking", "lore"],
+    "integrity": 0,
+    "max_integrity": 0,
+    "description": "Flat slate slab showing scratched shift quotas and valve coordinates."
+  },
+  {
     "id": "chit_transit",
     "name": "Transit Token",
     "category": "credential",
@@ -691,6 +624,15 @@ Companions are persistent crew members unlocked via specific actor trades (§5.4
     "integrity": 4,
     "max_integrity": 4,
     "description": "Flat-nosed iron lever rated for stuck latches and warped plates."
+  },
+  {
+    "id": "tool_spanner",
+    "name": "Filter Spanner",
+    "category": "utility",
+    "tags": ["bio_filter", "wrench"],
+    "integrity": 3,
+    "max_integrity": 3,
+    "description": "Offset ring spanner sized for standard filtration cartridge bolts."
   },
   {
     "id": "flask_water",
@@ -711,29 +653,54 @@ Companions are persistent crew members unlocked via specific actor trades (§5.4
     "description": "Dense calorie block in foil wrap. Tastes like salted chalk."
   },
   {
-    "id": "tool_spanner",
-    "name": "Filter Spanner",
-    "category": "utility",
-    "tags": ["bio_filter", "wrench"],
-    "integrity": 3,
-    "max_integrity": 3,
-    "description": "Offset ring spanner sized for standard filtration cartridge bolts."
+    "id": "algae_paste",
+    "name": "Fresh Algae Paste",
+    "category": "sustenance",
+    "tags": ["nutrition", "biomass"],
+    "integrity": 2,
+    "max_integrity": 2,
+    "description": "High-protein spirulina slurry harvested from station hydroponics."
   },
   {
-    "id": "slate_tally",
-    "name": "Chalk Slate",
-    "category": "record",
-    "tags": ["record", "marking"],
+    "id": "wire_spool",
+    "name": "Insulated Copper Wire",
+    "category": "utility",
+    "tags": ["conductive", "electrical"],
+    "integrity": 2,
+    "max_integrity": 2,
+    "description": "Flexible coil of copper wiring suitable for circuit overrides."
+  },
+  {
+    "id": "seal_patch",
+    "name": "Silicone Seal Patch",
+    "category": "utility",
+    "tags": ["vacuum_seal", "adhesive"],
+    "integrity": 2,
+    "max_integrity": 2,
+    "description": "Self-curing elastomer patch rated for sudden pressure drops."
+  },
+  {
+    "id": "scrap_metal",
+    "name": "Basalt Scrap Metal",
+    "category": "material",
+    "tags": ["salvage", "conductive"],
     "integrity": 0,
     "max_integrity": 0,
-    "description": "Flat stone slab with a nub of calcium carbonate chalk."
+    "description": "Twisted structural alloy plates suitable for smelting."
+  },
+  {
+    "id": "ore_sample",
+    "name": "High-Grade Lunar Ore",
+    "category": "material",
+    "tags": ["mineral", "smeltable"],
+    "integrity": 0,
+    "max_integrity": 0,
+    "description": "Heavy core of titanium-rich lunar basalt extracted from the deep shaft."
   }
 ]
 ```
 
-### 9.2 Starting Nodes (`nodes.json`)
-
-The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Additional clusters are defined with minimal fixtures to establish the graph skeleton.
+### 9.2 Complete 14-Node World Preset (`nodes.json`)
 
 ```json
 [
@@ -744,7 +711,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 5,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": {"pressure_kpa": 101.3, "radiation_msv": 0.1, "temperature_c": 20},
+    "base_vitals": { "pressure_kpa": 101.3, "radiation_msv": 0.1, "temperature_c": 20 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -756,7 +723,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": null,
         "grants_edge": "to_berth",
         "on_use_effect": null,
-        "description": "Standard oval pressure seal leading to the primary berths."
+        "description": "Oval pressure seal leading to the primary transfer platform."
       },
       "spigot_01": {
         "id": "spigot_01",
@@ -766,13 +733,35 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": "refillable",
         "grants_edge": null,
         "on_use_effect": "refill",
-        "description": "Push-valve tap metering gray-line recycled water."
+        "description": "Push-valve tap metering gray-line recycled potable water."
+      },
+      "personal_locker": {
+        "id": "personal_locker",
+        "glyph": "⚲",
+        "name": "Crew Storage Locker",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "scavenge",
+        "description": "Metal footlocker tucked under a cot. Contains discarded shift notes and copper wire."
+      },
+      "vent_duct": {
+        "id": "vent_duct",
+        "glyph": "≡",
+        "name": "Service Crawlway",
+        "state": "sealed",
+        "required_tag": "seal_fitting",
+        "grants_edge": "to_sub_vent",
+        "on_use_effect": "unlock",
+        "description": "Narrow maintenance duct descending behind conduit lines straight to the sub-deck."
       }
     },
     "actors": {},
     "placements": [
-      {"entity_id": "hatch_berth", "row": 0, "col": 2},
-      {"entity_id": "spigot_01", "row": 3, "col": 1}
+      { "entity_id": "hatch_berth", "row": 0, "col": 2 },
+      { "entity_id": "spigot_01", "row": 3, "col": 1 },
+      { "entity_id": "personal_locker", "row": 1, "col": 3 },
+      { "entity_id": "vent_duct", "row": 4, "col": 2 }
     ],
     "edges": {
       "to_berth": {
@@ -781,9 +770,16 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "label": "Berth 04",
         "gated_by_fixture": null,
         "requires_capability": null
+      },
+      "to_sub_vent": {
+        "id": "to_sub_vent",
+        "target_node_id": "stn_a_sub",
+        "label": "Sub-Deck Conduits (Vent)",
+        "gated_by_fixture": "vent_duct",
+        "requires_capability": null
       }
     },
-    "description": "Narrow compartment lined with fold-down bunks. Recycled air tastes of copper and cleaning solvent."
+    "description": "Narrow sleeping bay lined with fold-down bunks. Recycled air smells faintly of cleaning solvent."
   },
   {
     "id": "stn_a_berth",
@@ -792,7 +788,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 7,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": {"pressure_kpa": 101.3, "radiation_msv": 0.2, "temperature_c": 18},
+    "base_vitals": { "pressure_kpa": 101.3, "radiation_msv": 0.2, "temperature_c": 18 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -814,7 +810,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": "dock_clearance",
         "grants_edge": "to_subdeck",
         "on_use_effect": "unlock",
-        "description": "Chain-driven freight platform descending into the lower conduit well."
+        "description": "Chain-driven freight platform descending into the sub-deck conduit well."
       },
       "shuttle_gate": {
         "id": "shuttle_gate",
@@ -833,8 +829,18 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "state": "active",
         "required_tag": null,
         "grants_edge": null,
-        "on_use_effect": null,
-        "description": "Heavy cargo skid lashed down with tension clamps. Manifest reads: machine parts, Luna-bound."
+        "on_use_effect": "scavenge",
+        "description": "Heavy industrial pallet lashed down with tension clamps. Loose packing holds spare salvage."
+      },
+      "salvage_bin": {
+        "id": "salvage_bin",
+        "glyph": "⊞",
+        "name": "Maintenance Scrap Bin",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "scavenge",
+        "description": "Welded steel bin holding discarded copper pipe fittings and scrap brackets."
       },
       "hab_hatch": {
         "id": "hab_hatch",
@@ -857,18 +863,19 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "trade_offered_id": "pass_work",
         "trade_required_tag": "seal_fitting",
         "trade_completed": false,
-        "dialogue_idle": "Hopper to the moon pad is spooling. Need a replacement collar for this hydraulic line before I can endorse any passes.",
-        "dialogue_post_trade": "Collar's seated. Here — shift pass, endorsed. Radek down on the sub-deck could use a hand with the cargo platform.",
+        "dialogue_idle": "Hopper to Luna is spooling. If you've got spare pipe collars or salvage, I can endorse a work pass for the freight deck.",
+        "dialogue_post_trade": "Pass endorsed. Take care on the sub-deck; Radek's down there cursing at a frozen valve.",
         "companion_unlock": null
       }
     },
     "placements": [
-      {"entity_id": "hatch_bunks", "row": 0, "col": 3},
-      {"entity_id": "freight_skid", "row": 2, "col": 2},
-      {"entity_id": "npc_kael", "row": 2, "col": 4},
-      {"entity_id": "hab_hatch", "row": 3, "col": 0},
-      {"entity_id": "shuttle_gate", "row": 3, "col": 6},
-      {"entity_id": "cargo_hoist", "row": 5, "col": 3}
+      { "entity_id": "hatch_bunks", "row": 0, "col": 3 },
+      { "entity_id": "freight_skid", "row": 2, "col": 2 },
+      { "entity_id": "npc_kael", "row": 2, "col": 4 },
+      { "entity_id": "salvage_bin", "row": 4, "col": 5 },
+      { "entity_id": "hab_hatch", "row": 3, "col": 0 },
+      { "entity_id": "shuttle_gate", "row": 3, "col": 6 },
+      { "entity_id": "cargo_hoist", "row": 5, "col": 3 }
     ],
     "edges": {
       "to_bunks": {
@@ -909,7 +916,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 6,
     "depth": 1,
     "environment": "depressurizing",
-    "base_vitals": {"pressure_kpa": 65.0, "radiation_msv": 2.0, "temperature_c": -25},
+    "base_vitals": { "pressure_kpa": 65.0, "radiation_msv": 2.0, "temperature_c": -25 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -923,6 +930,16 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "on_use_effect": null,
         "description": "Chain platform ascending back to Berth 04."
       },
+      "vent_to_bunk": {
+        "id": "vent_to_bunk",
+        "glyph": "≡",
+        "name": "Service Vent (Up)",
+        "state": "open",
+        "required_tag": null,
+        "grants_edge": "to_bunk_vent",
+        "on_use_effect": null,
+        "description": "Climbing rungs inside the ventilation riser back to the bunkroom."
+      },
       "jammed_valve": {
         "id": "jammed_valve",
         "glyph": "■",
@@ -931,7 +948,17 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": "force_lever",
         "grants_edge": null,
         "on_use_effect": "repair",
-        "description": "Manual shutoff valve seized by thermal contraction. Frozen in the closed position."
+        "description": "Thermal bypass valve seized shut by freezing line ice. Requires heavy levering."
+      },
+      "tool_rack": {
+        "id": "tool_rack",
+        "glyph": "⊞",
+        "name": "Rigging Tool Rack",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "scavenge",
+        "description": "Industrial tool board mounted on the conduit wall. Holds a thermal pry-bar."
       }
     },
     "actors": {
@@ -940,25 +967,34 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "glyph": "R",
         "name": "Radek",
         "title": "Cargo Rigger",
-        "status": "Crouched by a frozen conduit junction",
-        "trade_offered_id": "ration_dry",
+        "status": "Shivering over frozen conduit junction",
+        "trade_offered_id": "chit_transit",
         "trade_required_tag": "force_lever",
         "trade_completed": false,
-        "dialogue_idle": "Valve's seized. Can't move freight until someone levers it open. Got a bar?",
-        "dialogue_post_trade": "That did it. Pressure's equalizing. Take this ration — I packed extra. I'll stick around if you're heading deeper.",
+        "dialogue_idle": "Valve's iced solid. Can't equalize pressure without a prybar. Got one? I've got an extra transit chit if you help crack it.",
+        "dialogue_post_trade": "Valve's turning. Heat's coming back. I'm ready to roll if you need a hand hauling freight.",
         "companion_unlock": "comp_radek"
       }
     },
     "placements": [
-      {"entity_id": "hoist_up", "row": 0, "col": 3},
-      {"entity_id": "jammed_valve", "row": 3, "col": 1},
-      {"entity_id": "npc_radek", "row": 3, "col": 4}
+      { "entity_id": "hoist_up", "row": 0, "col": 3 },
+      { "entity_id": "vent_to_bunk", "row": 5, "col": 1 },
+      { "entity_id": "jammed_valve", "row": 3, "col": 1 },
+      { "entity_id": "tool_rack", "row": 2, "col": 4 },
+      { "entity_id": "npc_radek", "row": 3, "col": 4 }
     ],
     "edges": {
       "to_berth": {
         "id": "to_berth",
         "target_node_id": "stn_a_berth",
         "label": "Berth 04 (Up)",
+        "gated_by_fixture": null,
+        "requires_capability": null
+      },
+      "to_bunk_vent": {
+        "id": "to_bunk_vent",
+        "target_node_id": "stn_a_bunkroom",
+        "label": "Bunkroom (Vent)",
         "gated_by_fixture": null,
         "requires_capability": null
       }
@@ -972,7 +1008,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 6,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": {"pressure_kpa": 101.3, "radiation_msv": 0.1, "temperature_c": 21},
+    "base_vitals": { "pressure_kpa": 101.3, "radiation_msv": 0.1, "temperature_c": 21 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -993,14 +1029,40 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "state": "active",
         "required_tag": null,
         "grants_edge": null,
-        "on_use_effect": null,
-        "description": "Laminated postings: shift rosters, water ration schedules, a missing-persons notice dated three cycles back."
+        "on_use_effect": "log",
+        "description": "Postings: shift rosters, fuel quotas on Station Beta, and reports of seismic tremors in the lunar mines."
+      },
+      "algae_basin": {
+        "id": "algae_basin",
+        "glyph": "⌸",
+        "name": "Hydroponic Algae Vat",
+        "state": "active",
+        "required_tag": "bio_filter",
+        "grants_edge": null,
+        "on_use_effect": "harvest",
+        "description": "Green spirulina culture bubbling behind acrylic. Can yield fresh nutrient paste."
       }
     },
-    "actors": {},
+    "actors": {
+      "npc_mira": {
+        "id": "npc_mira",
+        "glyph": "M",
+        "name": "Mira",
+        "title": "Hab Botanist",
+        "status": "Checking nutrient flow in algae basin",
+        "trade_offered_id": "flask_water",
+        "trade_required_tag": "conductive",
+        "trade_completed": false,
+        "dialogue_idle": "Recycler pumps are surging. If you have clean wire or copper fittings to ground this sensor, I can spare a clean canteen.",
+        "dialogue_post_trade": "Sensor's grounded. Water's running sweet. If you're heading out to the outer rings, I can monitor your bio-filters.",
+        "companion_unlock": "comp_mira"
+      }
+    },
     "placements": [
-      {"entity_id": "hatch_to_berth", "row": 5, "col": 3},
-      {"entity_id": "notice_board", "row": 2, "col": 2}
+      { "entity_id": "hatch_to_berth", "row": 5, "col": 3 },
+      { "entity_id": "notice_board", "row": 2, "col": 1 },
+      { "entity_id": "algae_basin", "row": 2, "col": 4 },
+      { "entity_id": "npc_mira", "row": 3, "col": 4 }
     ],
     "edges": {
       "to_berth": {
@@ -1015,12 +1077,12 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
   },
   {
     "id": "shuttle_ab",
-    "name": "Inter-Station Shuttle",
+    "name": "Inter-Station Shuttle Hopper",
     "cluster": "transit",
-    "size": 4,
+    "size": 5,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": {"pressure_kpa": 98.0, "radiation_msv": 1.5, "temperature_c": 16},
+    "base_vitals": { "pressure_kpa": 98.0, "radiation_msv": 1.5, "temperature_c": 16 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1038,28 +1100,39 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "id": "gate_beta",
         "glyph": "=",
         "name": "Station Beta Umbilical",
-        "state": "sealed",
-        "required_tag": "transit_clearance",
+        "state": "open",
+        "required_tag": null,
         "grants_edge": "to_stn_b",
-        "on_use_effect": "unlock",
-        "description": "Docking collar to Station Beta's Dock Ring. Requires transit token."
+        "on_use_effect": null,
+        "description": "Docking collar clamped to Station Beta's Dock Ring."
       },
       "gate_luna": {
         "id": "gate_luna",
         "glyph": "▲",
         "name": "Lunar Descent Hatch",
-        "state": "sealed",
-        "required_tag": "transit_clearance",
+        "state": "open",
+        "required_tag": null,
         "grants_edge": "to_luna",
-        "on_use_effect": "unlock",
-        "description": "Descent module hatch for the surface run to Lunar Pad."
+        "on_use_effect": null,
+        "description": "Reinforced exterior airlock leading directly down to the lunar surface apron."
+      },
+      "flight_console": {
+        "id": "flight_console",
+        "glyph": "≡",
+        "name": "Navigational Telemetry Console",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "log",
+        "description": "Automated guidance screen displaying orbital ephemeris, lunar pad coordinates, and radiation forecasts."
       }
     },
     "actors": {},
     "placements": [
-      {"entity_id": "gate_alpha", "row": 0, "col": 1},
-      {"entity_id": "gate_beta", "row": 0, "col": 2},
-      {"entity_id": "gate_luna", "row": 3, "col": 1}
+      { "entity_id": "gate_alpha", "row": 0, "col": 1 },
+      { "entity_id": "gate_beta", "row": 0, "col": 3 },
+      { "entity_id": "gate_luna", "row": 4, "col": 2 },
+      { "entity_id": "flight_console", "row": 2, "col": 2 }
     ],
     "edges": {
       "to_stn_a": {
@@ -1073,18 +1146,18 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "id": "to_stn_b",
         "target_node_id": "stn_b_dock",
         "label": "Station Beta",
-        "gated_by_fixture": "gate_beta",
+        "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_luna": {
         "id": "to_luna",
         "target_node_id": "luna_pad",
-        "label": "Lunar Surface",
-        "gated_by_fixture": "gate_luna",
+        "label": "Lunar Surface Pad",
+        "gated_by_fixture": null,
         "requires_capability": null
       }
     },
-    "description": "Cramped shuttle cabin with four acceleration couches. Viewport shows the slow rotation of station superstructure."
+    "description": "Functional shuttle hopper cabin with four acceleration couches. Reinforced viewports overlook the lunar rim."
   },
   {
     "id": "stn_b_dock",
@@ -1093,7 +1166,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 6,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": {"pressure_kpa": 100.5, "radiation_msv": 0.3, "temperature_c": 19},
+    "base_vitals": { "pressure_kpa": 100.5, "radiation_msv": 0.3, "temperature_c": 19 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1105,7 +1178,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": null,
         "grants_edge": "to_shuttle",
         "on_use_effect": null,
-        "description": "Umbilical back to the inter-station shuttle."
+        "description": "Umbilical back to the inter-station shuttle hopper."
       },
       "hatch_array": {
         "id": "hatch_array",
@@ -1115,30 +1188,56 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": null,
         "grants_edge": "to_array",
         "on_use_effect": null,
-        "description": "Pressure hatch leading to the communications array hub."
+        "description": "Pressure hatch leading to the communications array center."
       },
       "hatch_fuel": {
         "id": "hatch_fuel",
         "glyph": "▲",
         "name": "Fuel Spur Access",
-        "state": "sealed",
-        "required_tag": "id_verified",
+        "state": "open",
+        "required_tag": null,
         "grants_edge": "to_fuel",
-        "on_use_effect": "unlock",
-        "description": "Heavy blast door to the fuel processing spur. ID verification required."
+        "on_use_effect": null,
+        "description": "Blast door to the fuel processing and propellant manifold."
+      },
+      "freight_crate": {
+        "id": "freight_crate",
+        "glyph": "▓",
+        "name": "Sealed Cargo Crate",
+        "state": "sealed",
+        "required_tag": "force_lever",
+        "grants_edge": null,
+        "on_use_effect": "scavenge",
+        "description": "Steel shipping crate bound with nylon bands. Can be levered open with a prybar."
       }
     },
-    "actors": {},
+    "actors": {
+      "npc_tarek": {
+        "id": "npc_tarek",
+        "glyph": "T",
+        "name": "Tarek",
+        "title": "Array Specialist",
+        "status": "Monitoring signal telemetry on hand slate",
+        "trade_offered_id": "wire_spool",
+        "trade_required_tag": "barter_token",
+        "trade_completed": false,
+        "dialogue_idle": "Comms array on Beta is picking up anomalous seismic echoes from the lunar crater. Got steel dice or trade tokens? I have copper wire coils.",
+        "dialogue_post_trade": "Deal. If you ever need remote terminals bypassed or signals boosted, signal me.",
+        "companion_unlock": "comp_tarek"
+      }
+    },
     "placements": [
-      {"entity_id": "shuttle_return", "row": 0, "col": 3},
-      {"entity_id": "hatch_array", "row": 3, "col": 0},
-      {"entity_id": "hatch_fuel", "row": 3, "col": 5}
+      { "entity_id": "shuttle_return", "row": 0, "col": 3 },
+      { "entity_id": "hatch_array", "row": 3, "col": 0 },
+      { "entity_id": "hatch_fuel", "row": 3, "col": 5 },
+      { "entity_id": "freight_crate", "row": 4, "col": 4 },
+      { "entity_id": "npc_tarek", "row": 2, "col": 2 }
     ],
     "edges": {
       "to_shuttle": {
         "id": "to_shuttle",
         "target_node_id": "shuttle_ab",
-        "label": "Shuttle",
+        "label": "Shuttle Hopper",
         "gated_by_fixture": null,
         "requires_capability": null
       },
@@ -1153,11 +1252,11 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "id": "to_fuel",
         "target_node_id": "stn_b_fuel",
         "label": "Fuel Spur",
-        "gated_by_fixture": "hatch_fuel",
+        "gated_by_fixture": null,
         "requires_capability": null
       }
     },
-    "description": "Wide docking bay with magnetic clamp rails and loading gantries. The air smells of fuel volatiles and sealant."
+    "description": "Wide docking bay with magnetic clamp rails. The air smells of fuel volatiles and industrial lubricant."
   },
   {
     "id": "stn_b_array",
@@ -1166,7 +1265,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 5,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": {"pressure_kpa": 101.0, "radiation_msv": 0.2, "temperature_c": 20},
+    "base_vitals": { "pressure_kpa": 101.0, "radiation_msv": 0.2, "temperature_c": 20 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1178,12 +1277,34 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": null,
         "grants_edge": "to_dock",
         "on_use_effect": null,
-        "description": "Corridor back to Dock Ring Bay 7."
+        "description": "Corridor hatch leading back to Dock Ring Bay 7."
+      },
+      "comms_rack": {
+        "id": "comms_rack",
+        "glyph": "≡",
+        "name": "Deep-Space Comms Rack",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "log",
+        "description": "Signal array intercepting transmissions across the orbit. Mentions high-grade ore found in the Lunar Lava Tube."
+      },
+      "crypto_terminal": {
+        "id": "crypto_terminal",
+        "glyph": "⊞",
+        "name": "Terminal Diagnostics Console",
+        "state": "active",
+        "required_tag": "conductive",
+        "grants_edge": null,
+        "on_use_effect": "override",
+        "description": "Encrypted terminal. Bypassing its relay reveals surveyor manifests for Lunar Mine."
       }
     },
     "actors": {},
     "placements": [
-      {"entity_id": "hatch_dock", "row": 4, "col": 2}
+      { "entity_id": "hatch_dock", "row": 4, "col": 2 },
+      { "entity_id": "comms_rack", "row": 1, "col": 2 },
+      { "entity_id": "crypto_terminal", "row": 2, "col": 3 }
     ],
     "edges": {
       "to_dock": {
@@ -1194,7 +1315,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "requires_capability": null
       }
     },
-    "description": "Hexagonal chamber packed with signal processing racks. Status LEDs blink in steady patterns. Quiet."
+    "description": "Hexagonal chamber packed with computing racks. Green status LEDs blink in rhythmic patterns."
   },
   {
     "id": "stn_b_fuel",
@@ -1203,7 +1324,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 5,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": {"pressure_kpa": 99.0, "radiation_msv": 1.0, "temperature_c": 22},
+    "base_vitals": { "pressure_kpa": 99.0, "radiation_msv": 1.0, "temperature_c": 22 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1216,11 +1337,48 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "grants_edge": "to_dock",
         "on_use_effect": null,
         "description": "Blast door back to Dock Ring."
+      },
+      "fuel_manifold": {
+        "id": "fuel_manifold",
+        "glyph": "⌸",
+        "name": "Propellant Manifold",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "log",
+        "description": "High-pressure fuel injection lines running floor to ceiling."
+      },
+      "spares_cabinet": {
+        "id": "spares_cabinet",
+        "glyph": "⊞",
+        "name": "Sealant Spares Cabinet",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "scavenge",
+        "description": "Steel wall cabinet storing silicone seal patches."
       }
     },
-    "actors": {},
+    "actors": {
+      "npc_kovac": {
+        "id": "npc_kovac",
+        "glyph": "V",
+        "name": "Kovac",
+        "title": "Refinery Tech",
+        "status": "Checking pressure gauges on propellant lines",
+        "trade_offered_id": "seal_patch",
+        "trade_required_tag": "nutrition",
+        "trade_completed": false,
+        "dialogue_idle": "Shift's gone four hours past relief. Got a ration block? I can trade high-temp silicone seal patches.",
+        "dialogue_post_trade": "Much obliged. These patches will hold against pure vacuum if you blow a seal down on the pad.",
+        "companion_unlock": null
+      }
+    },
     "placements": [
-      {"entity_id": "hatch_dock_fuel", "row": 4, "col": 2}
+      { "entity_id": "hatch_dock_fuel", "row": 4, "col": 2 },
+      { "entity_id": "fuel_manifold", "row": 1, "col": 2 },
+      { "entity_id": "spares_cabinet", "row": 2, "col": 1 },
+      { "entity_id": "npc_kovac", "row": 2, "col": 3 }
     ],
     "edges": {
       "to_dock": {
@@ -1231,7 +1389,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "requires_capability": null
       }
     },
-    "description": "Processing bay with pressurized fuel lines running floor to ceiling. Warning placards on every surface."
+    "description": "Processing bay filled with heavy fuel lines and hazard placards. Smell of solvent hangs in the air."
   },
   {
     "id": "luna_pad",
@@ -1240,7 +1398,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 7,
     "depth": 0,
     "environment": "vacuum",
-    "base_vitals": {"pressure_kpa": 0.0, "radiation_msv": 25.0, "temperature_c": -80},
+    "base_vitals": { "pressure_kpa": 0.0, "radiation_msv": 25.0, "temperature_c": -80 },
     "grid_floor": "~",
     "grid_wall": "░",
     "fixtures": {
@@ -1252,7 +1410,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": null,
         "grants_edge": "to_shuttle",
         "on_use_effect": null,
-        "description": "Ascent module hatch back to the shuttle."
+        "description": "Ascent module hatch back to the shuttle hopper."
       },
       "dome_airlock": {
         "id": "dome_airlock",
@@ -1262,31 +1420,42 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": null,
         "grants_edge": "to_dome",
         "on_use_effect": null,
-        "description": "Reinforced airlock cylinder leading into the pressurized dome."
+        "description": "Reinforced airlock cylinder leading into the pressurized habitat dome."
+      },
+      "regolith_sled": {
+        "id": "regolith_sled",
+        "glyph": "▓",
+        "name": "Abandoned Survey Sled",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "scavenge",
+        "description": "Unmanned lunar utility sled abandoned on the regolith. Contains basalt scrap."
       }
     },
     "actors": {},
     "placements": [
-      {"entity_id": "lander_hatch", "row": 0, "col": 3},
-      {"entity_id": "dome_airlock", "row": 6, "col": 3}
+      { "entity_id": "lander_hatch", "row": 0, "col": 3 },
+      { "entity_id": "dome_airlock", "row": 6, "col": 3 },
+      { "entity_id": "regolith_sled", "row": 3, "col": 4 }
     ],
     "edges": {
       "to_shuttle": {
         "id": "to_shuttle",
         "target_node_id": "shuttle_ab",
-        "label": "Shuttle (Ascent)",
+        "label": "Shuttle Hopper",
         "gated_by_fixture": null,
-        "requires_capability": "vacuum_traverse"
+        "requires_capability": null
       },
       "to_dome": {
         "id": "to_dome",
         "target_node_id": "luna_dome",
         "label": "Habitat Dome",
         "gated_by_fixture": null,
-        "requires_capability": "vacuum_traverse"
+        "requires_capability": null
       }
     },
-    "description": "Flat regolith landing apron under unfiltered starlight. Boot prints fade into gray dust. Silence."
+    "description": "Flat regolith landing apron under unfiltered stars. Gray dust covers the deck. Total vacuum silence."
   },
   {
     "id": "luna_dome",
@@ -1295,7 +1464,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 7,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": {"pressure_kpa": 95.0, "radiation_msv": 3.0, "temperature_c": 17},
+    "base_vitals": { "pressure_kpa": 95.0, "radiation_msv": 3.0, "temperature_c": 17 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1307,7 +1476,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": null,
         "grants_edge": "to_pad",
         "on_use_effect": null,
-        "description": "Airlock back to the open surface pad."
+        "description": "Airlock back to the exposed lunar surface pad."
       },
       "hatch_smelter": {
         "id": "hatch_smelter",
@@ -1317,24 +1486,50 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": null,
         "grants_edge": "to_smelter",
         "on_use_effect": null,
-        "description": "Heated corridor leading to the smelting facility."
+        "description": "Reinforced hatch leading to the smelting floor."
       },
       "hatch_crater": {
         "id": "hatch_crater",
         "glyph": "▲",
         "name": "Crater Rim Access",
-        "state": "sealed",
-        "required_tag": "heavy_duty",
+        "state": "open",
+        "required_tag": null,
         "grants_edge": "to_crater",
-        "on_use_effect": "unlock",
-        "description": "Heavy exterior hatch to the crater rim observation path."
+        "on_use_effect": null,
+        "description": "Exterior airlock leading out to the crater observation rim."
+      },
+      "seismic_station": {
+        "id": "seismic_station",
+        "glyph": "≡",
+        "name": "Seismic Telemetry Station",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "log",
+        "description": "Readouts confirm cavernous basalt structures beneath the crater floor."
       }
     },
-    "actors": {},
+    "actors": {
+      "npc_chen": {
+        "id": "npc_chen",
+        "glyph": "C",
+        "name": "Elena Chen",
+        "title": "Field Geologist",
+        "status": "Analyzing core samples from deep mine",
+        "trade_offered_id": "tool_spanner",
+        "trade_required_tag": "salvage",
+        "trade_completed": false,
+        "dialogue_idle": "The volcanic tube below the crater is rich with ancient minerals. Bring me scrap from the surface sled and I will trade specialized tools.",
+        "dialogue_post_trade": "Excellent material. If you descend into the crater or lava tube, watch your pressure gauge; the cold contracts valve seals rapidly.",
+        "companion_unlock": null
+      }
+    },
     "placements": [
-      {"entity_id": "airlock_pad", "row": 0, "col": 3},
-      {"entity_id": "hatch_smelter", "row": 3, "col": 0},
-      {"entity_id": "hatch_crater", "row": 3, "col": 6}
+      { "entity_id": "airlock_pad", "row": 0, "col": 3 },
+      { "entity_id": "hatch_smelter", "row": 3, "col": 0 },
+      { "entity_id": "hatch_crater", "row": 3, "col": 6 },
+      { "entity_id": "seismic_station", "row": 2, "col": 4 },
+      { "entity_id": "npc_chen", "row": 2, "col": 2 }
     ],
     "edges": {
       "to_pad": {
@@ -1355,11 +1550,11 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "id": "to_crater",
         "target_node_id": "luna_crater",
         "label": "Crater Rim",
-        "gated_by_fixture": "hatch_crater",
+        "gated_by_fixture": null,
         "requires_capability": null
       }
     },
-    "description": "Geodesic dome interior with hydroponic trays and water recyclers. Artificial daylight panels overhead."
+    "description": "Geodesic dome with hydroponic trays and artificial daylight panels. Safe haven from vacuum."
   },
   {
     "id": "luna_smelter",
@@ -1368,7 +1563,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 6,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": {"pressure_kpa": 93.0, "radiation_msv": 5.0, "temperature_c": 35},
+    "base_vitals": { "pressure_kpa": 93.0, "radiation_msv": 5.0, "temperature_c": 35 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1385,18 +1580,44 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
       "mine_shaft": {
         "id": "mine_shaft",
         "glyph": "⎅",
-        "name": "Mine Shaft Cage",
-        "state": "locked",
-        "required_tag": "two_person_lift",
+        "name": "Mine Shaft Cage Lift",
+        "state": "open",
+        "required_tag": null,
         "grants_edge": "to_mine",
-        "on_use_effect": "unlock",
-        "description": "Two-person cage lift descending into the deep mine. Requires two operators."
+        "on_use_effect": null,
+        "description": "Heavy industrial lift descending into the deep mining shaft."
+      },
+      "smelting_crucible": {
+        "id": "smelting_crucible",
+        "glyph": "■",
+        "name": "Smelting Crucible",
+        "state": "active",
+        "required_tag": "mineral",
+        "grants_edge": null,
+        "on_use_effect": "smelt",
+        "description": "Induction furnace capable of refining raw basalt ore into structural fittings and tools."
       }
     },
-    "actors": {},
+    "actors": {
+      "npc_vance": {
+        "id": "npc_vance",
+        "glyph": "V",
+        "name": "Vance",
+        "title": "Smelter Veteran",
+        "status": "Stoking the induction coils",
+        "trade_offered_id": "tool_prybar",
+        "trade_required_tag": "mineral",
+        "trade_completed": false,
+        "dialogue_idle": "Deep mine has plenty of raw basalt ore, but the lift needs nerve to ride. Bring me an ore sample and I'll forge you a heavy prybar.",
+        "dialogue_post_trade": "Clean melt. Here's your iron bar. Treat it right and it'll crack open any sealed hatch on this moon.",
+        "companion_unlock": null
+      }
+    },
     "placements": [
-      {"entity_id": "hatch_dome_smelter", "row": 0, "col": 3},
-      {"entity_id": "mine_shaft", "row": 5, "col": 3}
+      { "entity_id": "hatch_dome_smelter", "row": 0, "col": 3 },
+      { "entity_id": "mine_shaft", "row": 5, "col": 3 },
+      { "entity_id": "smelting_crucible", "row": 3, "col": 1 },
+      { "entity_id": "npc_vance", "row": 3, "col": 4 }
     ],
     "edges": {
       "to_dome": {
@@ -1410,11 +1631,11 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "id": "to_mine",
         "target_node_id": "luna_mine",
         "label": "Deep Mine",
-        "gated_by_fixture": "mine_shaft",
+        "gated_by_fixture": null,
         "requires_capability": null
       }
     },
-    "description": "Industrial floor vibrating with furnace resonance. Ore dust coats every surface. Heat radiates from smelting crucibles."
+    "description": "Industrial floor vibrating with furnace hum. Fine ore dust settles on every surface. Dry heat."
   },
   {
     "id": "luna_crater",
@@ -1423,35 +1644,46 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 6,
     "depth": 0,
     "environment": "vacuum",
-    "base_vitals": {"pressure_kpa": 0.0, "radiation_msv": 30.0, "temperature_c": -120},
+    "base_vitals": { "pressure_kpa": 0.0, "radiation_msv": 30.0, "temperature_c": -120 },
     "grid_floor": "~",
     "grid_wall": "░",
     "fixtures": {
       "hatch_dome_crater": {
         "id": "hatch_dome_crater",
         "glyph": "◆",
-        "name": "Dome Access",
+        "name": "Dome Access Hatch",
         "state": "open",
         "required_tag": null,
         "grants_edge": "to_dome",
         "on_use_effect": null,
-        "description": "Hatch back to the habitat dome."
+        "description": "Airlock back to the pressurized habitat dome."
       },
       "tube_entrance": {
         "id": "tube_entrance",
         "glyph": "⎅",
         "name": "Lava Tube Descent",
-        "state": "sealed",
-        "required_tag": "force_lever",
+        "state": "open",
+        "required_tag": null,
         "grants_edge": "to_tube",
-        "on_use_effect": "unlock",
-        "description": "Bolted hatch covering a natural lava tube opening. Pry marks around the rim."
+        "on_use_effect": null,
+        "description": "Ladder and winch system descending into a vast subsurface volcanic tube."
+      },
+      "surveyor_cache": {
+        "id": "surveyor_cache",
+        "glyph": "⊞",
+        "name": "Surveyor Supply Cache",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "scavenge",
+        "description": "Pressurized container bolted to the crater rim containing emergency rations."
       }
     },
     "actors": {},
     "placements": [
-      {"entity_id": "hatch_dome_crater", "row": 0, "col": 3},
-      {"entity_id": "tube_entrance", "row": 5, "col": 3}
+      { "entity_id": "hatch_dome_crater", "row": 0, "col": 3 },
+      { "entity_id": "tube_entrance", "row": 5, "col": 3 },
+      { "entity_id": "surveyor_cache", "row": 2, "col": 2 }
     ],
     "edges": {
       "to_dome": {
@@ -1459,17 +1691,17 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "target_node_id": "luna_dome",
         "label": "Habitat Dome",
         "gated_by_fixture": null,
-        "requires_capability": "vacuum_traverse"
+        "requires_capability": null
       },
       "to_tube": {
         "id": "to_tube",
         "target_node_id": "luna_tube",
-        "label": "Lava Tube",
-        "gated_by_fixture": "tube_entrance",
+        "label": "Lava Tube Cavern",
+        "gated_by_fixture": null,
         "requires_capability": null
       }
     },
-    "description": "Narrow path carved into the crater wall. Earth hangs above the horizon line. No sound at all."
+    "description": "Narrow pathway carved along the rim of an ancient impact crater. Earth hangs silent in the black sky."
   },
   {
     "id": "luna_mine",
@@ -1478,7 +1710,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 5,
     "depth": 1,
     "environment": "depressurizing",
-    "base_vitals": {"pressure_kpa": 50.0, "radiation_msv": 15.0, "temperature_c": -30},
+    "base_vitals": { "pressure_kpa": 50.0, "radiation_msv": 15.0, "temperature_c": -30 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1490,12 +1722,23 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "required_tag": null,
         "grants_edge": "to_smelter",
         "on_use_effect": null,
-        "description": "Cage lift back to the smelter floor."
+        "description": "Cage lift ascending back to Smelter Flat."
+      },
+      "ore_face": {
+        "id": "ore_face",
+        "glyph": "■",
+        "name": "Exposed Mineral Face",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "scavenge",
+        "description": "Dark basalt vein rich in metallic deposits. Yields high-grade lunar ore."
       }
     },
     "actors": {},
     "placements": [
-      {"entity_id": "cage_up", "row": 0, "col": 2}
+      { "entity_id": "cage_up", "row": 0, "col": 2 },
+      { "entity_id": "ore_face", "row": 3, "col": 2 }
     ],
     "edges": {
       "to_smelter": {
@@ -1506,7 +1749,7 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "requires_capability": null
       }
     },
-    "description": "Rough-hewn shaft descending into basalt. Drill marks line the walls. Cold seeps from the rock."
+    "description": "Subterranean gallery hacked into basalt rock. Cold creeps from the dark excavation walls."
   },
   {
     "id": "luna_tube",
@@ -1515,24 +1758,35 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "size": 6,
     "depth": 1,
     "environment": "low_temp",
-    "base_vitals": {"pressure_kpa": 40.0, "radiation_msv": 8.0, "temperature_c": -45},
+    "base_vitals": { "pressure_kpa": 40.0, "radiation_msv": 8.0, "temperature_c": -45 },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
-      "ascent_hatch": {
-        "id": "ascent_hatch",
+      "ascent_ladder": {
+        "id": "ascent_ladder",
         "glyph": "⎅",
         "name": "Crater Rim Ascent",
         "state": "open",
         "required_tag": null,
         "grants_edge": "to_crater",
         "on_use_effect": null,
-        "description": "Ladder and hatch back up to the crater rim."
+        "description": "Steel ladder ascending back up to the crater observation rim."
+      },
+      "subsurface_cache": {
+        "id": "subsurface_cache",
+        "glyph": "⊞",
+        "name": "Sealed Survey Cache",
+        "state": "active",
+        "required_tag": null,
+        "grants_edge": null,
+        "on_use_effect": "scavenge",
+        "description": "Canister containing historic tally slates and emergency supplies left by early prospectors."
       }
     },
     "actors": {},
     "placements": [
-      {"entity_id": "ascent_hatch", "row": 0, "col": 3}
+      { "entity_id": "ascent_ladder", "row": 0, "col": 3 },
+      { "entity_id": "subsurface_cache", "row": 3, "col": 2 }
     ],
     "edges": {
       "to_crater": {
@@ -1543,12 +1797,12 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
         "requires_capability": null
       }
     },
-    "description": "Vast natural tube of frozen basalt. The ceiling vanishes into darkness. Something drips in the distance."
+    "description": "Vast natural cavern formed by ancient lava flows. Smooth curved basalt walls vanish into cold darkness."
   }
 ]
 ```
 
-### 9.3 Companions (`companions.json`)
+### 9.3 Companions Reference (`companions.json`)
 
 ```json
 [
@@ -1558,36 +1812,68 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
     "title": "Cargo Rigger",
     "status": "Ready to work",
     "capability_tag": "two_person_lift"
+  },
+  {
+    "id": "comp_tarek",
+    "name": "Tarek",
+    "title": "Array Specialist",
+    "status": "Scanning telemetry",
+    "capability_tag": "signal_boost"
+  },
+  {
+    "id": "comp_mira",
+    "name": "Mira",
+    "title": "Hab Botanist",
+    "status": "Monitoring filters",
+    "capability_tag": "bio_filter"
   }
 ]
 ```
 
-### 9.4 Progression Tree (`tree.json`)
+### 9.4 Progression Tree Reference (`tree.json`)
 
 ```json
 [
   {
     "id": "seam_discipline",
     "name": "Seam Discipline",
-    "description": "Inspect sealed fixtures to reveal leak state and required tool tags.",
+    "description": "Inspect sealed fixtures to reveal leak state, tool requirements, and structural wear.",
     "prerequisite": null,
     "unlock_condition": "use_fixture",
     "unlock_parameter": "spigot_01",
     "attuned": false
   },
   {
+    "id": "scrap_fabrication",
+    "name": "Scrap Fabrication",
+    "description": "Enables crafting replacement fittings and levers at active workshops or smelters.",
+    "prerequisite": "seam_discipline",
+    "unlock_condition": "use_fixture",
+    "unlock_parameter": "salvage_bin",
+    "attuned": false
+  },
+  {
     "id": "bulkhead_ear",
     "name": "Bulkhead Ear",
     "description": "Inspect sealed edge fixtures to reveal destination pressure before opening.",
-    "prerequisite": "seam_discipline",
+    "prerequisite": "scrap_fabrication",
     "unlock_condition": "visit_node",
     "unlock_parameter": "stn_a_sub",
     "attuned": false
   },
   {
+    "id": "conduit_mastery",
+    "name": "Conduit Mastery",
+    "description": "Manual overrides and repairs consume zero tool integrity on standard fixtures.",
+    "prerequisite": "bulkhead_ear",
+    "unlock_condition": "use_fixture",
+    "unlock_parameter": "jammed_valve",
+    "attuned": false
+  },
+  {
     "id": "cold_bypass",
     "name": "Cold-Line Bypass",
-    "description": "Halves temperature exposure accumulation rate.",
+    "description": "Halves temperature exposure accumulation rate in sub-zero nodes.",
     "prerequisite": null,
     "unlock_condition": "survive_depth",
     "unlock_parameter": "1",
@@ -1596,28 +1882,64 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
   {
     "id": "vacuum_walk",
     "name": "Vacuum Walk",
-    "description": "Halves pressure exposure accumulation. Grants vacuum_traverse capability.",
+    "description": "Halves pressure exposure accumulation; grants vacuum_traverse capability.",
     "prerequisite": "cold_bypass",
-    "unlock_condition": "complete_trade",
-    "unlock_parameter": "npc_kael",
+    "unlock_condition": "visit_node",
+    "unlock_parameter": "luna_pad",
     "attuned": false
   },
   {
     "id": "deep_well",
     "name": "Deep-Well Attunement",
-    "description": "Halves radiation exposure accumulation rate.",
-    "prerequisite": "bulkhead_ear",
+    "description": "Halves radiation exposure accumulation rate in deep mining and conduit nodes.",
+    "prerequisite": "vacuum_walk",
     "unlock_condition": "survive_depth",
-    "unlock_parameter": "2",
+    "unlock_parameter": "1",
     "attuned": false
   },
   {
     "id": "trench_hardened",
     "name": "Trench Hardened",
     "description": "All exposure thresholds increased by 5.0 (stressed at 10, critical at 15, incapacitated at 20).",
-    "prerequisite": "vacuum_walk",
+    "prerequisite": "deep_well",
     "unlock_condition": "visit_node",
     "unlock_parameter": "luna_mine",
+    "attuned": false
+  },
+  {
+    "id": "scavenger_instinct",
+    "name": "Scavenger's Eye",
+    "description": "Reveals hidden salvage caches in rooms; doubles yield from scavenged fixtures.",
+    "prerequisite": null,
+    "unlock_condition": "use_fixture",
+    "unlock_parameter": "personal_locker",
+    "attuned": false
+  },
+  {
+    "id": "crew_coordination",
+    "name": "Crew Coordination",
+    "description": "Companions provide passive +2.0 environmental hazard resistance to the entire party.",
+    "prerequisite": "scavenger_instinct",
+    "unlock_condition": "complete_trade",
+    "unlock_parameter": "npc_radek",
+    "attuned": false
+  },
+  {
+    "id": "signal_analysis",
+    "name": "Signal Analysis",
+    "description": "Decodes encrypted station data logs and reveals telemetry on notice boards.",
+    "prerequisite": "crew_coordination",
+    "unlock_condition": "use_fixture",
+    "unlock_parameter": "comms_rack",
+    "attuned": false
+  },
+  {
+    "id": "wayfarer",
+    "name": "Void Wayfarer",
+    "description": "Sustenance decay interval doubled to 20 ticks; eliminates shuttle token costs.",
+    "prerequisite": "signal_analysis",
+    "unlock_condition": "visit_node",
+    "unlock_parameter": "luna_dome",
     "attuned": false
   }
 ]
@@ -1627,177 +1949,85 @@ The v1.0 preset defines the starting cluster (Station Alpha) in full detail. Add
 
 ## 10. Grid Rendering Algorithm
 
-The renderer constructs the N×N grid dynamically from node data rather than storing pre-baked row strings:
+The renderer constructs the N×N grid dynamically from node definitions and entity placements rather than storing static string matrices:
 
 ```python
 def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
-    """Construct N×N grid rows from node walls, floor, and placements."""
+    """Construct N×N grid rows from node walls, floor, and entity placements."""
     n = node.size
-    # Initialize grid with floor tiles
     grid = [[node.grid_floor] * n for _ in range(n)]
 
-    # Set border walls (row 0, row n-1, col 0, col n-1)
+    # Border walls
     for r in range(n):
-        for c in range(n):
-            if r == 0 or r == n - 1 or c == 0 or c == n - 1:
-                grid[r][c] = node.grid_wall
+        grid[r][0] = node.grid_wall
+        grid[r][n - 1] = node.grid_wall
+    for c in range(n):
+        grid[0][c] = node.grid_wall
+        grid[n - 1][c] = node.grid_wall
 
-    # Place fixtures and actors by their GridPlacement coordinates
+    # Place entities
     for placement in node.placements:
-        entity = node.fixtures.get(placement.entity_id) or \
-                 node.actors.get(placement.entity_id)
-        if entity:
-            grid[placement.row][placement.col] = entity.glyph
+        entity_id = placement.entity_id
+        glyph = "?"
+        if entity_id in node.fixtures:
+            glyph = node.fixtures[entity_id].glyph
+        elif entity_id in node.actors:
+            glyph = node.actors[entity_id].glyph
+        grid[placement.row][placement.col] = glyph
 
-    # Overlay player cursor (@) on floor; invert entity glyph color on overlap
-    cell = grid[player_row][player_col]
-    if cell == node.grid_floor:
-        grid[player_row][player_col] = '@'
-    else:
-        grid[player_row][player_col] = f"\033[7m{cell}\033[0m"
+    # Overlay player cursor with ANSI invert on overlap
+    r, c = player_row, player_col
+    if 0 <= r < n and 0 <= c < n:
+        underlying = grid[r][c]
+        if underlying == node.grid_floor:
+            grid[r][c] = "@"
+        else:
+            grid[r][c] = f"\033[7m{underlying}\033[0m"
 
-    # Convert to display strings
-    return tuple(' '.join(row) for row in grid)
+    return tuple(" ".join(row) for row in grid)
 ```
-
-**This resolves the original glyph-collision problem:** Multiple fixtures can share the same glyph character (e.g., two `=` hatches) because they are addressed by their unique `entity_id`, not by their glyph. The glyph is purely a display character. The legend in Zone 4 maps each placed glyph to its fixture/actor `[id]`, which the player uses in commands.
 
 ---
 
 ## 11. Agent Bootstrapping Directives
 
-When an LLM agent implements or refactors this repository, it must adhere to this phased pipeline. Each phase has explicit acceptance criteria.
+### Phase 1: Domain Typing & Contracts (`core/types.py`)
+- Ensure all enumerations (`ItemCategory`, `FixtureState`, `Environment`, `ExposureType`) match the specification.
+- Retain immutable `NamedTuple` definitions for `GameState`, `PlayerCharacter`, `Fixture`, `Actor`, `Edge`, `Node`, and `TreeNode`.
 
-### Phase 1: Domain Typing (`core/types.py`)
-
-**Task:** Implement all NamedTuples, Enums, and type aliases from §3.
-
-**Acceptance Criteria:**
-- All structures use `typing.NamedTuple`. No `@dataclass`, no `class` inheritance.
-- All enums use `enum.Enum`.
-- Zero mutable attributes. All collections are `Tuple`, `FrozenSet`, or `Mapping`.
-- Module imports only from the standard library.
-- File contains no function definitions, only type declarations.
-
-### Phase 2: Preset Bootstrapping (`core/presets.py`)
-
-**Task:** Implement the preset cloner and JSON deserializer.
-
-**Acceptance Criteria:**
-- If `presets/default-1.0/` does not exist, create it and write all JSON files from hardcoded dict literals.
-- Pure functions parse each JSON file into the corresponding typed structures: `load_items(path) -> Tuple[Item, ...]`, `load_nodes(path) -> Mapping[str, Node]`, `load_companions(path) -> Tuple[Companion, ...]`, `load_tree(path) -> Tuple[TreeNode, ...]`.
-- The deserialization functions validate required fields and raise `ValueError` with descriptive messages on schema violations.
-- Constructs a complete initial `GameState` from loaded presets + character creation data.
+### Phase 2: Preset Data Expansion (`presets/default-1.0/` & `core/presets.py`)
+- Sync `items.json`, `nodes.json`, `companions.json`, and `tree.json` with the full 14-node open-world specifications.
+- Mirror definitions in `DEFAULT_NODES`, `DEFAULT_ITEMS`, `DEFAULT_COMPANIONS`, and `DEFAULT_TREE` inside `core/presets.py` as robust runtime fallbacks.
 
 ### Phase 3: Pure State Reducers (`core/reducers.py`)
-
-**Task:** Implement one pure function per verb/action from §5.4.
-
-**Function Signatures:**
-```python
-def reduce_move(state: GameState, direction: str) -> GameState          # direction: "w"|"a"|"s"|"d"
-def reduce_interact_go(state: GameState) -> GameState                   # traverse edge at cursor tile
-def reduce_inspect(state: GameState, target_id: str) -> GameState
-def reduce_talk(state: GameState, actor_id: str) -> GameState
-def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState
-def reduce_wait(state: GameState) -> GameState
-# Non-tick commands:
-def reduce_map(state: GameState) -> GameState
-def reduce_back(state: GameState) -> GameState
-def reduce_pack(state: GameState) -> GameState
-def reduce_character(state: GameState) -> GameState
-def reduce_party(state: GameState) -> GameState
-def reduce_log(state: GameState) -> GameState
-def reduce_flavor(state: GameState, toggle: str) -> GameState
-def reduce_help(state: GameState) -> GameState
-```
-
-**Acceptance Criteria:**
-- Every reducer is a pure function: `GameState -> GameState`. No I/O, no globals, no side effects.
-- State updates use `state._replace(...)` and construct fresh immutable tuples/mappings.
-- `reduce_move`: clamps to grid bounds; blocked by wall tiles (border cells). On landing on an entity tile, sets `proximity_menu_active = True` and populates `message_buffer` with the menu options (§5.2). Advances tick.
-- `reduce_interact_go`: looks up the entity at `(player_row, player_col)`, finds its open `grants_edge`, checks capability, transitions `current_node_id`, resets `player_row`/`player_col` to grid centre of new node, advances tick.
-- Tick-advancing reducers (`reduce_move`, `reduce_interact_go`, `reduce_talk`, `reduce_use`, `reduce_wait`) call the tick processor from `core/tick.py` before returning.
-- The trade protocol (§5.5) is implemented inside `reduce_talk`.
-- The fixture use effect table (§5.6) is implemented inside `reduce_use`.
-- All error cases append descriptive messages to `message_buffer` and return state without advancing the tick.
-- Attunement checks (§8.1) are evaluated inside the tick processor.
+- **Proximity Menu Logic:** Extend `_build_proximity_menu` to support `[S] Scavenge` on container fixtures and `[U] Use` on repair/harvest/smelt fixtures.
+- **Scavenge Reducer:** Implement `reduce_interact_scavenge` / `reduce_scavenge` to safely transfer items from fixtures to player inventory and transition fixture state to `SPENT`.
+- **Expanded Fixture Effects:** Update `reduce_use` to handle `"scavenge"`, `"harvest"`, `"smelt"`, `"override"`, and `"log"`.
+- **Dynamic Trade Reducer:** Update `reduce_talk` to support multi-tag matching (`trade_required_tag in item.tags` or item category match), grant companions, and emit responsive contextual dialogue.
 
 ### Phase 4: Tick Processor (`core/tick.py`)
-
-**Task:** Implement the tick processing pipeline from §5.7.
-
-**Function Signature:**
-```python
-def process_tick(state: GameState, action_summary: str) -> GameState
-```
-
-**Acceptance Criteria:**
-- Implements all 6 steps from §5.7 in order.
-- Exposure formulas match §4.3 exactly.
-- Attunement mitigation checks reference `unlocked_capabilities`.
-- Sustenance decay triggers every 10 cycles.
-- Action log maintains max 20 entries.
-- Returns a new GameState; the input is not modified.
+- Execute the 6-step tick processing pipeline.
+- Evaluate progression tree unlock conditions for `visit_node`, `survive_depth`, `complete_trade`, and `use_fixture`.
+- Enforce sustenance integrity decay every 10 cycles and record chronological events in `action_log`.
 
 ### Phase 5: Viewport & Presentation (`ui/render.py`, `ui/topology_view.py`)
+- Render the 6-zone layout adhering to the >= 40 column constraint.
+- Ensure all Zone 2 rows are formatted with `pad_visible` to prevent ANSI escape sequence padding errors.
+- Display contextual key hints in Zone 6 (`/: cmd  wasd: move  i: inspect  u: use  g: go  t: talk`).
 
-**Task:** Implement the 6-zone renderer and topology map view.
+### Phase 6: Persistence Layer (`core/persistence.py`)
+- Maintain atomic JSON serialization into `saves/<character_name>/state.json`.
+- Enforce `is_running = True` on save file load.
+- Implement incapacitation revival: reset exposure to `(0.0, 0.0, 0.0)`, reposition player to `stn_a_bunkroom`, and restore terminal operation.
 
-**Acceptance Criteria:**
-- `render_frame(state: GameState, terminal_width: int) -> str` returns a complete frame string.
-- Dynamic zone width calculation per §6.2.
-- Grid is built via the algorithm in §10; player `@` is overlaid at `(player_row, player_col)` unless that cell holds an entity glyph.
-- Zone 4 legend entries show `[id]` suffix for typed command targeting.
-- Zone 5 renders proximity menu when `state.proximity_menu_active`, otherwise renders `message_buffer` (max 6 lines).
-- Zone 6 renders `WASD: move  /: cmd  M: map  Q: quit` during raw keystroke mode; switches to `/ ` prompt when slash command entry is initiated.
-- `render_topology(state: GameState, terminal_width: int) -> str` renders the map view per §6.4.
-- Terminal width < 40 emits a resize warning string instead of the frame.
-- `ui/text_tools.py` provides `wrap_text(text: str, width: int) -> Tuple[str, ...]`, `check_terminal() -> int`, `clear_terminal() -> None`, and `read_raw_key() -> str` (uses `tty`/`termios` to return a single character without blocking on Enter).
-
-### Phase 6: Atomic Persistence (`core/persistence.py`)
-
-**Task:** Implement save/load for GameState.
-
-**Acceptance Criteria:**
-- `save_state(state: GameState, save_dir: Path) -> None` writes to `saves/<name>/state.json` atomically (write to temp file, then rename).
-- `load_state(save_dir: Path, presets: ...) -> Optional[GameState]` returns `None` if no save exists.
-- Serialization handles all NamedTuple nesting, Enums, FrozenSets, and Mappings, including the new `player_row`, `player_col`, and `proximity_menu_active` fields.
-- Save occurs after every tick-advancing action.
-
-### Phase 7: Input Runner (`main.py`)
-
-**Task:** Implement the top-level raw-keystroke I/O loop.
-
-**Acceptance Criteria:**
-- On startup: check for existing save. If found, load it. If not, run character creation (§7). Character creation uses conventional `input()` prompts.
-- Clone presets if missing (Phase 2).
-- Main loop (raw keystroke mode):
-  1. `clear_terminal()` — clear terminal screen before rendering.
-  2. `print(render_frame(state))` — emit the full frame.
-  3. `key = read_raw_key()` — read a single character without blocking on Enter.
-  4. If `key` is `w`/`a`/`s`/`d`: dispatch `reduce_move`.
-  5. If `state.proximity_menu_active` and `key` is `i`/`u`/`g`/`t`/`x`: dispatch the corresponding proximity action reducer.
-  6. If `key` is `m`/`b`/`e`: dispatch matching shortcut.
-  7. If `key` is `/`: initiate command entry via `input("\n/ ")`, tokenize (stripping leading slash), dispatch to matching reducer.
-  8. All other raw input is consumed silently without opening a prompt.
-  9. Reduce → persist if ticked → loop.
-- `KeyboardInterrupt` and `EOFError` trigger clean save and exit.
-- `q` / `quit` saves and exits.
-- The loop is the **only** place with I/O side effects (`print`, `input`, `read_raw_key`, `clear_terminal`, file writes). All other modules are pure.
-
+### Phase 7: Verification & E2E Testing (`tests/`)
+- Ensure all automated unit and E2E test suites pass with 100% reliability.
+- Verify non-linear traversal across all 4 clusters (Station Alpha, Transit, Station Beta, Lunar Base).
 
 ---
 
 ## 12. Scope Boundaries & Deferred Features
 
-The following are explicitly **out of scope** for v1.0 and must not be implemented:
-
-- **Combat system:** No attack verbs, no enemy AI, no hit points for actors.
-- **Procedural generation:** All nodes, items, and actors are preset-authored. No random generation.
-- **Crafting:** No item combination or synthesis mechanics.
-- **Multiple save slots:** One save per character name.
-- **ANSI colors or formatting:** Pure unformatted text output.
-- **Companion dismissal or death:** Companions are permanent once acquired.
-- **Dynamic actor movement:** Actors remain at their placed grid positions permanently.
-- **Sound or multimedia:** Text-only interface.
+1. **Deterministic Functional Purity:** No runtime randomness (`random.random()`) in core logic. All resolution is deterministic based on item tags, player capabilities, and world vitals.
+2. **Standard Library Only:** Zero external pip packages (`curses`, `urwid`, `rich`, `requests`, `numpy` are prohibited).
+3. **Excluded Mechanics (v1.0):** Combat loops, tactical grid weapons, real-time animation loops, inventory grid weight math, audio synthesis, and deep planetary gravity wells.
