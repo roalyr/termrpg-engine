@@ -1513,7 +1513,7 @@ Companions represent fellow crew members recruited across the stations. They tra
       "npc_chen": {
         "id": "npc_chen",
         "glyph": "C",
-        "name": "Elena Chen",
+        "name": "Olena Chen",
         "title": "Field Geologist",
         "status": "Analyzing core samples from deep mine",
         "trade_offered_id": "tool_spanner",
