@@ -27,10 +27,10 @@ class TestPresets(unittest.TestCase):
         comps = load_companions(self.preset_dir / "companions.json")
         tree = load_tree(self.preset_dir / "tree.json")
 
-        self.assertEqual(len(items), 9)
+        self.assertEqual(len(items), 14)
         self.assertEqual(len(nodes), 14)
-        self.assertEqual(len(comps), 1)
-        self.assertEqual(len(tree), 6)
+        self.assertEqual(len(comps), 3)
+        self.assertEqual(len(tree), 12)
 
     def test_init_game_state_variants(self):
         ensure_presets(self.preset_dir)
@@ -52,6 +52,10 @@ class TestPresets(unittest.TestCase):
         self.assertEqual(s3.character.personal_anchor.id, "dice_steel")
         self.assertEqual(s3.character.past_work, "cargo_handler")
         self.assertIn("heavy_lift", s3.character.unlocked_capabilities)
+
+        # Choice 4: Chalk slate anchor
+        s4 = init_game_state(self.preset_dir, "TallyOne", 4, 1)
+        self.assertEqual(s4.character.personal_anchor.id, "slate_tally")
 
     def test_schema_validation_error(self):
         ensure_presets(self.preset_dir)

@@ -970,6 +970,20 @@ DEFAULT_TREE = [
   }
 ]
 
+_DEFAULT_PRESET_SOURCE = Path(__file__).resolve().parent.parent / "presets" / "default-1.0"
+if (_DEFAULT_PRESET_SOURCE / "items.json").exists():
+    try:
+        with open(_DEFAULT_PRESET_SOURCE / "items.json", "r", encoding="utf-8") as f:
+            DEFAULT_ITEMS = json.load(f)
+        with open(_DEFAULT_PRESET_SOURCE / "nodes.json", "r", encoding="utf-8") as f:
+            DEFAULT_NODES = json.load(f)
+        with open(_DEFAULT_PRESET_SOURCE / "companions.json", "r", encoding="utf-8") as f:
+            DEFAULT_COMPANIONS = json.load(f)
+        with open(_DEFAULT_PRESET_SOURCE / "tree.json", "r", encoding="utf-8") as f:
+            DEFAULT_TREE = json.load(f)
+    except Exception:
+        pass
+
 
 def ensure_presets(presets_dir: Path) -> None:
     """Creates the presets directory and writes default JSON assets if missing."""
@@ -1187,6 +1201,7 @@ def init_game_state(
         1: "fitting_copper",
         2: "pass_work",
         3: "dice_steel",
+        4: "slate_tally",
     }
     anchor_id = anchor_map.get(anchor_choice, "fitting_copper")
     anchor_item = items_by_id[anchor_id]

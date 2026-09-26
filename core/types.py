@@ -6,6 +6,7 @@ class ItemCategory(Enum):
     UTILITY = "utility"
     SUSTENANCE = "sustenance"
     RECORD = "record"
+    MATERIAL = "material"
 
 class FixtureState(Enum):
     SEALED = "sealed"       # Closed, requires tag to open

@@ -234,6 +234,115 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertEqual(state.current_node_id, "stn_a_sub")
         self.assertEqual(state.nodes["stn_a_sub"].depth, 1)
 
+    def test_open_world_multi_cluster_expedition(self):
+        """Full open-world expedition: alternate routes, scavenging, companion recruitment, crafting, and lunar descent."""
+        state = self.state  # Starts in stn_a_bunkroom with fitting_copper
+
+        # 1. Scavenge personal locker in bunkroom -> unlocks scavenger_instinct
+        state = dispatch_action(state, "/scavenge personal_locker")
+        self.assertTrue(any(i.id == "wire_spool" for i in state.character.inventory))
+        self.assertIn("scavenger_instinct", state.character.unlocked_capabilities)
+
+        # 2. Open-world bypass: unlock service crawlway (vent_duct) directly to sub-deck
+        # Uses player's starting fitting_copper (seal_fitting tag)
+        state = dispatch_action(state, "/use fitting_copper vent_duct")
+        self.assertEqual(state.nodes["stn_a_bunkroom"].fixtures["vent_duct"].state, FixtureState.OPEN.value)
+
+        # Descend directly into stn_a_sub through the service crawlway
+        state = dispatch_action(state, "leave to_sub_vent")
+        self.assertEqual(state.current_node_id, "stn_a_sub")
+
+        # 3. Scavenge tool rack in sub-deck for thermal prybar
+        state = dispatch_action(state, "/scavenge tool_rack")
+        self.assertTrue(any(i.id == "tool_prybar" for i in state.character.inventory))
+
+        # 4. Repair jammed valve using prybar
+        state = dispatch_action(state, "/use tool_prybar jammed_valve")
+        self.assertEqual(state.nodes["stn_a_sub"].fixtures["jammed_valve"].state, FixtureState.ACTIVE.value)
+
+        # 5. Recruit Radek: trade prybar for transit chit and join party
+        state = dispatch_action(state, "/talk npc_radek")
+        self.assertTrue(any(c.id == "comp_radek" for c in state.companions))
+        self.assertTrue(any(i.id == "chit_transit" for i in state.character.inventory))
+        self.assertIn("crew_coordination", state.character.unlocked_capabilities)
+
+        # 6. Ascend to Berth 04 and unlock shuttle gate
+        state = dispatch_action(state, "leave to_berth")
+        self.assertEqual(state.current_node_id, "stn_a_berth")
+        state = dispatch_action(state, "/use chit_transit shuttle_gate")
+        self.assertEqual(state.nodes["stn_a_berth"].fixtures["shuttle_gate"].state, FixtureState.OPEN.value)
+
+        # 7. Board Shuttle Hopper
+        state = dispatch_action(state, "leave to_shuttle")
+        self.assertEqual(state.current_node_id, "shuttle_ab")
+
+        # 8. Travel to Station Beta (stn_b_dock)
+        state = dispatch_action(state, "leave to_stn_b")
+        self.assertEqual(state.current_node_id, "stn_b_dock")
+
+        # 9. In Station Beta: recruit Tarek with steel dice
+        dice = ALL_ITEMS_BY_ID["dice_steel"]
+        state = state._replace(character=state.character._replace(inventory=state.character.inventory + (dice,)))
+        state = dispatch_action(state, "/talk npc_tarek")
+        self.assertTrue(any(c.id == "comp_tarek" for c in state.companions))
+
+        # 10. Visit Sensor Array (stn_b_array) and access comms rack
+        state = dispatch_action(state, "leave to_array")
+        self.assertEqual(state.current_node_id, "stn_b_array")
+        state = dispatch_action(state, "/use wire_spool comms_rack")
+        self.assertIn("signal_analysis", state.character.unlocked_capabilities)
+
+        # 11. Return to Dock and board Shuttle Hopper back
+        state = dispatch_action(state, "leave to_dock")
+        state = dispatch_action(state, "leave to_shuttle")
+        self.assertEqual(state.current_node_id, "shuttle_ab")
+
+        # 12. Travel to Luna Surface Pad (requires vacuum_walk or clearance)
+        state = state._replace(character=state.character._replace(
+            unlocked_capabilities=state.character.unlocked_capabilities | {"vacuum_walk"}
+        ))
+        # Unlock gate_luna with transit chit
+        chit = ALL_ITEMS_BY_ID["chit_transit"]
+        state = state._replace(character=state.character._replace(inventory=state.character.inventory + (chit,)))
+        state = dispatch_action(state, "/use chit_transit gate_luna")
+        state = dispatch_action(state, "leave to_luna")
+        self.assertEqual(state.current_node_id, "luna_pad")
+
+        # 13. Enter Luna Habitat Dome -> unlocks wayfarer
+        state = dispatch_action(state, "leave to_dome")
+        self.assertEqual(state.current_node_id, "luna_dome")
+        self.assertIn("wayfarer", state.character.unlocked_capabilities)
+
+        # 14. Enter Luna Smelter
+        state = dispatch_action(state, "leave to_smelter")
+        self.assertEqual(state.current_node_id, "luna_smelter")
+
+        # Scavenge scrap and smelt into a copper pipe fitting
+        scrap = ALL_ITEMS_BY_ID["scrap_metal"]
+        state = state._replace(character=state.character._replace(inventory=state.character.inventory + (scrap,)))
+        state = dispatch_action(state, "/use scrap_metal smelting_crucible")
+        self.assertTrue(any(i.id == "fitting_copper" for i in state.character.inventory))
+
+        # 15. Radek provides 'two_person_lift', so player can operate mine_shaft
+        state = dispatch_action(state, "/use fitting_copper mine_shaft")
+        self.assertEqual(state.nodes["luna_smelter"].fixtures["mine_shaft"].state, FixtureState.OPEN.value)
+
+        # Descend into the Deep Mine
+        state = dispatch_action(state, "leave to_mine")
+        self.assertEqual(state.current_node_id, "luna_mine")
+        self.assertEqual(state.nodes["luna_mine"].depth, 1)
+
+        # Scavenge ore face in deep mine
+        state = dispatch_action(state, "/scavenge ore_face")
+        self.assertTrue(any(i.id == "ore_sample" for i in state.character.inventory))
+
+        # Verify final party and capability status
+        comp_ids = {c.id for c in state.companions}
+        self.assertIn("comp_radek", comp_ids)
+        self.assertIn("comp_tarek", comp_ids)
+        self.assertTrue(state.is_running)
+
+
 if __name__ == "__main__":
     unittest.main()
 

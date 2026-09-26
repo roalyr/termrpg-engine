@@ -3,6 +3,7 @@ from core.types import GameState
 from core.reducers import (
     reduce_move, reduce_interact_go, reduce_interact_inspect,
     reduce_interact_use, reduce_interact_talk, reduce_interact_cancel,
+    reduce_interact_scavenge, reduce_scavenge, _can_scavenge,
     reduce_inspect, reduce_talk, reduce_use, reduce_leave,
     reduce_wait, reduce_map, reduce_back, reduce_pack,
     reduce_character, reduce_party, reduce_log, reduce_flavor,
@@ -55,6 +56,8 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
             return reduce_interact_go(state)
         elif verb in ("t", "talk"):
             return reduce_interact_talk(state)
+        elif verb in ("s", "scavenge", "search") and _can_scavenge(state):
+            return reduce_interact_scavenge(state)
         elif verb in ("x", "cancel", "c"):
             return reduce_interact_cancel(state)
 
@@ -88,6 +91,12 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
                 message_buffer=("Usage: use <item_id> <target_fixture_id>",)
             )
         return reduce_use(state, args[0], args[1])
+
+    elif verb in ("scavenge", "search", "take"):
+        target = " ".join(args) if args else ""
+        if not target and state.proximity_menu_active:
+            return reduce_interact_scavenge(state)
+        return reduce_scavenge(state, target or None)
 
     elif verb in ("wait", "rest"):
         return reduce_wait(state)

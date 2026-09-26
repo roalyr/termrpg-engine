@@ -9,12 +9,30 @@
     "attuned": false
   },
   {
+    "id": "scrap_fabrication",
+    "name": "Making Parts",
+    "description": "Make pipe fittings and prybars at a workbench or smelter.",
+    "prerequisite": "seam_discipline",
+    "unlock_condition": "use_fixture",
+    "unlock_parameter": "salvage_bin",
+    "attuned": false
+  },
+  {
     "id": "bulkhead_ear",
     "name": "Hear Pressure",
     "description": "Check air pressure behind closed doors before opening them.",
-    "prerequisite": "seam_discipline",
+    "prerequisite": "scrap_fabrication",
     "unlock_condition": "visit_node",
     "unlock_parameter": "stn_a_sub",
+    "attuned": false
+  },
+  {
+    "id": "conduit_mastery",
+    "name": "Careful Hands",
+    "description": "Tools do not wear out when fixing standard pipes and valves.",
+    "prerequisite": "bulkhead_ear",
+    "unlock_condition": "use_fixture",
+    "unlock_parameter": "jammed_valve",
     "attuned": false
   },
   {
@@ -31,26 +49,62 @@
     "name": "Vacuum Suit",
     "description": "Take half as much damage from low pressure. Can walk in vacuum.",
     "prerequisite": "cold_bypass",
-    "unlock_condition": "complete_trade",
-    "unlock_parameter": "npc_kael",
+    "unlock_condition": "visit_node",
+    "unlock_parameter": "luna_pad",
     "attuned": false
   },
   {
     "id": "deep_well",
     "name": "Lead Skin",
     "description": "Take half as much damage from radiation.",
-    "prerequisite": "bulkhead_ear",
+    "prerequisite": "vacuum_walk",
     "unlock_condition": "survive_depth",
-    "unlock_parameter": "2",
+    "unlock_parameter": "1",
     "attuned": false
   },
   {
     "id": "trench_hardened",
     "name": "Iron Body",
     "description": "Can take 5 more points of exposure before getting hurt or passing out.",
-    "prerequisite": "vacuum_walk",
+    "prerequisite": "deep_well",
     "unlock_condition": "visit_node",
     "unlock_parameter": "luna_mine",
+    "attuned": false
+  },
+  {
+    "id": "scavenger_instinct",
+    "name": "Sharp Eye",
+    "description": "Find more scrap and gear when searching lockers and bins.",
+    "prerequisite": null,
+    "unlock_condition": "use_fixture",
+    "unlock_parameter": "personal_locker",
+    "attuned": false
+  },
+  {
+    "id": "crew_coordination",
+    "name": "Teamwork",
+    "description": "Companions help the whole crew resist cold, radiation, and low pressure.",
+    "prerequisite": "scavenger_instinct",
+    "unlock_condition": "complete_trade",
+    "unlock_parameter": "npc_radek",
+    "attuned": false
+  },
+  {
+    "id": "signal_analysis",
+    "name": "Radio Ears",
+    "description": "Read locked station logs and radio signals on notice boards.",
+    "prerequisite": "crew_coordination",
+    "unlock_condition": "use_fixture",
+    "unlock_parameter": "comms_rack",
+    "attuned": false
+  },
+  {
+    "id": "wayfarer",
+    "name": "Deep Traveler",
+    "description": "Food and water last twice as long. Shuttle rides are free.",
+    "prerequisite": "signal_analysis",
+    "unlock_condition": "visit_node",
+    "unlock_parameter": "luna_dome",
     "attuned": false
   }
 ]

@@ -49,6 +49,29 @@ def _is_critical(state: GameState) -> bool:
     return max(exp.pressure_debt, exp.radiation_dose, exp.thermal_stress) >= thresh
 
 
+SCAVENGE_YIELDS: Dict[str, Tuple[str, str]] = {
+    "personal_locker": ("wire_spool", "Recovered an insulated copper wire spool from the personal locker."),
+    "salvage_bin": ("fitting_copper", "Salvaged a clean copper pipe fitting from the scrap bin."),
+    "freight_skid": ("scrap_metal", "Recovered basalt scrap metal from loose cargo lashings."),
+    "tool_rack": ("tool_prybar", "Took a heavy thermal pry-bar from the tool rack."),
+    "freight_crate": ("chit_transit", "Pried open the cargo crate and found an unpunched transit token."),
+    "spares_cabinet": ("seal_patch", "Retrieved a silicone seal patch from the wall cabinet."),
+    "regolith_sled": ("scrap_metal", "Salvaged structural alloy plates from the abandoned sled."),
+    "surveyor_cache": ("ration_dry", "Retrieved a compressed emergency ration block from the cache."),
+    "ore_face": ("ore_sample", "Chipped a heavy core of lunar basalt ore from the rock face."),
+    "subsurface_cache": ("slate_tally", "Found an old surveyor's chalk slate tucked inside the basalt cache."),
+}
+
+
+def _can_scavenge(state: GameState) -> bool:
+    """Returns True if the entity under the player cursor is a scavengeable fixture."""
+    node = state.nodes[state.current_node_id]
+    fixture, _ = _get_entity_at(node, state.player_row, state.player_col)
+    if fixture and fixture.on_use_effect == "scavenge" and fixture.state != FixtureState.SPENT.value:
+        return True
+    return False
+
+
 def _get_entity_at(node: Node, row: int, col: int) -> Tuple[Optional[Fixture], Optional[Actor]]:
     """Returns any fixture or actor placed at (row, col) on the node grid."""
     for placement in node.placements:
@@ -64,17 +87,35 @@ def _build_proximity_menu(state: GameState, fixture: Optional[Fixture], actor: O
     entity_name = fixture.name if fixture else (actor.name if actor else "Object")
     opts = ["[I] Inspect"]
     if fixture:
+        if fixture.on_use_effect == "scavenge" and fixture.state != FixtureState.SPENT.value:
+            opts.append("[S] Scavenge")
+
         # Check usable item
         matching_item = None
+        all_tags = set(state.character.unlocked_capabilities)
+        if "wayfarer" in all_tags:
+            all_tags.add("transit_clearance")
+        for c in state.companions:
+            if c.capability_tag:
+                all_tags.add(c.capability_tag)
+
         if fixture.required_tag and fixture.state not in (FixtureState.OPEN.value, FixtureState.SPENT.value):
-            all_tags = set()
-            for c in state.companions:
-                if c.capability_tag:
-                    all_tags.add(c.capability_tag)
             for it in state.character.inventory:
                 if fixture.required_tag in (set(it.tags) | all_tags):
                     matching_item = it
                     break
+                elif fixture.on_use_effect == "smelt" and ("mineral" in it.tags or "salvage" in it.tags):
+                    matching_item = it
+                    break
+        elif fixture.on_use_effect in ("repair", "harvest", "smelt", "override", "refill", "log") and fixture.state != FixtureState.SPENT.value:
+            for it in state.character.inventory:
+                if not fixture.required_tag or fixture.required_tag in (set(it.tags) | all_tags):
+                    matching_item = it
+                    break
+                elif fixture.on_use_effect == "smelt" and ("mineral" in it.tags or "salvage" in it.tags):
+                    matching_item = it
+                    break
+
         if matching_item:
             opts.append(f"[U] Use {matching_item.name}")
 
@@ -230,7 +271,9 @@ def reduce_interact_use(state: GameState) -> GameState:
     if not fixture:
         return state._replace(message_buffer=("No fixture here to use items on.",), proximity_menu_active=False)
 
-    all_available_tags = set()
+    all_available_tags = set(state.character.unlocked_capabilities)
+    if "wayfarer" in all_available_tags:
+        all_available_tags.add("transit_clearance")
     for comp in state.companions:
         if comp.capability_tag:
             all_available_tags.add(comp.capability_tag)
@@ -241,11 +284,17 @@ def reduce_interact_use(state: GameState) -> GameState:
             if fixture.required_tag in (set(it.tags) | all_available_tags):
                 matching_item = it
                 break
+            elif fixture.on_use_effect == "smelt" and ("mineral" in it.tags or "salvage" in it.tags):
+                matching_item = it
+                break
+    elif state.character.inventory:
+        matching_item = state.character.inventory[0]
 
-    if not matching_item:
+    if not matching_item and fixture.required_tag:
         return state._replace(message_buffer=(f"No carried tool or item matches '{fixture.required_tag}'.",))
 
-    return reduce_use(state, matching_item.id, fixture.id)
+    item_id = matching_item.id if matching_item else ""
+    return reduce_use(state, item_id, fixture.id)
 
 
 def reduce_interact_talk(state: GameState) -> GameState:
@@ -255,6 +304,116 @@ def reduce_interact_talk(state: GameState) -> GameState:
     if not actor:
         return state._replace(message_buffer=("No one here to speak with.",), proximity_menu_active=False)
     return reduce_talk(state, actor.id)
+
+
+def reduce_interact_scavenge(state: GameState) -> GameState:
+    """[S] Proximity menu action: Scavenges or searches the fixture under cursor."""
+    node = state.nodes[state.current_node_id]
+    fixture, _ = _get_entity_at(node, state.player_row, state.player_col)
+    if not fixture:
+        return state._replace(message_buffer=("Nothing here to scavenge.",), proximity_menu_active=False)
+    return reduce_scavenge(state, fixture.id)
+
+
+def reduce_scavenge(state: GameState, fixture_id: Optional[str] = None) -> GameState:
+    """
+    Searches or scavenges a container/cache fixture in the current node.
+    Advances simulation tick on success.
+    """
+    current_node = state.nodes[state.current_node_id]
+    fixture: Optional[Fixture] = None
+
+    if fixture_id:
+        fixture = current_node.fixtures.get(fixture_id)
+        if not fixture:
+            for f in current_node.fixtures.values():
+                if f.glyph == fixture_id or f.name.lower() == fixture_id.lower():
+                    fixture = f
+                    break
+    else:
+        fixture, _ = _get_entity_at(current_node, state.player_row, state.player_col)
+
+    if not fixture:
+        return state._replace(
+            message_buffer=("Specify a container or scrap cache to search.",),
+            proximity_menu_active=False
+        )
+
+    if fixture.state == FixtureState.SPENT.value:
+        return state._replace(
+            message_buffer=(f"{fixture.name} is picked clean. Nothing left to salvage.",),
+            proximity_menu_active=False
+        )
+
+    # Check if sealed and requires tool
+    new_inv: List[Item] = list(state.character.inventory)
+    tool_msg = ""
+    if fixture.state in (FixtureState.SEALED.value, FixtureState.LOCKED.value) and fixture.required_tag:
+        all_tags = set(state.character.unlocked_capabilities)
+        for c in state.companions:
+            if c.capability_tag:
+                all_tags.add(c.capability_tag)
+
+        has_tool = False
+        tool_idx = None
+        for idx, it in enumerate(state.character.inventory):
+            if fixture.required_tag in (set(it.tags) | all_tags):
+                has_tool = True
+                tool_idx = idx
+                break
+
+        if not has_tool and fixture.required_tag not in all_tags:
+            return state._replace(
+                message_buffer=(f"{fixture.name} is sealed tight. Requires a tool with '{fixture.required_tag}' to open.",),
+                proximity_menu_active=False
+            )
+        if tool_idx is not None:
+            tool_item = state.character.inventory[tool_idx]
+            if tool_item.max_integrity > 0 and "conduit_mastery" not in state.character.unlocked_capabilities:
+                rem = tool_item.integrity - 1
+                if rem <= 0:
+                    new_inv.pop(tool_idx)
+                    tool_msg = f" Used {tool_item.name} (wore out)."
+                else:
+                    new_inv[tool_idx] = tool_item._replace(integrity=rem)
+                    tool_msg = f" Used {tool_item.name}."
+
+    # Look up item yield
+    yield_info = SCAVENGE_YIELDS.get(fixture.id, ("scrap_metal", f"Recovered salvage from {fixture.name}."))
+    item_id, item_msg = yield_info
+    gained_item = ALL_ITEMS_BY_ID.get(item_id)
+    if gained_item:
+        new_inv.append(gained_item)
+
+    # Scavenger's Eye perk bonus
+    bonus_msg = ""
+    if "scavenger_instinct" in state.character.unlocked_capabilities:
+        bonus_scrap = ALL_ITEMS_BY_ID.get("scrap_metal")
+        if bonus_scrap:
+            new_inv.append(bonus_scrap)
+            bonus_msg = " [Sharp Eye: Found bonus scrap metal!]"
+
+    # Update fixture state to SPENT
+    updated_fixture = fixture._replace(state=FixtureState.SPENT.value)
+    new_fixtures = dict(current_node.fixtures)
+    new_fixtures[fixture.id] = updated_fixture
+    updated_node = current_node._replace(fixtures=new_fixtures)
+    updated_nodes = dict(state.nodes)
+    updated_nodes[current_node.id] = updated_node
+
+    full_msg = f"{item_msg}{tool_msg}{bonus_msg}"
+    state_after = state._replace(
+        character=state.character._replace(inventory=tuple(new_inv)),
+        nodes=updated_nodes,
+        proximity_menu_active=False,
+        message_buffer=(full_msg,)
+    )
+
+    return process_tick(
+        state_after,
+        f"Scavenged {fixture.name}.",
+        action_context={"used_fixture_id": fixture.id}
+    )
 
 
 def reduce_interact_cancel(state: GameState) -> GameState:
@@ -468,13 +627,22 @@ def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState:
     if fixture.state in (FixtureState.OPEN.value, FixtureState.SPENT.value):
         return state._replace(message_buffer=("Already done.",))
 
-    # 4. Check tag match (item tags + companion tags)
-    all_available_tags = set(item.tags)
+    # 4. Check tag match (item tags + companion tags + player capabilities)
+    all_available_tags = set(item.tags) | set(state.character.unlocked_capabilities)
+    if "wayfarer" in state.character.unlocked_capabilities:
+        all_available_tags.add("transit_clearance")
     for companion in state.companions:
         if companion.capability_tag:
             all_available_tags.add(companion.capability_tag)
 
-    if not fixture.required_tag or fixture.required_tag not in all_available_tags:
+    if fixture.on_use_effect == "scavenge" and not fixture.required_tag:
+        return state._replace(message_buffer=("That doesn't work here.",))
+
+    tag_ok = (not fixture.required_tag and fixture.on_use_effect is not None) or (fixture.required_tag and fixture.required_tag in all_available_tags)
+    if not tag_ok and fixture.on_use_effect == "smelt" and ("mineral" in item.tags or "salvage" in item.tags):
+        tag_ok = True
+
+    if not tag_ok:
         return state._replace(message_buffer=("That doesn't work here.",))
 
     # 5. Execute On-Use Effect (§5.5)
@@ -505,7 +673,7 @@ def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState:
     elif effect == "repair":
         new_fixture = fixture._replace(state=FixtureState.ACTIVE.value)
         new_fixtures[fixture.id] = new_fixture
-        if item.max_integrity > 0:
+        if item.max_integrity > 0 and "conduit_mastery" not in state.character.unlocked_capabilities:
             rem = item.integrity - 1
             if rem <= 0:
                 new_inv.pop(item_idx)
@@ -515,6 +683,46 @@ def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState:
                 msg = f"Repaired and engaged {fixture.name}."
         else:
             msg = f"Repaired and engaged {fixture.name}."
+
+    elif effect == "harvest":
+        paste_item = ALL_ITEMS_BY_ID.get("algae_paste")
+        if paste_item:
+            new_inv.append(paste_item)
+        if item.max_integrity > 0:
+            rem = item.integrity - 1
+            if rem <= 0:
+                new_inv.pop(item_idx)
+            else:
+                new_inv[item_idx] = item._replace(integrity=rem)
+        msg = f"Harvested fresh algae paste from {fixture.name} using {item.name}."
+
+    elif effect == "smelt":
+        crafted_item = None
+        if "mineral" in item.tags:
+            crafted_item = ALL_ITEMS_BY_ID.get("tool_prybar")
+            msg = f"Refined {item.name} in {fixture.name} into a heavy Thermal Pry-Bar."
+        else:
+            crafted_item = ALL_ITEMS_BY_ID.get("fitting_copper")
+            msg = f"Melted {item.name} in {fixture.name} and cast a clean Copper Pipe Fitting."
+        new_inv.pop(item_idx)
+        if crafted_item:
+            new_inv.append(crafted_item)
+
+    elif effect == "override":
+        if item.max_integrity > 0 and "conduit_mastery" not in state.character.unlocked_capabilities:
+            rem = item.integrity - 1
+            if rem <= 0:
+                new_inv.pop(item_idx)
+            else:
+                new_inv[item_idx] = item._replace(integrity=rem)
+        msg = f"Bypassed {fixture.name} circuits using {item.name}. Decoded surveyor telemetry."
+
+    elif effect == "scavenge":
+        # Using a tool directly on a sealed scavengeable container (e.g. prybar on crate)
+        return reduce_scavenge(state, fixture.id)
+
+    elif effect == "log":
+        msg = f"Accessed telemetry logs on {fixture.name}: Communications array active across Lunar orbit."
 
     else:
         # Generic effect: consume item integrity
@@ -692,10 +900,11 @@ def reduce_help(state: GameState) -> GameState:
     lines = [
         "COMMAND REFERENCE:",
         "  w / a / s / d           - Move player cursor on compartment grid",
-        "  [I] / [U] / [G] / [T]   - Proximity interaction options when near an entity",
+        "  [I]/[U]/[G]/[T]/[S]     - Proximity interaction options when near an entity",
         "  inspect <target>        - Inspect fixture, actor, item, or exit",
         "  talk <actor_id>         - Speak or trade with an actor",
         "  use <item_id> <target>  - Use carried tool/item on fixture",
+        "  scavenge <target>       - Search container, scrap bin, or tool rack",
         "  wait                    - Advance clock by 1 cycle",
         "  map / back              - Toggle between compartment and sector map",
         "  pack                    - View inventory and item charges",

@@ -864,7 +864,7 @@ Companions represent fellow crew members recruited across the stations. They tra
         "trade_required_tag": "seal_fitting",
         "trade_completed": false,
         "dialogue_idle": "Hopper to Luna is spooling. If you've got spare pipe collars or salvage, I can endorse a work pass for the freight deck.",
-        "dialogue_post_trade": "Pass endorsed. Take care on the sub-deck; Radek's down there cursing at a frozen valve.",
+        "dialogue_post_trade": "Collar's seated. Pass endorsed. Take care on the sub-deck; Radek's down there cursing at a frozen valve.",
         "companion_unlock": null
       }
     },
@@ -1581,11 +1581,11 @@ Companions represent fellow crew members recruited across the stations. They tra
         "id": "mine_shaft",
         "glyph": "⎅",
         "name": "Mine Shaft Cage Lift",
-        "state": "open",
-        "required_tag": null,
+        "state": "locked",
+        "required_tag": "two_person_lift",
         "grants_edge": "to_mine",
-        "on_use_effect": null,
-        "description": "Heavy industrial lift descending into the deep mining shaft."
+        "on_use_effect": "unlock",
+        "description": "Heavy industrial lift descending into the deep mining shaft. Requires two operators."
       },
       "smelting_crucible": {
         "id": "smelting_crucible",
@@ -1631,7 +1631,7 @@ Companions represent fellow crew members recruited across the stations. They tra
         "id": "to_mine",
         "target_node_id": "luna_mine",
         "label": "Deep Mine",
-        "gated_by_fixture": null,
+        "gated_by_fixture": "mine_shaft",
         "requires_capability": null
       }
     },

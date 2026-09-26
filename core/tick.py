@@ -37,6 +37,11 @@ def process_tick(
     if "cold_bypass" in caps:
         delta_t *= 0.5
 
+    if "crew_coordination" in caps and len(state.companions) > 0:
+        delta_p = max(0.0, delta_p - 0.2)
+        delta_r = max(0.0, delta_r - 0.2)
+        delta_t = max(0.0, delta_t - 0.2)
+
     cur_exp = state.character.exposure
     p_acc = cur_exp.pressure_debt + delta_p
     r_acc = cur_exp.radiation_dose + delta_r
@@ -132,7 +137,8 @@ def process_tick(
 
     # Step 6: Sustenance decay & Action log
     new_inventory = []
-    if new_cycle % 10 == 0:
+    decay_interval = 20 if "wayfarer" in caps else 10
+    if new_cycle % decay_interval == 0:
         for item in state.character.inventory:
             if item.category == ItemCategory.SUSTENANCE.value:
                 new_integrity = item.integrity - 1

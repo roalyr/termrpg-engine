@@ -175,7 +175,7 @@ def main() -> None:
                     k_lower = key.lower()
                     if k_lower in ('w', 'a', 's', 'd'):
                         action_input = k_lower
-                    elif state.proximity_menu_active and k_lower in ('i', 'u', 'g', 't', 'x'):
+                    elif state.proximity_menu_active and k_lower in ('i', 'u', 'g', 't', 's', 'x'):
                         action_input = k_lower
                     elif k_lower in ('m', 'b', 'e'):
                         action_input = k_lower

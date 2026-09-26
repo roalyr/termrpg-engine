@@ -5,5 +5,19 @@
     "title": "Cargo Rigger",
     "status": "Ready to work",
     "capability_tag": "two_person_lift"
+  },
+  {
+    "id": "comp_tarek",
+    "name": "Tarek",
+    "title": "Array Specialist",
+    "status": "Scanning telemetry",
+    "capability_tag": "signal_boost"
+  },
+  {
+    "id": "comp_mira",
+    "name": "Mira",
+    "title": "Hab Botanist",
+    "status": "Monitoring filters",
+    "capability_tag": "bio_filter"
   }
 ]
