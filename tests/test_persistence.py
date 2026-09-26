@@ -57,7 +57,56 @@ class TestPersistence(unittest.TestCase):
         self.assertTrue(any(c.id == "comp_radek" for c in loaded.companions))
         self.assertIn("seam_discipline", loaded.character.unlocked_capabilities)
         self.assertIn("stn_a_sub", loaded.visited_nodes)
+        self.assertTrue(loaded.is_running)
+
+    def test_saved_with_is_running_false_restores_as_running(self):
+        state = init_game_state(self.preset_dir, "TestPilot", 1, 1)
+        # Simulate quit action setting is_running=False
+        quitted_state = state._replace(is_running=False)
+        save_state(quitted_state, self.save_dir)
+
+        loaded = load_state(self.save_dir)
+        self.assertIsNotNone(loaded)
+        self.assertTrue(loaded.is_running)
+
+    def test_resuming_and_executing_actions(self):
+        state = init_game_state(self.preset_dir, "TestPilot", 1, 1)
+        # Move player
+        from core.reducers import reduce_move
+        s1 = reduce_move(state, "w")
+        save_state(s1, self.save_dir)
+
+        # Restore from save
+        loaded = load_state(self.save_dir)
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded.player_row, 1)
+        self.assertEqual(loaded.cycle, 1)
+        self.assertTrue(loaded.is_running)
+
+        # Execute next action from restored state
+        s2 = reduce_move(loaded, "d")
+        self.assertEqual(s2.player_row, 1)
+        self.assertEqual(s2.player_col, 3)
+        self.assertEqual(s2.cycle, 2)
+
+    def test_incapacitation_reload_revival(self):
+        from core.types import Exposure
+        state = init_game_state(self.preset_dir, "TestPilot", 1, 1)
+        incapacitated_char = state.character._replace(exposure=Exposure(16.0, 0.0, 0.0))
+        incap_state = state._replace(
+            character=incapacitated_char,
+            current_node_id="luna_mine",
+            is_running=False
+        )
+        save_state(incap_state, self.save_dir)
+
+        loaded = load_state(self.save_dir)
+        self.assertIsNotNone(loaded)
+        self.assertTrue(loaded.is_running)
+        self.assertEqual(loaded.character.exposure.pressure_debt, 0.0)
+        self.assertEqual(loaded.current_node_id, "stn_a_bunkroom")
 
 if __name__ == "__main__":
     unittest.main()
+
 

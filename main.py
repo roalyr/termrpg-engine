@@ -151,6 +151,11 @@ def main() -> None:
         if not state:
             print("Fatal: Could not initialize game state.")
             sys.exit(1)
+    else:
+        state = state._replace(
+            is_running=True,
+            message_buffer=(f"Session resumed. Callsign: {state.character.name}.",)
+        )
 
     # Main raw-keystroke I/O game loop per §11 Phase 7
     try:

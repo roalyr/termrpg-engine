@@ -269,6 +269,16 @@ def state_from_dict(data: Dict[str, Any]) -> GameState:
     player_col = int(data.get("player_col", def_col))
     proximity_menu_active = bool(data.get("proximity_menu_active", False))
 
+    # Reloading from incapacitation per §4.3: revive at safe bunkroom with cleared exposure
+    if max(exposure.pressure_debt, exposure.radiation_dose, exposure.thermal_stress) >= 15.0:
+        exposure = Exposure(0.0, 0.0, 0.0)
+        character = character._replace(exposure=exposure)
+        cur_node_id = "stn_a_bunkroom"
+        cur_node = nodes.get(cur_node_id)
+        player_row = cur_node.size // 2 if cur_node else 0
+        player_col = cur_node.size // 2 if cur_node else 0
+        proximity_menu_active = False
+
     return GameState(
         character=character,
         current_node_id=cur_node_id,
@@ -285,7 +295,7 @@ def state_from_dict(data: Dict[str, Any]) -> GameState:
         flavor_enabled=bool(data.get("flavor_enabled", True)),
         active_view=str(data.get("active_view", "compartment")),
         proximity_menu_active=proximity_menu_active,
-        is_running=bool(data.get("is_running", True)),
+        is_running=True,
     )
 
 
