@@ -1,6 +1,8 @@
 from typing import Tuple, List
 from core.types import GameState
 from core.reducers import (
+    reduce_move, reduce_interact_go, reduce_interact_inspect,
+    reduce_interact_use, reduce_interact_talk, reduce_interact_cancel,
     reduce_inspect, reduce_talk, reduce_use, reduce_leave,
     reduce_wait, reduce_map, reduce_back, reduce_pack,
     reduce_character, reduce_party, reduce_log, reduce_flavor,
@@ -33,23 +35,52 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
             return reduce_leave(state, args[0])
         elif verb in ("quit", "q", "exit"):
             return state._replace(is_running=False, message_buffer=("Session terminated.",))
-        elif verb == "map":
+        elif verb in ("map", "m"):
             return reduce_back(state)
         else:
             return state._replace(
-                message_buffer=("In Map view. Type 'back' to return to compartment, or 'leave <edge_id>'.",)
+                message_buffer=("In Map view. Type 'back' to return to compartment.",)
             )
+
+    # Proximity menu interaction actions
+    if state.proximity_menu_active and not args:
+        if verb in ("i", "inspect"):
+            return reduce_interact_inspect(state)
+        elif verb in ("u", "use"):
+            return reduce_interact_use(state)
+        elif verb in ("g", "go"):
+            return reduce_interact_go(state)
+        elif verb in ("t", "talk"):
+            return reduce_interact_talk(state)
+        elif verb in ("x", "cancel", "c"):
+            return reduce_interact_cancel(state)
+
+    # WASD movement
+    if verb in ("w", "a", "s", "d"):
+        return reduce_move(state, verb)
+
+    # Shortcut interactions
+    if verb == "e":
+        return reduce_interact_inspect(state)
+    elif verb == "g" and not args:
+        return reduce_interact_go(state)
 
     if verb in ("inspect", "look", "examine"):
         target = " ".join(args) if args else ""
+        if not target and state.proximity_menu_active:
+            return reduce_interact_inspect(state)
         return reduce_inspect(state, target)
 
     elif verb in ("talk", "speak", "chat"):
         actor = " ".join(args) if args else ""
+        if not actor and state.proximity_menu_active:
+            return reduce_interact_talk(state)
         return reduce_talk(state, actor)
 
     elif verb == "use":
         if len(args) < 2:
+            if not args and state.proximity_menu_active:
+                return reduce_interact_use(state)
             return state._replace(
                 message_buffer=("Usage: use <item_id> <target_fixture_id>",)
             )
@@ -60,13 +91,14 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
 
     elif verb in ("leave", "go", "move"):
         if not args:
-            return state._replace(
-                message_buffer=("Usage: leave <exit_id>",)
-            )
+            return reduce_interact_go(state)
         return reduce_leave(state, args[0])
 
-    elif verb == "map":
+    elif verb in ("map", "m"):
         return reduce_map(state)
+
+    elif verb in ("back", "b"):
+        return reduce_back(state)
 
     elif verb in ("pack", "inv", "inventory"):
         return reduce_pack(state)
@@ -94,3 +126,4 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
         return state._replace(
             message_buffer=("Unknown command. Type 'help' for available actions.",)
         )
+

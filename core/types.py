@@ -65,7 +65,7 @@ class GridPlacement(NamedTuple):
     col: int                   # 0-indexed column on the grid
 
 class Edge(NamedTuple):
-    id: str                    # Edge identifier used with `leave` command
+    id: str                    # Edge identifier
     target_node_id: str        # Destination node ID
     label: str                 # Display label (e.g., "Berth 04", "Subdeck")
     gated_by_fixture: Optional[str]  # Fixture ID that must be OPEN to traverse
@@ -130,8 +130,12 @@ class GameState(NamedTuple):
     visited_nodes: FrozenSet[str]         # Explored node IDs (for map & attunement)
     depth_ticks: Mapping[int, int]        # Ticks survived per depth without critical exposure
     cycle: int                            # Global simulation tick counter
+    player_row: int                       # Player cursor row on current node grid (0-indexed)
+    player_col: int                       # Player cursor column on current node grid (0-indexed)
     message_buffer: Tuple[str, ...]       # Queued output messages for next render
     action_log: Tuple[str, ...]           # Recent action history (max 20 entries)
     flavor_enabled: bool                  # Toggle for atmospheric prose
     active_view: str                      # "compartment" or "map_topology"
+    proximity_menu_active: bool           # True when Zone 5 is showing the interaction menu
     is_running: bool                      # False = exit after next persist
+

@@ -4,9 +4,9 @@ from ui.text_tools import wrap_text
 from ui.topology_view import render_topology
 
 
-def build_grid(node: Node) -> Tuple[str, ...]:
+def build_grid(node: Node, player_row: int = -1, player_col: int = -1) -> Tuple[str, ...]:
     """
-    Constructs N×N grid rows from node walls, floor, and placements
+    Constructs N×N grid rows from node walls, floor, placements, and player cursor
     strictly according to §10 of the GDD.
     """
     n = node.size
@@ -23,10 +23,15 @@ def build_grid(node: Node) -> Tuple[str, ...]:
         if entity:
             grid[placement.row][placement.col] = entity.glyph
 
+    if 0 <= player_row < n and 0 <= player_col < n:
+        if grid[player_row][player_col] == node.grid_floor:
+            grid[player_row][player_col] = '@'
+
     return tuple(' '.join(row) for row in grid)
 
 
-def render_frame(state: GameState, terminal_width: int) -> str:
+
+def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = False) -> str:
     """
     Pure view renderer returning a 6-zone mobile viewport string (<= 40 cols minimum).
     Every line is strictly formatted to terminal_width.
@@ -59,7 +64,7 @@ def render_frame(state: GameState, terminal_width: int) -> str:
     ]
 
     # --- ZONE 2 & 3: SPLIT UPPER VIEWPORT ---
-    grid_rows = build_grid(node)
+    grid_rows = build_grid(node, state.player_row, state.player_col)
     grid_char_width = (node.size * 2) - 1
     # Zone 2 width including its internal box borders
     z2_w = grid_char_width + 4
@@ -143,25 +148,39 @@ def render_frame(state: GameState, terminal_width: int) -> str:
     exits_line = f" EXITS: {', '.join(edge_items)}"
     zone4_lines.append(f"│{exits_line[:w - 2]:<{w - 2}}│")
 
-    # --- ZONE 5: MESSAGES ---
+    # --- ZONE 5: MESSAGES / PROXIMITY MENU ---
     zone5_lines = [border_horiz]
-    msg_list = list(state.message_buffer)
-    if state.flavor_enabled and node.description and len(msg_list) < 3:
-        msg_list.insert(0, f"[{node.description}]")
-
-    if not msg_list:
-        zone5_lines.append(f"│{' (All systems nominal)':<{w - 2}}│")
-    else:
-        for msg in msg_list[-6:]:
+    if state.proximity_menu_active:
+        for msg in state.message_buffer:
             wrapped = wrap_text(msg, w - 4)
             for wline in wrapped:
                 zone5_lines.append(f"│ {wline:<{w - 3}}│")
+    else:
+        msg_list = list(state.message_buffer)
+        if state.flavor_enabled and node.description and len(msg_list) < 3:
+            msg_list.insert(0, f"[{node.description}]")
 
-    # --- ZONE 6: PROMPT ---
-    zone6_lines = [
-        border_horiz,
-        "> "
-    ]
+        if not msg_list:
+            zone5_lines.append(f"│{' (All systems nominal)':<{w - 2}}│")
+        else:
+            for msg in msg_list[-6:]:
+                wrapped = wrap_text(msg, w - 4)
+                for wline in wrapped:
+                    zone5_lines.append(f"│ {wline:<{w - 3}}│")
+
+    # --- ZONE 6: PROMPT / KEY HINTS ---
+    if prompt_mode:
+        zone6_lines = [
+            border_horiz,
+            "> "
+        ]
+    else:
+        hint = " WASD: move  E: inspect  M: map  Q: quit"
+        zone6_lines = [
+            border_horiz,
+            f"│{hint[:w - 2]:<{w - 2}}│",
+            border_horiz
+        ]
 
     all_lines = (
         zone1_lines +
@@ -171,3 +190,4 @@ def render_frame(state: GameState, terminal_width: int) -> str:
         zone6_lines
     )
     return "\n".join(all_lines)
+

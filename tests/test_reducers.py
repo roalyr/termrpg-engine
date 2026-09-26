@@ -5,7 +5,10 @@ from core.reducers import (
     reduce_inspect, reduce_talk, reduce_use, reduce_leave,
     reduce_wait, reduce_map, reduce_back, reduce_pack,
     reduce_character, reduce_party, reduce_log, reduce_flavor,
-    reduce_help, ALL_ITEMS_BY_ID
+    reduce_help, reduce_move, reduce_interact_go,
+    reduce_interact_inspect, reduce_interact_use,
+    reduce_interact_talk, reduce_interact_cancel,
+    ALL_ITEMS_BY_ID
 )
 from core.types import FixtureState, Exposure
 
@@ -135,5 +138,68 @@ class TestReducers(unittest.TestCase):
         s_flavor = reduce_flavor(self.state, "off")
         self.assertFalse(s_flavor.flavor_enabled)
 
+    def test_wasd_movement(self):
+        # Starting at (2, 2) in bunkroom (size 5)
+        self.assertEqual(self.state.player_row, 2)
+        self.assertEqual(self.state.player_col, 2)
+        c0 = self.state.cycle
+
+        # Move Up: row 1, col 2 (empty floor)
+        s1 = reduce_move(self.state, "w")
+        self.assertEqual(s1.player_row, 1)
+        self.assertEqual(s1.player_col, 2)
+        self.assertEqual(s1.cycle, c0 + 1)
+        self.assertFalse(s1.proximity_menu_active)
+
+        # Move Up again: row 0, col 2 (hatch_berth is at 0, 2)
+        s2 = reduce_move(s1, "w")
+        self.assertEqual(s2.player_row, 0)
+        self.assertEqual(s2.player_col, 2)
+        self.assertEqual(s2.cycle, c0 + 2)
+        self.assertTrue(s2.proximity_menu_active)
+        self.assertTrue(any("Near: Transit Hatch" in m for m in s2.message_buffer))
+        self.assertTrue(any("[G] Go -> Berth 04" in m for m in s2.message_buffer))
+
+        # Try to move off grid or into wall: 'w' from (0, 2)
+        s_blocked = reduce_move(s2, "w")
+        self.assertEqual(s_blocked.player_row, 0)
+        self.assertEqual(s_blocked.player_col, 2)
+        self.assertEqual(s_blocked.cycle, s2.cycle)  # No tick advance on wall
+        self.assertTrue(any("Bulkhead blocks" in m for m in s_blocked.message_buffer))
+
+    def test_proximity_interaction_go(self):
+        # Move onto hatch_berth at (0, 2)
+        s_hatch = self.state._replace(player_row=0, player_col=2, proximity_menu_active=True)
+        s_go = reduce_interact_go(s_hatch)
+        self.assertEqual(s_go.current_node_id, "stn_a_berth")
+        # In Berth (size 7), center is (3, 3)
+        self.assertEqual(s_go.player_row, 3)
+        self.assertEqual(s_go.player_col, 3)
+
+    def test_proximity_interaction_actions(self):
+        # Test on spigot_01 at (3, 1) in bunkroom
+        canteen = ALL_ITEMS_BY_ID["flask_water"]._replace(integrity=1)
+        char = self.state.character._replace(inventory=self.state.character.inventory + (canteen,))
+        s_spigot = self.state._replace(
+            character=char,
+            player_row=3,
+            player_col=1,
+            proximity_menu_active=True
+        )
+
+        # [I] Inspect
+        s_ins = reduce_interact_inspect(s_spigot)
+        self.assertTrue(any("Water Spigot" in m for m in s_ins.message_buffer))
+
+        # [U] Use
+        s_use = reduce_interact_use(s_spigot)
+        refilled = next(i for i in s_use.character.inventory if i.id == "flask_water")
+        self.assertEqual(refilled.integrity, 3)
+
+        # [X] Cancel
+        s_cancel = reduce_interact_cancel(s_spigot)
+        self.assertFalse(s_cancel.proximity_menu_active)
+
 if __name__ == "__main__":
     unittest.main()
+

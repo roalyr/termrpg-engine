@@ -35,5 +35,11 @@ class TestTypes(unittest.TestCase):
         with self.assertRaises(AttributeError):
             exp.pressure_debt = 5.0  # type: ignore
 
+    def test_gamestate_fields(self):
+        self.assertIn("player_row", GameState._fields)
+        self.assertIn("player_col", GameState._fields)
+        self.assertIn("proximity_menu_active", GameState._fields)
+
 if __name__ == "__main__":
     unittest.main()
+

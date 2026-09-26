@@ -33,3 +33,22 @@ def wrap_text(text: str, width: int) -> Tuple[str, ...]:
         lines.append(current_line)
 
     return tuple(lines)
+
+
+def read_raw_key() -> str:
+    """Reads a single keypress from stdin in raw mode without waiting for Enter."""
+    import sys
+    if not sys.stdin.isatty():
+        return sys.stdin.read(1)
+
+    import termios
+    import tty
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
+

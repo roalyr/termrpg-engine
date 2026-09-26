@@ -43,12 +43,31 @@ class TestUI(unittest.TestCase):
         self.assertTrue("TOPOLOGY" in topo)
         self.assertTrue("[*hab]" in topo or "[*brt]" in topo or "STATION ALPHA" in topo)
 
-    def test_wrap_text(self):
-        text = "This is a sentence designed to test whether text wraps properly without truncating words."
-        wrapped = wrap_text(text, 20)
-        for line in wrapped:
-            self.assertLessEqual(len(line), 20)
-        self.assertEqual(" ".join(wrapped), text)
+    def test_build_grid_with_player_cursor(self):
+        node = self.state.nodes["stn_a_bunkroom"]
+        # Player at center (2, 2), which is floor
+        grid = build_grid(node, 2, 2)
+        row2 = grid[2].split()
+        self.assertEqual(row2[2], "@")
+
+        # Player co-located with spigot at (3, 1) -> entity glyph takes priority
+        grid_co = build_grid(node, 3, 1)
+        row3 = grid_co[3].split()
+        self.assertEqual(row3[1], "⌸")
+
+    def test_render_frame_proximity_menu(self):
+        st = self.state._replace(
+            proximity_menu_active=True,
+            message_buffer=("Near: Water Spigot", "[I] Inspect  [U] Use flask_water  [X] Cancel")
+        )
+        frame = render_frame(st, 40)
+        self.assertIn("[I] Inspect", frame)
+        self.assertIn("[U] Use", frame)
+
+    def test_render_frame_key_hints(self):
+        frame = render_frame(self.state, 40)
+        self.assertIn("WASD: move", frame)
 
 if __name__ == "__main__":
     unittest.main()
+

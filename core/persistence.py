@@ -124,10 +124,13 @@ def state_to_dict(state: GameState) -> Dict[str, Any]:
         "visited_nodes": list(state.visited_nodes),
         "depth_ticks": {str(k): v for k, v in state.depth_ticks.items()},
         "cycle": state.cycle,
+        "player_row": state.player_row,
+        "player_col": state.player_col,
         "message_buffer": list(state.message_buffer),
         "action_log": list(state.action_log),
         "flavor_enabled": state.flavor_enabled,
         "active_view": state.active_view,
+        "proximity_menu_active": state.proximity_menu_active,
         "is_running": state.is_running,
     }
 
@@ -258,19 +261,30 @@ def state_from_dict(data: Dict[str, Any]) -> GameState:
     visited = frozenset(str(v) for v in data.get("visited_nodes", []))
     depth_ticks = {int(k): int(v) for k, v in data.get("depth_ticks", {}).items()}
 
+    cur_node_id = str(data["current_node_id"])
+    cur_node = nodes.get(cur_node_id)
+    def_row = cur_node.size // 2 if cur_node else 0
+    def_col = cur_node.size // 2 if cur_node else 0
+    player_row = int(data.get("player_row", def_row))
+    player_col = int(data.get("player_col", def_col))
+    proximity_menu_active = bool(data.get("proximity_menu_active", False))
+
     return GameState(
         character=character,
-        current_node_id=str(data["current_node_id"]),
+        current_node_id=cur_node_id,
         nodes=nodes,
         companions=companions,
         tree=tree,
         visited_nodes=visited,
         depth_ticks=depth_ticks,
         cycle=int(data["cycle"]),
+        player_row=player_row,
+        player_col=player_col,
         message_buffer=tuple(str(m) for m in data.get("message_buffer", ())),
         action_log=tuple(str(l) for l in data.get("action_log", ())),
         flavor_enabled=bool(data.get("flavor_enabled", True)),
         active_view=str(data.get("active_view", "compartment")),
+        proximity_menu_active=proximity_menu_active,
         is_running=bool(data.get("is_running", True)),
     )
 

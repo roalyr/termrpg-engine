@@ -156,5 +156,80 @@ class TestE2EWalkthrough(unittest.TestCase):
         state = dispatch_action(state, "quit")
         self.assertFalse(state.is_running)
 
+    def test_wasd_and_proximity_menu_e2e_walkthrough(self):
+        state = self.state
+
+        # Bunkroom: start at center (2, 2)
+        self.assertEqual(state.player_row, 2)
+        self.assertEqual(state.player_col, 2)
+
+        # Move to spigot_01 at (3, 1)
+        state = dispatch_action(state, "s")  # (3, 2)
+        state = dispatch_action(state, "a")  # (3, 1) - spigot_01
+        self.assertEqual(state.player_row, 3)
+        self.assertEqual(state.player_col, 1)
+        self.assertTrue(state.proximity_menu_active)
+        self.assertTrue(any("Near: Water Spigot" in m for m in state.message_buffer))
+
+        # Inspect spigot using single-key 'i'
+        state = dispatch_action(state, "i")
+        self.assertTrue(any("Water Spigot" in m for m in state.message_buffer))
+
+        # Move to hatch_berth at (0, 2)
+        state = dispatch_action(state, "w")  # (2, 1)
+        state = dispatch_action(state, "w")  # (1, 1)
+        state = dispatch_action(state, "w")  # blocked by wall at (0, 1), stays (1, 1)
+        state = dispatch_action(state, "d")  # (1, 2)
+        state = dispatch_action(state, "w")  # (0, 2) - hatch_berth!
+        self.assertEqual(state.player_row, 0)
+        self.assertEqual(state.player_col, 2)
+        self.assertTrue(state.proximity_menu_active)
+        self.assertTrue(any("[G] Go -> Berth 04" in m for m in state.message_buffer))
+
+        # Step through hatch using single-key 'g'
+        state = dispatch_action(state, "g")
+        self.assertEqual(state.current_node_id, "stn_a_berth")
+        self.assertEqual(state.player_row, 3)
+        self.assertEqual(state.player_col, 3)
+
+        # In Berth 04, move to Kael at (2, 4)
+        state = dispatch_action(state, "w")  # (2, 3)
+        state = dispatch_action(state, "d")  # (2, 4) - npc_kael!
+        self.assertEqual(state.player_row, 2)
+        self.assertEqual(state.player_col, 4)
+        self.assertTrue(state.proximity_menu_active)
+        self.assertTrue(any("Near: Kael" in m for m in state.message_buffer))
+        self.assertTrue(any("[T] Talk" in m for m in state.message_buffer))
+
+        # Talk to Kael using 't' -> executes trade
+        state = dispatch_action(state, "t")
+        self.assertTrue(any(i.id == "pass_work" for i in state.character.inventory))
+
+        # Move to cargo hoist at (5, 3)
+        state = dispatch_action(state, "s")  # (3, 4)
+        state = dispatch_action(state, "s")  # (4, 4)
+        state = dispatch_action(state, "s")  # (5, 4)
+        state = dispatch_action(state, "a")  # (5, 3) - cargo_hoist!
+        self.assertEqual(state.player_row, 5)
+        self.assertEqual(state.player_col, 3)
+        self.assertTrue(state.proximity_menu_active)
+        self.assertTrue(any("Near: Cargo Hoist Platform" in m for m in state.message_buffer))
+        self.assertTrue(any("[U] Use Stamped Work Pass" in m for m in state.message_buffer))
+
+        # Unlock hoist using single-key 'u'
+        state = dispatch_action(state, "u")
+        self.assertEqual(state.nodes["stn_a_berth"].fixtures["cargo_hoist"].state, FixtureState.OPEN.value)
+
+        # Move off and step back onto open cargo hoist to see [G] Go option
+        state = dispatch_action(state, "w")  # (4, 3)
+        state = dispatch_action(state, "s")  # (5, 3)
+        self.assertTrue(any("[G] Go -> Sub-Deck" in m for m in state.message_buffer))
+
+        # Descend using 'g'
+        state = dispatch_action(state, "g")
+        self.assertEqual(state.current_node_id, "stn_a_sub")
+        self.assertEqual(state.nodes["stn_a_sub"].depth, 1)
+
 if __name__ == "__main__":
     unittest.main()
+

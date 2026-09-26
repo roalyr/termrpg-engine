@@ -49,6 +49,219 @@ def _is_critical(state: GameState) -> bool:
     return max(exp.pressure_debt, exp.radiation_dose, exp.thermal_stress) >= thresh
 
 
+def _get_entity_at(node: Node, row: int, col: int) -> Tuple[Optional[Fixture], Optional[Actor]]:
+    """Returns any fixture or actor placed at (row, col) on the node grid."""
+    for placement in node.placements:
+        if placement.row == row and placement.col == col:
+            f = node.fixtures.get(placement.entity_id)
+            a = node.actors.get(placement.entity_id)
+            return (f, a)
+    return (None, None)
+
+
+def _build_proximity_menu(state: GameState, fixture: Optional[Fixture], actor: Optional[Actor]) -> Tuple[str, ...]:
+    """Constructs proximity interaction menu options strictly according to §5.2."""
+    entity_name = fixture.name if fixture else (actor.name if actor else "Object")
+    opts = ["[I] Inspect"]
+    if fixture:
+        # Check usable item
+        matching_item = None
+        if fixture.required_tag and fixture.state not in (FixtureState.OPEN.value, FixtureState.SPENT.value):
+            all_tags = set()
+            for c in state.companions:
+                if c.capability_tag:
+                    all_tags.add(c.capability_tag)
+            for it in state.character.inventory:
+                if fixture.required_tag in (set(it.tags) | all_tags):
+                    matching_item = it
+                    break
+        if matching_item:
+            opts.append(f"[U] Use {matching_item.name}")
+
+        if fixture.grants_edge:
+            cur_node = state.nodes[state.current_node_id]
+            edge = cur_node.edges.get(fixture.grants_edge)
+            if edge and fixture.state == FixtureState.OPEN.value:
+                opts.append(f"[G] Go -> {edge.label}")
+
+    if actor:
+        opts.append("[T] Talk")
+
+    opts.append("[X] Cancel")
+    return (f"Near: {entity_name}", "  ".join(opts))
+
+
+def reduce_move(state: GameState, direction: str) -> GameState:
+    """
+    Moves player cursor one tile on the Zone 2 grid via WASD raw keys.
+    Advances simulation tick on success.
+    Triggers proximity interaction menu in Zone 5 on landing on an entity tile.
+    """
+    direction = direction.lower().strip()
+    node = state.nodes[state.current_node_id]
+    r, c = state.player_row, state.player_col
+
+    delta = {
+        "w": (-1, 0),
+        "s": (1, 0),
+        "a": (0, -1),
+        "d": (0, 1),
+    }.get(direction)
+
+    if not delta:
+        return state._replace(message_buffer=(f"Invalid direction '{direction}'. Use W/A/S/D.",))
+
+    new_r = r + delta[0]
+    new_c = c + delta[1]
+
+    # Bounds check
+    if new_r < 0 or new_r >= node.size or new_c < 0 or new_c >= node.size:
+        return state._replace(
+            message_buffer=("Bulkhead blocks movement.",),
+            proximity_menu_active=False
+        )
+
+    fixture, actor = _get_entity_at(node, new_r, new_c)
+
+    # Wall check: border cells without any placed entity are impassable walls
+    is_border = (new_r == 0 or new_r == node.size - 1 or new_c == 0 or new_c == node.size - 1)
+    if is_border and not fixture and not actor:
+        return state._replace(
+            message_buffer=("Bulkhead blocks movement.",),
+            proximity_menu_active=False
+        )
+
+    if fixture or actor:
+        menu_lines = _build_proximity_menu(state, fixture, actor)
+        state_moved = state._replace(
+            player_row=new_r,
+            player_col=new_c,
+            proximity_menu_active=True,
+            message_buffer=menu_lines
+        )
+    else:
+        state_moved = state._replace(
+            player_row=new_r,
+            player_col=new_c,
+            proximity_menu_active=False,
+            message_buffer=()
+        )
+
+    return process_tick(state_moved, f"Moved {direction.upper()}.")
+
+
+def reduce_interact_go(state: GameState) -> GameState:
+    """
+    Traverses the open edge granted by the fixture under player cursor.
+    Equivalent to [G] proximity action or former leave command.
+    Advances simulation tick.
+    """
+    node = state.nodes[state.current_node_id]
+    fixture, _ = _get_entity_at(node, state.player_row, state.player_col)
+    if not fixture or not fixture.grants_edge:
+        return state._replace(
+            message_buffer=("No hatch or exit under cursor to go through.",),
+            proximity_menu_active=False
+        )
+
+    edge = node.edges.get(fixture.grants_edge)
+    if not edge:
+        return state._replace(
+            message_buffer=(f"Route error: edge '{fixture.grants_edge}' not found.",),
+            proximity_menu_active=False
+        )
+
+    if fixture.state != FixtureState.OPEN.value:
+        return state._replace(
+            message_buffer=(f"Access blocked. {fixture.name} is {fixture.state.upper()}.",)
+        )
+
+    if edge.requires_capability and edge.requires_capability not in state.character.unlocked_capabilities:
+        return state._replace(
+            message_buffer=(f"Requires capability '{edge.requires_capability}' to traverse here.",)
+        )
+
+    dest_node = state.nodes.get(edge.target_node_id)
+    if not dest_node:
+        return state._replace(
+            message_buffer=(f"Route error: destination {edge.target_node_id} unreachable.",),
+            proximity_menu_active=False
+        )
+
+    new_r = dest_node.size // 2
+    new_c = dest_node.size // 2
+    dest_fix, dest_act = _get_entity_at(dest_node, new_r, new_c)
+    has_entity = bool(dest_fix or dest_act)
+    menu_lines = _build_proximity_menu(state, dest_fix, dest_act) if has_entity else ()
+
+    messages = [f"Moved to {dest_node.name}."]
+    if _is_critical(state):
+        messages.append("[!] Moving under severe physical strain.")
+    if menu_lines:
+        messages.extend(menu_lines)
+
+    state_moved = state._replace(
+        current_node_id=dest_node.id,
+        player_row=new_r,
+        player_col=new_c,
+        active_view="compartment",
+        proximity_menu_active=has_entity,
+        message_buffer=tuple(messages)
+    )
+
+    return process_tick(state_moved, f"Traversed to {dest_node.name}.")
+
+
+def reduce_interact_inspect(state: GameState) -> GameState:
+    """[I] Proximity menu action: Inspects entity under cursor."""
+    node = state.nodes[state.current_node_id]
+    fixture, actor = _get_entity_at(node, state.player_row, state.player_col)
+    if fixture:
+        return reduce_inspect(state, fixture.id)
+    elif actor:
+        return reduce_inspect(state, actor.id)
+    return state._replace(message_buffer=("Nothing here to inspect.",), proximity_menu_active=False)
+
+
+def reduce_interact_use(state: GameState) -> GameState:
+    """[U] Proximity menu action: Uses matching carried item on fixture under cursor."""
+    node = state.nodes[state.current_node_id]
+    fixture, _ = _get_entity_at(node, state.player_row, state.player_col)
+    if not fixture:
+        return state._replace(message_buffer=("No fixture here to use items on.",), proximity_menu_active=False)
+
+    all_available_tags = set()
+    for comp in state.companions:
+        if comp.capability_tag:
+            all_available_tags.add(comp.capability_tag)
+
+    matching_item = None
+    if fixture.required_tag:
+        for it in state.character.inventory:
+            if fixture.required_tag in (set(it.tags) | all_available_tags):
+                matching_item = it
+                break
+
+    if not matching_item:
+        return state._replace(message_buffer=(f"No carried tool or item matches '{fixture.required_tag}'.",))
+
+    return reduce_use(state, matching_item.id, fixture.id)
+
+
+def reduce_interact_talk(state: GameState) -> GameState:
+    """[T] Proximity menu action: Talks or trades with actor under cursor."""
+    node = state.nodes[state.current_node_id]
+    _, actor = _get_entity_at(node, state.player_row, state.player_col)
+    if not actor:
+        return state._replace(message_buffer=("No one here to speak with.",), proximity_menu_active=False)
+    return reduce_talk(state, actor.id)
+
+
+def reduce_interact_cancel(state: GameState) -> GameState:
+    """[X] Proximity menu action: Dismisses proximity menu."""
+    return state._replace(proximity_menu_active=False, message_buffer=())
+
+
 def reduce_inspect(state: GameState, target_id: str) -> GameState:
     """
     Inspects a fixture, actor, inventory item, or edge in the current compartment.
@@ -382,10 +595,19 @@ def reduce_leave(state: GameState, edge_id: str) -> GameState:
     if _is_critical(state):
         messages.append("[!] Moving under severe physical strain.")
 
+    new_r = dest_node.size // 2
+    new_c = dest_node.size // 2
+    dest_fix, dest_act = _get_entity_at(dest_node, new_r, new_c)
+    has_entity = bool(dest_fix or dest_act)
+    menu_lines = _build_proximity_menu(state, dest_fix, dest_act) if has_entity else ()
+
     state_moved = state._replace(
         current_node_id=dest_node.id,
+        player_row=new_r,
+        player_col=new_c,
         active_view="compartment",
-        message_buffer=tuple(messages)
+        proximity_menu_active=has_entity,
+        message_buffer=tuple(messages + list(menu_lines))
     )
 
     return process_tick(state_moved, f"Traversed to {dest_node.name}.")
@@ -469,11 +691,12 @@ def reduce_help(state: GameState) -> GameState:
     """Displays command syntax and verb descriptions."""
     lines = [
         "COMMAND REFERENCE:",
+        "  w / a / s / d           - Move player cursor on compartment grid",
+        "  [I] / [U] / [G] / [T]   - Proximity interaction options when near an entity",
         "  inspect <target>        - Inspect fixture, actor, item, or exit",
         "  talk <actor_id>         - Speak or trade with an actor",
         "  use <item_id> <target>  - Use carried tool/item on fixture",
         "  wait                    - Advance clock by 1 cycle",
-        "  leave <exit_id>         - Move through exit to next node",
         "  map / back              - Toggle between compartment and sector map",
         "  pack                    - View inventory and item charges",
         "  character               - View qualitative progression tree",

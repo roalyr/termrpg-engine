@@ -1211,6 +1211,7 @@ def init_game_state(
     )
 
     start_node_id = "stn_a_bunkroom"
+    start_node = nodes[start_node_id]
 
     return GameState(
         character=character,
@@ -1221,6 +1222,8 @@ def init_game_state(
         visited_nodes=frozenset({start_node_id}),
         depth_ticks={},
         cycle=0,
+        player_row=start_node.size // 2,
+        player_col=start_node.size // 2,
         message_buffer=(
             f"Welcome aboard, {character.name}.",
             "You wake in Deck 4 shared bunkroom.",
@@ -1228,5 +1231,6 @@ def init_game_state(
         action_log=("Awoke in bunkroom.",),
         flavor_enabled=True,
         active_view="compartment",
+        proximity_menu_active=False,
         is_running=True,
     )

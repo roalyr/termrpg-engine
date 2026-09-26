@@ -7,7 +7,7 @@ from core.presets import init_game_state, ensure_presets
 from core.persistence import save_state, load_state
 from core.actions import dispatch_action
 from ui.render import render_frame
-from ui.text_tools import check_terminal
+from ui.text_tools import check_terminal, read_raw_key
 
 DEFAULT_PRESET_DIR = Path("presets/default-1.0")
 DEFAULT_SAVES_DIR = Path("saves")
@@ -152,7 +152,7 @@ def main() -> None:
             print("Fatal: Could not initialize game state.")
             sys.exit(1)
 
-    # Main stream I/O game loop
+    # Main raw-keystroke I/O game loop per §11 Phase 7
     try:
         while state.is_running:
             term_w = check_terminal()
@@ -160,15 +160,49 @@ def main() -> None:
             print(output, end="", flush=True)
 
             try:
-                raw_input = input()
+                if sys.stdin.isatty():
+                    key = read_raw_key()
+                    if key in ('\x03', '\x04', ''):
+                        raise KeyboardInterrupt()
+
+                    # Handle immediate single-key actions
+                    k_lower = key.lower()
+                    if k_lower in ('w', 'a', 's', 'd'):
+                        action_input = k_lower
+                    elif state.proximity_menu_active and k_lower in ('i', 'u', 'g', 't', 'x'):
+                        action_input = k_lower
+                    elif k_lower in ('m', 'b', 'e'):
+                        action_input = k_lower
+                    elif k_lower == 'q':
+                        action_input = "quit"
+                    elif key in ('\r', '\n'):
+                        action_input = ""
+                    elif key in (':', '/'):
+                        # Solicit typed command
+                        print("\n> ", end="", flush=True)
+                        action_input = input().strip()
+                    else:
+                        # Any other printable character: start typed command
+                        print(f"\n> {key}", end="", flush=True)
+                        rest = input()
+                        action_input = (key + rest).strip()
+                else:
+                    line = sys.stdin.readline()
+                    if not line:
+                        break
+                    action_input = line.strip()
+
             except (KeyboardInterrupt, EOFError):
                 print("\n[SIGNAL RECEIVED] Interrupt. Persisting state snapshot...")
                 save_state(state, save_dir)
                 print("Snapshot committed. Terminal closed.")
                 sys.exit(0)
 
+            if not action_input:
+                continue
+
             prev_cycle = state.cycle
-            next_state = dispatch_action(state, raw_input)
+            next_state = dispatch_action(state, action_input)
 
             # Deterministic auto-save after every tick-advancing action
             if next_state.cycle > prev_cycle or not next_state.is_running:
