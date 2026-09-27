@@ -1094,7 +1094,7 @@
     "id": "luna_dome",
     "name": "Habitat Dome",
     "cluster": "lunar_base",
-    "size": 9,
+    "size": 10,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -1146,6 +1146,71 @@
         "required_tags": [],
         "log_text": "Readouts confirm cavernous basalt structures beneath the crater floor.",
         "log_text_locked": "Seismic survey note: the mine cage takes two operators or one trained lifter. Mine air is thin and hot with radiation. Budget your exposure."
+      },
+      "dome_locker": {
+        "id": "dome_locker",
+        "required_tags": [],
+        "grants_edge": null,
+        "glyph": "⊞",
+        "name": "Dome Locker",
+        "state": "active",
+        "on_use_effect": "scavenge",
+        "yields": [
+          "ration_dry"
+        ],
+        "description": "Shared crew locker by the airlock. Someone left a ration behind."
+      },
+      "seed_crate": {
+        "id": "seed_crate",
+        "required_tags": [],
+        "grants_edge": null,
+        "glyph": "⊞",
+        "name": "Seed Crate",
+        "state": "active",
+        "on_use_effect": "scavenge",
+        "yields": [
+          "algae_paste"
+        ],
+        "description": "Cold-packed crate of starter cultures for the trays."
+      },
+      "dome_board": {
+        "id": "dome_board",
+        "required_tags": [],
+        "grants_edge": null,
+        "glyph": "⌸",
+        "name": "Dome Board",
+        "state": "active",
+        "on_use_effect": "log",
+        "log_text": "Dome roster: surface walks in pairs. Pad-to-airlock is the shortest run on this moon.",
+        "log_text_locked": "Maintenance note: the lava tube breach vents into the crater. Seal it and the tube holds air.",
+        "description": "Wall screen with crew rosters and surface forecasts."
+      },
+      "hydro_tray": {
+        "id": "hydro_tray",
+        "required_tags": [
+          "bio_filter"
+        ],
+        "grants_edge": null,
+        "glyph": "⚲",
+        "name": "Hydroponic Tray",
+        "state": "active",
+        "on_use_effect": "harvest",
+        "yields": [
+          "algae_paste"
+        ],
+        "description": "Shallow tray of algae under daylight panels. Filter work needs a trained hand or a spanner."
+      },
+      "dome_tap": {
+        "id": "dome_tap",
+        "required_tags": [
+          "refillable"
+        ],
+        "grants_edge": null,
+        "glyph": "⚲",
+        "name": "Dome Water Tap",
+        "state": "active",
+        "on_use_effect": "refill",
+        "description": "Recycled water tap. Fills any canteen."
       }
     },
     "actors": {
@@ -1175,27 +1240,52 @@
       {
         "entity_id": "airlock_pad",
         "row": 0,
-        "col": 4
+        "col": 5
       },
       {
         "entity_id": "hatch_smelter",
-        "row": 4,
+        "row": 5,
         "col": 0
       },
       {
         "entity_id": "hatch_crater",
-        "row": 4,
-        "col": 8
+        "row": 5,
+        "col": 9
       },
       {
         "entity_id": "seismic_station",
-        "row": 3,
-        "col": 5
+        "row": 2,
+        "col": 6
       },
       {
         "entity_id": "npc_chen",
         "row": 3,
         "col": 3
+      },
+      {
+        "entity_id": "dome_locker",
+        "row": 8,
+        "col": 1
+      },
+      {
+        "entity_id": "seed_crate",
+        "row": 8,
+        "col": 2
+      },
+      {
+        "entity_id": "dome_board",
+        "row": 2,
+        "col": 7
+      },
+      {
+        "entity_id": "hydro_tray",
+        "row": 7,
+        "col": 7
+      },
+      {
+        "entity_id": "dome_tap",
+        "row": 7,
+        "col": 8
       }
     ],
     "edges": {

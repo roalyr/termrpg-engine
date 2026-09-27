@@ -216,7 +216,7 @@ class TestFixtures(unittest.TestCase):
 
     def test_logs_are_distinct(self):
         texts = {f.log_text for n in new().nodes.values() for f in n.fixtures.values() if f.on_use_effect == "log"}
-        self.assertEqual(len(texts), 5)
+        self.assertEqual(len(texts), 6)
 
     def test_repair_once_changes_vitals_then_refuses(self):
         s = on(carrying(new(), "tool_prybar"), "jammed_valve")

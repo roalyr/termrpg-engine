@@ -24,7 +24,7 @@ class TestOpenWorldRPG(unittest.TestCase):
             f.id: f.yields for node in self.state.nodes.values()
             for f in node.fixtures.values() if f.on_use_effect == "scavenge"
         }
-        self.assertEqual(len(containers), 10)
+        self.assertEqual(len(containers), 12)
         for fixture_id, yields in containers.items():
             # Find which node hosts this fixture
             host_node_id = None
