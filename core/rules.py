@@ -43,14 +43,17 @@ def max_exposure(exposure: Exposure) -> float:
     return max(exposure.pressure_debt, exposure.radiation_dose, exposure.thermal_stress)
 
 
-def exposure_status(state: GameState) -> str:
-    level = max_exposure(state.character.exposure)
-    th = exposure_thresholds(state.character.unlocked_capabilities)
-    if level >= th.critical:
+def exposure_level(value: float, th: Thresholds) -> str:
+    if value >= th.critical:
         return "CRITICAL"
-    if level >= th.stressed:
+    if value >= th.stressed:
         return "STRESSED"
     return "NOMINAL"
+
+
+def exposure_status(state: GameState) -> str:
+    th = exposure_thresholds(state.character.unlocked_capabilities)
+    return exposure_level(max_exposure(state.character.exposure), th)
 
 
 def is_stressed(state: GameState) -> bool:

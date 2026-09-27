@@ -60,7 +60,7 @@ class TestUI(unittest.TestCase):
     def test_render_frame_proximity_menu(self):
         st = self.state._replace(
             proximity_menu_active=True,
-            message_buffer=("Near: Water Spigot", "[I] Inspect  [U] Use flask_water  [X] Cancel")
+            message_buffer=("Near: Water Tap", "[I] Inspect  [U] Use flask_water  [X] Cancel")
         )
         frame = render_frame(st, 40)
         self.assertIn("[I] Inspect", frame)
@@ -68,8 +68,8 @@ class TestUI(unittest.TestCase):
 
     def test_render_frame_key_hints(self):
         frame = render_frame(self.state, 40)
-        self.assertIn("WASD: move", frame)
-        self.assertIn("/: cmd", frame)
+        self.assertIn("WASD move", frame)
+        self.assertIn("/ cmd", frame)
 
     def test_clear_terminal(self):
         old_stdout = sys.stdout

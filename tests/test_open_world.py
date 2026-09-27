@@ -1,4 +1,5 @@
 import unittest
+from tests.helpers import menu_line
 from pathlib import Path
 from core.presets import init_game_state, DEFAULT_DATA_DIR
 from core.reducers import (
@@ -55,7 +56,7 @@ class TestOpenWorldRPG(unittest.TestCase):
 
             # Cannot scavenge twice
             st_twice = reduce_scavenge(st_scavenged, fixture_id)
-            self.assertTrue(any("picked clean" in m for m in st_twice.message_buffer))
+            self.assertTrue(any("is empty" in m for m in st_twice.message_buffer))
 
     def test_sealed_container_requires_tool_and_wears_out(self):
         """Verify freight_crate requires force_lever tool and degrades the tool without conduit_mastery."""
@@ -63,7 +64,7 @@ class TestOpenWorldRPG(unittest.TestCase):
         st = self.state._replace(current_node_id="stn_b_dock")
         # Without tool, scavenge fails
         st_no_tool = reduce_scavenge(st, "freight_crate")
-        self.assertTrue(any("sealed tight" in m for m in st_no_tool.message_buffer))
+        self.assertTrue(any("is sealed" in m for m in st_no_tool.message_buffer))
         self.assertFalse(any(it.id == "chit_transit" for it in st_no_tool.character.inventory))
 
         # With prybar (integrity 3)
@@ -91,7 +92,7 @@ class TestOpenWorldRPG(unittest.TestCase):
         st_result = reduce_scavenge(st_perk, "personal_locker")
         self.assertTrue(any(it.id == "wire_spool" for it in st_result.character.inventory))
         self.assertTrue(any(it.id == "scrap_metal" for it in st_result.character.inventory))
-        self.assertTrue(any("Sharp Eye: Found bonus scrap metal" in m for m in st_result.message_buffer))
+        self.assertTrue(any("Sharp Eye: extra scrap" in m for m in st_result.message_buffer))
 
     def test_harvest_algae_basin(self):
         """Verify harvesting algae basin using bio_filter capability yields algae_paste."""
@@ -107,7 +108,7 @@ class TestOpenWorldRPG(unittest.TestCase):
 
         st_harvested = reduce_use(st, "tool_spanner", "algae_basin")
         self.assertTrue(any(it.id == "algae_paste" for it in st_harvested.character.inventory))
-        self.assertTrue(any("Harvested fresh algae paste" in m for m in st_harvested.message_buffer))
+        self.assertTrue(any("Got: Algae Paste" in m for m in st_harvested.message_buffer))
 
     def test_smelt_ore_and_scrap_in_crucible(self):
         """Ore forges a pry-bar only with Making Parts; scrap always casts a copper fitting."""
@@ -127,7 +128,7 @@ class TestOpenWorldRPG(unittest.TestCase):
         st_smelt_ore = reduce_use(st_ore, "ore_sample", "smelting_crucible")
         self.assertTrue(any(it.id == "tool_prybar" for it in st_smelt_ore.character.inventory))
         self.assertFalse(any(it.id == "ore_sample" for it in st_smelt_ore.character.inventory))
-        self.assertTrue(any("Refined" in m and "Thermal Pry-Bar" in m for m in st_smelt_ore.message_buffer))
+        self.assertTrue(any("Got: Pry-Bar" in m for m in st_smelt_ore.message_buffer))
 
         # 2. Scrap -> Copper Fitting
         scrap = ALL_ITEMS_BY_ID["scrap_metal"]
@@ -135,7 +136,7 @@ class TestOpenWorldRPG(unittest.TestCase):
         st_smelt_scrap = reduce_use(st_scrap, "scrap_metal", "smelting_crucible")
         self.assertTrue(any(it.id == "fitting_copper" for it in st_smelt_scrap.character.inventory))
         self.assertFalse(any(it.id == "scrap_metal" for it in st_smelt_scrap.character.inventory))
-        self.assertTrue(any("Melted" in m and "Copper Pipe Fitting" in m for m in st_smelt_scrap.message_buffer))
+        self.assertTrue(any("Got: Pipe Fitting" in m for m in st_smelt_scrap.message_buffer))
 
     def test_override_crypto_terminal(self):
         """Overriding the crypto terminal with wire forges a dock clearance and spends the terminal."""
@@ -143,7 +144,7 @@ class TestOpenWorldRPG(unittest.TestCase):
         wire = ALL_ITEMS_BY_ID["wire_spool"]
         st = st._replace(character=st.character._replace(inventory=(wire,)))
         st_override = reduce_use(st, "wire_spool", "crypto_terminal")
-        self.assertTrue(any("Bypassed" in m for m in st_override.message_buffer))
+        self.assertTrue(any("You bypass" in m for m in st_override.message_buffer))
         self.assertIn("dock_clearance", st_override.character.unlocked_capabilities)
         self.assertEqual(st_override.nodes["stn_b_array"].fixtures["crypto_terminal"].state, FixtureState.SPENT.value)
         # Wire has 2 integrity, one point spent
@@ -158,7 +159,7 @@ class TestOpenWorldRPG(unittest.TestCase):
         res_radek = reduce_barter(st_radek, "npc_radek")
         self.assertTrue(any(it.id == "chit_transit" for it in res_radek.character.inventory))
         self.assertTrue(any(c.id == "comp_radek" for c in res_radek.companions))
-        self.assertTrue(any("Companion joined" in m for m in res_radek.message_buffer))
+        self.assertTrue(any("Crew: Radek" in m for m in res_radek.message_buffer))
 
         # 2. Tarek (stn_b_dock): trades dice_steel (barter_token) -> wire_spool, recruits comp_tarek
         st_tarek = self.state._replace(current_node_id="stn_b_dock")
@@ -319,19 +320,19 @@ class TestOpenWorldRPG(unittest.TestCase):
         # Player is now at (1, 3), on personal_locker!
         self.assertEqual((st.player_row, st.player_col), (1, 3))
         self.assertTrue(st.proximity_menu_active)
-        self.assertTrue(any("Near: Crew Storage Locker" in m for m in st.message_buffer))
-        self.assertTrue(any("[F] Search" in m for m in st.message_buffer))
+        self.assertTrue("Crew Locker" in menu_line(st))
+        self.assertTrue("F search" in menu_line(st))
 
         # Single key 'f' while on a container searches it; the menu refreshes without [F]
         st_scav = dispatch_action(st, "f")
         self.assertTrue(st_scav.proximity_menu_active)
-        self.assertFalse(any("[F] Search" in m for m in st_scav.message_buffer))
+        self.assertFalse("F search" in menu_line(st_scav))
         self.assertTrue(any(it.id == "wire_spool" for it in st_scav.character.inventory))
 
         # Slash commands: /scavenge, /search, /inspect
         st_bunk = self.state._replace(current_node_id="stn_a_bunkroom")
         st_cmd = dispatch_action(st_bunk, "/inspect spigot_01")
-        self.assertTrue(any("Water Spigot" in m for m in st_cmd.message_buffer))
+        self.assertTrue(any("Water Tap" in m for m in st_cmd.message_buffer))
 
 
 if __name__ == "__main__":

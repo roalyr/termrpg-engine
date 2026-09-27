@@ -8,7 +8,7 @@ from core.presets import init_game_state, ensure_presets
 from core.persistence import save_state, load_state
 from core.actions import dispatch_action, MENU_KEYS
 from ui.render import render_frame
-from ui.text_tools import check_terminal, read_raw_key, clear_terminal
+from ui.text_tools import check_terminal, check_terminal_rows, read_raw_key, clear_terminal
 
 ROOT_DIR = Path(__file__).resolve().parent
 DEFAULT_PRESET_DIR = ROOT_DIR / "presets" / "default-1.0"
@@ -170,7 +170,7 @@ def main() -> None:
         while state.is_running:
             clear_terminal()
             term_w = check_terminal()
-            output = render_frame(state, term_w)
+            output = render_frame(state, term_w, terminal_height=check_terminal_rows())
             print(output, end="", flush=True)
 
             try:

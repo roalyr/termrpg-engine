@@ -8,8 +8,9 @@ from core.reducers import (
     reduce_inspect, reduce_talk, reduce_use, reduce_leave,
     reduce_wait, reduce_map, reduce_back, reduce_pack,
     reduce_character, reduce_party, reduce_log, reduce_flavor,
-    reduce_help, _entity_under_cursor,
+    reduce_help, reduce_look, reduce_color,
 )
+from core.menu import entity_under_cursor
 
 # Single keys that act on the entity under the cursor while the proximity menu is open.
 MENU_KEYS = ("i", "u", "g", "t", "f", "r", "b", "x")
@@ -44,7 +45,7 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
             return reduce_leave(state, args[0])
         if verb in ("quit", "q", "exit"):
             return _quit(state)
-        return state._replace(message_buffer=("In Map view. Type 'back' to return to compartment.",))
+        return state._replace(message_buffer=("Map open. Press B to go back.",))
 
     if state.proximity_menu_active and not args:
         if verb in ("i", "inspect"):
@@ -59,7 +60,7 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
             return reduce_interact_scavenge(state)
         if verb in ("r", "read"):
             return reduce_interact_read(state)
-        if verb in ("b", "barter", "trade") and _entity_under_cursor(state)[1]:
+        if verb in ("b", "barter", "trade") and entity_under_cursor(state)[1]:
             return reduce_interact_barter(state)
         if verb in ("x", "cancel"):
             return reduce_interact_cancel(state)
@@ -71,6 +72,8 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
     if verb == "g" and not args:
         return reduce_interact_go(state)
 
+    if verb == "look" and not rest:
+        return reduce_look(state)
     if verb in ("inspect", "look", "examine"):
         return reduce_inspect(state, rest)
     if verb in ("talk", "speak", "chat"):
@@ -107,8 +110,10 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
         return reduce_log(state)
     if verb in ("flavor", "flavor_text"):
         return reduce_flavor(state, rest)
+    if verb in ("color", "colour"):
+        return reduce_color(state, rest)
     if verb in ("help", "?"):
-        return reduce_help(state)
+        return reduce_help(state, rest)
     if verb in ("quit", "q", "exit"):
         return _quit(state)
-    return state._replace(message_buffer=("Unknown command. Type '/help' for available actions.",))
+    return state._replace(message_buffer=("Unknown command. Type /help for help.",))

@@ -1,7 +1,7 @@
 [
   {
     "id": "stn_a_bunkroom",
-    "name": "Deck 4 - Shared Bunkroom",
+    "name": "Bunkroom",
     "cluster": "station_alpha",
     "size": 5,
     "depth": 0,
@@ -17,7 +17,7 @@
       "hatch_berth": {
         "id": "hatch_berth",
         "glyph": "=",
-        "name": "Transit Hatch",
+        "name": "Berth Hatch",
         "state": "open",
         "grants_edge": "to_berth",
         "on_use_effect": null,
@@ -27,7 +27,7 @@
       "spigot_01": {
         "id": "spigot_01",
         "glyph": "⌸",
-        "name": "Water Spigot",
+        "name": "Water Tap",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "refill",
@@ -39,7 +39,7 @@
       "personal_locker": {
         "id": "personal_locker",
         "glyph": "⚲",
-        "name": "Crew Storage Locker",
+        "name": "Crew Locker",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -53,7 +53,7 @@
       "vent_duct": {
         "id": "vent_duct",
         "glyph": "≡",
-        "name": "Service Crawlway",
+        "name": "Vent Crawlway",
         "state": "sealed",
         "grants_edge": "to_sub_vent",
         "on_use_effect": "unlock",
@@ -98,7 +98,7 @@
       "to_sub_vent": {
         "id": "to_sub_vent",
         "target_node_id": "stn_a_sub",
-        "label": "Sub-Deck Conduits (Vent)",
+        "label": "Sub-Deck (vent)",
         "gated_by_fixture": "vent_duct",
         "requires_capability": null
       }
@@ -107,7 +107,7 @@
   },
   {
     "id": "stn_a_berth",
-    "name": "Berth 04 - Transfer Platform",
+    "name": "Berth 04",
     "cluster": "station_alpha",
     "size": 7,
     "depth": 0,
@@ -133,7 +133,7 @@
       "cargo_hoist": {
         "id": "cargo_hoist",
         "glyph": "⎅",
-        "name": "Cargo Hoist Platform",
+        "name": "Cargo Hoist",
         "state": "locked",
         "grants_edge": "to_subdeck",
         "on_use_effect": "unlock",
@@ -148,11 +148,11 @@
       "shuttle_gate": {
         "id": "shuttle_gate",
         "glyph": "=",
-        "name": "Shuttle Boarding Gate",
+        "name": "Shuttle Gate",
         "state": "sealed",
         "grants_edge": "to_shuttle",
         "on_use_effect": "unlock",
-        "description": "Flexible boarding seal clamped to the hopper. Takes one transit token per boarding, then reseals.",
+        "description": "Flexible boarding seal clamped to the shuttle. Takes one transit token per boarding, then reseals.",
         "required_tags": [
           "transit_clearance"
         ],
@@ -161,7 +161,7 @@
       "freight_skid": {
         "id": "freight_skid",
         "glyph": "▓",
-        "name": "Lashed Freight Skid",
+        "name": "Freight Skid",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -174,7 +174,7 @@
       "salvage_bin": {
         "id": "salvage_bin",
         "glyph": "⊞",
-        "name": "Maintenance Scrap Bin",
+        "name": "Scrap Bin",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -187,7 +187,7 @@
       "hab_hatch": {
         "id": "hab_hatch",
         "glyph": "≡",
-        "name": "Hab Ring Corridor",
+        "name": "Hab Ring Hatch",
         "state": "open",
         "grants_edge": "to_hab",
         "on_use_effect": null,
@@ -197,7 +197,7 @@
       "umbilical_collar": {
         "id": "umbilical_collar",
         "glyph": "*",
-        "name": "Umbilical Collar Panel",
+        "name": "Docking Collar",
         "state": "active",
         "required_tags": [
           "wrench",
@@ -206,12 +206,12 @@
         "grants_edge": null,
         "on_use_effect": "override",
         "opens_fixture": "shuttle_gate",
-        "description": "Access panel for the hopper docking collar. Re-seating the collar by hand fools the gate into cycling open once."
+        "description": "Access panel for the shuttle docking collar. Re-seating the collar by hand fools the gate into cycling open once."
       },
       "freight_clamps": {
         "id": "freight_clamps",
         "glyph": "┼",
-        "name": "Skid Tension Clamps",
+        "name": "Cargo Clamps",
         "state": "sealed",
         "required_tags": [
           "force_lever",
@@ -221,7 +221,7 @@
         "grants_edge": "to_shuttle_skid",
         "on_use_effect": "unlock",
         "reseal_on_pass": true,
-        "description": "Ratchet clamps holding a freight skid bound for the hopper hold. Released, there is room to ride along unseen."
+        "description": "Ratchet clamps holding a freight skid bound for the shuttle hold. Released, there is room to ride along unseen."
       }
     },
     "actors": {
@@ -233,7 +233,7 @@
         "status": "Checking tension clamps on freight skid",
         "trade_offered_id": "pass_work",
         "trade_completed": false,
-        "dialogue_idle": "Hopper to Luna is spooling. If you've got spare pipe collars or salvage, I can endorse a work pass for the freight deck.",
+        "dialogue_idle": "Shuttle to the Moon is warming up. If you've got spare pipe collars or salvage, I can endorse a work pass for the freight deck.",
         "dialogue_post_trade": "Collar's seated. Pass endorsed. Take care on the sub-deck; Radek's down there cursing at a frozen valve.",
         "companion_unlock": null,
         "trade_required_tags": [
@@ -312,7 +312,7 @@
       "to_shuttle": {
         "id": "to_shuttle",
         "target_node_id": "shuttle_ab",
-        "label": "Shuttle Hopper",
+        "label": "Shuttle",
         "gated_by_fixture": "shuttle_gate",
         "requires_capability": null
       },
@@ -326,7 +326,7 @@
       "to_shuttle_skid": {
         "id": "to_shuttle_skid",
         "target_node_id": "shuttle_ab",
-        "label": "Hopper Hold (stowaway)",
+        "label": "Shuttle (stowaway)",
         "gated_by_fixture": "freight_clamps",
         "requires_capability": null
       }
@@ -335,7 +335,7 @@
   },
   {
     "id": "stn_a_sub",
-    "name": "Sub-Deck - Conduit Well",
+    "name": "Sub-Deck",
     "cluster": "station_alpha",
     "size": 6,
     "depth": 1,
@@ -351,7 +351,7 @@
       "hoist_up": {
         "id": "hoist_up",
         "glyph": "⎅",
-        "name": "Cargo Hoist (Up)",
+        "name": "Hoist Up",
         "state": "open",
         "grants_edge": "to_berth",
         "on_use_effect": null,
@@ -361,7 +361,7 @@
       "vent_to_bunk": {
         "id": "vent_to_bunk",
         "glyph": "≡",
-        "name": "Service Vent (Up)",
+        "name": "Vent Up",
         "state": "open",
         "grants_edge": "to_bunk_vent",
         "on_use_effect": null,
@@ -371,7 +371,7 @@
       "jammed_valve": {
         "id": "jammed_valve",
         "glyph": "■",
-        "name": "Jammed Pressure Valve",
+        "name": "Frozen Valve",
         "state": "disabled",
         "grants_edge": null,
         "on_use_effect": "repair",
@@ -389,7 +389,7 @@
       "tool_rack": {
         "id": "tool_rack",
         "glyph": "⊞",
-        "name": "Rigging Tool Rack",
+        "name": "Tool Rack",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -409,7 +409,7 @@
         "status": "Shivering over frozen conduit junction",
         "trade_offered_id": "chit_transit",
         "trade_completed": false,
-        "dialogue_idle": "Valve's iced solid. Can't equalize pressure without a prybar. Got one? I've got an extra transit chit if you help crack it.",
+        "dialogue_idle": "Valve's iced solid. Can't get the air back without a pry-bar. Got one? I've got an extra shuttle token if you help crack it.",
         "dialogue_post_trade": "Valve's turning. Heat's coming back. I'm ready to roll if you need a hand hauling freight.",
         "companion_unlock": "comp_radek",
         "trade_required_tags": [
@@ -454,14 +454,14 @@
       "to_berth": {
         "id": "to_berth",
         "target_node_id": "stn_a_berth",
-        "label": "Berth 04 (Up)",
+        "label": "Berth 04 (up)",
         "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_bunk_vent": {
         "id": "to_bunk_vent",
         "target_node_id": "stn_a_bunkroom",
-        "label": "Bunkroom (Vent)",
+        "label": "Bunkroom (vent)",
         "gated_by_fixture": null,
         "requires_capability": null
       }
@@ -470,7 +470,7 @@
   },
   {
     "id": "stn_a_hab",
-    "name": "Hab Ring - Common Gallery",
+    "name": "Hab Ring",
     "cluster": "station_alpha",
     "size": 6,
     "depth": 0,
@@ -486,7 +486,7 @@
       "hatch_to_berth": {
         "id": "hatch_to_berth",
         "glyph": "=",
-        "name": "Berth Access Hatch",
+        "name": "Berth Hatch",
         "state": "open",
         "grants_edge": "to_berth",
         "on_use_effect": null,
@@ -496,19 +496,19 @@
       "notice_board": {
         "id": "notice_board",
         "glyph": "≡",
-        "name": "Station Notice Board",
+        "name": "Notice Board",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "log",
         "description": "Postings: shift rosters, fuel quotas on Station Beta, and reports of seismic tremors in the lunar mines.",
         "required_tags": [],
         "log_text": "Shift roster: Berth 04 hoist crew short two riggers. Fuel quota on Station Beta raised 8%. Lunar mine reports tremors on the lower gallery.",
-        "log_text_locked": "Maintenance memo, scratched over: 'Hopper umbilical collar can be re-seated by hand with a spanner or a pipe collar. Gate logic trusts the collar.'"
+        "log_text_locked": "Maintenance memo, scratched over: 'Shuttle docking collar can be re-seated by hand with a spanner or a pipe collar. The gate trusts the collar.'"
       },
       "algae_basin": {
         "id": "algae_basin",
         "glyph": "⌸",
-        "name": "Hydroponic Algae Vat",
+        "name": "Algae Vat",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "harvest",
@@ -576,7 +576,7 @@
   },
   {
     "id": "shuttle_ab",
-    "name": "Inter-Station Shuttle Hopper",
+    "name": "Shuttle",
     "cluster": "transit",
     "size": 5,
     "depth": 0,
@@ -592,7 +592,7 @@
       "gate_alpha": {
         "id": "gate_alpha",
         "glyph": "◆",
-        "name": "Station Alpha Umbilical",
+        "name": "Door to Station A",
         "state": "open",
         "grants_edge": "to_stn_a",
         "on_use_effect": null,
@@ -602,7 +602,7 @@
       "gate_beta": {
         "id": "gate_beta",
         "glyph": "=",
-        "name": "Station Beta Umbilical",
+        "name": "Door to Station B",
         "state": "open",
         "grants_edge": "to_stn_b",
         "on_use_effect": null,
@@ -612,7 +612,7 @@
       "gate_luna": {
         "id": "gate_luna",
         "glyph": "▲",
-        "name": "Lunar Descent Hatch",
+        "name": "Door to Moon",
         "state": "open",
         "grants_edge": "to_luna",
         "on_use_effect": null,
@@ -622,14 +622,14 @@
       "flight_console": {
         "id": "flight_console",
         "glyph": "≡",
-        "name": "Navigational Telemetry Console",
+        "name": "Flight Screen",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "log",
         "description": "Automated guidance screen displaying orbital ephemeris, lunar pad coordinates, and radiation forecasts.",
         "required_tags": [],
         "log_text": "Ephemeris: lunar pad window open. Surface forecast 25 mSv, -80 C. Pad-to-dome airlock is 3 tiles south of the lander hatch. Do not linger.",
-        "log_text_locked": "Cargo manifest, restricted: freight skids at Berth 04 ride the hopper hold unsealed. Clamp tension is the only check."
+        "log_text_locked": "Cargo manifest, restricted: freight skids at Berth 04 ride the shuttle hold unsealed. Clamp tension is the only check."
       }
     },
     "actors": {},
@@ -659,30 +659,30 @@
       "to_stn_a": {
         "id": "to_stn_a",
         "target_node_id": "stn_a_berth",
-        "label": "Station Alpha",
+        "label": "Station A",
         "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_stn_b": {
         "id": "to_stn_b",
         "target_node_id": "stn_b_dock",
-        "label": "Station Beta",
+        "label": "Station B",
         "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_luna": {
         "id": "to_luna",
         "target_node_id": "luna_pad",
-        "label": "Lunar Surface Pad",
+        "label": "Landing Pad",
         "gated_by_fixture": null,
         "requires_capability": null
       }
     },
-    "description": "Functional shuttle hopper cabin with four acceleration couches. Reinforced viewports overlook the lunar rim."
+    "description": "Functional shuttle shuttle cabin with four acceleration couches. Reinforced viewports overlook the lunar rim."
   },
   {
     "id": "stn_b_dock",
-    "name": "Dock Ring - Bay 7",
+    "name": "Dock Ring",
     "cluster": "station_beta",
     "size": 6,
     "depth": 0,
@@ -698,17 +698,17 @@
       "shuttle_return": {
         "id": "shuttle_return",
         "glyph": "◆",
-        "name": "Shuttle Docking Port",
+        "name": "Shuttle Door",
         "state": "open",
         "grants_edge": "to_shuttle",
         "on_use_effect": null,
-        "description": "Umbilical back to the inter-station shuttle hopper.",
+        "description": "Umbilical back to the inter-station shuttle shuttle.",
         "required_tags": []
       },
       "hatch_array": {
         "id": "hatch_array",
         "glyph": "=",
-        "name": "Array Corridor Hatch",
+        "name": "Comms Hub Hatch",
         "state": "open",
         "grants_edge": "to_array",
         "on_use_effect": null,
@@ -718,7 +718,7 @@
       "hatch_fuel": {
         "id": "hatch_fuel",
         "glyph": "▲",
-        "name": "Fuel Spur Access",
+        "name": "Fuel Spur Hatch",
         "state": "open",
         "grants_edge": "to_fuel",
         "on_use_effect": null,
@@ -728,11 +728,11 @@
       "freight_crate": {
         "id": "freight_crate",
         "glyph": "▓",
-        "name": "Sealed Cargo Crate",
+        "name": "Cargo Crate",
         "state": "sealed",
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Steel shipping crate bound with nylon bands. Can be levered open with a prybar.",
+        "description": "Steel shipping crate bound with nylon bands. Can be levered open with a pry-bar.",
         "required_tags": [
           "force_lever",
           "heavy_lift"
@@ -796,14 +796,14 @@
       "to_shuttle": {
         "id": "to_shuttle",
         "target_node_id": "shuttle_ab",
-        "label": "Shuttle Hopper",
+        "label": "Shuttle",
         "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_array": {
         "id": "to_array",
         "target_node_id": "stn_b_array",
-        "label": "Array Hub",
+        "label": "Comms Hub",
         "gated_by_fixture": null,
         "requires_capability": null
       },
@@ -819,7 +819,7 @@
   },
   {
     "id": "stn_b_array",
-    "name": "Array Hub - Comms Center",
+    "name": "Comms Hub",
     "cluster": "station_beta",
     "size": 5,
     "depth": 0,
@@ -835,7 +835,7 @@
       "hatch_dock": {
         "id": "hatch_dock",
         "glyph": "◆",
-        "name": "Dock Ring Hatch",
+        "name": "Dock Hatch",
         "state": "open",
         "grants_edge": "to_dock",
         "on_use_effect": null,
@@ -845,7 +845,7 @@
       "comms_rack": {
         "id": "comms_rack",
         "glyph": "≡",
-        "name": "Deep-Space Comms Rack",
+        "name": "Radio Rack",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "log",
@@ -857,7 +857,7 @@
       "crypto_terminal": {
         "id": "crypto_terminal",
         "glyph": "⊞",
-        "name": "Terminal Diagnostics Console",
+        "name": "Relay Terminal",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "override",
@@ -899,7 +899,7 @@
   },
   {
     "id": "stn_b_fuel",
-    "name": "Fuel Spur - Processing Bay",
+    "name": "Fuel Spur",
     "cluster": "station_beta",
     "size": 5,
     "depth": 0,
@@ -915,7 +915,7 @@
       "hatch_dock_fuel": {
         "id": "hatch_dock_fuel",
         "glyph": "◆",
-        "name": "Dock Ring Hatch",
+        "name": "Dock Hatch",
         "state": "open",
         "grants_edge": "to_dock",
         "on_use_effect": null,
@@ -925,7 +925,7 @@
       "fuel_manifold": {
         "id": "fuel_manifold",
         "glyph": "⌸",
-        "name": "Propellant Manifold",
+        "name": "Fuel Gauges",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "log",
@@ -937,7 +937,7 @@
       "spares_cabinet": {
         "id": "spares_cabinet",
         "glyph": "⊞",
-        "name": "Sealant Spares Cabinet",
+        "name": "Spares Cabinet",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -958,7 +958,7 @@
         "status": "Checking pressure gauges on propellant lines",
         "trade_offered_id": "seal_patch",
         "trade_completed": false,
-        "dialogue_idle": "Shift's gone four hours past relief. Got a ration block? I can trade high-temp silicone seal patches.",
+        "dialogue_idle": "Shift's gone four hours past relief. Got a ration block? I can trade seal patches.",
         "dialogue_post_trade": "Much obliged. These patches will hold against pure vacuum if you blow a seal down on the pad.",
         "companion_unlock": null,
         "trade_required_tags": [
@@ -1007,7 +1007,7 @@
   },
   {
     "id": "luna_pad",
-    "name": "Lunar Surface Pad",
+    "name": "Landing Pad",
     "cluster": "lunar_base",
     "size": 7,
     "depth": 0,
@@ -1023,17 +1023,17 @@
       "lander_hatch": {
         "id": "lander_hatch",
         "glyph": "▲",
-        "name": "Lander Ascent Hatch",
+        "name": "Shuttle Hatch",
         "state": "open",
         "grants_edge": "to_shuttle",
         "on_use_effect": null,
-        "description": "Ascent module hatch back to the shuttle hopper.",
+        "description": "Ascent module hatch back to the shuttle shuttle.",
         "required_tags": []
       },
       "dome_airlock": {
         "id": "dome_airlock",
         "glyph": "=",
-        "name": "Habitat Dome Airlock",
+        "name": "Dome Airlock",
         "state": "open",
         "grants_edge": "to_dome",
         "on_use_effect": null,
@@ -1043,7 +1043,7 @@
       "regolith_sled": {
         "id": "regolith_sled",
         "glyph": "▓",
-        "name": "Abandoned Survey Sled",
+        "name": "Old Survey Sled",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -1076,7 +1076,7 @@
       "to_shuttle": {
         "id": "to_shuttle",
         "target_node_id": "shuttle_ab",
-        "label": "Shuttle Hopper",
+        "label": "Shuttle",
         "gated_by_fixture": null,
         "requires_capability": null
       },
@@ -1092,7 +1092,7 @@
   },
   {
     "id": "luna_dome",
-    "name": "Habitat Dome - Central Bay",
+    "name": "Habitat Dome",
     "cluster": "lunar_base",
     "size": 7,
     "depth": 0,
@@ -1108,7 +1108,7 @@
       "airlock_pad": {
         "id": "airlock_pad",
         "glyph": "=",
-        "name": "Surface Pad Airlock",
+        "name": "Pad Airlock",
         "state": "open",
         "grants_edge": "to_pad",
         "on_use_effect": null,
@@ -1118,7 +1118,7 @@
       "hatch_smelter": {
         "id": "hatch_smelter",
         "glyph": "◆",
-        "name": "Smelter Corridor",
+        "name": "Smelter Hatch",
         "state": "open",
         "grants_edge": "to_smelter",
         "on_use_effect": null,
@@ -1128,7 +1128,7 @@
       "hatch_crater": {
         "id": "hatch_crater",
         "glyph": "▲",
-        "name": "Crater Rim Access",
+        "name": "Crater Hatch",
         "state": "open",
         "grants_edge": "to_crater",
         "on_use_effect": null,
@@ -1138,7 +1138,7 @@
       "seismic_station": {
         "id": "seismic_station",
         "glyph": "≡",
-        "name": "Seismic Telemetry Station",
+        "name": "Quake Monitor",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "log",
@@ -1202,14 +1202,14 @@
       "to_pad": {
         "id": "to_pad",
         "target_node_id": "luna_pad",
-        "label": "Surface Pad",
+        "label": "Landing Pad",
         "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_smelter": {
         "id": "to_smelter",
         "target_node_id": "luna_smelter",
-        "label": "Smelter Flat",
+        "label": "Smelter",
         "gated_by_fixture": null,
         "requires_capability": null
       },
@@ -1225,7 +1225,7 @@
   },
   {
     "id": "luna_smelter",
-    "name": "Smelter Flat - Processing Floor",
+    "name": "Smelter",
     "cluster": "lunar_base",
     "size": 6,
     "depth": 0,
@@ -1241,7 +1241,7 @@
       "hatch_dome_smelter": {
         "id": "hatch_dome_smelter",
         "glyph": "◆",
-        "name": "Dome Corridor",
+        "name": "Dome Hatch",
         "state": "open",
         "grants_edge": "to_dome",
         "on_use_effect": null,
@@ -1251,7 +1251,7 @@
       "mine_shaft": {
         "id": "mine_shaft",
         "glyph": "⎅",
-        "name": "Mine Shaft Cage Lift",
+        "name": "Mine Lift",
         "state": "locked",
         "grants_edge": "to_mine",
         "on_use_effect": "unlock",
@@ -1264,7 +1264,7 @@
       "smelting_crucible": {
         "id": "smelting_crucible",
         "glyph": "■",
-        "name": "Smelting Crucible",
+        "name": "Crucible",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "smelt",
@@ -1281,7 +1281,7 @@
         "status": "Stoking the induction coils",
         "trade_offered_id": "tool_prybar",
         "trade_completed": false,
-        "dialogue_idle": "Deep mine has plenty of raw basalt ore, but the lift needs nerve to ride. Bring me an ore sample and I'll forge you a heavy prybar.",
+        "dialogue_idle": "Deep mine has plenty of raw basalt ore, but the lift needs nerve to ride. Bring me an ore sample and I'll forge you a heavy pry-bar.",
         "dialogue_post_trade": "Clean melt. Here's your iron bar. Treat it right and it'll crack open any sealed hatch on this moon.",
         "companion_unlock": null,
         "trade_required_tags": [
@@ -1337,7 +1337,7 @@
   },
   {
     "id": "luna_crater",
-    "name": "Crater Rim - Observation Path",
+    "name": "Crater Rim",
     "cluster": "lunar_base",
     "size": 6,
     "depth": 0,
@@ -1353,7 +1353,7 @@
       "hatch_dome_crater": {
         "id": "hatch_dome_crater",
         "glyph": "◆",
-        "name": "Dome Access Hatch",
+        "name": "Dome Hatch",
         "state": "open",
         "grants_edge": "to_dome",
         "on_use_effect": null,
@@ -1363,7 +1363,7 @@
       "tube_entrance": {
         "id": "tube_entrance",
         "glyph": "⎅",
-        "name": "Lava Tube Descent",
+        "name": "Ladder Down",
         "state": "open",
         "grants_edge": "to_tube",
         "on_use_effect": null,
@@ -1373,7 +1373,7 @@
       "surveyor_cache": {
         "id": "surveyor_cache",
         "glyph": "⊞",
-        "name": "Surveyor Supply Cache",
+        "name": "Survey Cache",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -1413,7 +1413,7 @@
       "to_tube": {
         "id": "to_tube",
         "target_node_id": "luna_tube",
-        "label": "Lava Tube Cavern",
+        "label": "Lava Tube",
         "gated_by_fixture": null,
         "requires_capability": null
       }
@@ -1422,7 +1422,7 @@
   },
   {
     "id": "luna_mine",
-    "name": "Deep Mine - Primary Shaft",
+    "name": "Deep Mine",
     "cluster": "lunar_base",
     "size": 5,
     "depth": 1,
@@ -1438,7 +1438,7 @@
       "cage_up": {
         "id": "cage_up",
         "glyph": "⎅",
-        "name": "Mine Cage (Up)",
+        "name": "Mine Lift Up",
         "state": "open",
         "grants_edge": "to_smelter",
         "on_use_effect": null,
@@ -1448,7 +1448,7 @@
       "ore_face": {
         "id": "ore_face",
         "glyph": "■",
-        "name": "Exposed Mineral Face",
+        "name": "Ore Face",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -1476,7 +1476,7 @@
       "to_smelter": {
         "id": "to_smelter",
         "target_node_id": "luna_smelter",
-        "label": "Smelter Flat (Up)",
+        "label": "Smelter (up)",
         "gated_by_fixture": null,
         "requires_capability": null
       }
@@ -1485,7 +1485,7 @@
   },
   {
     "id": "luna_tube",
-    "name": "Lava Tube - Natural Chamber",
+    "name": "Lava Tube",
     "cluster": "lunar_base",
     "size": 6,
     "depth": 1,
@@ -1501,7 +1501,7 @@
       "ascent_ladder": {
         "id": "ascent_ladder",
         "glyph": "⎅",
-        "name": "Crater Rim Ascent",
+        "name": "Ladder Up",
         "state": "open",
         "grants_edge": "to_crater",
         "on_use_effect": null,
@@ -1511,7 +1511,7 @@
       "subsurface_cache": {
         "id": "subsurface_cache",
         "glyph": "⊞",
-        "name": "Sealed Survey Cache",
+        "name": "Buried Cache",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -1524,7 +1524,7 @@
       "hull_breach": {
         "id": "hull_breach",
         "glyph": "~",
-        "name": "Split Basalt Seam",
+        "name": "Cracked Wall",
         "state": "disabled",
         "required_tags": [
           "vacuum_seal"
@@ -1561,7 +1561,7 @@
       "to_crater": {
         "id": "to_crater",
         "target_node_id": "luna_crater",
-        "label": "Crater Rim (Up)",
+        "label": "Crater Rim (up)",
         "gated_by_fixture": null,
         "requires_capability": null
       }

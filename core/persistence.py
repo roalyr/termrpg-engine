@@ -10,20 +10,24 @@ from core.presets import DEFAULT_DATA_DIR, load_catalogs
 from core.rules import exposure_thresholds, max_exposure, REVIVE_NODE_ID
 from core.types import GameState, PlayerCharacter, Exposure
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
-# Authored fields refreshed from the default preset when upgrading a v1 save.
+# Authored fields refreshed from the default preset when upgrading an older save.
 # Progress fields (state, trade_completed, attuned, vitals) are kept from the save.
 _STATIC_FIXTURE_FIELDS = (
     "required_tags", "yields", "log_text", "log_text_locked", "opens_fixture",
-    "grants_capability", "on_repair_vitals", "reseal_on_pass", "description",
+    "grants_capability", "on_repair_vitals", "reseal_on_pass", "description", "name",
 )
-_STATIC_ACTOR_FIELDS = ("trade_required_tags", "dialogue_variants")
-_STATIC_TREE_FIELDS = ("unlock_parameter", "description")
+_STATIC_ACTOR_FIELDS = (
+    "trade_required_tags", "dialogue_variants", "name", "title", "status",
+    "dialogue_idle", "dialogue_post_trade",
+)
+_STATIC_TREE_FIELDS = ("unlock_parameter", "description", "name")
+_STATIC_ITEM_FIELDS = ("name", "description", "tags")
 
 
-def _migrate_v1(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Merges schema-v2 world data from the default preset into a v1 save without losing progress."""
+def _upgrade(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Merges current world data and wording from the default preset into an older save without losing progress."""
     with open(DEFAULT_DATA_DIR / "nodes.json", "r", encoding="utf-8") as f:
         defaults = {n["id"]: n for n in json.load(f)}
     with open(DEFAULT_DATA_DIR / "tree.json", "r", encoding="utf-8") as f:
@@ -55,13 +59,33 @@ def _migrate_v1(data: Dict[str, Any]) -> Dict[str, Any]:
                 if recruited and aid in placed:
                     node["placements"] = [p for p in node["placements"] if p["entity_id"] != aid]
         for eid, ref_edge in ref["edges"].items():
-            node["edges"].setdefault(eid, dict(ref_edge))
+            node["edges"].setdefault(eid, dict(ref_edge))["label"] = ref_edge["label"]
+        node["name"] = ref["name"]
+        node["description"] = ref["description"]
 
     for entry in data.get("tree", []):
         ref = tree_defaults.get(entry["id"])
         if ref:
             for key in _STATIC_TREE_FIELDS:
                 entry[key] = ref[key]
+
+    with open(DEFAULT_DATA_DIR / "items.json", "r", encoding="utf-8") as f:
+        item_defaults = {i["id"]: i for i in json.load(f)}
+    with open(DEFAULT_DATA_DIR / "companions.json", "r", encoding="utf-8") as f:
+        companion_defaults = {c["id"]: c for c in json.load(f)}
+    char = data["character"]
+    for item in char["inventory"] + [char["personal_anchor"]]:
+        ref = item_defaults.get(item["id"])
+        if ref:
+            for key in _STATIC_ITEM_FIELDS:
+                item[key] = ref[key]
+    for comp in data.get("companions", []):
+        ref = companion_defaults.get(comp["id"])
+        if ref:
+            comp.update({k: ref[k] for k in ("name", "title", "status")})
+    # Catalogues are rebuilt from the default preset so new wording applies everywhere.
+    data.pop("item_catalog", None)
+    data.pop("companion_catalog", None)
     return data
 
 
@@ -73,9 +97,9 @@ def state_to_dict(state: GameState) -> Dict[str, Any]:
 
 
 def state_from_dict(data: Dict[str, Any]) -> GameState:
-    """Deserializes a save dictionary. Saves from schema v1 are upgraded first."""
+    """Deserializes a save dictionary. Older schemas are upgraded first."""
     if int(data.get("schema_version", 1)) < SCHEMA_VERSION:
-        data = _migrate_v1(data)
+        data = _upgrade(data)
     craw = data["character"]
     exposure = parse_exposure(craw["exposure"])
     character = PlayerCharacter(
@@ -128,6 +152,7 @@ def state_from_dict(data: Dict[str, Any]) -> GameState:
         is_running=True,
         item_catalog=item_catalog,
         companion_catalog=companion_catalog,
+        color_enabled=bool(data.get("color_enabled", True)),
     )
 
 

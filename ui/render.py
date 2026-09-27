@@ -1,8 +1,24 @@
-from typing import Tuple, List
-from core.types import GameState, Node, Fixture, Actor
+import re
+from typing import Callable, List, Optional, Tuple
+
+from core.types import GameState, Node, Fixture, FixtureState
 from core import rules
+from core.menu import menu_for
+from core.text import STATUS_NAMES, STATE_WORDS, TRACK_NAMES, message_kind, strip_kind, hazard_words
 from ui.text_tools import wrap_text, pad_visible
 from ui.topology_view import render_topology
+from ui import style
+
+CLUSTER_NAMES = {
+    "station_alpha": "Station A",
+    "station_beta": "Station B",
+    "transit": "In transit",
+    "lunar_base": "Moon",
+}
+_KEY_RE = re.compile(r"(^ |[:·] )([A-Z])(?= )")
+_KIND_ORDER = {"danger": 0, "gain": 1, "plain": 2, "quiet": 3}
+_NOTABLE_STATES = (FixtureState.SEALED.value, FixtureState.LOCKED.value,
+                   FixtureState.DISABLED.value, FixtureState.SPENT.value)
 
 
 def build_grid(node: Node, player_row: int = -1, player_col: int = -1) -> Tuple[str, ...]:
@@ -19,8 +35,7 @@ def build_grid(node: Node, player_row: int = -1, player_col: int = -1) -> Tuple[
                 grid[r][c] = node.grid_wall
 
     for placement in node.placements:
-        entity = node.fixtures.get(placement.entity_id) or \
-                 node.actors.get(placement.entity_id)
+        entity = node.fixtures.get(placement.entity_id) or node.actors.get(placement.entity_id)
         if entity:
             grid[placement.row][placement.col] = entity.glyph
 
@@ -35,167 +50,189 @@ def build_grid(node: Node, player_row: int = -1, player_col: int = -1) -> Tuple[
     return tuple(' '.join(row) for row in grid)
 
 
+def _boxed(text: str, width: int, paint: Callable[[str], str] = lambda t: t) -> str:
+    """One bordered line: pads plain text to width, then applies styling."""
+    return f"│{paint(pad_visible(text[:width], width, align='<'))}│"
 
-def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = False) -> str:
+
+def _status_rows(state: GameState, node: Node, z3_w: int, max_rows: int, on: bool) -> List[str]:
+    """Zone 3: turn, status, the three exposure tracks with per-turn trend, crew and pack."""
+    exp = tuple(state.character.exposure)
+    th = rules.exposure_thresholds(state.character.unlocked_capabilities)
+    status = rules.exposure_status(state)
+    label = STATUS_NAMES[status]
+
+    def fit(text: str) -> str:
+        return pad_visible(text[:z3_w], z3_w, align='<')
+
+    status_text = fit(f" {label} · max {th.incapacitated:g}")
+    if status == "CRITICAL":
+        status_line = style.alarm(status_text, on)
+    elif status == "STRESSED":
+        status_line = style.accent(status_text, on)
+    else:
+        status_line = status_text
+    rows = [fit(f" Turn {state.cycle}"), status_line]
+
+    safe = rules.is_safe_haven(node)
+    deltas = tuple(rules.exposure_deltas(state, node))
+    for name, value, delta in zip(TRACK_NAMES, exp, deltas):
+        if safe and value > 0:
+            trend = " -2"
+        elif delta > 0:
+            trend = f" +{delta:.1f}"
+        else:
+            trend = ""
+        text = fit(f" {name:<4} {value:4.1f}{trend}")
+        rows.append(style.accent(text, on) if value >= th.stressed or delta > 0 else text)
+
+    if state.companions:
+        names = [c.name for c in state.companions]
+        crew = " Crew: " + ", ".join(names)
+        while len(crew) > z3_w and len(names) > 1:
+            names.pop()
+            crew = " Crew: " + ", ".join(names) + f" +{len(state.companions) - len(names)}"
+        rows.append(fit(crew))
+
+    pack = rules.stack_items(state.character.inventory)
+    rows.append(style.bold(fit(" Pack"), on))
+    lines = []
+    for it, count in pack:
+        tail = (f" {it.integrity}/{it.max_integrity}" if it.max_integrity > 1 else "") + (f" x{count}" if count > 1 else "")
+        lines.append(fit(f"  {it.name[:max(1, z3_w - 2 - len(tail))]}{tail}"))
+    if not lines:
+        lines.append(fit("  (empty)"))
+    room = max(1, max_rows - len(rows))
+    if len(lines) > room:
+        hidden = len(lines) - (room - 1)
+        lines = lines[:room - 1] + [style.dim(fit(f"  +{hidden} more: /pack"), on)]
+    return rows + lines
+
+
+def _legend_lines(node: Node, width: int, on: bool) -> List[str]:
+    """Zone 4: compact glyph key for things in the room, two columns when they fit."""
+    entries = []
+    seen = set()
+    for placement in node.placements:
+        entity = node.fixtures.get(placement.entity_id) or node.actors.get(placement.entity_id)
+        if not entity or entity.id in seen:
+            continue
+        seen.add(entity.id)
+        note = f" ({STATE_WORDS[entity.state]})" if isinstance(entity, Fixture) and entity.state in _NOTABLE_STATES else ""
+        entries.append(f" {entity.glyph} {entity.name}{note}")
+    col = width // 2
+    rows = []
+    i = 0
+    while i < len(entries):
+        pair = entries[i:i + 2]
+        if len(pair) == 2 and all(len(e) < col for e in pair):
+            rows.append(pad_visible(pair[0], col, align='<') + pair[1])
+            i += 2
+        else:
+            rows.append(entries[i])
+            i += 1
+    entries = rows
+    return [_boxed(e, width, lambda t: style.dim(t, on)) for e in entries]
+
+
+def _message_lines(state: GameState, width: int, on: bool) -> List[str]:
+    """Zone 5: events sorted by importance (danger, gains, results, speech), then the menu."""
+    ordered = sorted(state.message_buffer, key=lambda m: _KIND_ORDER[message_kind(m)])
+    lines: List[str] = []
+    for msg in ordered:
+        kind = message_kind(msg)
+        text = strip_kind(msg)
+        if kind == "danger":
+            text = "! " + text[3:]
+        paint = {
+            "danger": lambda t: style.accent(t, on),
+            "gain": lambda t: style.bold(t, on),
+            "quiet": lambda t: style.dim(t, on),
+        }.get(kind, lambda t: t)
+        for wline in wrap_text(text, width - 2):
+            lines.append(_boxed(" " + wline, width, paint))
+
+    menu = menu_for(state) if state.proximity_menu_active else None
+    if menu:
+        head = f"{menu.title}:" if menu.options else menu.title
+        plain = head + " " + " · ".join(f"{o.key} {o.label}" for o in menu.options)
+        for idx, wline in enumerate(wrap_text(plain.strip(), width - 2)):
+            styled = " " + wline
+            if on:
+                styled = _KEY_RE.sub(lambda m: m.group(1) + style.inverse(m.group(2)), styled)
+                if idx == 0:
+                    styled = styled.replace(f" {head}", " " + style.bold(head), 1)
+            lines.append(f"│{pad_visible(styled, width, align='<')}│")
+        if menu.hint:
+            for wline in wrap_text(menu.hint, width - 2):
+                lines.append(_boxed(" " + wline, width, lambda t: style.dim(t, on)))
+    if not lines:
+        lines.append(_boxed("", width))
+    return lines
+
+
+def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = False,
+                 terminal_height: Optional[int] = None) -> str:
     """
-    Pure view renderer returning a 6-zone mobile viewport string (<= 40 cols minimum).
-    Every line is strictly formatted to terminal_width.
+    Pure view renderer returning the 6-zone viewport string (>= 40 columns).
+    When terminal_height is given and the frame is too tall, the legend is dropped first.
     """
     if terminal_width < 40:
         return (
             "[!] TERMINAL VIEWPORT CONFLICT: Terminal columns < 40.\n"
             "    Please expand terminal window to at least 40 columns."
         )
-
     if state.active_view == "map_topology":
         return render_topology(state, terminal_width)
 
+    on = state.color_enabled
     w = max(40, terminal_width)
+    inner = w - 2
     node = state.nodes[state.current_node_id]
+    top = "┌" + "─" * inner + "┐"
+    mid = "├" + "─" * inner + "┤"
+    bot = "└" + "─" * inner + "┘"
 
-    # --- ZONE 1: LOCATION HEADER ---
-    border_top = "┌" + "─" * (w - 2) + "┐"
-    border_mid = "├" + "─" * (w - 2) + "┤"
-    border_bot = "└" + "─" * (w - 2) + "┘"
-    cluster = node.cluster.replace("_", " ").upper()
-    title_line = f" {node.name.upper()} [{cluster}]"[:w - 2]
-    vitals = node.base_vitals
-    vitals_line = f" ATM:{vitals.pressure_kpa:g}kPa | TMP:{vitals.temperature_c}C | RAD:{vitals.radiation_msv:g}mSv"[:w - 2]
+    # Zone 1: where you are and what the air is like
+    cluster = CLUSTER_NAMES.get(node.cluster, node.cluster.replace("_", " ").title())
+    name = f" {node.name}"[:inner - len(cluster) - 2]
+    title = name + " " * (inner - len(name) - len(cluster) - 1) + cluster + " "
+    v = node.base_vitals
+    readings = f" {v.pressure_kpa:g} kPa · {v.temperature_c}°C · {v.radiation_msv:g} mSv"
+    hazards = hazard_words(v) if not rules.is_safe_haven(node) else ""
+    if hazards and len(readings) + len(hazards) + 2 <= inner:
+        vitals_line = (f"│{readings}  " + style.accent(hazards, on)
+                       + " " * (inner - len(readings) - len(hazards) - 2) + "│")
+    elif hazards:  # the warning matters more than the numbers
+        vitals_line = _boxed(" " + hazards.capitalize(), inner, lambda t: style.accent(t, on))
+    else:
+        vitals_line = _boxed(readings + ("  safe air" if not hazards else ""), inner)
+    zone1 = [top, _boxed(title, inner, lambda t: style.bold(t, on)), vitals_line, mid]
 
-    zone1_lines = [
-        border_top,
-        f"│{title_line:<{w - 2}}│",
-        f"│{vitals_line:<{w - 2}}│",
-        border_mid,
-    ]
-
-    # --- ZONE 2 & 3: SPLIT UPPER VIEWPORT ---
+    # Zones 2 and 3: grid beside status
     grid_rows = build_grid(node, state.player_row, state.player_col)
-    grid_char_width = (node.size * 2) - 1
-    # Zone 2 width including its internal box borders
-    z2_w = grid_char_width + 4
-    # Zone 3 width fills remainder: w = 1 (outer) + z2_w + 1 (divider) + z3_w + 1 (outer)
+    z2_w = (node.size * 2 - 1) + 4
     z3_w = w - z2_w - 3
+    z2 = ["┌" + "─" * (z2_w - 2) + "┐"]
+    z2 += ["│" + pad_visible(row, z2_w - 2, align='^') + "│" for row in grid_rows]
+    z2.append("└" + "─" * (z2_w - 2) + "┘")
+    z3 = _status_rows(state, node, z3_w, max(len(z2), 10), on)
+    rows = max(len(z2), len(z3))
+    z2 += [" " * z2_w] * (rows - len(z2))
+    z3 += [" " * z3_w] * (rows - len(z3))
+    split = [f"│{a}│{b}│" for a, b in zip(z2, z3)]
 
-    # Format Zone 2 (Spatial Grid)
-    z2_rows: List[str] = []
-    z2_top = "┌" + "─" * (z2_w - 2) + "┐"
-    z2_bot = "└" + "─" * (z2_w - 2) + "┘"
-    z2_rows.append(z2_top)
-    for row in grid_rows:
-        z2_rows.append("│" + pad_visible(row, z2_w - 2, align='^') + "│")
-    z2_rows.append(z2_bot)
+    legend = _legend_lines(node, inner, on)
+    zone4 = [mid] + legend if legend else []
+    zone5 = [mid] + _message_lines(state, inner, on)
 
-    # Format Zone 3 (Status): exposure triplet, limit and per-cycle rate (§6.2)
-    exp = state.character.exposure
-    limit = rules.exposure_thresholds(state.character.unlocked_capabilities).incapacitated
-    if rules.is_safe_haven(node):
-        rate = "-2.0/c"
-    else:
-        deltas = rules.exposure_deltas(state, node)
-        track, worst = max(zip("PRT", deltas), key=lambda pair: pair[1])
-        rate = f"{track}+{worst:.1f}/c" if worst > 0 else "steady"
-
-    z3_rows: List[str] = [
-        f" CYCLE {state.cycle:03d}",
-        f" {rules.exposure_status(state)}",
-        f" P{exp.pressure_debt:.1f} R{exp.radiation_dose:.1f} T{exp.thermal_stress:.1f}",
-        f" MAX {limit:g} {rate}",
-        " PACK:",
-    ]
-    if not state.character.inventory:
-        z3_rows.append("  (empty)")
-    for it, count in rules.stack_items(state.character.inventory):
-        cond = f"({it.integrity})" if it.max_integrity > 0 else ""
-        qty = f"x{count}" if count > 1 else ""
-        tail = cond + qty
-        z3_rows.append(f"  {it.name[:max(1, z3_w - 3 - len(tail))]}{tail}")
-    if state.companions:
-        names = ", ".join(c.name for c in state.companions)
-        z3_rows.append(f" CREW: {names}")
-    z3_rows = [row[:z3_w] for row in z3_rows]
-
-    # Equalize row counts between Zone 2 and Zone 3
-    max_rows = max(len(z2_rows), len(z3_rows))
-    while len(z2_rows) < max_rows:
-        z2_rows.append(" " * z2_w)
-    while len(z3_rows) < max_rows:
-        z3_rows.append("")
-
-    split_lines: List[str] = []
-    for z2, z3 in zip(z2_rows, z3_rows):
-        split_lines.append(f"│{z2}│{z3:<{z3_w}}│")
-
-    # --- ZONE 4: LEGEND ---
-    z4_entries: List[str] = []
-    seen_ids = set()
-    for placement in node.placements:
-        if placement.entity_id in seen_ids:
-            continue
-        seen_ids.add(placement.entity_id)
-        entity = node.fixtures.get(placement.entity_id) or \
-                 node.actors.get(placement.entity_id)
-        if entity:
-            status_hint = ""
-            if isinstance(entity, Fixture):
-                status_hint = f" ({entity.state})"
-            elif isinstance(entity, Actor):
-                status_hint = f" [{entity.title}]"
-            line = f" {entity.glyph} : {entity.name}{status_hint} [{entity.id}]"
-            z4_entries.append(line[:w - 2])
-
-    zone4_lines = [
-        border_mid,
-        f"│{' MAP LEGEND':<{w - 2}}│"
-    ]
-    for ent in z4_entries:
-        zone4_lines.append(f"│{ent:<{w - 2}}│")
-
-    # Exits summary
-    edge_items = [f"{eid}->{e.label}" for eid, e in node.edges.items()]
-    exits_line = f" EXITS: {', '.join(edge_items)}"
-    zone4_lines.append(f"│{exits_line[:w - 2]:<{w - 2}}│")
-
-    # --- ZONE 5: MESSAGES / PROXIMITY MENU ---
-    zone5_lines = [border_mid]
-    if state.proximity_menu_active:
-        for msg in state.message_buffer:
-            wrapped = wrap_text(msg, w - 4)
-            for wline in wrapped:
-                zone5_lines.append(f"│ {wline:<{w - 3}}│")
-    else:
-        msg_list = list(state.message_buffer)
-        if state.flavor_enabled and node.description and len(msg_list) < 3:
-            msg_list.insert(0, f"[{node.description}]")
-
-        if not msg_list:
-            zone5_lines.append(f"│{' (All systems nominal)':<{w - 2}}│")
-        else:
-            for msg in msg_list[-6:]:
-                wrapped = wrap_text(msg, w - 4)
-                for wline in wrapped:
-                    zone5_lines.append(f"│ {wline:<{w - 3}}│")
-
-    # --- ZONE 6: PROMPT / KEY HINTS ---
     if prompt_mode:
-        zone6_lines = [border_mid, "> "]
+        zone6 = [mid, "> "]
     else:
-        if state.proximity_menu_active:
-            hint = " Menu keys shown above. X: close"
-        else:
-            hint = " WASD: move  /: cmd  M: map  Q: quit"
-        zone6_lines = [
-            border_mid,
-            f"│{hint[:w - 2]:<{w - 2}}│",
-            border_bot,
-        ]
+        hint = " I inspect  X close  WASD move" if state.proximity_menu_active else " WASD move  / cmd  M map  Q quit"
+        zone6 = [mid, _boxed(hint, inner, lambda t: style.dim(t, on)), bot]
 
-    all_lines = (
-        zone1_lines +
-        split_lines +
-        zone4_lines +
-        zone5_lines +
-        zone6_lines
-    )
-    return "\n".join(all_lines)
-
+    lines = zone1 + split + zone4 + zone5 + zone6
+    if terminal_height and len(lines) > terminal_height and zone4:
+        lines = zone1 + split + zone5 + zone6
+    return "\n".join(lines)

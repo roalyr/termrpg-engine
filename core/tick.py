@@ -2,9 +2,10 @@ from typing import Optional, Mapping, Any, List, Dict
 
 from core.types import GameState, Exposure, ItemCategory, TreeNode
 from core.rules import (
-    exposure_deltas, exposure_thresholds, is_critical, is_safe_haven, max_exposure,
+    exposure_deltas, exposure_level, exposure_thresholds, is_critical, is_safe_haven, max_exposure,
     parse_survive_parameter, REVIVE_NODE_ID, REVIVE_CYCLES,
 )
+from core.text import danger, gain, worst_track
 
 
 def process_tick(
@@ -24,7 +25,7 @@ def process_tick(
     new_state = _advance(state, action_summary, action_context or {})
     if physical and was_critical and new_state.current_node_id == state.current_node_id:
         delayed = new_state._replace(
-            message_buffer=new_state.message_buffer + ("[!] Your hands shake. The work takes twice as long.",)
+            message_buffer=new_state.message_buffer + (danger("Your hands shake. That took twice as long."),)
         )
         new_state = _advance(delayed, "", {})
     return new_state
@@ -47,17 +48,24 @@ def _advance(state: GameState, action_summary: str, action_context: Mapping[str,
         t_acc = max(0.0, t_acc - 2.0)
     new_exposure = Exposure(round(p_acc, 2), round(r_acc, 2), round(t_acc, 2))
 
-    # Step 4: consequences
+    # Step 4: consequences. Warnings fire when the level changes, not every tick;
+    # Zone 3 shows the ongoing state.
     messages: List[str] = list(state.message_buffer)
     thresholds = exposure_thresholds(caps)
     level = max_exposure(new_exposure)
     incapacitated = level >= thresholds.incapacitated
+    before = exposure_level(max_exposure(cur), thresholds)
+    after = exposure_level(level, thresholds)
+    track, value = worst_track(tuple(new_exposure))
+    limit = f"{thresholds.incapacitated:g}"
     if incapacitated:
-        messages.append("[CRITICAL FAILURE] Environmental exposure exceeded survivable limits. Incapacitated.")
-    elif level >= thresholds.critical:
-        messages.append("[!] CRITICAL EXPOSURE: Physical collapse imminent. Retreat to pressurized quarters immediately.")
-    elif level >= thresholds.stressed:
-        messages.append("[!] CAUTION: Environmental stress accumulating.")
+        messages.append(danger("You black out."))
+    elif after != before and after == "CRITICAL":
+        messages.append(danger(f"DANGER: {track} {value:.1f} of {limit}. Get to normal air now."))
+    elif after != before and after == "STRESSED" and before == "NOMINAL":
+        messages.append(danger(f"{track} {value:.1f} of {limit}. Head back soon."))
+    elif after == "NOMINAL" and before != "NOMINAL":
+        messages.append("You're breathing easier.")
 
     # Step 5: depth survival tracking and progression tree
     new_depth_ticks: Dict[int, int] = dict(state.depth_ticks)
@@ -76,7 +84,7 @@ def _advance(state: GameState, action_summary: str, action_context: Mapping[str,
         if prereq_met and _condition_met(state, node, new_depth_ticks, action_context):
             new_tree.append(node._replace(attuned=True))
             caps.add(node.id)
-            messages.append(f"[ATTUNEMENT] Capability unlocked: {node.name}.")
+            messages.append(gain(f"Skill: {node.name}. {node.description}"))
         else:
             new_tree.append(node)
 
@@ -88,7 +96,7 @@ def _advance(state: GameState, action_summary: str, action_context: Mapping[str,
             if item.integrity - 1 > 0:
                 new_inventory.append(item._replace(integrity=item.integrity - 1))
             else:
-                messages.append(f"{item.name} is used up.")
+                messages.append(f"Your {item.name} has gone off.")
         else:
             new_inventory.append(item)
 
@@ -140,9 +148,9 @@ def _revive(state: GameState) -> GameState:
     for idx, item in enumerate(inventory):
         if item.category == ItemCategory.SUSTENANCE.value:
             inventory.pop(idx)
-            messages.append(f"The medics used your {item.name} during recovery.")
+            messages.append(f"The medics used your {item.name}.")
             break
-    messages.append(f"You wake in the bunkroom. Medical crew carried you back. {REVIVE_CYCLES} cycles lost.")
+    messages.append(f"You wake in the Bunkroom. The medics carried you back. {REVIVE_CYCLES} turns lost.")
 
     node = state.nodes[REVIVE_NODE_ID]
     return state._replace(
@@ -154,6 +162,6 @@ def _revive(state: GameState) -> GameState:
         active_view="compartment",
         proximity_menu_active=False,
         message_buffer=tuple(messages),
-        action_log=(state.action_log + ("Collapsed. Revived in bunkroom.",))[-20:],
+        action_log=(state.action_log + ("Blacked out. Woke in the Bunkroom.",))[-20:],
         visited_nodes=state.visited_nodes | {REVIVE_NODE_ID},
     )

@@ -92,7 +92,7 @@
   {
     "id": "signal_analysis",
     "name": "Radio Ears",
-    "description": "Read locked station logs and radio signals on notice boards.",
+    "description": "Read the locked part of station logs and notice boards.",
     "prerequisite": "crew_coordination",
     "unlock_condition": "use_fixture",
     "unlock_parameter": "comms_rack",

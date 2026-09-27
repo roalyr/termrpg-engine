@@ -313,9 +313,9 @@ Fixtures take an any-of list (`required_tags`), and every lock below has at leas
    - *Cargo Hoist* from Berth 04: `dock_clearance` | `force_lever` | `heavy_lift` | `two_person_lift`. A forged clearance from the Station Beta crypto terminal also counts.
    - *Service Crawlway* from the Bunkroom: `seal_fitting` | `wrench`.
 2. **Shuttle Boarding (Berth 04).** The boarding gate reseals after every crossing:
-   - *Route A:* present `transit_clearance` (a Transit Token is spent per boarding; Deep Traveler waives the fare).
-   - *Route B:* re-seat the Umbilical Collar Panel with `wrench` | `seal_fitting` to cycle the gate open once.
-   - *Route C:* release the Skid Tension Clamps (`force_lever` | `heavy_lift` | `two_person_lift`) and stow away in the hopper hold. Repeatable; the clamps relock behind you.
+   - *Route A:* present `transit_clearance` (a Shuttle Token is spent per boarding; Deep Traveler waives the fare).
+   - *Route B:* re-seat the Docking Collar with `wrench` | `seal_fitting` to cycle the gate open once.
+   - *Route C:* release the Cargo Clamps (`force_lever` | `heavy_lift` | `two_person_lift`) and stow away in the shuttle hold. Repeatable; the clamps relock behind you.
 3. **Station Beta Access:**
    - Unlocked via shuttle transfer. The Dock Ring grants immediate access to the Comms Array Hub and Fuel Processing Spur.
 4. **Lunar Surface & Subterranean Depths:**
@@ -379,21 +379,21 @@ When the cursor rests on an entity tile, Zone 5 presents an enumerated action li
 
 ```text
 ZONE 5 (Proximity Menu):
-  Near: Crew Storage Locker
-  [I] Inspect  [F] Search  [X] Cancel
+ Kael: T talk · B trade
 ```
 
-**Dynamic Menu Construction Rules:**
-- `[I] Inspect`: Always present.
-- `[F] Search`: Present on containers (`scavenge`) that are not yet `SPENT`. Sealed containers are pried open with any matching tag.
-- `[R] Read`: Present on `log` fixtures. Needs no item.
-- `[U] Use <source>`: Present when the fixture can be operated right now. The label names what will satisfy it: a skill (`Cargo Handler training`), a companion (`Radek`), or a carried item. Free sources (skills, clearances, companions) are always preferred so no item wears needlessly.
-- `[G] Go -> <edge_label>`: Present when the fixture grants an edge and is `OPEN`.
-- `[T] Talk`: Present on actors. Talking describes any trade but never executes it.
-- `[B] Barter`: Present when the actor would accept something the player carries.
-- `[X] Cancel`: Dismisses the menu.
+The menu is drawn from state by the renderer (`core/menu.py`); it is never stored in the message buffer. It is one line: the entity's name, then only the actions possible right now. Inspect (`I`) and close (`X`) always work and are listed in Zone 6 instead.
 
-The menu is rebuilt after every action, so a newly opened hatch offers `[G]` immediately. `s` always moves south; searching uses `f`.
+**Options:**
+- `F search` / `F pry open (<source>)`: containers that are not yet `SPENT`.
+- `R read`: `log` fixtures. Needs no item.
+- `U <verb> (<source>)`: the verb follows the effect (`open`, `repair`, `harvest`, `bypass`, `refill <item>`, `smelt <item>`). The source names what will satisfy it: a skill (`Cargo Handler training`), a companion (`Radek`) or a carried item. Free sources always win so no item wears needlessly.
+- `G go to <exit> (<hazards>)`: open exits. Hazards come from the destination's vitals: `no air` / `thin air`, `freezing` / `cold`, `high radiation` / `radiation`.
+- `T talk`, `B trade`: actors; `B` only when they would accept something you carry.
+
+**Hint line.** When an expected action is unavailable the menu says why, in plain words: `Needs a pipe fitting or a spanner.`, `Sealed. Needs a pry-bar or a strong lifter.`, `Already searched.`
+
+`s` always moves south; searching uses `f`.
 
 ### 5.3 Command Grammar & Slash Command System
 
@@ -410,7 +410,8 @@ Arbitrary non-slash keystrokes are silently consumed by the input loop to preven
 | `t` | *(menu)* | Talks with the actor under the cursor. | Yes |
 | `b` | *(menu)* | Accepts the actor's trade. Outside the menu, `b` returns from the map. | Yes |
 | `x` | *(menu)* | Clears proximity menu and restores standard message buffer. | No |
-| `/inspect` | `/inspect <target>` | Examines fixture, actor, inventory item, or exit by ID. | No |
+| `/look` | `/look` | Describes the room and lists exits with their hazards. | No |
+| `/inspect` | `/inspect <target>` | Examines a fixture, actor, carried item or exit by name or ID. | No |
 | `/use` | `/use [item] <fixture>` | Operates a fixture in the current room, preferring the named item. | Yes |
 | `/search` | `/search <fixture>` | Searches a container in the current room. | Yes |
 | `/read` | `/read <fixture>` | Reads a terminal or notice board. | Yes |
@@ -425,8 +426,9 @@ Arbitrary non-slash keystrokes are silently consumed by the input loop to preven
 | `/character`| `/character` | Displays qualitative progression tree status and unlock criteria. | No |
 | `/party` | `/party` | Lists recruited companions and their active party capability tags. | No |
 | `/log` | `/log` | Prints the 10 most recent chronological action entries (moves are not logged). | No |
-| `/flavor` | `/flavor [on\|off]` | Toggles atmospheric prose rendering in Zone 4. | No |
-| `/help` | `/help` | Displays complete command syntax and operational hints. | No |
+| `/flavor` | `/flavor [on\|off]` | Toggles room descriptions on first arrival. | No |
+| `/color` | `/color [on\|off]` | Toggles text styles and the orange accent. | No |
+| `/help` | `/help [survival\|trade\|commands]` | Short help by topic. | No |
 | `/quit` | `/quit` | Deterministically saves state to disk and exits engine. | No |
 
 ### 5.4 Multi-Stage NPC Interaction & Dynamic Barter Protocol
@@ -454,7 +456,7 @@ Fixtures represent the physical affordances of each compartment:
 | `"repair"` | `DISABLED` -> `ACTIVE`. Applies `on_repair_vitals` to the room. Refuses once already `ACTIVE`, so tools are not worn twice. |
 | `"scavenge"` | Searched with `[F]`. Sealed containers are pried open first. Transfers `yields` to the pack and sets `SPENT`. |
 | `"harvest"` | Collects `yields` (default algae paste) from an active tank. Tools used are not worn. |
-| `"smelt"` | Salvage casts a Copper Pipe Fitting. Ore forges a Thermal Pry-Bar with `scrap_fabrication`, otherwise melts to scrap. |
+| `"smelt"` | Salvage casts a Pipe Fitting. Ore forges a Pry-Bar with `scrap_fabrication`, otherwise melts to scrap. |
 | `"override"` | One-time bypass: opens `opens_fixture`, grants `grants_capability`, then sets `SPENT`. |
 | `"log"` | Read with `[R]`, no item needed. Shows `log_text`; `log_text_locked` needs `signal_analysis`, `signal_boost` or `lore`. |
 
@@ -478,38 +480,72 @@ Hands-on actions at Critical exposure run the pipeline twice (§4.3).
 
 ### 6.1 Viewport Constraints
 
-* Minimum terminal size: 40 columns by 20 rows.
+* Minimum terminal size: 40 columns by 20 rows. When the terminal is shorter than the frame, the Zone 4 legend is dropped first.
 * Rendered via ANSI terminal clearing and sequential string construction.
 * Zone 2 minimap displays up to 8×8 grid. Entity glyphs with player cursor overlap are rendered in inverted video (`\033[7m`).
-* Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`) and unicode symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ▲ ~ ◆ ■ *`) are permitted. Emojis and arbitrary ANSI color palettes are prohibited.
+* Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`) and unicode symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ▲ ~ ◆ ■ * ·`) are permitted. Emojis are prohibited.
+* **Styles and palette** (`ui/style.py`): bold, dim and inverse, plus one accent colour, orange (`\033[38;5;208m`). No other colours.
+  - Orange is reserved for danger: warning messages, the `Strained` status, rising exposure tracks and the hazard words in Zone 1. `DANGER` status is orange inverse.
+  - Bold: room name, gains (`+ Skill`, `+ Got`, `+ Crew`), the menu title, the Pack heading.
+  - Inverse: the player's tile and the key letters in the menu.
+  - Dim: dialogue, room descriptions, the legend, Zone 6 hints and menu hints.
+  - `/color off` renders plain text (the cursor keeps its inverse). The setting is saved.
 
 ### 6.2 The 6-Zone Layout Specification
 
+Rendered at 40 columns (styles removed):
+
 ```
-┌─ Zone 1: Location Header ──────────────────────────┐
-│ STN ALPHA: Berth 04              C:0042  P:101.3kPa│
-├───────────────┬────────────────────────────────────┤
-│ Zone 2: Grid  │ Zone 3: Vitals & Status            │
-│  ░ ░ ░ = ░ ░  │ CYCLE 042                          │
-│  ░ · · · · ░  │ NOMINAL                            │
-│  ░ · ▓ · K ░  │ P0.0 R0.0 T0.0                     │
-│  ≡ · · @ · =  │ MAX 15 -2.0/c                      │
-│  ░ · · · · ░  │ PACK: Scrap Metal x2               │
-│  ░ ░ ░ ⎅ ░ ░  │ Party: Radek (Rigger)              │
-├───────────────┴────────────────────────────────────┤
-│ Zone 4: Compartment & Sensor Prose                 │
-│ Open transfer bay smelling of hydraulic fluid and  │
-│ ozone. Cargo skids line the deck under harsh tubes.│
-├────────────────────────────────────────────────────┤
-│ Zone 5: Dynamic Message Buffer / Proximity Menu    │
-│ [I] Inspect  [T] Talk  [B] Barter  [X] Cancel      │
-├────────────────────────────────────────────────────┤
-│ Zone 6: Persistent Command Bar / Prompt            │
-│ WASD: move  /: cmd  M: map  Q: quit                │
-└────────────────────────────────────────────────────┘
+┌──────────────────────────────────────┐
+│ Berth 04                   Station A │
+│ 101.3 kPa · 18°C · 0.2 mSv  safe air │
+├──────────────────────────────────────┤
+│┌───────────────┐│ Turn 42            │
+││ ░ ░ ░ ◆ ░ ░ ░ ││ OK · max 15        │
+││ ░ · ┼ · · · ░ ││ Air   0.0          │
+││ ░ · ▓ · K * ░ ││ Rad   0.0          │
+││ ≡ · · · · · = ││ Cold  0.0          │
+││ ░ · · · · ⊞ ░ ││ Pack               │
+││ ░ · · ⎅ · · ░ ││  Pipe Fitting      │
+││ ░ ░ ░ ░ ░ ░ ░ ││  Scrap Metal x2    │
+│└───────────────┘│                    │
+├──────────────────────────────────────┤
+│ ◆ Bunkroom Hatch   ▓ Freight Skid    │
+│ K Kael             ⊞ Scrap Bin       │
+│ ≡ Hab Ring Hatch                     │
+│ = Shuttle Gate (sealed)              │
+│ ⎅ Cargo Hoist (locked)               │
+│ * Docking Collar                     │
+│ ┼ Cargo Clamps (sealed)              │
+├──────────────────────────────────────┤
+│ ! Cold 5.1 of 15. Head back soon.    │
+│ Kael: T talk · B trade               │
+├──────────────────────────────────────┤
+│ I inspect  X close  WASD move        │
+└──────────────────────────────────────┘
 ```
 
-Zone 3 shows the exposure triplet, the incapacitation limit and the worst per-cycle rate in the current room (`T+3.5/c`, or `-2.0/c` in safe havens). Duplicate items are stacked (`x2`).
+* **Zone 1:** room name and area (`Station A`, `Station B`, `In transit`, `Moon`), then readings and, outside safe havens, hazard words in orange. If both do not fit, the hazard words win.
+* **Zone 3:** turn, status (`OK` / `Strained` / `DANGER`) with the blackout limit, the three exposure tracks `Air` (low pressure), `Rad`, `Cold` with their per-turn trend (`+3.5`, or `-2` while recovering), crew, then the pack. Duplicates are stacked (`x2`); condition shows only for items with more than one use. A long pack ends with `+N more: /pack`.
+* **Zone 4:** glyph legend with plain names and notable states (`sealed`, `locked`, `broken`, `used`). No IDs. Two columns when entries fit.
+* **Zone 5:** messages sorted by kind, then the proximity menu (§5.2). See §6.3.
+* **Zone 6:** key hints for the current mode.
+
+### 6.3 Messages and Wording
+
+Reducers tag each message with a kind (`core/text.py`); the renderer sorts and styles them:
+
+| Kind | Prefix in state | Shown as | Used for |
+| :--- | :--- | :--- | :--- |
+| danger | `!! ` | `! ` in orange, first | Exposure level changes, blackout, arriving somewhere hostile, shaking hands |
+| gain | `+ ` | `+ ` in bold, second | `Skill:`, `Crew:`, `Got:`, `Found:` |
+| plain | none | normal | The result of the action |
+| quiet | `~ ` (hidden) | dim, last | Dialogue, room descriptions |
+
+* **Warnings fire on change.** Exposure warnings appear when the level changes (OK → Strained → DANGER, or back to OK: "You're breathing easier."). Zone 3 carries the ongoing state.
+* **Room descriptions** appear on the first visit only (and with `/look`).
+* **Plain names.** Player text never shows internal IDs or tags. Requirement tags read as nouns via `TAG_NAMES` (`seal_fitting` → "a pipe fitting", `heavy_lift` → "a strong lifter"). Fixture states read as `sealed`, `locked`, `broken`, `used`, `open`, `working`.
+* **Tone.** Short, direct sentences in second person. Units stay (kPa, °C, mSv), jargon goes.
 
 ---
 
@@ -522,8 +558,8 @@ Character creation establishes personal background, starting equipment, and an a
 | Step | Selection | In-Game Mechanical Effect |
 | :--- | :--- | :--- |
 | **Step 1: Callsign** | Free text input | Stored in `character.name`. |
-| **Step 2: Personal Anchor** | 1. Copper Pipe Fitting (`fitting_copper`) | Utility item; provides `seal_fitting`, `conductive`. |
-| | 2. Stamped Work Pass (`pass_work`) | Credential; provides `dock_clearance`, `id_verified`. |
+| **Step 2: Personal Anchor** | 1. Pipe Fitting (`fitting_copper`) | Utility item; provides `seal_fitting`, `conductive`. |
+| | 2. Work Pass (`pass_work`) | Credential; provides `dock_clearance`, `id_verified`. |
 | | 3. Steel Dice (`dice_steel`) | Record item; provides `morale`, `barter_token`. |
 | | 4. Chalk Slate (`slate_tally`) | Record item; provides `record`, `marking`, `lore`. |
 | **Step 3: Past Routine** | 1. Seam Scraper (`seam_scraper`) | `unlocked_capabilities += {"seal_fitting"}`. Can inspect weld integrity, bypass stuck seals, and craft basic fittings. |
@@ -574,20 +610,20 @@ QUALITATIVE PROGRESSION TREE:
 
 | ID | Name | Category | Tags | Max Integrity | Operational Utility |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `fitting_copper` | Copper Pipe Fitting | utility | `seal_fitting`, `conductive` | 1 | Seals fluid/gas leaks; bypasses low-voltage relays. |
-| `pass_work` | Stamped Work Pass | credential | `dock_clearance`, `id_verified` | 0 | Authorizes cargo hoist operation and standard shuttle boarding. |
+| `fitting_copper` | Pipe Fitting | utility | `seal_fitting`, `conductive` | 1 | Seals fluid/gas leaks; bypasses low-voltage relays. |
+| `pass_work` | Work Pass | credential | `dock_clearance`, `id_verified` | 0 | Authorizes cargo hoist operation and standard shuttle boarding. |
 | `dice_steel` | Steel Dice | record | `morale`, `barter_token` | 0 | Milled steel cubes; accepted by dockers and miners as trade collateral. |
 | `slate_tally` | Chalk Slate | record | `record`, `marking`, `lore` | 0 | Displays scratched station manifests, codes, and historical tallies. |
-| `chit_transit` | Transit Token | credential | `transit_clearance` | 1 | Stamped token granting single-hop shuttle boarding. |
-| `tool_prybar` | Thermal Pry-Bar | utility | `force_lever`, `heavy_duty` | 4 | Heavy lever for jammed valves, sealed hatches, and stubborn crates. |
-| `tool_spanner` | Filter Spanner | utility | `bio_filter`, `wrench` | 3 | Sized for biological filtration couplings and mechanical bolts. |
-| `flask_water` | Insulated Canteen | sustenance | `hydration`, `refillable` | 3 | Drinking flask; refillable at active water taps. Decays over cycles. |
-| `ration_dry` | Compressed Ration | sustenance | `nutrition` | 3 | Calorie bar; satisfies metabolic requirements. Decays over cycles. |
-| `algae_paste` | Fresh Algae Paste | sustenance | `nutrition`, `biomass` | 2 | Nutrient slurry harvested from active hydroponic tanks. |
-| `wire_spool` | Insulated Copper Wire | utility | `conductive`, `electrical` | 2 | Used for rewiring damaged consoles and electrical overrides. |
-| `seal_patch` | Silicone Seal Patch | utility | `vacuum_seal`, `adhesive` | 2 | Seals the Lava Tube breach, restoring partial pressure there. |
-| `scrap_metal` | Basalt Scrap Metal | material | `salvage`, `conductive` | 0 | Salvaged plates; used as raw stock in the smelter crucible. |
-| `ore_sample` | High-Grade Lunar Ore | material | `mineral` | 0 | Heavy basalt core extracted from deep mining veins. |
+| `chit_transit` | Shuttle Token | credential | `transit_clearance` | 1 | Stamped token granting single-hop shuttle boarding. |
+| `tool_prybar` | Pry-Bar | utility | `force_lever`, `heavy_duty` | 4 | Heavy lever for jammed valves, sealed hatches, and stubborn crates. |
+| `tool_spanner` | Spanner | utility | `bio_filter`, `wrench` | 3 | Sized for biological filtration couplings and mechanical bolts. |
+| `flask_water` | Canteen | sustenance | `hydration`, `refillable` | 3 | Drinking flask; refillable at active water taps. Decays over cycles. |
+| `ration_dry` | Ration Bar | sustenance | `nutrition` | 3 | Calorie bar; satisfies metabolic requirements. Decays over cycles. |
+| `algae_paste` | Algae Paste | sustenance | `nutrition`, `biomass` | 2 | Nutrient slurry harvested from active hydroponic tanks. |
+| `wire_spool` | Copper Wire | utility | `conductive`, `electrical` | 2 | Used for rewiring damaged consoles and electrical overrides. |
+| `seal_patch` | Seal Patch | utility | `vacuum_seal`, `adhesive` | 2 | Seals the Lava Tube breach, restoring partial pressure there. |
+| `scrap_metal` | Scrap Metal | material | `salvage`, `conductive` | 0 | Salvaged plates; used as raw stock in the smelter crucible. |
+| `ore_sample` | Lunar Ore | material | `mineral` | 0 | Heavy basalt core extracted from deep mining veins. |
 | `scrip_shift` | Shift Scrip | record | `barter_token` | 1 | Ration-office scrip; found in the Bunkroom locker and the Fuel Spur cabinet. Buys Tarek's help. |
 
 ### 8.3 Companion Roster & Party Synergy
@@ -612,7 +648,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
 [
   {
     "id": "fitting_copper",
-    "name": "Copper Pipe Fitting",
+    "name": "Pipe Fitting",
     "category": "utility",
     "tags": [
       "seal_fitting",
@@ -624,7 +660,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "pass_work",
-    "name": "Stamped Work Pass",
+    "name": "Work Pass",
     "category": "credential",
     "tags": [
       "dock_clearance",
@@ -661,7 +697,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "chit_transit",
-    "name": "Transit Token",
+    "name": "Shuttle Token",
     "category": "credential",
     "tags": [
       "transit_clearance"
@@ -672,7 +708,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "tool_prybar",
-    "name": "Thermal Pry-Bar",
+    "name": "Pry-Bar",
     "category": "utility",
     "tags": [
       "force_lever",
@@ -684,7 +720,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "tool_spanner",
-    "name": "Filter Spanner",
+    "name": "Spanner",
     "category": "utility",
     "tags": [
       "bio_filter",
@@ -696,7 +732,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "flask_water",
-    "name": "Insulated Canteen",
+    "name": "Canteen",
     "category": "sustenance",
     "tags": [
       "hydration",
@@ -708,7 +744,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "ration_dry",
-    "name": "Compressed Ration",
+    "name": "Ration Bar",
     "category": "sustenance",
     "tags": [
       "nutrition"
@@ -719,7 +755,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "algae_paste",
-    "name": "Fresh Algae Paste",
+    "name": "Algae Paste",
     "category": "sustenance",
     "tags": [
       "nutrition",
@@ -731,7 +767,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "wire_spool",
-    "name": "Insulated Copper Wire",
+    "name": "Copper Wire",
     "category": "utility",
     "tags": [
       "conductive",
@@ -743,7 +779,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "seal_patch",
-    "name": "Silicone Seal Patch",
+    "name": "Seal Patch",
     "category": "utility",
     "tags": [
       "vacuum_seal",
@@ -755,7 +791,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "scrap_metal",
-    "name": "Basalt Scrap Metal",
+    "name": "Scrap Metal",
     "category": "material",
     "tags": [
       "salvage",
@@ -767,7 +803,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "ore_sample",
-    "name": "High-Grade Lunar Ore",
+    "name": "Lunar Ore",
     "category": "material",
     "tags": [
       "mineral"
@@ -796,7 +832,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
 [
   {
     "id": "stn_a_bunkroom",
-    "name": "Deck 4 - Shared Bunkroom",
+    "name": "Bunkroom",
     "cluster": "station_alpha",
     "size": 5,
     "depth": 0,
@@ -812,7 +848,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hatch_berth": {
         "id": "hatch_berth",
         "glyph": "=",
-        "name": "Transit Hatch",
+        "name": "Berth Hatch",
         "state": "open",
         "grants_edge": "to_berth",
         "on_use_effect": null,
@@ -822,7 +858,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "spigot_01": {
         "id": "spigot_01",
         "glyph": "⌸",
-        "name": "Water Spigot",
+        "name": "Water Tap",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "refill",
@@ -834,7 +870,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "personal_locker": {
         "id": "personal_locker",
         "glyph": "⚲",
-        "name": "Crew Storage Locker",
+        "name": "Crew Locker",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -848,7 +884,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "vent_duct": {
         "id": "vent_duct",
         "glyph": "≡",
-        "name": "Service Crawlway",
+        "name": "Vent Crawlway",
         "state": "sealed",
         "grants_edge": "to_sub_vent",
         "on_use_effect": "unlock",
@@ -893,7 +929,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_sub_vent": {
         "id": "to_sub_vent",
         "target_node_id": "stn_a_sub",
-        "label": "Sub-Deck Conduits (Vent)",
+        "label": "Sub-Deck (vent)",
         "gated_by_fixture": "vent_duct",
         "requires_capability": null
       }
@@ -902,7 +938,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "stn_a_berth",
-    "name": "Berth 04 - Transfer Platform",
+    "name": "Berth 04",
     "cluster": "station_alpha",
     "size": 7,
     "depth": 0,
@@ -928,7 +964,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "cargo_hoist": {
         "id": "cargo_hoist",
         "glyph": "⎅",
-        "name": "Cargo Hoist Platform",
+        "name": "Cargo Hoist",
         "state": "locked",
         "grants_edge": "to_subdeck",
         "on_use_effect": "unlock",
@@ -943,11 +979,11 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "shuttle_gate": {
         "id": "shuttle_gate",
         "glyph": "=",
-        "name": "Shuttle Boarding Gate",
+        "name": "Shuttle Gate",
         "state": "sealed",
         "grants_edge": "to_shuttle",
         "on_use_effect": "unlock",
-        "description": "Flexible boarding seal clamped to the hopper. Takes one transit token per boarding, then reseals.",
+        "description": "Flexible boarding seal clamped to the shuttle. Takes one transit token per boarding, then reseals.",
         "required_tags": [
           "transit_clearance"
         ],
@@ -956,7 +992,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "freight_skid": {
         "id": "freight_skid",
         "glyph": "▓",
-        "name": "Lashed Freight Skid",
+        "name": "Freight Skid",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -969,7 +1005,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "salvage_bin": {
         "id": "salvage_bin",
         "glyph": "⊞",
-        "name": "Maintenance Scrap Bin",
+        "name": "Scrap Bin",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -982,7 +1018,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hab_hatch": {
         "id": "hab_hatch",
         "glyph": "≡",
-        "name": "Hab Ring Corridor",
+        "name": "Hab Ring Hatch",
         "state": "open",
         "grants_edge": "to_hab",
         "on_use_effect": null,
@@ -992,7 +1028,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "umbilical_collar": {
         "id": "umbilical_collar",
         "glyph": "*",
-        "name": "Umbilical Collar Panel",
+        "name": "Docking Collar",
         "state": "active",
         "required_tags": [
           "wrench",
@@ -1001,12 +1037,12 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "grants_edge": null,
         "on_use_effect": "override",
         "opens_fixture": "shuttle_gate",
-        "description": "Access panel for the hopper docking collar. Re-seating the collar by hand fools the gate into cycling open once."
+        "description": "Access panel for the shuttle docking collar. Re-seating the collar by hand fools the gate into cycling open once."
       },
       "freight_clamps": {
         "id": "freight_clamps",
         "glyph": "┼",
-        "name": "Skid Tension Clamps",
+        "name": "Cargo Clamps",
         "state": "sealed",
         "required_tags": [
           "force_lever",
@@ -1016,7 +1052,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "grants_edge": "to_shuttle_skid",
         "on_use_effect": "unlock",
         "reseal_on_pass": true,
-        "description": "Ratchet clamps holding a freight skid bound for the hopper hold. Released, there is room to ride along unseen."
+        "description": "Ratchet clamps holding a freight skid bound for the shuttle hold. Released, there is room to ride along unseen."
       }
     },
     "actors": {
@@ -1028,7 +1064,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "status": "Checking tension clamps on freight skid",
         "trade_offered_id": "pass_work",
         "trade_completed": false,
-        "dialogue_idle": "Hopper to Luna is spooling. If you've got spare pipe collars or salvage, I can endorse a work pass for the freight deck.",
+        "dialogue_idle": "Shuttle to the Moon is warming up. If you've got spare pipe collars or salvage, I can endorse a work pass for the freight deck.",
         "dialogue_post_trade": "Collar's seated. Pass endorsed. Take care on the sub-deck; Radek's down there cursing at a frozen valve.",
         "companion_unlock": null,
         "trade_required_tags": [
@@ -1107,7 +1143,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_shuttle": {
         "id": "to_shuttle",
         "target_node_id": "shuttle_ab",
-        "label": "Shuttle Hopper",
+        "label": "Shuttle",
         "gated_by_fixture": "shuttle_gate",
         "requires_capability": null
       },
@@ -1121,7 +1157,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_shuttle_skid": {
         "id": "to_shuttle_skid",
         "target_node_id": "shuttle_ab",
-        "label": "Hopper Hold (stowaway)",
+        "label": "Shuttle (stowaway)",
         "gated_by_fixture": "freight_clamps",
         "requires_capability": null
       }
@@ -1130,7 +1166,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "stn_a_sub",
-    "name": "Sub-Deck - Conduit Well",
+    "name": "Sub-Deck",
     "cluster": "station_alpha",
     "size": 6,
     "depth": 1,
@@ -1146,7 +1182,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hoist_up": {
         "id": "hoist_up",
         "glyph": "⎅",
-        "name": "Cargo Hoist (Up)",
+        "name": "Hoist Up",
         "state": "open",
         "grants_edge": "to_berth",
         "on_use_effect": null,
@@ -1156,7 +1192,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "vent_to_bunk": {
         "id": "vent_to_bunk",
         "glyph": "≡",
-        "name": "Service Vent (Up)",
+        "name": "Vent Up",
         "state": "open",
         "grants_edge": "to_bunk_vent",
         "on_use_effect": null,
@@ -1166,7 +1202,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "jammed_valve": {
         "id": "jammed_valve",
         "glyph": "■",
-        "name": "Jammed Pressure Valve",
+        "name": "Frozen Valve",
         "state": "disabled",
         "grants_edge": null,
         "on_use_effect": "repair",
@@ -1184,7 +1220,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "tool_rack": {
         "id": "tool_rack",
         "glyph": "⊞",
-        "name": "Rigging Tool Rack",
+        "name": "Tool Rack",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -1204,7 +1240,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "status": "Shivering over frozen conduit junction",
         "trade_offered_id": "chit_transit",
         "trade_completed": false,
-        "dialogue_idle": "Valve's iced solid. Can't equalize pressure without a prybar. Got one? I've got an extra transit chit if you help crack it.",
+        "dialogue_idle": "Valve's iced solid. Can't get the air back without a pry-bar. Got one? I've got an extra shuttle token if you help crack it.",
         "dialogue_post_trade": "Valve's turning. Heat's coming back. I'm ready to roll if you need a hand hauling freight.",
         "companion_unlock": "comp_radek",
         "trade_required_tags": [
@@ -1249,14 +1285,14 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_berth": {
         "id": "to_berth",
         "target_node_id": "stn_a_berth",
-        "label": "Berth 04 (Up)",
+        "label": "Berth 04 (up)",
         "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_bunk_vent": {
         "id": "to_bunk_vent",
         "target_node_id": "stn_a_bunkroom",
-        "label": "Bunkroom (Vent)",
+        "label": "Bunkroom (vent)",
         "gated_by_fixture": null,
         "requires_capability": null
       }
@@ -1265,7 +1301,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "stn_a_hab",
-    "name": "Hab Ring - Common Gallery",
+    "name": "Hab Ring",
     "cluster": "station_alpha",
     "size": 6,
     "depth": 0,
@@ -1281,7 +1317,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hatch_to_berth": {
         "id": "hatch_to_berth",
         "glyph": "=",
-        "name": "Berth Access Hatch",
+        "name": "Berth Hatch",
         "state": "open",
         "grants_edge": "to_berth",
         "on_use_effect": null,
@@ -1291,19 +1327,19 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "notice_board": {
         "id": "notice_board",
         "glyph": "≡",
-        "name": "Station Notice Board",
+        "name": "Notice Board",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "log",
         "description": "Postings: shift rosters, fuel quotas on Station Beta, and reports of seismic tremors in the lunar mines.",
         "required_tags": [],
         "log_text": "Shift roster: Berth 04 hoist crew short two riggers. Fuel quota on Station Beta raised 8%. Lunar mine reports tremors on the lower gallery.",
-        "log_text_locked": "Maintenance memo, scratched over: 'Hopper umbilical collar can be re-seated by hand with a spanner or a pipe collar. Gate logic trusts the collar.'"
+        "log_text_locked": "Maintenance memo, scratched over: 'Shuttle docking collar can be re-seated by hand with a spanner or a pipe collar. The gate trusts the collar.'"
       },
       "algae_basin": {
         "id": "algae_basin",
         "glyph": "⌸",
-        "name": "Hydroponic Algae Vat",
+        "name": "Algae Vat",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "harvest",
@@ -1371,7 +1407,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "shuttle_ab",
-    "name": "Inter-Station Shuttle Hopper",
+    "name": "Shuttle",
     "cluster": "transit",
     "size": 5,
     "depth": 0,
@@ -1387,7 +1423,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "gate_alpha": {
         "id": "gate_alpha",
         "glyph": "◆",
-        "name": "Station Alpha Umbilical",
+        "name": "Door to Station A",
         "state": "open",
         "grants_edge": "to_stn_a",
         "on_use_effect": null,
@@ -1397,7 +1433,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "gate_beta": {
         "id": "gate_beta",
         "glyph": "=",
-        "name": "Station Beta Umbilical",
+        "name": "Door to Station B",
         "state": "open",
         "grants_edge": "to_stn_b",
         "on_use_effect": null,
@@ -1407,7 +1443,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "gate_luna": {
         "id": "gate_luna",
         "glyph": "▲",
-        "name": "Lunar Descent Hatch",
+        "name": "Door to Moon",
         "state": "open",
         "grants_edge": "to_luna",
         "on_use_effect": null,
@@ -1417,14 +1453,14 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "flight_console": {
         "id": "flight_console",
         "glyph": "≡",
-        "name": "Navigational Telemetry Console",
+        "name": "Flight Screen",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "log",
         "description": "Automated guidance screen displaying orbital ephemeris, lunar pad coordinates, and radiation forecasts.",
         "required_tags": [],
         "log_text": "Ephemeris: lunar pad window open. Surface forecast 25 mSv, -80 C. Pad-to-dome airlock is 3 tiles south of the lander hatch. Do not linger.",
-        "log_text_locked": "Cargo manifest, restricted: freight skids at Berth 04 ride the hopper hold unsealed. Clamp tension is the only check."
+        "log_text_locked": "Cargo manifest, restricted: freight skids at Berth 04 ride the shuttle hold unsealed. Clamp tension is the only check."
       }
     },
     "actors": {},
@@ -1454,30 +1490,30 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_stn_a": {
         "id": "to_stn_a",
         "target_node_id": "stn_a_berth",
-        "label": "Station Alpha",
+        "label": "Station A",
         "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_stn_b": {
         "id": "to_stn_b",
         "target_node_id": "stn_b_dock",
-        "label": "Station Beta",
+        "label": "Station B",
         "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_luna": {
         "id": "to_luna",
         "target_node_id": "luna_pad",
-        "label": "Lunar Surface Pad",
+        "label": "Landing Pad",
         "gated_by_fixture": null,
         "requires_capability": null
       }
     },
-    "description": "Functional shuttle hopper cabin with four acceleration couches. Reinforced viewports overlook the lunar rim."
+    "description": "Functional shuttle shuttle cabin with four acceleration couches. Reinforced viewports overlook the lunar rim."
   },
   {
     "id": "stn_b_dock",
-    "name": "Dock Ring - Bay 7",
+    "name": "Dock Ring",
     "cluster": "station_beta",
     "size": 6,
     "depth": 0,
@@ -1493,17 +1529,17 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "shuttle_return": {
         "id": "shuttle_return",
         "glyph": "◆",
-        "name": "Shuttle Docking Port",
+        "name": "Shuttle Door",
         "state": "open",
         "grants_edge": "to_shuttle",
         "on_use_effect": null,
-        "description": "Umbilical back to the inter-station shuttle hopper.",
+        "description": "Umbilical back to the inter-station shuttle shuttle.",
         "required_tags": []
       },
       "hatch_array": {
         "id": "hatch_array",
         "glyph": "=",
-        "name": "Array Corridor Hatch",
+        "name": "Comms Hub Hatch",
         "state": "open",
         "grants_edge": "to_array",
         "on_use_effect": null,
@@ -1513,7 +1549,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hatch_fuel": {
         "id": "hatch_fuel",
         "glyph": "▲",
-        "name": "Fuel Spur Access",
+        "name": "Fuel Spur Hatch",
         "state": "open",
         "grants_edge": "to_fuel",
         "on_use_effect": null,
@@ -1523,11 +1559,11 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "freight_crate": {
         "id": "freight_crate",
         "glyph": "▓",
-        "name": "Sealed Cargo Crate",
+        "name": "Cargo Crate",
         "state": "sealed",
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Steel shipping crate bound with nylon bands. Can be levered open with a prybar.",
+        "description": "Steel shipping crate bound with nylon bands. Can be levered open with a pry-bar.",
         "required_tags": [
           "force_lever",
           "heavy_lift"
@@ -1591,14 +1627,14 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_shuttle": {
         "id": "to_shuttle",
         "target_node_id": "shuttle_ab",
-        "label": "Shuttle Hopper",
+        "label": "Shuttle",
         "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_array": {
         "id": "to_array",
         "target_node_id": "stn_b_array",
-        "label": "Array Hub",
+        "label": "Comms Hub",
         "gated_by_fixture": null,
         "requires_capability": null
       },
@@ -1614,7 +1650,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "stn_b_array",
-    "name": "Array Hub - Comms Center",
+    "name": "Comms Hub",
     "cluster": "station_beta",
     "size": 5,
     "depth": 0,
@@ -1630,7 +1666,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hatch_dock": {
         "id": "hatch_dock",
         "glyph": "◆",
-        "name": "Dock Ring Hatch",
+        "name": "Dock Hatch",
         "state": "open",
         "grants_edge": "to_dock",
         "on_use_effect": null,
@@ -1640,7 +1676,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "comms_rack": {
         "id": "comms_rack",
         "glyph": "≡",
-        "name": "Deep-Space Comms Rack",
+        "name": "Radio Rack",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "log",
@@ -1652,7 +1688,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "crypto_terminal": {
         "id": "crypto_terminal",
         "glyph": "⊞",
-        "name": "Terminal Diagnostics Console",
+        "name": "Relay Terminal",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "override",
@@ -1694,7 +1730,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "stn_b_fuel",
-    "name": "Fuel Spur - Processing Bay",
+    "name": "Fuel Spur",
     "cluster": "station_beta",
     "size": 5,
     "depth": 0,
@@ -1710,7 +1746,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hatch_dock_fuel": {
         "id": "hatch_dock_fuel",
         "glyph": "◆",
-        "name": "Dock Ring Hatch",
+        "name": "Dock Hatch",
         "state": "open",
         "grants_edge": "to_dock",
         "on_use_effect": null,
@@ -1720,7 +1756,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "fuel_manifold": {
         "id": "fuel_manifold",
         "glyph": "⌸",
-        "name": "Propellant Manifold",
+        "name": "Fuel Gauges",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "log",
@@ -1732,7 +1768,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "spares_cabinet": {
         "id": "spares_cabinet",
         "glyph": "⊞",
-        "name": "Sealant Spares Cabinet",
+        "name": "Spares Cabinet",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -1753,7 +1789,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "status": "Checking pressure gauges on propellant lines",
         "trade_offered_id": "seal_patch",
         "trade_completed": false,
-        "dialogue_idle": "Shift's gone four hours past relief. Got a ration block? I can trade high-temp silicone seal patches.",
+        "dialogue_idle": "Shift's gone four hours past relief. Got a ration block? I can trade seal patches.",
         "dialogue_post_trade": "Much obliged. These patches will hold against pure vacuum if you blow a seal down on the pad.",
         "companion_unlock": null,
         "trade_required_tags": [
@@ -1802,7 +1838,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "luna_pad",
-    "name": "Lunar Surface Pad",
+    "name": "Landing Pad",
     "cluster": "lunar_base",
     "size": 7,
     "depth": 0,
@@ -1818,17 +1854,17 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "lander_hatch": {
         "id": "lander_hatch",
         "glyph": "▲",
-        "name": "Lander Ascent Hatch",
+        "name": "Shuttle Hatch",
         "state": "open",
         "grants_edge": "to_shuttle",
         "on_use_effect": null,
-        "description": "Ascent module hatch back to the shuttle hopper.",
+        "description": "Ascent module hatch back to the shuttle shuttle.",
         "required_tags": []
       },
       "dome_airlock": {
         "id": "dome_airlock",
         "glyph": "=",
-        "name": "Habitat Dome Airlock",
+        "name": "Dome Airlock",
         "state": "open",
         "grants_edge": "to_dome",
         "on_use_effect": null,
@@ -1838,7 +1874,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "regolith_sled": {
         "id": "regolith_sled",
         "glyph": "▓",
-        "name": "Abandoned Survey Sled",
+        "name": "Old Survey Sled",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -1871,7 +1907,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_shuttle": {
         "id": "to_shuttle",
         "target_node_id": "shuttle_ab",
-        "label": "Shuttle Hopper",
+        "label": "Shuttle",
         "gated_by_fixture": null,
         "requires_capability": null
       },
@@ -1887,7 +1923,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "luna_dome",
-    "name": "Habitat Dome - Central Bay",
+    "name": "Habitat Dome",
     "cluster": "lunar_base",
     "size": 7,
     "depth": 0,
@@ -1903,7 +1939,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "airlock_pad": {
         "id": "airlock_pad",
         "glyph": "=",
-        "name": "Surface Pad Airlock",
+        "name": "Pad Airlock",
         "state": "open",
         "grants_edge": "to_pad",
         "on_use_effect": null,
@@ -1913,7 +1949,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hatch_smelter": {
         "id": "hatch_smelter",
         "glyph": "◆",
-        "name": "Smelter Corridor",
+        "name": "Smelter Hatch",
         "state": "open",
         "grants_edge": "to_smelter",
         "on_use_effect": null,
@@ -1923,7 +1959,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hatch_crater": {
         "id": "hatch_crater",
         "glyph": "▲",
-        "name": "Crater Rim Access",
+        "name": "Crater Hatch",
         "state": "open",
         "grants_edge": "to_crater",
         "on_use_effect": null,
@@ -1933,7 +1969,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "seismic_station": {
         "id": "seismic_station",
         "glyph": "≡",
-        "name": "Seismic Telemetry Station",
+        "name": "Quake Monitor",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "log",
@@ -1997,14 +2033,14 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_pad": {
         "id": "to_pad",
         "target_node_id": "luna_pad",
-        "label": "Surface Pad",
+        "label": "Landing Pad",
         "gated_by_fixture": null,
         "requires_capability": null
       },
       "to_smelter": {
         "id": "to_smelter",
         "target_node_id": "luna_smelter",
-        "label": "Smelter Flat",
+        "label": "Smelter",
         "gated_by_fixture": null,
         "requires_capability": null
       },
@@ -2020,7 +2056,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "luna_smelter",
-    "name": "Smelter Flat - Processing Floor",
+    "name": "Smelter",
     "cluster": "lunar_base",
     "size": 6,
     "depth": 0,
@@ -2036,7 +2072,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hatch_dome_smelter": {
         "id": "hatch_dome_smelter",
         "glyph": "◆",
-        "name": "Dome Corridor",
+        "name": "Dome Hatch",
         "state": "open",
         "grants_edge": "to_dome",
         "on_use_effect": null,
@@ -2046,7 +2082,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "mine_shaft": {
         "id": "mine_shaft",
         "glyph": "⎅",
-        "name": "Mine Shaft Cage Lift",
+        "name": "Mine Lift",
         "state": "locked",
         "grants_edge": "to_mine",
         "on_use_effect": "unlock",
@@ -2059,7 +2095,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "smelting_crucible": {
         "id": "smelting_crucible",
         "glyph": "■",
-        "name": "Smelting Crucible",
+        "name": "Crucible",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "smelt",
@@ -2076,7 +2112,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "status": "Stoking the induction coils",
         "trade_offered_id": "tool_prybar",
         "trade_completed": false,
-        "dialogue_idle": "Deep mine has plenty of raw basalt ore, but the lift needs nerve to ride. Bring me an ore sample and I'll forge you a heavy prybar.",
+        "dialogue_idle": "Deep mine has plenty of raw basalt ore, but the lift needs nerve to ride. Bring me an ore sample and I'll forge you a heavy pry-bar.",
         "dialogue_post_trade": "Clean melt. Here's your iron bar. Treat it right and it'll crack open any sealed hatch on this moon.",
         "companion_unlock": null,
         "trade_required_tags": [
@@ -2132,7 +2168,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "luna_crater",
-    "name": "Crater Rim - Observation Path",
+    "name": "Crater Rim",
     "cluster": "lunar_base",
     "size": 6,
     "depth": 0,
@@ -2148,7 +2184,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hatch_dome_crater": {
         "id": "hatch_dome_crater",
         "glyph": "◆",
-        "name": "Dome Access Hatch",
+        "name": "Dome Hatch",
         "state": "open",
         "grants_edge": "to_dome",
         "on_use_effect": null,
@@ -2158,7 +2194,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "tube_entrance": {
         "id": "tube_entrance",
         "glyph": "⎅",
-        "name": "Lava Tube Descent",
+        "name": "Ladder Down",
         "state": "open",
         "grants_edge": "to_tube",
         "on_use_effect": null,
@@ -2168,7 +2204,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "surveyor_cache": {
         "id": "surveyor_cache",
         "glyph": "⊞",
-        "name": "Surveyor Supply Cache",
+        "name": "Survey Cache",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -2208,7 +2244,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_tube": {
         "id": "to_tube",
         "target_node_id": "luna_tube",
-        "label": "Lava Tube Cavern",
+        "label": "Lava Tube",
         "gated_by_fixture": null,
         "requires_capability": null
       }
@@ -2217,7 +2253,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "luna_mine",
-    "name": "Deep Mine - Primary Shaft",
+    "name": "Deep Mine",
     "cluster": "lunar_base",
     "size": 5,
     "depth": 1,
@@ -2233,7 +2269,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "cage_up": {
         "id": "cage_up",
         "glyph": "⎅",
-        "name": "Mine Cage (Up)",
+        "name": "Mine Lift Up",
         "state": "open",
         "grants_edge": "to_smelter",
         "on_use_effect": null,
@@ -2243,7 +2279,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "ore_face": {
         "id": "ore_face",
         "glyph": "■",
-        "name": "Exposed Mineral Face",
+        "name": "Ore Face",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -2271,7 +2307,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_smelter": {
         "id": "to_smelter",
         "target_node_id": "luna_smelter",
-        "label": "Smelter Flat (Up)",
+        "label": "Smelter (up)",
         "gated_by_fixture": null,
         "requires_capability": null
       }
@@ -2280,7 +2316,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   },
   {
     "id": "luna_tube",
-    "name": "Lava Tube - Natural Chamber",
+    "name": "Lava Tube",
     "cluster": "lunar_base",
     "size": 6,
     "depth": 1,
@@ -2296,7 +2332,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "ascent_ladder": {
         "id": "ascent_ladder",
         "glyph": "⎅",
-        "name": "Crater Rim Ascent",
+        "name": "Ladder Up",
         "state": "open",
         "grants_edge": "to_crater",
         "on_use_effect": null,
@@ -2306,7 +2342,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "subsurface_cache": {
         "id": "subsurface_cache",
         "glyph": "⊞",
-        "name": "Sealed Survey Cache",
+        "name": "Buried Cache",
         "state": "active",
         "grants_edge": null,
         "on_use_effect": "scavenge",
@@ -2319,7 +2355,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "hull_breach": {
         "id": "hull_breach",
         "glyph": "~",
-        "name": "Split Basalt Seam",
+        "name": "Cracked Wall",
         "state": "disabled",
         "required_tags": [
           "vacuum_seal"
@@ -2356,7 +2392,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_crater": {
         "id": "to_crater",
         "target_node_id": "luna_crater",
-        "label": "Crater Rim (Up)",
+        "label": "Crater Rim (up)",
         "gated_by_fixture": null,
         "requires_capability": null
       }
@@ -2491,7 +2527,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
   {
     "id": "signal_analysis",
     "name": "Radio Ears",
-    "description": "Read locked station logs and radio signals on notice boards.",
+    "description": "Read the locked part of station logs and notice boards.",
     "prerequisite": "crew_coordination",
     "unlock_condition": "use_fixture",
     "unlock_parameter": "comms_rack",
@@ -2578,7 +2614,8 @@ def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
 ### Phase 5: Viewport & Presentation (`ui/render.py`, `ui/topology_view.py`)
 - Render the 6-zone layout adhering to the >= 40 column constraint.
 - Ensure all Zone 2 rows are formatted with `pad_visible` to prevent ANSI escape sequence padding errors.
-- Display contextual key hints in Zone 6 (`WASD: move  /: cmd  M: map  Q: quit`; menu keys are listed in Zone 5).
+- Display contextual key hints in Zone 6 (`WASD move  / cmd  M map  Q quit`; `I inspect  X close  WASD move` while the menu is open).
+- Keep all player wording in `core/text.py` conventions (§6.3); never print raw IDs or tags.
 
 ### Phase 6: Persistence Layer (`core/persistence.py`)
 - Maintain atomic JSON serialization into `saves/<character_name>/state.json`.

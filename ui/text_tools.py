@@ -35,6 +35,14 @@ def check_terminal() -> int:
         return 40
 
 
+def check_terminal_rows() -> int:
+    """Returns terminal row count, defaulting to 24 on error or non-interactive shells."""
+    try:
+        return shutil.get_terminal_size(fallback=(40, 24)).lines
+    except Exception:
+        return 24
+
+
 def wrap_text(text: str, width: int) -> Tuple[str, ...]:
     """Wraps text cleanly to fit within the given character width."""
     if width <= 1:

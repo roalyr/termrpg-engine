@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+from tests.helpers import menu_line
 from pathlib import Path
 
 from core.actions import dispatch_action
@@ -144,7 +145,7 @@ class TestInputAndMenu(unittest.TestCase):
         s = at(new(1, 1), "stn_a_bunkroom", 4, 2)
         s2 = dispatch_action(s, "u")
         self.assertTrue(s2.proximity_menu_active)
-        self.assertTrue(any("[G] Go -> " in m for m in s2.message_buffer))
+        self.assertTrue("G go to " in menu_line(s2))
 
     def test_b_goes_back_from_map_but_barters_in_menu(self):
         s = at(new(), "stn_a_berth", 2, 4)
@@ -168,7 +169,7 @@ class TestExposure(unittest.TestCase):
         s = with_caps(new(), "trench_hardened")
         s = s._replace(character=s.character._replace(exposure=Exposure(12.0, 0.0, 0.0)))
         self.assertEqual(exposure_status(s), "STRESSED")
-        self.assertIn(" STRESSED", render_frame(s, 40))
+        self.assertIn(" Strained", render_frame(s, 40))
 
     def test_lead_skin_needs_its_own_depth_time(self):
         s = with_caps(new(), "cold_bypass", "vacuum_walk")
@@ -197,9 +198,10 @@ class TestExposure(unittest.TestCase):
     def test_zone3_shows_exposure_numbers_and_rate(self):
         s = new()._replace(current_node_id="luna_pad", player_row=3, player_col=3)
         s = s._replace(character=s.character._replace(exposure=Exposure(12.0, 5.3, 14.0)))
-        frame = render_frame(s, 40)
-        self.assertIn("P12.0 R5.3 T14.0", frame)
-        self.assertIn("MAX 15 T+3.5/c", frame)
+        frame = render_frame(s._replace(color_enabled=False), 40)
+        self.assertIn("DANGER · max 15", frame)
+        self.assertIn("Air  12.0 +3.0", frame)
+        self.assertIn("Cold 14.0 +3.5", frame)
 
 
 class TestFixtures(unittest.TestCase):
@@ -209,9 +211,9 @@ class TestFixtures(unittest.TestCase):
         s = at(new(), "stn_a_hab", 2, 1)._replace(character=new().character._replace(inventory=()))
         s2 = dispatch_action(s, "r")
         self.assertTrue(any("Shift roster" in m for m in s2.message_buffer))
-        self.assertTrue(any("encrypted" in m for m in s2.message_buffer))
+        self.assertTrue(any("scrambled" in m for m in s2.message_buffer))
         s3 = dispatch_action(carrying(s, "slate_tally"), "r")
-        self.assertTrue(any("[Decoded]" in m and "umbilical" in m for m in s3.message_buffer))
+        self.assertTrue(any("Decoded:" in m and "docking collar" in m for m in s3.message_buffer))
 
     def test_logs_are_distinct(self):
         texts = {f.log_text for n in new().nodes.values() for f in n.fixtures.values() if f.on_use_effect == "log"}
@@ -223,7 +225,7 @@ class TestFixtures(unittest.TestCase):
         self.assertEqual(s2.nodes["stn_a_sub"].base_vitals.pressure_kpa, 92.0)
         self.assertEqual(s2.character.inventory[0].integrity, 3)
         s3 = reduce_use(s2, "tool_prybar", "jammed_valve")
-        self.assertTrue(any("already running" in m for m in s3.message_buffer))
+        self.assertTrue(any("already working" in m for m in s3.message_buffer))
         self.assertEqual(s3.cycle, s2.cycle)
         self.assertEqual(s3.character.inventory[0].integrity, 3)
 
@@ -240,7 +242,7 @@ class TestFixtures(unittest.TestCase):
         s = dispatch_action(s, "g")
         self.assertEqual(s.current_node_id, "shuttle_ab")
         self.assertEqual(s.nodes["stn_a_berth"].fixtures["shuttle_gate"].state, FixtureState.SEALED.value)
-        self.assertTrue(any("reseals" in m for m in s.message_buffer))
+        self.assertTrue(any("locks behind you" in m for m in s.message_buffer))
 
     def test_umbilical_collar_opens_gate_once(self):
         s = at(new(1, 1), "stn_a_berth", 2, 5)  # seam scraper: seal_fitting

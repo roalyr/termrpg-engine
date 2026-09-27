@@ -1,7 +1,7 @@
 [
   {
     "id": "fitting_copper",
-    "name": "Copper Pipe Fitting",
+    "name": "Pipe Fitting",
     "category": "utility",
     "tags": [
       "seal_fitting",
@@ -13,7 +13,7 @@
   },
   {
     "id": "pass_work",
-    "name": "Stamped Work Pass",
+    "name": "Work Pass",
     "category": "credential",
     "tags": [
       "dock_clearance",
@@ -50,7 +50,7 @@
   },
   {
     "id": "chit_transit",
-    "name": "Transit Token",
+    "name": "Shuttle Token",
     "category": "credential",
     "tags": [
       "transit_clearance"
@@ -61,7 +61,7 @@
   },
   {
     "id": "tool_prybar",
-    "name": "Thermal Pry-Bar",
+    "name": "Pry-Bar",
     "category": "utility",
     "tags": [
       "force_lever",
@@ -73,7 +73,7 @@
   },
   {
     "id": "tool_spanner",
-    "name": "Filter Spanner",
+    "name": "Spanner",
     "category": "utility",
     "tags": [
       "bio_filter",
@@ -85,7 +85,7 @@
   },
   {
     "id": "flask_water",
-    "name": "Insulated Canteen",
+    "name": "Canteen",
     "category": "sustenance",
     "tags": [
       "hydration",
@@ -97,7 +97,7 @@
   },
   {
     "id": "ration_dry",
-    "name": "Compressed Ration",
+    "name": "Ration Bar",
     "category": "sustenance",
     "tags": [
       "nutrition"
@@ -108,7 +108,7 @@
   },
   {
     "id": "algae_paste",
-    "name": "Fresh Algae Paste",
+    "name": "Algae Paste",
     "category": "sustenance",
     "tags": [
       "nutrition",
@@ -120,7 +120,7 @@
   },
   {
     "id": "wire_spool",
-    "name": "Insulated Copper Wire",
+    "name": "Copper Wire",
     "category": "utility",
     "tags": [
       "conductive",
@@ -132,7 +132,7 @@
   },
   {
     "id": "seal_patch",
-    "name": "Silicone Seal Patch",
+    "name": "Seal Patch",
     "category": "utility",
     "tags": [
       "vacuum_seal",
@@ -144,7 +144,7 @@
   },
   {
     "id": "scrap_metal",
-    "name": "Basalt Scrap Metal",
+    "name": "Scrap Metal",
     "category": "material",
     "tags": [
       "salvage",
@@ -156,7 +156,7 @@
   },
   {
     "id": "ore_sample",
-    "name": "High-Grade Lunar Ore",
+    "name": "Lunar Ore",
     "category": "material",
     "tags": [
       "mineral"

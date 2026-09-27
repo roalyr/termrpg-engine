@@ -153,3 +153,4 @@ class GameState(NamedTuple):
     is_running: bool                      # False = exit after next persist
     item_catalog: Mapping[str, Item] = _EMPTY            # Item definitions from the active preset
     companion_catalog: Mapping[str, Companion] = _EMPTY  # Companion definitions from the active preset
+    color_enabled: bool = True                           # Bold/dim/inverse styles and the orange accent

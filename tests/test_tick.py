@@ -57,7 +57,7 @@ class TestTickProcessor(unittest.TestCase):
         s_crit = self.state._replace(character=char, current_node_id="stn_a_sub", cycle=5)
         s1 = process_tick(s_crit, "Final tick")
         self.assertTrue(s1.is_running)
-        self.assertTrue(any("Incapacitated" in m for m in s1.message_buffer))
+        self.assertTrue(any("black out" in m for m in s1.message_buffer))
         self.assertEqual(s1.current_node_id, "stn_a_bunkroom")
         self.assertEqual(s1.character.exposure, Exposure(0.0, 0.0, 0.0))
         self.assertEqual(s1.cycle, 6 + 12)

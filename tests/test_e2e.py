@@ -1,4 +1,5 @@
 import unittest
+from tests.helpers import menu_line
 from pathlib import Path
 from core.presets import init_game_state, DEFAULT_DATA_DIR
 from core.actions import dispatch_action
@@ -20,11 +21,11 @@ class TestE2EWalkthrough(unittest.TestCase):
 
         # Inspect fixture with slash command
         state = dispatch_action(state, "/inspect spigot_01")
-        self.assertTrue(any("Water Spigot" in m for m in state.message_buffer))
+        self.assertTrue(any("Water Tap" in m for m in state.message_buffer))
 
         # Check pack with slash command
         pack_state = dispatch_action(state, "/pack")
-        self.assertTrue(any("CARRIED GEAR" in m for m in pack_state.message_buffer))
+        self.assertTrue(any("PACK" in m for m in pack_state.message_buffer))
 
         # Leaving walks to the hatch first: 2 tiles from the bunkroom center costs 2 cycles
         state = dispatch_action(state, "leave to_berth")
@@ -37,16 +38,16 @@ class TestE2EWalkthrough(unittest.TestCase):
 
         # Talk to Kael -> offer only; barter executes the trade (fitting_copper -> pass_work)
         state = dispatch_action(state, "talk npc_kael")
-        self.assertTrue(any("Trade offer" in m for m in state.message_buffer))
+        self.assertTrue(any("Offer:" in m for m in state.message_buffer))
         state = dispatch_action(state, "barter npc_kael")
-        self.assertTrue(any("Exchanged Copper Pipe Fitting for Stamped Work Pass" in m for m in state.message_buffer))
+        self.assertTrue(any("Got: Work Pass, for your Pipe Fitting" in m for m in state.message_buffer))
         self.assertTrue(any(i.id == "pass_work" for i in state.character.inventory))
         self.assertFalse(any(i.id == "fitting_copper" for i in state.character.inventory))
         self.assertEqual(state.cycle, 4)
 
         # Unlock cargo hoist to subdeck
         state = dispatch_action(state, "use pass_work cargo_hoist")
-        self.assertTrue(any("Unlocked Cargo Hoist Platform" in m for m in state.message_buffer))
+        self.assertTrue(any("The Cargo Hoist opens" in m for m in state.message_buffer))
         self.assertEqual(state.nodes["stn_a_berth"].fixtures["cargo_hoist"].state, FixtureState.OPEN.value)
 
         # 3. Descend to Sub-Deck (Depth 1)
@@ -60,7 +61,7 @@ class TestE2EWalkthrough(unittest.TestCase):
         bulkhead_node = next(t for t in state.tree if t.id == "bulkhead_ear")
         # Bulkhead ear prerequisite is seam_discipline. Let's inspect tree
         char_view = dispatch_action(state, "character")
-        self.assertTrue(any("PROGRESSION TREE" in m for m in char_view.message_buffer))
+        self.assertTrue(any("SKILLS" in m for m in char_view.message_buffer))
 
         # Give player a prybar to interact with Radek and the frozen valve
         prybar = ALL_ITEMS_BY_ID["tool_prybar"]
@@ -72,7 +73,7 @@ class TestE2EWalkthrough(unittest.TestCase):
 
         # Repair jammed valve
         state = dispatch_action(state, "use tool_prybar jammed_valve")
-        self.assertTrue(any("Repaired" in m for m in state.message_buffer))
+        self.assertTrue(any("is fixed" in m for m in state.message_buffer))
         self.assertEqual(state.nodes["stn_a_sub"].fixtures["jammed_valve"].state, FixtureState.ACTIVE.value)
 
         # Barter with Radek -> Radek recruits as companion!
@@ -82,7 +83,7 @@ class TestE2EWalkthrough(unittest.TestCase):
 
         # Inspect party
         party_view = dispatch_action(state, "party")
-        self.assertTrue(any("two_person_lift" in m for m in party_view.message_buffer))
+        self.assertTrue(any("second lifter" in m for m in party_view.message_buffer))
 
         # 4. Ascend back to Berth 04
         state = dispatch_action(state, "leave to_berth")
@@ -97,7 +98,7 @@ class TestE2EWalkthrough(unittest.TestCase):
             )
         )
         state = dispatch_action(state, "use chit_transit shuttle_gate")
-        self.assertTrue(any("Unlocked Shuttle Boarding Gate" in m for m in state.message_buffer))
+        self.assertTrue(any("The Shuttle Gate opens" in m for m in state.message_buffer))
 
         state = dispatch_action(state, "leave to_shuttle")
         self.assertEqual(state.current_node_id, "shuttle_ab")
@@ -139,7 +140,7 @@ class TestE2EWalkthrough(unittest.TestCase):
 
         # Player uses pass_work or tool to activate cage with companion support
         state = dispatch_action(state, "use pass_work mine_shaft")
-        self.assertTrue(any("Unlocked Mine Shaft Cage" in m for m in state.message_buffer))
+        self.assertTrue(any("The Mine Lift opens" in m for m in state.message_buffer))
         self.assertEqual(state.nodes["luna_smelter"].fixtures["mine_shaft"].state, FixtureState.OPEN.value)
 
         # Descend into Deep Mine
@@ -175,11 +176,11 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertEqual(state.player_row, 3)
         self.assertEqual(state.player_col, 1)
         self.assertTrue(state.proximity_menu_active)
-        self.assertTrue(any("Near: Water Spigot" in m for m in state.message_buffer))
+        self.assertTrue("Water Tap" in menu_line(state))
 
         # Inspect spigot using single-key 'i'
         state = dispatch_action(state, "i")
-        self.assertTrue(any("Water Spigot" in m for m in state.message_buffer))
+        self.assertTrue(any("Water Tap" in m for m in state.message_buffer))
 
         # Move to hatch_berth at (0, 2)
         state = dispatch_action(state, "w")  # (2, 1)
@@ -190,7 +191,7 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertEqual(state.player_row, 0)
         self.assertEqual(state.player_col, 2)
         self.assertTrue(state.proximity_menu_active)
-        self.assertTrue(any("[G] Go -> Berth 04" in m for m in state.message_buffer))
+        self.assertTrue("G go to Berth 04" in menu_line(state))
 
         # Step through hatch using single-key 'g'
         state = dispatch_action(state, "g")
@@ -204,13 +205,13 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertEqual(state.player_row, 2)
         self.assertEqual(state.player_col, 4)
         self.assertTrue(state.proximity_menu_active)
-        self.assertTrue(any("Near: Kael" in m for m in state.message_buffer))
-        self.assertTrue(any("[T] Talk" in m for m in state.message_buffer))
+        self.assertTrue("Kael" in menu_line(state))
+        self.assertTrue("T talk" in menu_line(state))
 
         # 't' talks and offers; 'b' barters
         state = dispatch_action(state, "t")
         self.assertFalse(any(i.id == "pass_work" for i in state.character.inventory))
-        self.assertTrue(any("[B] Barter" in m for m in state.message_buffer))
+        self.assertTrue("B trade" in menu_line(state))
         state = dispatch_action(state, "b")
         self.assertTrue(any(i.id == "pass_work" for i in state.character.inventory))
 
@@ -222,18 +223,18 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertEqual(state.player_row, 5)
         self.assertEqual(state.player_col, 3)
         self.assertTrue(state.proximity_menu_active)
-        self.assertTrue(any("Near: Cargo Hoist Platform" in m for m in state.message_buffer))
-        self.assertTrue(any("[U] Use Stamped Work Pass" in m for m in state.message_buffer))
+        self.assertTrue("Cargo Hoist" in menu_line(state))
+        self.assertTrue("U open (Work Pass)" in menu_line(state))
 
         # Unlock hoist using single-key 'u'; the refreshed menu offers [G] immediately
         state = dispatch_action(state, "u")
         self.assertEqual(state.nodes["stn_a_berth"].fixtures["cargo_hoist"].state, FixtureState.OPEN.value)
-        self.assertTrue(any("[G] Go -> Sub-Deck" in m for m in state.message_buffer))
+        self.assertTrue("G go to Sub-Deck" in menu_line(state))
 
         # Move off and step back onto open cargo hoist to see [G] Go option
         state = dispatch_action(state, "w")  # (4, 3)
         state = dispatch_action(state, "s")  # (5, 3)
-        self.assertTrue(any("[G] Go -> Sub-Deck" in m for m in state.message_buffer))
+        self.assertTrue("G go to Sub-Deck" in menu_line(state))
 
         # Descend using 'g'
         state = dispatch_action(state, "g")

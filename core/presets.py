@@ -125,8 +125,8 @@ def init_game_state(
         player_row=start_node.size // 2,
         player_col=start_node.size // 2,
         message_buffer=(
-            f"Welcome aboard, {character.name}.",
-            "You wake in Deck 4 shared bunkroom.",
+            f"You wake in the Bunkroom, {character.name}.",
+            "Walk onto things to use them. Type /help for help.",
         ),
         action_log=("Awoke in bunkroom.",),
         flavor_enabled=True,
