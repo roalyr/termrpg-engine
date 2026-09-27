@@ -93,7 +93,7 @@ class Node(NamedTuple):
     id: str                    # Unique node identifier
     name: str                  # Display name
     cluster: str               # Cluster grouping (e.g., "station_alpha")
-    size: int                  # Grid dimension N (N x N, where N <= 8)
+    size: int                  # Grid dimension N (N x N, where N <= 10)
     depth: int                 # Vertical depth (0 = surface/concourse)
     environment: str           # Environment enum value
     base_vitals: NodeVitals    # Current environmental readings (changed by repairs)

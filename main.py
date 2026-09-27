@@ -185,7 +185,7 @@ def main() -> None:
                         action_input = k_lower
                     elif state.proximity_menu_active and k_lower in MENU_KEYS:
                         action_input = k_lower
-                    elif k_lower in ('m', 'b', 'e'):
+                    elif k_lower in ('m', 'b', 'e', 'p', 'c', 't'):
                         action_input = k_lower
                     elif k_lower == 'q':
                         action_input = "quit"

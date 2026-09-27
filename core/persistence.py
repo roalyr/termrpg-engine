@@ -10,20 +10,41 @@ from core.presets import DEFAULT_DATA_DIR, load_catalogs
 from core.rules import exposure_thresholds, max_exposure, REVIVE_NODE_ID
 from core.types import GameState, PlayerCharacter, Exposure
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 # Authored fields refreshed from the default preset when upgrading an older save.
 # Progress fields (state, trade_completed, attuned, vitals) are kept from the save.
 _STATIC_FIXTURE_FIELDS = (
     "required_tags", "yields", "log_text", "log_text_locked", "opens_fixture",
-    "grants_capability", "on_repair_vitals", "reseal_on_pass", "description", "name",
+    "grants_capability", "on_repair_vitals", "reseal_on_pass", "description", "name", "glyph",
 )
 _STATIC_ACTOR_FIELDS = (
     "trade_required_tags", "dialogue_variants", "name", "title", "status",
-    "dialogue_idle", "dialogue_post_trade",
+    "dialogue_idle", "dialogue_post_trade", "glyph",
 )
 _STATIC_TREE_FIELDS = ("unlock_parameter", "description", "name")
 _STATIC_ITEM_FIELDS = ("name", "description", "tags")
+
+
+def _resize(data: Dict[str, Any], node: Dict[str, Any], ref: Dict[str, Any]) -> None:
+    """Adopts the preset's room size and layout, keeping recruited actors off the grid
+    and moving the player to the matching spot in the resized room."""
+    old_size = int(node["size"])
+    recruited = {aid for aid, a in node["actors"].items() if a.get("trade_completed") and a.get("companion_unlock")}
+    node["placements"] = [dict(p) for p in ref["placements"] if p["entity_id"] not in recruited]
+    node["size"] = ref["size"]
+    if data["current_node_id"] != node["id"] or old_size == ref["size"]:
+        return
+    scale = (ref["size"] - 1) / (old_size - 1)
+    row = round(int(data.get("player_row", 0)) * scale)
+    col = round(int(data.get("player_col", 0)) * scale)
+    last = ref["size"] - 1
+    on_entity = any(p["row"] == row and p["col"] == col for p in node["placements"])
+    if (row in (0, last) or col in (0, last)) and not on_entity:
+        row = col = ref["size"] // 2
+        on_entity = any(p["row"] == row and p["col"] == col for p in node["placements"])
+    data["player_row"], data["player_col"] = row, col
+    data["proximity_menu_active"] = on_entity
 
 
 def _upgrade(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -62,6 +83,7 @@ def _upgrade(data: Dict[str, Any]) -> Dict[str, Any]:
             node["edges"].setdefault(eid, dict(ref_edge))["label"] = ref_edge["label"]
         node["name"] = ref["name"]
         node["description"] = ref["description"]
+        _resize(data, node, ref)
 
     for entry in data.get("tree", []):
         ref = tree_defaults.get(entry["id"])

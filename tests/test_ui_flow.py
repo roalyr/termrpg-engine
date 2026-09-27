@@ -9,7 +9,7 @@ from core.reducers import ALL_ITEMS_BY_ID
 from core.text import danger, gain, speech
 from core.tick import process_tick
 from core.types import Exposure
-from tests.helpers import menu_line
+from tests.helpers import menu_line, on, find, walk_to
 from ui import style
 from ui.render import render_frame
 from ui.text_tools import visible_len
@@ -52,26 +52,26 @@ class TestZone5(unittest.TestCase):
         self.assertIn("You're breathing easier.", s1.message_buffer)
 
     def test_player_text_has_no_raw_ids(self):
-        s = at(new(1, 2), "stn_b_dock", 4, 4)._replace(character=new(1, 2).character._replace(inventory=()))
+        s = on(new(1, 2), "freight_crate")._replace(character=new(1, 2).character._replace(inventory=()))
         for cmd in ("f", "/inspect freight_crate", "/talk npc_tarek", "/barter npc_tarek", "/help"):
             out = dispatch_action(s, cmd)
             for m in out.message_buffer:
                 self.assertIsNone(RAW_ID.search(m), f"{cmd}: {m}")
 
     def test_sealed_container_says_what_it_needs(self):
-        s = at(new(1, 2), "stn_b_dock", 4, 4)._replace(character=new(1, 2).character._replace(inventory=()))
+        s = on(new(1, 2), "freight_crate")._replace(character=new(1, 2).character._replace(inventory=()))
         self.assertIn("Needs a pry-bar or a strong lifter.", menu_line(s))
 
     def test_room_description_only_on_first_visit(self):
-        s = at(new(), "stn_a_bunkroom", 0, 2)
+        s = on(new(), "hatch_berth")
         first = dispatch_action(s, "g")
         self.assertTrue(any(m.startswith("~ Open transfer bay") for m in first.message_buffer))
-        back = dispatch_action(at(first, "stn_a_berth", 0, 3), "g")
-        again = dispatch_action(at(back, "stn_a_bunkroom", 0, 2), "g")
+        back = dispatch_action(on(first, "hatch_bunks"), "g")
+        again = dispatch_action(on(back, "hatch_berth"), "g")
         self.assertFalse(any(m.startswith("~ Open transfer bay") for m in again.message_buffer))
 
     def test_arriving_somewhere_hostile_warns(self):
-        s = at(new(), "stn_a_bunkroom", 4, 2)
+        s = on(new(), "vent_duct")
         s = dispatch_action(s, "u")
         s = dispatch_action(s, "g")
         self.assertTrue(any(m.startswith("!! Thin air, cold") for m in s.message_buffer))
@@ -79,21 +79,21 @@ class TestZone5(unittest.TestCase):
 
 class TestMenu(unittest.TestCase):
     def test_menu_lists_only_real_choices(self):
-        line = menu_line(at(new(), "stn_a_bunkroom", 1, 3))
+        line = menu_line(on(new(), "personal_locker"))
         self.assertEqual(line, "Crew Locker: F search")
 
     def test_go_option_names_the_hazard(self):
-        s = at(new(3, 3), "stn_a_berth", 5, 3)
+        s = on(new(3, 3), "cargo_hoist")
         s = dispatch_action(s, "u")
         self.assertIn("G go to Sub-Deck (thin air, cold)", menu_line(s))
 
     def test_use_option_names_the_source(self):
-        self.assertIn("U open (Seam Scraper training)", menu_line(at(new(1, 1), "stn_a_bunkroom", 4, 2)))
-        s = at(new(2, 2), "stn_a_bunkroom", 4, 2)._replace(character=new(2, 2).character._replace(inventory=()))
+        self.assertIn("U open (Seam Scraper training)", menu_line(on(new(1, 1), "vent_duct")))
+        s = on(new(2, 2), "vent_duct")._replace(character=new(2, 2).character._replace(inventory=()))
         self.assertIn("Needs a pipe fitting or a spanner.", menu_line(s))
 
     def test_menu_is_not_in_the_message_buffer(self):
-        s = dispatch_action(at(new(), "stn_a_bunkroom", 1, 2), "d")
+        s = walk_to(new(), "personal_locker")
         self.assertTrue(s.proximity_menu_active)
         self.assertFalse(any("search" in m for m in s.message_buffer))
         self.assertIn("F search", plain(s))
@@ -128,20 +128,86 @@ class TestFrame(unittest.TestCase):
         short = plain(s, height=len(tall.split("\n")) - 1)
         self.assertNotIn("Water Tap", short)
 
-    def test_long_pack_is_capped(self):
-        s = new()
-        many = tuple(ALL_ITEMS_BY_ID[i] for i in ALL_ITEMS_BY_ID)
-        s = s._replace(character=s.character._replace(inventory=many))
-        self.assertIn("more: /pack", plain(s))
+    def test_pack_is_not_on_the_main_screen(self):
+        frame = plain(new())
+        self.assertNotIn("Pipe Fitting", frame)
+        self.assertIn("P pack", frame)
+        shown = dispatch_action(new(), "p")
+        self.assertIn("  Pipe Fitting", shown.message_buffer)
+
+    def test_status_shows_limit_only_when_not_ok(self):
+        self.assertNotIn("max 15", plain(new()))
+        strained = new()._replace(character=new().character._replace(exposure=Exposure(6.0, 0, 0)))
+        self.assertIn("Strained · max 15", plain(strained))
 
     def test_long_crew_line_is_shortened(self):
         from core.reducers import ALL_COMPANIONS_BY_ID
         s = new()._replace(current_node_id="stn_a_berth", companions=tuple(ALL_COMPANIONS_BY_ID.values()))
-        self.assertIn("Crew: Radek +2", plain(s))
+        self.assertIn("Team: Radek +2", plain(s))
 
     def test_header_shows_hazards_when_they_do_not_fit(self):
         s = new()._replace(current_node_id="luna_pad", player_row=3, player_col=3)
         self.assertIn("No air, freezing, high radiation", plain(s))
+
+
+class TestHotkeysAndGlyphs(unittest.TestCase):
+    def test_p_c_t_open_panels(self):
+        s = new()
+        self.assertEqual(dispatch_action(s, "p").message_buffer[0], "PACK:")
+        self.assertIn("SKILLS:", dispatch_action(s, "c").message_buffer)
+        self.assertEqual(dispatch_action(s, "t").message_buffer[0], "TEAM:")
+        self.assertEqual(dispatch_action(s, "/party").message_buffer[0], "TEAM:")
+
+    def test_t_talks_on_an_actor_and_opens_team_elsewhere(self):
+        on_kael = on(new(), "npc_kael")
+        self.assertTrue(any('Kael: "' in m for m in dispatch_action(on_kael, "t").message_buffer))
+        on_door = on(new(), "hatch_berth")
+        self.assertEqual(dispatch_action(on_door, "t").message_buffer[0], "TEAM:")
+        self.assertIn("T team", plain(on_door))
+        self.assertNotIn("T team", plain(on_kael))
+
+    def test_panel_keys_work_from_the_map(self):
+        s = dispatch_action(dispatch_action(new(), "m"), "p")
+        self.assertEqual(s.active_view, "compartment")
+        self.assertEqual(s.message_buffer[0], "PACK:")
+
+    def test_glyphs_follow_fixture_type(self):
+        s = new()
+        for node in s.nodes.values():
+            for f in node.fixtures.values():
+                with self.subTest(fixture=f.id):
+                    self.assertEqual(f.glyph, expected_glyph(s, node, f))
+            for a in node.actors.values():
+                self.assertEqual(a.glyph, a.name[0].upper())
+
+    def test_rooms_fit_the_size_cap(self):
+        sizes = {n.id: n.size for n in new().nodes.values()}
+        self.assertLessEqual(max(sizes.values()), 10)
+        self.assertEqual(sizes["luna_pad"], 7)  # surface dash distance is balanced for 7x7
+        for node in new().nodes.values():
+            for p in node.placements:
+                self.assertTrue(0 <= p.row < node.size and 0 <= p.col < node.size, p.entity_id)
+
+    def test_legend_names_exits_by_destination_and_wall(self):
+        frame = plain(on(new(), "npc_kael"))
+        self.assertIn("◆ Bunkroom N · Hab Ring W", frame)
+
+
+def expected_glyph(state, node, fixture):
+    """Glyph convention (GDD §6.4)."""
+    edge = node.edges.get(fixture.grants_edge) if fixture.grants_edge else None
+    if edge:
+        dest = state.nodes[edge.target_node_id]
+        name = fixture.name.lower()
+        if "vent" in name:
+            return "≡"
+        if "shuttle_ab" in (node.id, dest.id):
+            return "="
+        if dest.depth != node.depth or "lift" in name or "ladder" in name:
+            return "⎅"
+        return "◆"
+    return {"scavenge": "⊞", "log": "⌸", "override": "⌸", "refill": "⚲", "harvest": "⚲"}.get(
+        fixture.on_use_effect, "■")
 
 
 class TestCommandsAndSaves(unittest.TestCase):
@@ -152,6 +218,17 @@ class TestCommandsAndSaves(unittest.TestCase):
     def test_help_topics(self):
         self.assertIn("SURVIVAL", dispatch_action(new(), "/help survival").message_buffer[0])
         self.assertIn("HELP", dispatch_action(new(), "/help").message_buffer[0])
+
+    def test_older_save_gets_bigger_rooms(self):
+        data = state_to_dict(new())
+        data["schema_version"] = 3
+        bunk = data["nodes"]["stn_a_bunkroom"]
+        bunk["size"] = 5
+        data["player_row"], data["player_col"] = 1, 3
+        loaded = state_from_dict(data)
+        self.assertEqual(loaded.nodes["stn_a_bunkroom"].size, 6)
+        self.assertEqual((loaded.player_row, loaded.player_col), (1, 4))  # scaled onto the locker
+        self.assertTrue(loaded.proximity_menu_active)
 
     def test_older_save_gets_new_names(self):
         data = state_to_dict(new())

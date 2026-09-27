@@ -79,14 +79,14 @@ class TestPersistence(unittest.TestCase):
         # Restore from save
         loaded = load_state(self.save_dir)
         self.assertIsNotNone(loaded)
-        self.assertEqual(loaded.player_row, 1)
+        self.assertEqual(loaded.player_row, state.player_row - 1)
         self.assertEqual(loaded.cycle, 1)
         self.assertTrue(loaded.is_running)
 
         # Execute next action from restored state
-        s2 = reduce_move(loaded, "d")
-        self.assertEqual(s2.player_row, 1)
-        self.assertEqual(s2.player_col, 3)
+        s2 = reduce_move(loaded, "a")
+        self.assertEqual(s2.player_row, state.player_row - 1)
+        self.assertEqual(s2.player_col, state.player_col - 1)
         self.assertEqual(s2.cycle, 2)
 
     def test_incapacitation_reload_revival(self):

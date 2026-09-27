@@ -1,5 +1,5 @@
 import unittest
-from tests.helpers import menu_line
+from tests.helpers import menu_line, walk_to, find
 from pathlib import Path
 from core.presets import init_game_state, DEFAULT_DATA_DIR
 from core.reducers import (
@@ -159,7 +159,7 @@ class TestOpenWorldRPG(unittest.TestCase):
         res_radek = reduce_barter(st_radek, "npc_radek")
         self.assertTrue(any(it.id == "chit_transit" for it in res_radek.character.inventory))
         self.assertTrue(any(c.id == "comp_radek" for c in res_radek.companions))
-        self.assertTrue(any("Crew: Radek" in m for m in res_radek.message_buffer))
+        self.assertTrue(any("Team: Radek" in m for m in res_radek.message_buffer))
 
         # 2. Tarek (stn_b_dock): trades dice_steel (barter_token) -> wire_spool, recruits comp_tarek
         st_tarek = self.state._replace(current_node_id="stn_b_dock")
@@ -310,15 +310,11 @@ class TestOpenWorldRPG(unittest.TestCase):
 
     def test_proximity_menu_and_wasd_interactions(self):
         """Verify WASD movement lands on entity tiles, activates proximity menu, and executes actions."""
-        # stn_a_bunkroom: player starts at (2, 2).
-        # personal_locker is placed at (1, 3).
-        # Move up (w) to (1, 2), then right (d) to (1, 3).
-        st = self.state
-        st = dispatch_action(st, "w")
+        # Walk from the bunkroom center onto the personal locker with WASD
+        st = dispatch_action(self.state, "w")
         self.assertFalse(st.proximity_menu_active)
-        st = dispatch_action(st, "d")
-        # Player is now at (1, 3), on personal_locker!
-        self.assertEqual((st.player_row, st.player_col), (1, 3))
+        st = walk_to(st, "personal_locker")
+        self.assertEqual((st.player_row, st.player_col), find(st, "personal_locker")[1:])
         self.assertTrue(st.proximity_menu_active)
         self.assertTrue("Crew Locker" in menu_line(st))
         self.assertTrue("F search" in menu_line(st))

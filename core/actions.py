@@ -7,13 +7,15 @@ from core.reducers import (
     reduce_scavenge, reduce_read, reduce_barter, reduce_consume,
     reduce_inspect, reduce_talk, reduce_use, reduce_leave,
     reduce_wait, reduce_map, reduce_back, reduce_pack,
-    reduce_character, reduce_party, reduce_log, reduce_flavor,
+    reduce_character, reduce_team, reduce_log, reduce_flavor,
     reduce_help, reduce_look, reduce_color,
 )
 from core.menu import entity_under_cursor
 
 # Single keys that act on the entity under the cursor while the proximity menu is open.
 MENU_KEYS = ("i", "u", "g", "t", "f", "r", "b", "x")
+# Single keys that open a panel in Zone 5 from anywhere: pack, character, team.
+PANEL_KEYS = ("p", "c", "t")
 
 
 def tokenize_command(raw_input: str) -> Tuple[str, ...]:
@@ -45,6 +47,8 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
             return reduce_leave(state, args[0])
         if verb in ("quit", "q", "exit"):
             return _quit(state)
+        if verb in PANEL_KEYS:
+            return dispatch_action(reduce_back(state), verb)
         return state._replace(message_buffer=("Map open. Press B to go back.",))
 
     if state.proximity_menu_active and not args:
@@ -54,7 +58,7 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
             return reduce_interact_use(state)
         if verb in ("g", "go"):
             return reduce_interact_go(state)
-        if verb in ("t", "talk"):
+        if verb in ("t", "talk") and entity_under_cursor(state)[1]:
             return reduce_interact_talk(state)
         if verb in ("f", "search", "scavenge"):
             return reduce_interact_scavenge(state)
@@ -100,12 +104,12 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
         return reduce_map(state)
     if verb in ("back", "b"):
         return reduce_back(state)
-    if verb in ("pack", "inv", "inventory"):
+    if verb in ("pack", "inv", "inventory", "p"):
         return reduce_pack(state)
-    if verb in ("character", "char"):
+    if verb in ("character", "char", "c"):
         return reduce_character(state)
-    if verb == "party":
-        return reduce_party(state)
+    if verb in ("team", "party", "t"):
+        return reduce_team(state)
     if verb == "log":
         return reduce_log(state)
     if verb in ("flavor", "flavor_text"):

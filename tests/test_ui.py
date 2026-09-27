@@ -1,4 +1,5 @@
 import unittest
+from tests.helpers import find
 from pathlib import Path
 from core.presets import init_game_state, DEFAULT_DATA_DIR
 from ui.render import render_frame, build_grid
@@ -19,9 +20,9 @@ class TestUI(unittest.TestCase):
         # Check boundary walls exist
         self.assertTrue(grid[0].startswith(node.grid_wall))
         self.assertTrue(grid[-1].endswith(node.grid_wall))
-        # Check fixture placement: spigot at row 3, col 1
-        row3 = grid[3].split()
-        self.assertEqual(row3[1], "⌸")
+        # Check fixture placement
+        _, r, c = find(self.state, "spigot_01")
+        self.assertEqual(grid[r].split()[c], node.fixtures["spigot_01"].glyph)
 
     def test_render_frame_width_40_all_nodes(self):
         for node_id in self.state.nodes:
@@ -47,15 +48,14 @@ class TestUI(unittest.TestCase):
 
     def test_build_grid_with_player_cursor(self):
         node = self.state.nodes["stn_a_bunkroom"]
-        # Player at center (2, 2), which is floor
-        grid = build_grid(node, 2, 2)
-        row2 = grid[2].split()
-        self.assertEqual(row2[2], "@")
+        # Player at center, which is floor
+        mid = node.size // 2
+        self.assertEqual(build_grid(node, mid, mid)[mid].split()[mid], "@")
 
-        # Player co-located with spigot at (3, 1) -> entity glyph takes priority with inverted color
-        grid_co = build_grid(node, 3, 1)
-        row3 = grid_co[3].split()
-        self.assertEqual(row3[1], "\033[7m⌸\033[0m")
+        # Player co-located with the spigot -> entity glyph shown in inverted color
+        _, r, c = find(self.state, "spigot_01")
+        glyph = node.fixtures["spigot_01"].glyph
+        self.assertEqual(build_grid(node, r, c)[r].split()[c], f"\033[7m{glyph}\033[0m")
 
     def test_render_frame_proximity_menu(self):
         st = self.state._replace(
@@ -69,7 +69,10 @@ class TestUI(unittest.TestCase):
     def test_render_frame_key_hints(self):
         frame = render_frame(self.state, 40)
         self.assertIn("WASD move", frame)
-        self.assertIn("/ cmd", frame)
+        self.assertIn("/ command", frame)
+        self.assertIn("P pack", frame)
+        self.assertIn("C char", frame)
+        self.assertIn("T team", frame)
 
     def test_clear_terminal(self):
         old_stdout = sys.stdout

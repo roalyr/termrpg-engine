@@ -111,13 +111,13 @@ def reduce_move(state: GameState, direction: str) -> GameState:
 
     new_r = state.player_row + delta[0]
     new_c = state.player_col + delta[1]
-    blocked = state._replace(message_buffer=("You can't go that way.",), proximity_menu_active=False)
+    # Walls simply block: no message, no time, and the menu for the current tile stays usable.
     if not (0 <= new_r < node.size and 0 <= new_c < node.size):
-        return blocked
+        return state
     fixture, actor = get_entity_at(node, new_r, new_c)
     is_border = new_r in (0, node.size - 1) or new_c in (0, node.size - 1)
     if is_border and not fixture and not actor:
-        return blocked
+        return state
 
     moved = state._replace(player_row=new_r, player_col=new_c, message_buffer=())
     return _refresh_menu(process_tick(moved, ""))
@@ -359,7 +359,7 @@ def reduce_barter(state: GameState, actor_id: str = "", item_id: str = "") -> Ga
     if recruit and not any(c.id == recruit.id for c in companions):
         companions = companions + (recruit,)
         new_node = new_node._replace(placements=tuple(p for p in new_node.placements if p.entity_id != actor.id))
-        messages.insert(1, gain(f"Crew: {recruit.name} ({recruit.title}) joins you."))
+        messages.insert(1, gain(f"Team: {recruit.name} ({recruit.title}) joins you."))
 
     traded = _with_node(state, new_node)._replace(
         character=state.character._replace(inventory=inventory),
@@ -632,7 +632,7 @@ def reduce_pack(state: GameState) -> GameState:
     if not state.character.inventory:
         lines.append("  (empty)")
     for it, count in rules.stack_items(state.character.inventory):
-        cond = f" {it.integrity}/{it.max_integrity}" if it.max_integrity > 0 else ""
+        cond = f" {it.integrity}/{it.max_integrity}" if it.max_integrity > 1 else ""
         qty = f" x{count}" if count > 1 else ""
         lines.append(f"  {it.name}{qty}{cond}")
     return state._replace(message_buffer=tuple(lines))
@@ -653,9 +653,9 @@ def reduce_character(state: GameState) -> GameState:
     return state._replace(message_buffer=tuple(lines))
 
 
-def reduce_party(state: GameState) -> GameState:
-    """Displays active party companions."""
-    lines = ["CREW:"]
+def reduce_team(state: GameState) -> GameState:
+    """Displays the companions travelling with the player."""
+    lines = ["TEAM:"]
     if not state.companions:
         lines.append("  Nobody yet. Some people you trade with may join you.")
     for c in state.companions:
@@ -690,7 +690,8 @@ def reduce_color(state: GameState, toggle: str) -> GameState:
 HELP_TOPICS: Dict[str, Tuple[str, ...]] = {
     "": (
         "HELP. Walk onto things to use them.",
-        "  WASD move   M map   Q quit   / type a command",
+        "  WASD move  M map  P pack  C character  T team",
+        "  Q quit  / type a command",
         "  On a tile:  I inspect  U use  F search  R read",
         "              T talk  B trade  G go  X close",
         "More: /help survival  /help trade  /help commands",
@@ -705,7 +706,7 @@ HELP_TOPICS: Dict[str, Tuple[str, ...]] = {
     "trade": (
         "TRADE. T shows what someone wants; B makes the trade.",
         "  /barter <person> <item> offers a specific item.",
-        "  Some traders join your crew and lend their skills.",
+        "  Some traders join your team and lend their skills.",
     ),
     "commands": (
         "COMMANDS:",
@@ -713,7 +714,7 @@ HELP_TOPICS: Dict[str, Tuple[str, ...]] = {
         "  /search <thing>  /read <thing>  /talk <person>",
         "  /barter [person] [item]  /consume [item]",
         "  /leave <exit>  /wait  /map  /pack  /character",
-        "  /party  /log  /flavor on|off  /color on|off  /quit",
+        "  /team  /log  /flavor on|off  /color on|off  /quit",
     ),
 }
 

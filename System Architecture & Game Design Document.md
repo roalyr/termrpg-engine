@@ -203,7 +203,7 @@ class Node(NamedTuple):
     id: str                    # Unique node ID
     name: str                  # Display name
     cluster: str               # Cluster grouping ("station_alpha", "transit", etc.)
-    size: int                  # Grid dimension N (N x N, where N <= 8)
+    size: int                  # Grid dimension N (N x N, where N <= 10)
     depth: int                 # Vertical depth (0 = surface/concourse, 1+ = subterranean)
     environment: str           # Environment enum value
     base_vitals: NodeVitals    # Current sensor readings (changed by repairs)
@@ -224,7 +224,7 @@ class Companion(NamedTuple):
     name: str                  # Display name
     title: str                 # Role (e.g. "Cargo Rigger")
     status: str                # Current status
-    capability_tag: Optional[str]  # Contributed party tag ("two_person_lift", "signal_boost")
+    capability_tag: Optional[str]  # Contributed team tag ("two_person_lift", "signal_boost")
 
 class Exposure(NamedTuple):
     pressure_debt: float       # Decompression stress (0.0 = clean)
@@ -389,7 +389,7 @@ The menu is drawn from state by the renderer (`core/menu.py`); it is never store
 - `R read`: `log` fixtures. Needs no item.
 - `U <verb> (<source>)`: the verb follows the effect (`open`, `repair`, `harvest`, `bypass`, `refill <item>`, `smelt <item>`). The source names what will satisfy it: a skill (`Cargo Handler training`), a companion (`Radek`) or a carried item. Free sources always win so no item wears needlessly.
 - `G go to <exit> (<hazards>)`: open exits. Hazards come from the destination's vitals: `no air` / `thin air`, `freezing` / `cold`, `high radiation` / `radiation`.
-- `T talk`, `B trade`: actors; `B` only when they would accept something you carry.
+- `T talk`, `B trade`: actors; `B` only when they would accept something you carry. Off an actor, `T` opens the team panel.
 
 **Hint line.** When an expected action is unavailable the menu says why, in plain words: `Needs a pipe fitting or a spanner.`, `Sealed. Needs a pry-bar or a strong lifter.`, `Already searched.`
 
@@ -422,9 +422,9 @@ Arbitrary non-slash keystrokes are silently consumed by the input loop to preven
 | `/wait` | `/wait` | Pauses for 1 cycle; processes exposure and environmental decay. | Yes |
 | `/map` | `/map` | Opens dedicated ASCII cluster and node topology view. | No |
 | `/back` | `/back` | Exits map topology view and returns to compartment view. | No |
-| `/pack` | `/pack` | Displays inventory items (stacked), conditions, integrity, and tags. | No |
-| `/character`| `/character` | Displays qualitative progression tree status and unlock criteria. | No |
-| `/party` | `/party` | Lists recruited companions and their active party capability tags. | No |
+| `p` / `/pack` | *(single key)* / `/pack` | Shows the pack in Zone 5: stacked items and uses left. | No |
+| `c` / `/character`| *(single key)* / `/character` | Shows background, keepsake, earned skills and skills not yet earned. | No |
+| `t` / `/team` | *(single key)* / `/team` (`/party`) | Lists team members and what they count as. `t` talks instead when standing on an actor. | No |
 | `/log` | `/log` | Prints the 10 most recent chronological action entries (moves are not logged). | No |
 | `/flavor` | `/flavor [on\|off]` | Toggles room descriptions on first arrival. | No |
 | `/color` | `/color [on\|off]` | Toggles text styles and the orange accent. | No |
@@ -443,7 +443,7 @@ NPCs are persistent actors with distinct motivations, dialogue reactivity, and r
    - Handing over: credentials are shown and kept; items that wear lose 1 integrity (consumed at 0); anything else (materials, dice, scrip) changes hands entirely.
    - The actor's offered item is added, `trade_completed = True`, and dialogue updates.
 3. **Companion Recruitment:**
-   - Actors with `companion_unlock` join the party on trade and leave their room's grid. Companions contribute their capability tags (`two_person_lift`, `signal_boost`, `bio_filter`) to the whole party.
+   - Actors with `companion_unlock` join the team on trade and leave their room's grid. Companions contribute their capability tags (`two_person_lift`, `signal_boost`, `bio_filter`) to the whole party.
 
 ### 5.5 Expanded Fixture Functionality & Environmental Systems
 
@@ -466,7 +466,7 @@ Fixtures represent the physical affordances of each compartment:
 
 Every tick-advancing action triggers a 6-step pure state reduction:
 1. `cycle += 1`
-2. **Exposure Accumulation:** Calculate pressure, radiation, and temperature deltas. Apply reductions from progression capabilities and party.
+2. **Exposure Accumulation:** Calculate pressure, radiation, and temperature deltas. Apply reductions from progression capabilities and the team.
 3. **Exposure Recovery:** In Depth 0 Pressurized nodes, reduce all exposure tracks by 2.0 (minimum 0.0).
 4. **Exposure Consequences:** Evaluate Stressed, Critical and Incapacitated limits (+5.0 each with `trench_hardened`). Incapacitation triggers in-game revival.
 5. **Progression Tree Attunement:** Hostile depth ticks are counted, then unlock conditions are checked across all un-attuned nodes whose prerequisites are satisfied.
@@ -480,10 +480,10 @@ Hands-on actions at Critical exposure run the pipeline twice (§4.3).
 
 ### 6.1 Viewport Constraints
 
-* Minimum terminal size: 40 columns by 20 rows. When the terminal is shorter than the frame, the Zone 4 legend is dropped first.
+* Minimum terminal size: 40 columns by 20 rows. Walking into a wall does nothing at all: no message, no time, and the menu for the current tile stays usable. When the terminal is shorter than the frame, the Zone 4 legend is dropped first.
 * Rendered via ANSI terminal clearing and sequential string construction.
-* Zone 2 minimap displays up to 8×8 grid. Entity glyphs with player cursor overlap are rendered in inverted video (`\033[7m`).
-* Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`) and unicode symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ▲ ~ ◆ ■ * ·`) are permitted. Emojis are prohibited.
+* Zone 2 minimap displays up to a 10×10 grid. Entity glyphs with player cursor overlap are rendered in inverted video (`\033[7m`).
+* Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`) and unicode symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ◆ ■ ~ ·`) are permitted; entity glyphs follow §6.4. Emojis are prohibited.
 * **Styles and palette** (`ui/style.py`): bold, dim and inverse, plus one accent colour, orange (`\033[38;5;208m`). No other colours.
   - Orange is reserved for danger: warning messages, the `Strained` status, rising exposure tracks and the hazard words in Zone 1. `DANGER` status is orange inverse.
   - Bold: room name, gains (`+ Skill`, `+ Got`, `+ Crew`), the menu title, the Pack heading.
@@ -500,36 +500,40 @@ Rendered at 40 columns (styles removed):
 │ Berth 04                   Station A │
 │ 101.3 kPa · 18°C · 0.2 mSv  safe air │
 ├──────────────────────────────────────┤
-│┌───────────────┐│ Turn 42            │
-││ ░ ░ ░ ◆ ░ ░ ░ ││ OK · max 15        │
-││ ░ · ┼ · · · ░ ││ Air   0.0          │
-││ ░ · ▓ · K * ░ ││ Rad   0.0          │
-││ ≡ · · · · · = ││ Cold  0.0          │
-││ ░ · · · · ⊞ ░ ││ Pack               │
-││ ░ · · ⎅ · · ░ ││  Pipe Fitting      │
-││ ░ ░ ░ ░ ░ ░ ░ ││  Scrap Metal x2    │
-│└───────────────┘│                    │
+│┌───────────────────┐│ Turn 41        │
+││ ░ ░ ░ ░ ◆ ░ ░ ░ ░ ││ Strained /15   │
+││ ░ · · = · · · · ░ ││ Air   0.0      │
+││ ░ · · · · · · · ░ ││ Rad   0.0      │
+││ ░ · · ⊞ · K · ⌸ ░ ││ Cold  5.1 -2   │
+││ ◆ · · · · · · · = ││ Team: Radek    │
+││ ░ · · · · · · ⊞ ░ ││                │
+││ ░ · · · · · · · ░ ││                │
+││ ░ · · · ⎅ · · · ░ ││                │
+││ ░ ░ ░ ░ ░ ░ ░ ░ ░ ││                │
+│└───────────────────┘│                │
 ├──────────────────────────────────────┤
-│ ◆ Bunkroom Hatch   ▓ Freight Skid    │
-│ K Kael             ⊞ Scrap Bin       │
-│ ≡ Hab Ring Hatch                     │
-│ = Shuttle Gate (sealed)              │
-│ ⎅ Cargo Hoist (locked)               │
-│ * Docking Collar                     │
-│ ┼ Cargo Clamps (sealed)              │
+│ ◆ Bunkroom N · Hab Ring W            │
+│ ⊞ Freight Skid · Scrap Bin           │
+│ K Kael                               │
+│ = Shuttle E (sealed) · Stowaway to   │
+│   Shuttle (sealed)                   │
+│ ⎅ Sub-Deck (locked)                  │
+│ ⌸ Docking Collar                     │
 ├──────────────────────────────────────┤
 │ ! Cold 5.1 of 15. Head back soon.    │
 │ Kael: T talk · B trade               │
 ├──────────────────────────────────────┤
 │ I inspect  X close  WASD move        │
+│ M map  P pack  C char                │
 └──────────────────────────────────────┘
 ```
 
 * **Zone 1:** room name and area (`Station A`, `Station B`, `In transit`, `Moon`), then readings and, outside safe havens, hazard words in orange. If both do not fit, the hazard words win.
-* **Zone 3:** turn, status (`OK` / `Strained` / `DANGER`) with the blackout limit, the three exposure tracks `Air` (low pressure), `Rad`, `Cold` with their per-turn trend (`+3.5`, or `-2` while recovering), crew, then the pack. Duplicates are stacked (`x2`); condition shows only for items with more than one use. A long pack ends with `+N more: /pack`.
-* **Zone 4:** glyph legend with plain names and notable states (`sealed`, `locked`, `broken`, `used`). No IDs. Two columns when entries fit.
-* **Zone 5:** messages sorted by kind, then the proximity menu (§5.2). See §6.3.
-* **Zone 6:** key hints for the current mode.
+* **Zone 2:** the room grid, up to 10×10.
+* **Zone 3:** turn; status `OK`, or `Strained · max 15` / `DANGER · max 15` (the blackout limit shows only when it matters); the three exposure tracks `Air` (low pressure), `Rad`, `Cold` with their per-turn trend (`+3.5`, or `-2` while recovering); the team, shortened to `Radek +2` when long. The pack is not shown here; press `P`.
+* **Zone 4:** legend, one line per glyph (§6.4). Exits are named by destination plus the wall they sit on (`N`, `S`, `E`, `W`), so doors sharing a glyph stay distinguishable. Notable states follow in brackets (`sealed`, `locked`, `broken`, `used`). No IDs.
+* **Zone 5:** messages sorted by kind, then the proximity menu (§5.2). Panels opened with `P`, `C`, `T` appear here. See §6.3.
+* **Zone 6:** two lines of key hints. Normally `WASD move  / command  Q quit` and `M map  P pack  C char  T team`; with the menu open, `I inspect  X close  WASD move` and the panel keys (without `T` when standing on an actor).
 
 ### 6.3 Messages and Wording
 
@@ -546,6 +550,24 @@ Reducers tag each message with a kind (`core/text.py`); the renderer sorts and s
 * **Room descriptions** appear on the first visit only (and with `/look`).
 * **Plain names.** Player text never shows internal IDs or tags. Requirement tags read as nouns via `TAG_NAMES` (`seal_fitting` → "a pipe fitting", `heavy_lift` → "a strong lifter"). Fixture states read as `sealed`, `locked`, `broken`, `used`, `open`, `working`.
 * **Tone.** Short, direct sentences in second person. Units stay (kPa, °C, mSv), jargon goes.
+
+### 6.4 Map Glyphs
+
+One glyph per kind of thing, so the map reads at a glance; the legend names each one.
+
+| Glyph | Kind | Rule |
+| :--- | :--- | :--- |
+| `◆` | Door | Exit to a room on the same level |
+| `⎅` | Lift or ladder | Exit that changes level, or any lift/ladder |
+| `≡` | Vent | Crawlway exits |
+| `=` | Shuttle boarding | Exits to or from the shuttle |
+| `⊞` | Container | Anything searched with `F` |
+| `⌸` | Screen or panel | Readable logs and bypass panels |
+| `⚲` | Supply | Water taps and food vats |
+| `■` | Machine | Things to repair or smelt |
+| `A`–`Z` | Person | First letter of their name |
+
+Walls and floors keep their per-room glyphs. `tests/test_ui_flow.py` checks every fixture against these rules.
 
 ---
 
@@ -570,7 +592,7 @@ Character creation establishes personal background, starting equipment, and an a
 
 ---
 
-## 8. Progression, Capabilities & Party Mechanics
+## 8. Progression, Capabilities & Team Mechanics
 
 ### 8.1 Three-Branch Qualitative Progression Tree
 
@@ -626,7 +648,7 @@ QUALITATIVE PROGRESSION TREE:
 | `ore_sample` | Lunar Ore | material | `mineral` | 0 | Heavy basalt core extracted from deep mining veins. |
 | `scrip_shift` | Shift Scrip | record | `barter_token` | 1 | Ration-office scrip; found in the Bunkroom locker and the Fuel Spur cabinet. Buys Tarek's help. |
 
-### 8.3 Companion Roster & Party Synergy
+### 8.3 Companion Roster & Team Synergy
 
 Companions represent fellow crew members recruited across the stations. They travel with the player and contribute specialized capabilities:
 
@@ -834,7 +856,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "stn_a_bunkroom",
     "name": "Bunkroom",
     "cluster": "station_alpha",
-    "size": 5,
+    "size": 6,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -847,7 +869,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "fixtures": {
       "hatch_berth": {
         "id": "hatch_berth",
-        "glyph": "=",
+        "glyph": "◆",
         "name": "Berth Hatch",
         "state": "open",
         "grants_edge": "to_berth",
@@ -857,7 +879,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "spigot_01": {
         "id": "spigot_01",
-        "glyph": "⌸",
+        "glyph": "⚲",
         "name": "Water Tap",
         "state": "active",
         "grants_edge": null,
@@ -869,7 +891,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "personal_locker": {
         "id": "personal_locker",
-        "glyph": "⚲",
+        "glyph": "⊞",
         "name": "Crew Locker",
         "state": "active",
         "grants_edge": null,
@@ -904,17 +926,17 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       {
         "entity_id": "spigot_01",
-        "row": 3,
+        "row": 4,
         "col": 1
       },
       {
         "entity_id": "personal_locker",
         "row": 1,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "vent_duct",
-        "row": 4,
+        "row": 5,
         "col": 2
       }
     ],
@@ -940,7 +962,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "stn_a_berth",
     "name": "Berth 04",
     "cluster": "station_alpha",
-    "size": 7,
+    "size": 9,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -991,7 +1013,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "freight_skid": {
         "id": "freight_skid",
-        "glyph": "▓",
+        "glyph": "⊞",
         "name": "Freight Skid",
         "state": "active",
         "grants_edge": null,
@@ -1017,7 +1039,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "hab_hatch": {
         "id": "hab_hatch",
-        "glyph": "≡",
+        "glyph": "◆",
         "name": "Hab Ring Hatch",
         "state": "open",
         "grants_edge": "to_hab",
@@ -1027,7 +1049,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "umbilical_collar": {
         "id": "umbilical_collar",
-        "glyph": "*",
+        "glyph": "⌸",
         "name": "Docking Collar",
         "state": "active",
         "required_tags": [
@@ -1041,7 +1063,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "freight_clamps": {
         "id": "freight_clamps",
-        "glyph": "┼",
+        "glyph": "=",
         "name": "Cargo Clamps",
         "state": "sealed",
         "required_tags": [
@@ -1082,47 +1104,47 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       {
         "entity_id": "hatch_bunks",
         "row": 0,
-        "col": 3
-      },
-      {
-        "entity_id": "freight_skid",
-        "row": 2,
-        "col": 2
-      },
-      {
-        "entity_id": "npc_kael",
-        "row": 2,
         "col": 4
       },
       {
-        "entity_id": "salvage_bin",
-        "row": 4,
+        "entity_id": "freight_skid",
+        "row": 3,
+        "col": 3
+      },
+      {
+        "entity_id": "npc_kael",
+        "row": 3,
         "col": 5
       },
       {
+        "entity_id": "salvage_bin",
+        "row": 5,
+        "col": 7
+      },
+      {
         "entity_id": "hab_hatch",
-        "row": 3,
+        "row": 4,
         "col": 0
       },
       {
         "entity_id": "shuttle_gate",
-        "row": 3,
-        "col": 6
+        "row": 4,
+        "col": 8
       },
       {
         "entity_id": "cargo_hoist",
-        "row": 5,
-        "col": 3
+        "row": 7,
+        "col": 4
       },
       {
         "entity_id": "umbilical_collar",
-        "row": 2,
-        "col": 5
+        "row": 3,
+        "col": 7
       },
       {
         "entity_id": "freight_clamps",
         "row": 1,
-        "col": 2
+        "col": 3
       }
     ],
     "edges": {
@@ -1157,7 +1179,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       "to_shuttle_skid": {
         "id": "to_shuttle_skid",
         "target_node_id": "shuttle_ab",
-        "label": "Shuttle (stowaway)",
+        "label": "Stowaway to Shuttle",
         "gated_by_fixture": "freight_clamps",
         "requires_capability": null
       }
@@ -1168,7 +1190,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "stn_a_sub",
     "name": "Sub-Deck",
     "cluster": "station_alpha",
-    "size": 6,
+    "size": 8,
     "depth": 1,
     "environment": "depressurizing",
     "base_vitals": {
@@ -1258,27 +1280,27 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       {
         "entity_id": "hoist_up",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "vent_to_bunk",
-        "row": 5,
+        "row": 7,
         "col": 1
       },
       {
         "entity_id": "jammed_valve",
-        "row": 3,
+        "row": 4,
         "col": 1
       },
       {
         "entity_id": "tool_rack",
-        "row": 2,
-        "col": 4
+        "row": 3,
+        "col": 6
       },
       {
         "entity_id": "npc_radek",
-        "row": 3,
-        "col": 4
+        "row": 4,
+        "col": 6
       }
     ],
     "edges": {
@@ -1303,7 +1325,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "stn_a_hab",
     "name": "Hab Ring",
     "cluster": "station_alpha",
-    "size": 6,
+    "size": 8,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -1316,7 +1338,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "fixtures": {
       "hatch_to_berth": {
         "id": "hatch_to_berth",
-        "glyph": "=",
+        "glyph": "◆",
         "name": "Berth Hatch",
         "state": "open",
         "grants_edge": "to_berth",
@@ -1326,7 +1348,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "notice_board": {
         "id": "notice_board",
-        "glyph": "≡",
+        "glyph": "⌸",
         "name": "Notice Board",
         "state": "active",
         "grants_edge": null,
@@ -1338,7 +1360,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "algae_basin": {
         "id": "algae_basin",
-        "glyph": "⌸",
+        "glyph": "⚲",
         "name": "Algae Vat",
         "state": "active",
         "grants_edge": null,
@@ -1375,23 +1397,23 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "placements": [
       {
         "entity_id": "hatch_to_berth",
-        "row": 5,
-        "col": 3
+        "row": 7,
+        "col": 4
       },
       {
         "entity_id": "notice_board",
-        "row": 2,
+        "row": 3,
         "col": 1
       },
       {
         "entity_id": "algae_basin",
-        "row": 2,
-        "col": 4
+        "row": 3,
+        "col": 6
       },
       {
         "entity_id": "npc_mira",
-        "row": 3,
-        "col": 4
+        "row": 4,
+        "col": 6
       }
     ],
     "edges": {
@@ -1409,7 +1431,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "shuttle_ab",
     "name": "Shuttle",
     "cluster": "transit",
-    "size": 5,
+    "size": 6,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -1422,7 +1444,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "fixtures": {
       "gate_alpha": {
         "id": "gate_alpha",
-        "glyph": "◆",
+        "glyph": "=",
         "name": "Door to Station A",
         "state": "open",
         "grants_edge": "to_stn_a",
@@ -1442,7 +1464,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "gate_luna": {
         "id": "gate_luna",
-        "glyph": "▲",
+        "glyph": "=",
         "name": "Door to Moon",
         "state": "open",
         "grants_edge": "to_luna",
@@ -1452,7 +1474,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "flight_console": {
         "id": "flight_console",
-        "glyph": "≡",
+        "glyph": "⌸",
         "name": "Flight Screen",
         "state": "active",
         "grants_edge": null,
@@ -1473,11 +1495,11 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       {
         "entity_id": "gate_beta",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "gate_luna",
-        "row": 4,
+        "row": 5,
         "col": 2
       },
       {
@@ -1515,7 +1537,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "stn_b_dock",
     "name": "Dock Ring",
     "cluster": "station_beta",
-    "size": 6,
+    "size": 8,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -1528,7 +1550,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "fixtures": {
       "shuttle_return": {
         "id": "shuttle_return",
-        "glyph": "◆",
+        "glyph": "=",
         "name": "Shuttle Door",
         "state": "open",
         "grants_edge": "to_shuttle",
@@ -1538,7 +1560,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "hatch_array": {
         "id": "hatch_array",
-        "glyph": "=",
+        "glyph": "◆",
         "name": "Comms Hub Hatch",
         "state": "open",
         "grants_edge": "to_array",
@@ -1548,7 +1570,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "hatch_fuel": {
         "id": "hatch_fuel",
-        "glyph": "▲",
+        "glyph": "◆",
         "name": "Fuel Spur Hatch",
         "state": "open",
         "grants_edge": "to_fuel",
@@ -1558,7 +1580,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "freight_crate": {
         "id": "freight_crate",
-        "glyph": "▓",
+        "glyph": "⊞",
         "name": "Cargo Crate",
         "state": "sealed",
         "grants_edge": null,
@@ -1600,27 +1622,27 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       {
         "entity_id": "shuttle_return",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "hatch_array",
-        "row": 3,
+        "row": 4,
         "col": 0
       },
       {
         "entity_id": "hatch_fuel",
-        "row": 3,
-        "col": 5
+        "row": 4,
+        "col": 7
       },
       {
         "entity_id": "freight_crate",
-        "row": 4,
-        "col": 4
+        "row": 6,
+        "col": 6
       },
       {
         "entity_id": "npc_tarek",
-        "row": 2,
-        "col": 2
+        "row": 3,
+        "col": 3
       }
     ],
     "edges": {
@@ -1652,7 +1674,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "stn_b_array",
     "name": "Comms Hub",
     "cluster": "station_beta",
-    "size": 5,
+    "size": 6,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -1675,7 +1697,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "comms_rack": {
         "id": "comms_rack",
-        "glyph": "≡",
+        "glyph": "⌸",
         "name": "Radio Rack",
         "state": "active",
         "grants_edge": null,
@@ -1687,7 +1709,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "crypto_terminal": {
         "id": "crypto_terminal",
-        "glyph": "⊞",
+        "glyph": "⌸",
         "name": "Relay Terminal",
         "state": "active",
         "grants_edge": null,
@@ -1703,7 +1725,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "placements": [
       {
         "entity_id": "hatch_dock",
-        "row": 4,
+        "row": 5,
         "col": 2
       },
       {
@@ -1714,7 +1736,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       {
         "entity_id": "crypto_terminal",
         "row": 2,
-        "col": 3
+        "col": 4
       }
     ],
     "edges": {
@@ -1732,7 +1754,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "stn_b_fuel",
     "name": "Fuel Spur",
     "cluster": "station_beta",
-    "size": 5,
+    "size": 6,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -1783,7 +1805,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "actors": {
       "npc_kovac": {
         "id": "npc_kovac",
-        "glyph": "V",
+        "glyph": "K",
         "name": "Kovac",
         "title": "Refinery Tech",
         "status": "Checking pressure gauges on propellant lines",
@@ -1806,7 +1828,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "placements": [
       {
         "entity_id": "hatch_dock_fuel",
-        "row": 4,
+        "row": 5,
         "col": 2
       },
       {
@@ -1822,7 +1844,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       {
         "entity_id": "npc_kovac",
         "row": 2,
-        "col": 3
+        "col": 4
       }
     ],
     "edges": {
@@ -1853,7 +1875,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "fixtures": {
       "lander_hatch": {
         "id": "lander_hatch",
-        "glyph": "▲",
+        "glyph": "=",
         "name": "Shuttle Hatch",
         "state": "open",
         "grants_edge": "to_shuttle",
@@ -1863,7 +1885,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "dome_airlock": {
         "id": "dome_airlock",
-        "glyph": "=",
+        "glyph": "◆",
         "name": "Dome Airlock",
         "state": "open",
         "grants_edge": "to_dome",
@@ -1873,7 +1895,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "regolith_sled": {
         "id": "regolith_sled",
-        "glyph": "▓",
+        "glyph": "⊞",
         "name": "Old Survey Sled",
         "state": "active",
         "grants_edge": null,
@@ -1925,7 +1947,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "luna_dome",
     "name": "Habitat Dome",
     "cluster": "lunar_base",
-    "size": 7,
+    "size": 9,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -1938,7 +1960,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "fixtures": {
       "airlock_pad": {
         "id": "airlock_pad",
-        "glyph": "=",
+        "glyph": "◆",
         "name": "Pad Airlock",
         "state": "open",
         "grants_edge": "to_pad",
@@ -1958,7 +1980,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "hatch_crater": {
         "id": "hatch_crater",
-        "glyph": "▲",
+        "glyph": "◆",
         "name": "Crater Hatch",
         "state": "open",
         "grants_edge": "to_crater",
@@ -1968,7 +1990,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "seismic_station": {
         "id": "seismic_station",
-        "glyph": "≡",
+        "glyph": "⌸",
         "name": "Quake Monitor",
         "state": "active",
         "grants_edge": null,
@@ -1982,7 +2004,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "actors": {
       "npc_chen": {
         "id": "npc_chen",
-        "glyph": "C",
+        "glyph": "O",
         "name": "Olena Chen",
         "title": "Field Geologist",
         "status": "Analyzing core samples from deep mine",
@@ -2006,27 +2028,27 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       {
         "entity_id": "airlock_pad",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "hatch_smelter",
-        "row": 3,
+        "row": 4,
         "col": 0
       },
       {
         "entity_id": "hatch_crater",
-        "row": 3,
-        "col": 6
+        "row": 4,
+        "col": 8
       },
       {
         "entity_id": "seismic_station",
-        "row": 2,
-        "col": 4
+        "row": 3,
+        "col": 5
       },
       {
         "entity_id": "npc_chen",
-        "row": 2,
-        "col": 2
+        "row": 3,
+        "col": 3
       }
     ],
     "edges": {
@@ -2058,7 +2080,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "luna_smelter",
     "name": "Smelter",
     "cluster": "lunar_base",
-    "size": 6,
+    "size": 8,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -2130,22 +2152,22 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       {
         "entity_id": "hatch_dome_smelter",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "mine_shaft",
-        "row": 5,
-        "col": 3
+        "row": 7,
+        "col": 4
       },
       {
         "entity_id": "smelting_crucible",
-        "row": 3,
+        "row": 4,
         "col": 1
       },
       {
         "entity_id": "npc_vance",
-        "row": 3,
-        "col": 4
+        "row": 4,
+        "col": 6
       }
     ],
     "edges": {
@@ -2255,7 +2277,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "luna_mine",
     "name": "Deep Mine",
     "cluster": "lunar_base",
-    "size": 5,
+    "size": 6,
     "depth": 1,
     "environment": "depressurizing",
     "base_vitals": {
@@ -2278,7 +2300,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "ore_face": {
         "id": "ore_face",
-        "glyph": "■",
+        "glyph": "⊞",
         "name": "Ore Face",
         "state": "active",
         "grants_edge": null,
@@ -2299,7 +2321,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       {
         "entity_id": "ore_face",
-        "row": 3,
+        "row": 4,
         "col": 2
       }
     ],
@@ -2318,7 +2340,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
     "id": "luna_tube",
     "name": "Lava Tube",
     "cluster": "lunar_base",
-    "size": 6,
+    "size": 8,
     "depth": 1,
     "environment": "low_temp",
     "base_vitals": {
@@ -2354,7 +2376,7 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       },
       "hull_breach": {
         "id": "hull_breach",
-        "glyph": "~",
+        "glyph": "■",
         "name": "Cracked Wall",
         "state": "disabled",
         "required_tags": [
@@ -2375,17 +2397,17 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       {
         "entity_id": "ascent_ladder",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "subsurface_cache",
-        "row": 3,
-        "col": 2
+        "row": 4,
+        "col": 3
       },
       {
         "entity_id": "hull_breach",
-        "row": 4,
-        "col": 4
+        "row": 6,
+        "col": 6
       }
     ],
     "edges": {

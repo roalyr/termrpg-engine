@@ -1,5 +1,5 @@
 import unittest
-from tests.helpers import menu_line
+from tests.helpers import menu_line, walk_to, find
 from pathlib import Path
 from core.presets import init_game_state, DEFAULT_DATA_DIR
 from core.actions import dispatch_action
@@ -27,10 +27,12 @@ class TestE2EWalkthrough(unittest.TestCase):
         pack_state = dispatch_action(state, "/pack")
         self.assertTrue(any("PACK" in m for m in pack_state.message_buffer))
 
-        # Leaving walks to the hatch first: 2 tiles from the bunkroom center costs 2 cycles
+        # Leaving walks to the hatch first: one cycle per tile from the bunkroom center
+        _, hr, hc = find(state, "hatch_berth")
+        walk = abs(hr - state.player_row) + abs(hc - state.player_col)
         state = dispatch_action(state, "leave to_berth")
         self.assertEqual(state.current_node_id, "stn_a_berth")
-        self.assertEqual(state.cycle, 2)
+        self.assertEqual(state.cycle, walk)
 
         # 2. Berth 04 & Trade with Kael
         state = dispatch_action(state, "inspect npc_kael")
@@ -43,7 +45,7 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertTrue(any("Got: Work Pass, for your Pipe Fitting" in m for m in state.message_buffer))
         self.assertTrue(any(i.id == "pass_work" for i in state.character.inventory))
         self.assertFalse(any(i.id == "fitting_copper" for i in state.character.inventory))
-        self.assertEqual(state.cycle, 4)
+        self.assertEqual(state.cycle, walk + 2)
 
         # Unlock cargo hoist to subdeck
         state = dispatch_action(state, "use pass_work cargo_hoist")
@@ -165,75 +167,49 @@ class TestE2EWalkthrough(unittest.TestCase):
 
     def test_wasd_and_proximity_menu_e2e_walkthrough(self):
         state = self.state
+        bunk = state.nodes["stn_a_bunkroom"]
 
-        # Bunkroom: start at center (2, 2)
-        self.assertEqual(state.player_row, 2)
-        self.assertEqual(state.player_col, 2)
+        # Bunkroom: start at the center
+        self.assertEqual((state.player_row, state.player_col), (bunk.size // 2, bunk.size // 2))
 
-        # Move to spigot_01 at (3, 1)
-        state = dispatch_action(state, "s")  # (3, 2)
-        state = dispatch_action(state, "a")  # (3, 1) - spigot_01
-        self.assertEqual(state.player_row, 3)
-        self.assertEqual(state.player_col, 1)
+        # Walk to the water tap with WASD
+        state = walk_to(state, "spigot_01")
+        self.assertEqual(find(state, "spigot_01")[1:], (state.player_row, state.player_col))
         self.assertTrue(state.proximity_menu_active)
         self.assertTrue("Water Tap" in menu_line(state))
 
-        # Inspect spigot using single-key 'i'
+        # Inspect using single-key 'i'
         state = dispatch_action(state, "i")
         self.assertTrue(any("Water Tap" in m for m in state.message_buffer))
 
-        # Move to hatch_berth at (0, 2)
-        state = dispatch_action(state, "w")  # (2, 1)
-        state = dispatch_action(state, "w")  # (1, 1)
-        state = dispatch_action(state, "w")  # blocked by wall at (0, 1), stays (1, 1)
-        state = dispatch_action(state, "d")  # (1, 2)
-        state = dispatch_action(state, "w")  # (0, 2) - hatch_berth!
-        self.assertEqual(state.player_row, 0)
-        self.assertEqual(state.player_col, 2)
-        self.assertTrue(state.proximity_menu_active)
-        self.assertTrue("G go to Berth 04" in menu_line(state))
+        # Walking into a wall does nothing: no time, no message
+        before = state._replace(player_row=1, player_col=1, message_buffer=())
+        blocked = dispatch_action(before, "w")
+        self.assertEqual(blocked, before)
 
-        # Step through hatch using single-key 'g'
+        # Walk to the hatch and step through with 'g'
+        state = walk_to(state, "hatch_berth")
+        self.assertTrue("G go to Berth 04" in menu_line(state))
         state = dispatch_action(state, "g")
         self.assertEqual(state.current_node_id, "stn_a_berth")
-        self.assertEqual(state.player_row, 3)
-        self.assertEqual(state.player_col, 3)
+        berth = state.nodes["stn_a_berth"]
+        self.assertEqual((state.player_row, state.player_col), (berth.size // 2, berth.size // 2))
 
-        # In Berth 04, move to Kael at (2, 4)
-        state = dispatch_action(state, "w")  # (2, 3)
-        state = dispatch_action(state, "d")  # (2, 4) - npc_kael!
-        self.assertEqual(state.player_row, 2)
-        self.assertEqual(state.player_col, 4)
-        self.assertTrue(state.proximity_menu_active)
+        # Walk to Kael: 't' talks and offers; 'b' barters
+        state = walk_to(state, "npc_kael")
         self.assertTrue("Kael" in menu_line(state))
         self.assertTrue("T talk" in menu_line(state))
-
-        # 't' talks and offers; 'b' barters
         state = dispatch_action(state, "t")
         self.assertFalse(any(i.id == "pass_work" for i in state.character.inventory))
         self.assertTrue("B trade" in menu_line(state))
         state = dispatch_action(state, "b")
         self.assertTrue(any(i.id == "pass_work" for i in state.character.inventory))
 
-        # Move to cargo hoist at (5, 3)
-        state = dispatch_action(state, "s")  # (3, 4)
-        state = dispatch_action(state, "s")  # (4, 4)
-        state = dispatch_action(state, "s")  # (5, 4)
-        state = dispatch_action(state, "a")  # (5, 3) - cargo_hoist!
-        self.assertEqual(state.player_row, 5)
-        self.assertEqual(state.player_col, 3)
-        self.assertTrue(state.proximity_menu_active)
-        self.assertTrue("Cargo Hoist" in menu_line(state))
+        # Walk to the cargo hoist and open it with 'u'; [G] is offered immediately
+        state = walk_to(state, "cargo_hoist")
         self.assertTrue("U open (Work Pass)" in menu_line(state))
-
-        # Unlock hoist using single-key 'u'; the refreshed menu offers [G] immediately
         state = dispatch_action(state, "u")
         self.assertEqual(state.nodes["stn_a_berth"].fixtures["cargo_hoist"].state, FixtureState.OPEN.value)
-        self.assertTrue("G go to Sub-Deck" in menu_line(state))
-
-        # Move off and step back onto open cargo hoist to see [G] Go option
-        state = dispatch_action(state, "w")  # (4, 3)
-        state = dispatch_action(state, "s")  # (5, 3)
         self.assertTrue("G go to Sub-Deck" in menu_line(state))
 
         # Descend using 'g'

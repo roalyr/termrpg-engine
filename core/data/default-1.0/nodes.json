@@ -3,7 +3,7 @@
     "id": "stn_a_bunkroom",
     "name": "Bunkroom",
     "cluster": "station_alpha",
-    "size": 5,
+    "size": 6,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -16,7 +16,7 @@
     "fixtures": {
       "hatch_berth": {
         "id": "hatch_berth",
-        "glyph": "=",
+        "glyph": "◆",
         "name": "Berth Hatch",
         "state": "open",
         "grants_edge": "to_berth",
@@ -26,7 +26,7 @@
       },
       "spigot_01": {
         "id": "spigot_01",
-        "glyph": "⌸",
+        "glyph": "⚲",
         "name": "Water Tap",
         "state": "active",
         "grants_edge": null,
@@ -38,7 +38,7 @@
       },
       "personal_locker": {
         "id": "personal_locker",
-        "glyph": "⚲",
+        "glyph": "⊞",
         "name": "Crew Locker",
         "state": "active",
         "grants_edge": null,
@@ -73,17 +73,17 @@
       },
       {
         "entity_id": "spigot_01",
-        "row": 3,
+        "row": 4,
         "col": 1
       },
       {
         "entity_id": "personal_locker",
         "row": 1,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "vent_duct",
-        "row": 4,
+        "row": 5,
         "col": 2
       }
     ],
@@ -109,7 +109,7 @@
     "id": "stn_a_berth",
     "name": "Berth 04",
     "cluster": "station_alpha",
-    "size": 7,
+    "size": 9,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -160,7 +160,7 @@
       },
       "freight_skid": {
         "id": "freight_skid",
-        "glyph": "▓",
+        "glyph": "⊞",
         "name": "Freight Skid",
         "state": "active",
         "grants_edge": null,
@@ -186,7 +186,7 @@
       },
       "hab_hatch": {
         "id": "hab_hatch",
-        "glyph": "≡",
+        "glyph": "◆",
         "name": "Hab Ring Hatch",
         "state": "open",
         "grants_edge": "to_hab",
@@ -196,7 +196,7 @@
       },
       "umbilical_collar": {
         "id": "umbilical_collar",
-        "glyph": "*",
+        "glyph": "⌸",
         "name": "Docking Collar",
         "state": "active",
         "required_tags": [
@@ -210,7 +210,7 @@
       },
       "freight_clamps": {
         "id": "freight_clamps",
-        "glyph": "┼",
+        "glyph": "=",
         "name": "Cargo Clamps",
         "state": "sealed",
         "required_tags": [
@@ -251,47 +251,47 @@
       {
         "entity_id": "hatch_bunks",
         "row": 0,
-        "col": 3
-      },
-      {
-        "entity_id": "freight_skid",
-        "row": 2,
-        "col": 2
-      },
-      {
-        "entity_id": "npc_kael",
-        "row": 2,
         "col": 4
       },
       {
-        "entity_id": "salvage_bin",
-        "row": 4,
+        "entity_id": "freight_skid",
+        "row": 3,
+        "col": 3
+      },
+      {
+        "entity_id": "npc_kael",
+        "row": 3,
         "col": 5
       },
       {
+        "entity_id": "salvage_bin",
+        "row": 5,
+        "col": 7
+      },
+      {
         "entity_id": "hab_hatch",
-        "row": 3,
+        "row": 4,
         "col": 0
       },
       {
         "entity_id": "shuttle_gate",
-        "row": 3,
-        "col": 6
+        "row": 4,
+        "col": 8
       },
       {
         "entity_id": "cargo_hoist",
-        "row": 5,
-        "col": 3
+        "row": 7,
+        "col": 4
       },
       {
         "entity_id": "umbilical_collar",
-        "row": 2,
-        "col": 5
+        "row": 3,
+        "col": 7
       },
       {
         "entity_id": "freight_clamps",
         "row": 1,
-        "col": 2
+        "col": 3
       }
     ],
     "edges": {
@@ -326,7 +326,7 @@
       "to_shuttle_skid": {
         "id": "to_shuttle_skid",
         "target_node_id": "shuttle_ab",
-        "label": "Shuttle (stowaway)",
+        "label": "Stowaway to Shuttle",
         "gated_by_fixture": "freight_clamps",
         "requires_capability": null
       }
@@ -337,7 +337,7 @@
     "id": "stn_a_sub",
     "name": "Sub-Deck",
     "cluster": "station_alpha",
-    "size": 6,
+    "size": 8,
     "depth": 1,
     "environment": "depressurizing",
     "base_vitals": {
@@ -427,27 +427,27 @@
       {
         "entity_id": "hoist_up",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "vent_to_bunk",
-        "row": 5,
+        "row": 7,
         "col": 1
       },
       {
         "entity_id": "jammed_valve",
-        "row": 3,
+        "row": 4,
         "col": 1
       },
       {
         "entity_id": "tool_rack",
-        "row": 2,
-        "col": 4
+        "row": 3,
+        "col": 6
       },
       {
         "entity_id": "npc_radek",
-        "row": 3,
-        "col": 4
+        "row": 4,
+        "col": 6
       }
     ],
     "edges": {
@@ -472,7 +472,7 @@
     "id": "stn_a_hab",
     "name": "Hab Ring",
     "cluster": "station_alpha",
-    "size": 6,
+    "size": 8,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -485,7 +485,7 @@
     "fixtures": {
       "hatch_to_berth": {
         "id": "hatch_to_berth",
-        "glyph": "=",
+        "glyph": "◆",
         "name": "Berth Hatch",
         "state": "open",
         "grants_edge": "to_berth",
@@ -495,7 +495,7 @@
       },
       "notice_board": {
         "id": "notice_board",
-        "glyph": "≡",
+        "glyph": "⌸",
         "name": "Notice Board",
         "state": "active",
         "grants_edge": null,
@@ -507,7 +507,7 @@
       },
       "algae_basin": {
         "id": "algae_basin",
-        "glyph": "⌸",
+        "glyph": "⚲",
         "name": "Algae Vat",
         "state": "active",
         "grants_edge": null,
@@ -544,23 +544,23 @@
     "placements": [
       {
         "entity_id": "hatch_to_berth",
-        "row": 5,
-        "col": 3
+        "row": 7,
+        "col": 4
       },
       {
         "entity_id": "notice_board",
-        "row": 2,
+        "row": 3,
         "col": 1
       },
       {
         "entity_id": "algae_basin",
-        "row": 2,
-        "col": 4
+        "row": 3,
+        "col": 6
       },
       {
         "entity_id": "npc_mira",
-        "row": 3,
-        "col": 4
+        "row": 4,
+        "col": 6
       }
     ],
     "edges": {
@@ -578,7 +578,7 @@
     "id": "shuttle_ab",
     "name": "Shuttle",
     "cluster": "transit",
-    "size": 5,
+    "size": 6,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -591,7 +591,7 @@
     "fixtures": {
       "gate_alpha": {
         "id": "gate_alpha",
-        "glyph": "◆",
+        "glyph": "=",
         "name": "Door to Station A",
         "state": "open",
         "grants_edge": "to_stn_a",
@@ -611,7 +611,7 @@
       },
       "gate_luna": {
         "id": "gate_luna",
-        "glyph": "▲",
+        "glyph": "=",
         "name": "Door to Moon",
         "state": "open",
         "grants_edge": "to_luna",
@@ -621,7 +621,7 @@
       },
       "flight_console": {
         "id": "flight_console",
-        "glyph": "≡",
+        "glyph": "⌸",
         "name": "Flight Screen",
         "state": "active",
         "grants_edge": null,
@@ -642,11 +642,11 @@
       {
         "entity_id": "gate_beta",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "gate_luna",
-        "row": 4,
+        "row": 5,
         "col": 2
       },
       {
@@ -684,7 +684,7 @@
     "id": "stn_b_dock",
     "name": "Dock Ring",
     "cluster": "station_beta",
-    "size": 6,
+    "size": 8,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -697,7 +697,7 @@
     "fixtures": {
       "shuttle_return": {
         "id": "shuttle_return",
-        "glyph": "◆",
+        "glyph": "=",
         "name": "Shuttle Door",
         "state": "open",
         "grants_edge": "to_shuttle",
@@ -707,7 +707,7 @@
       },
       "hatch_array": {
         "id": "hatch_array",
-        "glyph": "=",
+        "glyph": "◆",
         "name": "Comms Hub Hatch",
         "state": "open",
         "grants_edge": "to_array",
@@ -717,7 +717,7 @@
       },
       "hatch_fuel": {
         "id": "hatch_fuel",
-        "glyph": "▲",
+        "glyph": "◆",
         "name": "Fuel Spur Hatch",
         "state": "open",
         "grants_edge": "to_fuel",
@@ -727,7 +727,7 @@
       },
       "freight_crate": {
         "id": "freight_crate",
-        "glyph": "▓",
+        "glyph": "⊞",
         "name": "Cargo Crate",
         "state": "sealed",
         "grants_edge": null,
@@ -769,27 +769,27 @@
       {
         "entity_id": "shuttle_return",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "hatch_array",
-        "row": 3,
+        "row": 4,
         "col": 0
       },
       {
         "entity_id": "hatch_fuel",
-        "row": 3,
-        "col": 5
+        "row": 4,
+        "col": 7
       },
       {
         "entity_id": "freight_crate",
-        "row": 4,
-        "col": 4
+        "row": 6,
+        "col": 6
       },
       {
         "entity_id": "npc_tarek",
-        "row": 2,
-        "col": 2
+        "row": 3,
+        "col": 3
       }
     ],
     "edges": {
@@ -821,7 +821,7 @@
     "id": "stn_b_array",
     "name": "Comms Hub",
     "cluster": "station_beta",
-    "size": 5,
+    "size": 6,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -844,7 +844,7 @@
       },
       "comms_rack": {
         "id": "comms_rack",
-        "glyph": "≡",
+        "glyph": "⌸",
         "name": "Radio Rack",
         "state": "active",
         "grants_edge": null,
@@ -856,7 +856,7 @@
       },
       "crypto_terminal": {
         "id": "crypto_terminal",
-        "glyph": "⊞",
+        "glyph": "⌸",
         "name": "Relay Terminal",
         "state": "active",
         "grants_edge": null,
@@ -872,7 +872,7 @@
     "placements": [
       {
         "entity_id": "hatch_dock",
-        "row": 4,
+        "row": 5,
         "col": 2
       },
       {
@@ -883,7 +883,7 @@
       {
         "entity_id": "crypto_terminal",
         "row": 2,
-        "col": 3
+        "col": 4
       }
     ],
     "edges": {
@@ -901,7 +901,7 @@
     "id": "stn_b_fuel",
     "name": "Fuel Spur",
     "cluster": "station_beta",
-    "size": 5,
+    "size": 6,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -952,7 +952,7 @@
     "actors": {
       "npc_kovac": {
         "id": "npc_kovac",
-        "glyph": "V",
+        "glyph": "K",
         "name": "Kovac",
         "title": "Refinery Tech",
         "status": "Checking pressure gauges on propellant lines",
@@ -975,7 +975,7 @@
     "placements": [
       {
         "entity_id": "hatch_dock_fuel",
-        "row": 4,
+        "row": 5,
         "col": 2
       },
       {
@@ -991,7 +991,7 @@
       {
         "entity_id": "npc_kovac",
         "row": 2,
-        "col": 3
+        "col": 4
       }
     ],
     "edges": {
@@ -1022,7 +1022,7 @@
     "fixtures": {
       "lander_hatch": {
         "id": "lander_hatch",
-        "glyph": "▲",
+        "glyph": "=",
         "name": "Shuttle Hatch",
         "state": "open",
         "grants_edge": "to_shuttle",
@@ -1032,7 +1032,7 @@
       },
       "dome_airlock": {
         "id": "dome_airlock",
-        "glyph": "=",
+        "glyph": "◆",
         "name": "Dome Airlock",
         "state": "open",
         "grants_edge": "to_dome",
@@ -1042,7 +1042,7 @@
       },
       "regolith_sled": {
         "id": "regolith_sled",
-        "glyph": "▓",
+        "glyph": "⊞",
         "name": "Old Survey Sled",
         "state": "active",
         "grants_edge": null,
@@ -1094,7 +1094,7 @@
     "id": "luna_dome",
     "name": "Habitat Dome",
     "cluster": "lunar_base",
-    "size": 7,
+    "size": 9,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -1107,7 +1107,7 @@
     "fixtures": {
       "airlock_pad": {
         "id": "airlock_pad",
-        "glyph": "=",
+        "glyph": "◆",
         "name": "Pad Airlock",
         "state": "open",
         "grants_edge": "to_pad",
@@ -1127,7 +1127,7 @@
       },
       "hatch_crater": {
         "id": "hatch_crater",
-        "glyph": "▲",
+        "glyph": "◆",
         "name": "Crater Hatch",
         "state": "open",
         "grants_edge": "to_crater",
@@ -1137,7 +1137,7 @@
       },
       "seismic_station": {
         "id": "seismic_station",
-        "glyph": "≡",
+        "glyph": "⌸",
         "name": "Quake Monitor",
         "state": "active",
         "grants_edge": null,
@@ -1151,7 +1151,7 @@
     "actors": {
       "npc_chen": {
         "id": "npc_chen",
-        "glyph": "C",
+        "glyph": "O",
         "name": "Olena Chen",
         "title": "Field Geologist",
         "status": "Analyzing core samples from deep mine",
@@ -1175,27 +1175,27 @@
       {
         "entity_id": "airlock_pad",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "hatch_smelter",
-        "row": 3,
+        "row": 4,
         "col": 0
       },
       {
         "entity_id": "hatch_crater",
-        "row": 3,
-        "col": 6
+        "row": 4,
+        "col": 8
       },
       {
         "entity_id": "seismic_station",
-        "row": 2,
-        "col": 4
+        "row": 3,
+        "col": 5
       },
       {
         "entity_id": "npc_chen",
-        "row": 2,
-        "col": 2
+        "row": 3,
+        "col": 3
       }
     ],
     "edges": {
@@ -1227,7 +1227,7 @@
     "id": "luna_smelter",
     "name": "Smelter",
     "cluster": "lunar_base",
-    "size": 6,
+    "size": 8,
     "depth": 0,
     "environment": "pressurized",
     "base_vitals": {
@@ -1299,22 +1299,22 @@
       {
         "entity_id": "hatch_dome_smelter",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "mine_shaft",
-        "row": 5,
-        "col": 3
+        "row": 7,
+        "col": 4
       },
       {
         "entity_id": "smelting_crucible",
-        "row": 3,
+        "row": 4,
         "col": 1
       },
       {
         "entity_id": "npc_vance",
-        "row": 3,
-        "col": 4
+        "row": 4,
+        "col": 6
       }
     ],
     "edges": {
@@ -1424,7 +1424,7 @@
     "id": "luna_mine",
     "name": "Deep Mine",
     "cluster": "lunar_base",
-    "size": 5,
+    "size": 6,
     "depth": 1,
     "environment": "depressurizing",
     "base_vitals": {
@@ -1447,7 +1447,7 @@
       },
       "ore_face": {
         "id": "ore_face",
-        "glyph": "■",
+        "glyph": "⊞",
         "name": "Ore Face",
         "state": "active",
         "grants_edge": null,
@@ -1468,7 +1468,7 @@
       },
       {
         "entity_id": "ore_face",
-        "row": 3,
+        "row": 4,
         "col": 2
       }
     ],
@@ -1487,7 +1487,7 @@
     "id": "luna_tube",
     "name": "Lava Tube",
     "cluster": "lunar_base",
-    "size": 6,
+    "size": 8,
     "depth": 1,
     "environment": "low_temp",
     "base_vitals": {
@@ -1523,7 +1523,7 @@
       },
       "hull_breach": {
         "id": "hull_breach",
-        "glyph": "~",
+        "glyph": "■",
         "name": "Cracked Wall",
         "state": "disabled",
         "required_tags": [
@@ -1544,17 +1544,17 @@
       {
         "entity_id": "ascent_ladder",
         "row": 0,
-        "col": 3
+        "col": 4
       },
       {
         "entity_id": "subsurface_cache",
-        "row": 3,
-        "col": 2
+        "row": 4,
+        "col": 3
       },
       {
         "entity_id": "hull_breach",
-        "row": 4,
-        "col": 4
+        "row": 6,
+        "col": 6
       }
     ],
     "edges": {

@@ -1,9 +1,9 @@
 import re
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from core.types import GameState, Node, Fixture, FixtureState
 from core import rules
-from core.menu import menu_for
+from core.menu import menu_for, entity_under_cursor
 from core.text import STATUS_NAMES, STATE_WORDS, TRACK_NAMES, message_kind, strip_kind, hazard_words
 from ui.text_tools import wrap_text, pad_visible
 from ui.topology_view import render_topology
@@ -55,8 +55,8 @@ def _boxed(text: str, width: int, paint: Callable[[str], str] = lambda t: t) -> 
     return f"│{paint(pad_visible(text[:width], width, align='<'))}│"
 
 
-def _status_rows(state: GameState, node: Node, z3_w: int, max_rows: int, on: bool) -> List[str]:
-    """Zone 3: turn, status, the three exposure tracks with per-turn trend, crew and pack."""
+def _status_rows(state: GameState, node: Node, z3_w: int, on: bool) -> List[str]:
+    """Zone 3: turn, status, the three exposure tracks with per-turn trend, and the team."""
     exp = tuple(state.character.exposure)
     th = rules.exposure_thresholds(state.character.unlocked_capabilities)
     status = rules.exposure_status(state)
@@ -65,13 +65,16 @@ def _status_rows(state: GameState, node: Node, z3_w: int, max_rows: int, on: boo
     def fit(text: str) -> str:
         return pad_visible(text[:z3_w], z3_w, align='<')
 
-    status_text = fit(f" {label} · max {th.incapacitated:g}")
-    if status == "CRITICAL":
-        status_line = style.alarm(status_text, on)
-    elif status == "STRESSED":
-        status_line = style.accent(status_text, on)
+    def shortest(*options: str) -> str:
+        """First option that fits the panel, else the last one."""
+        return next((o for o in options if len(o) <= z3_w), options[-1])
+
+    limit = f"{th.incapacitated:g}"
+    if status == "NOMINAL":
+        status_line = fit(f" {label}")
     else:
-        status_line = status_text
+        text = fit(shortest(f" {label} · max {limit}", f" {label} /{limit}"))
+        status_line = style.alarm(text, on) if status == "CRITICAL" else style.accent(text, on)
     rows = [fit(f" Turn {state.cycle}"), status_line]
 
     safe = rules.is_safe_haven(node)
@@ -83,56 +86,60 @@ def _status_rows(state: GameState, node: Node, z3_w: int, max_rows: int, on: boo
             trend = f" +{delta:.1f}"
         else:
             trend = ""
-        text = fit(f" {name:<4} {value:4.1f}{trend}")
+        text = fit(shortest(f" {name:<4} {value:4.1f}{trend}", f" {name} {value:.0f}{trend}"))
         rows.append(style.accent(text, on) if value >= th.stressed or delta > 0 else text)
 
     if state.companions:
         names = [c.name for c in state.companions]
-        crew = " Crew: " + ", ".join(names)
-        while len(crew) > z3_w and len(names) > 1:
+        team = " Team: " + ", ".join(names)
+        while len(team) > z3_w and len(names) > 1:
             names.pop()
-            crew = " Crew: " + ", ".join(names) + f" +{len(state.companions) - len(names)}"
-        rows.append(fit(crew))
+            team = " Team: " + ", ".join(names) + f" +{len(state.companions) - len(names)}"
+        rows.append(fit(team))
+    return rows
 
-    pack = rules.stack_items(state.character.inventory)
-    rows.append(style.bold(fit(" Pack"), on))
-    lines = []
-    for it, count in pack:
-        tail = (f" {it.integrity}/{it.max_integrity}" if it.max_integrity > 1 else "") + (f" x{count}" if count > 1 else "")
-        lines.append(fit(f"  {it.name[:max(1, z3_w - 2 - len(tail))]}{tail}"))
-    if not lines:
-        lines.append(fit("  (empty)"))
-    room = max(1, max_rows - len(rows))
-    if len(lines) > room:
-        hidden = len(lines) - (room - 1)
-        lines = lines[:room - 1] + [style.dim(fit(f"  +{hidden} more: /pack"), on)]
-    return rows + lines
+
+def _border_side(node: Node, row: int, col: int) -> str:
+    last = node.size - 1
+    if row == 0:
+        return "N"
+    if row == last:
+        return "S"
+    if col == 0:
+        return "W"
+    if col == last:
+        return "E"
+    return ""
 
 
 def _legend_lines(node: Node, width: int, on: bool) -> List[str]:
-    """Zone 4: compact glyph key for things in the room, two columns when they fit."""
-    entries = []
+    """
+    Zone 4: one line per glyph. Exits are named by destination with the wall they sit on,
+    so several doors sharing a glyph stay distinguishable: '◆ Bunkroom N · Hab Ring W'.
+    """
+    groups: Dict[str, List[str]] = {}
     seen = set()
     for placement in node.placements:
         entity = node.fixtures.get(placement.entity_id) or node.actors.get(placement.entity_id)
         if not entity or entity.id in seen:
             continue
         seen.add(entity.id)
-        note = f" ({STATE_WORDS[entity.state]})" if isinstance(entity, Fixture) and entity.state in _NOTABLE_STATES else ""
-        entries.append(f" {entity.glyph} {entity.name}{note}")
-    col = width // 2
-    rows = []
-    i = 0
-    while i < len(entries):
-        pair = entries[i:i + 2]
-        if len(pair) == 2 and all(len(e) < col for e in pair):
-            rows.append(pad_visible(pair[0], col, align='<') + pair[1])
-            i += 2
-        else:
-            rows.append(entries[i])
-            i += 1
-    entries = rows
-    return [_boxed(e, width, lambda t: style.dim(t, on)) for e in entries]
+        label = entity.name
+        if isinstance(entity, Fixture):
+            edge = node.edges.get(entity.grants_edge) if entity.grants_edge else None
+            if edge:
+                side = _border_side(node, placement.row, placement.col)
+                label = edge.label + (f" {side}" if side else "")
+            if entity.state in _NOTABLE_STATES:
+                label += f" ({STATE_WORDS[entity.state]})"
+        groups.setdefault(entity.glyph, []).append(label)
+    lines = []
+    for glyph, labels in groups.items():
+        wrapped = wrap_text(" · ".join(labels), width - 4)
+        for idx, wline in enumerate(wrapped):
+            prefix = f" {glyph} " if idx == 0 else "   "
+            lines.append(_boxed(prefix + wline, width, lambda t: style.dim(t, on)))
+    return lines
 
 
 def _message_lines(state: GameState, width: int, on: bool) -> List[str]:
@@ -216,7 +223,7 @@ def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = Fals
     z2 = ["┌" + "─" * (z2_w - 2) + "┐"]
     z2 += ["│" + pad_visible(row, z2_w - 2, align='^') + "│" for row in grid_rows]
     z2.append("└" + "─" * (z2_w - 2) + "┘")
-    z3 = _status_rows(state, node, z3_w, max(len(z2), 10), on)
+    z3 = _status_rows(state, node, z3_w, on)
     rows = max(len(z2), len(z3))
     z2 += [" " * z2_w] * (rows - len(z2))
     z3 += [" " * z3_w] * (rows - len(z3))
@@ -229,8 +236,13 @@ def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = Fals
     if prompt_mode:
         zone6 = [mid, "> "]
     else:
-        hint = " I inspect  X close  WASD move" if state.proximity_menu_active else " WASD move  / cmd  M map  Q quit"
-        zone6 = [mid, _boxed(hint, inner, lambda t: style.dim(t, on)), bot]
+        if state.proximity_menu_active:
+            talking = entity_under_cursor(state)[1] is not None
+            hints = [" I inspect  X close  WASD move",
+                     " M map  P pack  C char" + ("" if talking else "  T team")]
+        else:
+            hints = [" WASD move  / command  Q quit", " M map  P pack  C char  T team"]
+        zone6 = [mid] + [_boxed(h, inner, lambda t: style.dim(t, on)) for h in hints] + [bot]
 
     lines = zone1 + split + zone4 + zone5 + zone6
     if terminal_height and len(lines) > terminal_height and zone4:

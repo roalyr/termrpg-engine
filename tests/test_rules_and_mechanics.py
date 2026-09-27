@@ -2,7 +2,7 @@
 import json
 import tempfile
 import unittest
-from tests.helpers import menu_line
+from tests.helpers import menu_line, on, find, walk_to
 from pathlib import Path
 
 from core.actions import dispatch_action
@@ -44,20 +44,20 @@ class TestRequirementResolution(unittest.TestCase):
     """C1: skills and companions satisfy requirements without spending carried items."""
 
     def test_seam_scraper_opens_vent_without_losing_fitting(self):
-        s = at(new(1, 1), "stn_a_bunkroom", 4, 2)
+        s = on(new(1, 1), "vent_duct")
         s2 = dispatch_action(s, "u")
         self.assertEqual(s2.nodes["stn_a_bunkroom"].fixtures["vent_duct"].state, FixtureState.OPEN.value)
         self.assertIn("fitting_copper", ids(s2))
         self.assertTrue(any("Seam Scraper training" in m for m in s2.message_buffer))
 
     def test_algae_tender_harvests_without_losing_fitting(self):
-        s = at(new(1, 2), "stn_a_hab", 2, 4)
+        s = on(new(1, 2), "algae_basin")
         s2 = dispatch_action(s, "u")
         self.assertIn("fitting_copper", ids(s2))
         self.assertIn("algae_paste", ids(s2))
 
     def test_empty_pack_can_still_use_capability_fixtures(self):
-        s = at(new(1, 2), "stn_a_hab", 2, 4)
+        s = on(new(1, 2), "algae_basin")
         s = s._replace(character=s.character._replace(inventory=()))
         s2 = dispatch_action(s, "u")
         self.assertIn("algae_paste", ids(s2))
@@ -68,15 +68,15 @@ class TestRequirementResolution(unittest.TestCase):
         self.assertIsNone(src.item_idx)
 
     def test_cargo_handler_opens_hoist_and_mine_shaft(self):
-        s = at(new(3, 3), "stn_a_berth", 5, 3)
+        s = on(new(3, 3), "cargo_hoist")
         s = dispatch_action(s, "u")
         self.assertEqual(s.nodes["stn_a_berth"].fixtures["cargo_hoist"].state, FixtureState.OPEN.value)
-        s = at(s, "luna_smelter", 5, 3)
+        s = on(s, "mine_shaft")
         s = dispatch_action(s, "u")
         self.assertEqual(s.nodes["luna_smelter"].fixtures["mine_shaft"].state, FixtureState.OPEN.value)
 
     def test_heavy_lift_cannot_repair_valve(self):
-        s = at(carrying(new(3, 3)), "stn_a_sub", 3, 1)
+        s = on(carrying(new(3, 3)), "jammed_valve")
         s2 = dispatch_action(s, "u")
         self.assertEqual(s2.nodes["stn_a_sub"].fixtures["jammed_valve"].state, FixtureState.DISABLED.value)
 
@@ -85,7 +85,7 @@ class TestTrade(unittest.TestCase):
     """C2, C3, M6: barter is explicit, currency is spent, every start can reach Tarek."""
 
     def test_talk_never_trades(self):
-        s = at(new(), "stn_a_berth", 2, 4)
+        s = on(new(), "npc_kael")
         s2 = dispatch_action(s, "t")
         self.assertIn("fitting_copper", ids(s2))
         self.assertFalse(s2.nodes["stn_a_berth"].actors["npc_kael"].trade_completed)
@@ -136,19 +136,19 @@ class TestInputAndMenu(unittest.TestCase):
     """C4, C7."""
 
     def test_s_moves_south_on_a_container(self):
-        s = at(new(), "stn_a_bunkroom", 1, 3)
+        s = on(new(), "personal_locker")
         s2 = dispatch_action(s, "s")
-        self.assertEqual((s2.player_row, s2.player_col), (2, 3))
+        self.assertEqual((s2.player_row, s2.player_col), (s.player_row + 1, s.player_col))
         self.assertNotIn("wire_spool", ids(s2))
 
     def test_menu_refreshes_after_unlock(self):
-        s = at(new(1, 1), "stn_a_bunkroom", 4, 2)
+        s = on(new(1, 1), "vent_duct")
         s2 = dispatch_action(s, "u")
         self.assertTrue(s2.proximity_menu_active)
         self.assertTrue("G go to " in menu_line(s2))
 
     def test_b_goes_back_from_map_but_barters_in_menu(self):
-        s = at(new(), "stn_a_berth", 2, 4)
+        s = on(new(), "npc_kael")
         s2 = dispatch_action(s, "b")
         self.assertIn("pass_work", ids(s2))
         m = dispatch_action(new(), "m")
@@ -181,16 +181,15 @@ class TestExposure(unittest.TestCase):
         self.assertIn("deep_well", process_tick(s20, "wait").character.unlocked_capabilities)
 
     def test_safe_rooms_do_not_count_as_surviving_depth(self):
-        s = at(carrying(new(), "tool_prybar"), "stn_a_sub", 3, 1)
+        s = on(carrying(new(), "tool_prybar"), "jammed_valve")
         s = dispatch_action(s, "u")  # repair valve: 92 kPa, -5 C
         before = s.depth_ticks.get(1, 0)
         s = dispatch_action(s, "/wait")
         self.assertEqual(s.depth_ticks.get(1, 0), before)
 
     def test_critical_work_costs_two_cycles_but_walking_does_not(self):
-        s = at(new(), "stn_a_bunkroom", 1, 3)
-        s = s._replace(current_node_id="stn_a_sub", player_row=2, player_col=4,
-                       character=s.character._replace(exposure=Exposure(11.0, 0.0, 0.0)))
+        s = on(new(), "tool_rack")
+        s = s._replace(character=s.character._replace(exposure=Exposure(11.0, 0.0, 0.0)))
         c0 = s.cycle
         self.assertEqual(dispatch_action(s, "f").cycle, c0 + 2)
         self.assertEqual(dispatch_action(s, "a").cycle, c0 + 1)
@@ -208,7 +207,7 @@ class TestFixtures(unittest.TestCase):
     """C6, C10, M2, M4, M5."""
 
     def test_read_with_empty_pack_and_locked_text(self):
-        s = at(new(), "stn_a_hab", 2, 1)._replace(character=new().character._replace(inventory=()))
+        s = on(new(), "notice_board")._replace(character=new().character._replace(inventory=()))
         s2 = dispatch_action(s, "r")
         self.assertTrue(any("Shift roster" in m for m in s2.message_buffer))
         self.assertTrue(any("scrambled" in m for m in s2.message_buffer))
@@ -220,7 +219,7 @@ class TestFixtures(unittest.TestCase):
         self.assertEqual(len(texts), 5)
 
     def test_repair_once_changes_vitals_then_refuses(self):
-        s = at(carrying(new(), "tool_prybar"), "stn_a_sub", 3, 1)
+        s = on(carrying(new(), "tool_prybar"), "jammed_valve")
         s2 = dispatch_action(s, "u")
         self.assertEqual(s2.nodes["stn_a_sub"].base_vitals.pressure_kpa, 92.0)
         self.assertEqual(s2.character.inventory[0].integrity, 3)
@@ -230,13 +229,13 @@ class TestFixtures(unittest.TestCase):
         self.assertEqual(s3.character.inventory[0].integrity, 3)
 
     def test_seal_patch_fixes_lava_tube(self):
-        s = at(carrying(new(), "seal_patch"), "luna_tube", 4, 4)
+        s = on(carrying(new(), "seal_patch"), "hull_breach")
         s2 = dispatch_action(s, "u")
         self.assertEqual(s2.nodes["luna_tube"].base_vitals.pressure_kpa, 78.0)
         self.assertEqual(s2.character.inventory[0].integrity, 1)
 
     def test_shuttle_gate_reseals_after_boarding(self):
-        s = at(carrying(new(), "chit_transit"), "stn_a_berth", 3, 6)
+        s = on(carrying(new(), "chit_transit"), "shuttle_gate")
         s = dispatch_action(s, "u")
         self.assertNotIn("chit_transit", ids(s))
         s = dispatch_action(s, "g")
@@ -245,24 +244,24 @@ class TestFixtures(unittest.TestCase):
         self.assertTrue(any("locks behind you" in m for m in s.message_buffer))
 
     def test_umbilical_collar_opens_gate_once(self):
-        s = at(new(1, 1), "stn_a_berth", 2, 5)  # seam scraper: seal_fitting
+        s = on(new(1, 1), "umbilical_collar")  # seam scraper: seal_fitting
         s = dispatch_action(s, "u")
         berth = s.nodes["stn_a_berth"]
         self.assertEqual(berth.fixtures["shuttle_gate"].state, FixtureState.OPEN.value)
         self.assertEqual(berth.fixtures["umbilical_collar"].state, FixtureState.SPENT.value)
 
     def test_stowaway_route_is_repeatable(self):
-        s = at(new(1, 3), "stn_a_berth", 1, 2)  # cargo handler releases clamps
+        s = on(new(1, 3), "freight_clamps")  # cargo handler releases clamps
         for _ in range(2):
             s = dispatch_action(s, "u")
             s = dispatch_action(s, "g")
             self.assertEqual(s.current_node_id, "shuttle_ab")
-            s = at(s, "stn_a_berth", 1, 2)
+            s = on(s, "freight_clamps")
 
     def test_forged_clearance_opens_hoist(self):
         s = carrying(new(), "wire_spool")._replace(current_node_id="stn_b_array")
         s = reduce_use(s, "wire_spool", "crypto_terminal")
-        s = at(s._replace(character=s.character._replace(inventory=())), "stn_a_berth", 5, 3)
+        s = on(s._replace(character=s.character._replace(inventory=())), "cargo_hoist")
         s = dispatch_action(s, "u")
         self.assertEqual(s.nodes["stn_a_berth"].fixtures["cargo_hoist"].state, FixtureState.OPEN.value)
 
@@ -289,10 +288,11 @@ class TestSelfAndTravel(unittest.TestCase):
         self.assertEqual(s2.cycle, 0)
 
     def test_leave_costs_walking_distance(self):
-        s = new()._replace(current_node_id="stn_a_berth", player_row=3, player_col=3)
-        s2 = dispatch_action(s, "/leave to_hab")  # hab hatch at (3, 0): 3 tiles
+        s = new()._replace(current_node_id="stn_a_berth", player_row=4, player_col=4)
+        _, hr, hc = find(s, "hab_hatch")
+        s2 = dispatch_action(s, "/leave to_hab")  # one cycle per tile to the hatch
         self.assertEqual(s2.current_node_id, "stn_a_hab")
-        self.assertEqual(s2.cycle, 3)
+        self.assertEqual(s2.cycle, abs(hr - 4) + abs(hc - 4))
 
     def test_save_folder_name_is_sanitized(self):
         self.assertEqual(save_folder_name("../evil/x"), "___evil_x")

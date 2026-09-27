@@ -1,11 +1,11 @@
 import unittest
-from tests.helpers import menu_line
+from tests.helpers import menu_line, on, find
 from pathlib import Path
 from core.presets import init_game_state, DEFAULT_DATA_DIR
 from core.reducers import (
     reduce_inspect, reduce_talk, reduce_use, reduce_leave,
     reduce_wait, reduce_map, reduce_back, reduce_pack,
-    reduce_character, reduce_party, reduce_log, reduce_flavor,
+    reduce_character, reduce_team, reduce_log, reduce_flavor,
     reduce_help, reduce_move, reduce_barter, reduce_interact_go,
     reduce_interact_inspect, reduce_interact_use,
     reduce_interact_talk, reduce_interact_cancel,
@@ -119,7 +119,7 @@ class TestReducers(unittest.TestCase):
         self.assertTrue(any(c.id == "comp_radek" for c in s_radek.companions))
 
         # Test party command
-        s_party = reduce_party(s_radek)
+        s_party = reduce_team(s_radek)
         self.assertTrue(any("Radek" in m for m in s_party.message_buffer))
 
     def test_non_tick_views(self):
@@ -145,53 +145,43 @@ class TestReducers(unittest.TestCase):
         self.assertFalse(s_flavor.flavor_enabled)
 
     def test_wasd_movement(self):
-        # Starting at (2, 2) in bunkroom (size 5)
-        self.assertEqual(self.state.player_row, 2)
-        self.assertEqual(self.state.player_col, 2)
-        c0 = self.state.cycle
+        # Start in the bunkroom center; hatch_berth sits on the north wall
+        _, hr, hc = find(self.state, "hatch_berth")
+        s0 = self.state._replace(player_row=1, player_col=hc)
+        c0 = s0.cycle
 
-        # Move Up: row 1, col 2 (empty floor)
-        s1 = reduce_move(self.state, "w")
-        self.assertEqual(s1.player_row, 1)
-        self.assertEqual(s1.player_col, 2)
+        # Move Right: empty floor
+        s1 = reduce_move(s0, "d")
+        self.assertEqual((s1.player_row, s1.player_col), (1, hc + 1))
         self.assertEqual(s1.cycle, c0 + 1)
         self.assertFalse(s1.proximity_menu_active)
 
-        # Move Up again: row 0, col 2 (hatch_berth is at 0, 2)
-        s2 = reduce_move(s1, "w")
-        self.assertEqual(s2.player_row, 0)
-        self.assertEqual(s2.player_col, 2)
-        self.assertEqual(s2.cycle, c0 + 2)
+        # Back left and up onto the hatch
+        s2 = reduce_move(reduce_move(s1, "a"), "w")
+        self.assertEqual((s2.player_row, s2.player_col), (hr, hc))
+        self.assertEqual(s2.cycle, c0 + 3)
         self.assertTrue(s2.proximity_menu_active)
         self.assertTrue("Berth Hatch" in menu_line(s2))
         self.assertTrue("G go to Berth 04" in menu_line(s2))
 
-        # Try to move off grid or into wall: 'w' from (0, 2)
+        # Stepping past the hatch into the wall changes nothing, so [G] still works
         s_blocked = reduce_move(s2, "w")
-        self.assertEqual(s_blocked.player_row, 0)
-        self.assertEqual(s_blocked.player_col, 2)
-        self.assertEqual(s_blocked.cycle, s2.cycle)  # No tick advance on wall
-        self.assertTrue(any("can't go that way" in m for m in s_blocked.message_buffer))
+        self.assertEqual(s_blocked, s2)
+        self.assertTrue(s_blocked.proximity_menu_active)
+        self.assertEqual(reduce_interact_go(s_blocked).current_node_id, "stn_a_berth")
 
     def test_proximity_interaction_go(self):
         # Move onto hatch_berth at (0, 2)
-        s_hatch = self.state._replace(player_row=0, player_col=2, proximity_menu_active=True)
-        s_go = reduce_interact_go(s_hatch)
+        s_go = reduce_interact_go(on(self.state, "hatch_berth"))
         self.assertEqual(s_go.current_node_id, "stn_a_berth")
-        # In Berth (size 7), center is (3, 3)
-        self.assertEqual(s_go.player_row, 3)
-        self.assertEqual(s_go.player_col, 3)
+        center = s_go.nodes["stn_a_berth"].size // 2
+        self.assertEqual((s_go.player_row, s_go.player_col), (center, center))
 
     def test_proximity_interaction_actions(self):
         # Test on spigot_01 at (3, 1) in bunkroom
         canteen = ALL_ITEMS_BY_ID["flask_water"]._replace(integrity=1)
         char = self.state.character._replace(inventory=self.state.character.inventory + (canteen,))
-        s_spigot = self.state._replace(
-            character=char,
-            player_row=3,
-            player_col=1,
-            proximity_menu_active=True
-        )
+        s_spigot = on(self.state._replace(character=char), "spigot_01")
 
         # [I] Inspect
         s_ins = reduce_interact_inspect(s_spigot)
