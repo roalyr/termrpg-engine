@@ -1,0 +1,106 @@
+[
+  {
+    "id": "job_scrap_bin",
+    "title": "Empty the Berth 04 scrap bin",
+    "kind": "use",
+    "target": "salvage_bin",
+    "skill": "logistics",
+    "xp": 15,
+    "reward_items": [
+      "scrip_shift"
+    ]
+  },
+  {
+    "id": "job_algae_vat",
+    "title": "Harvest the Hab Ring algae vat",
+    "kind": "use",
+    "target": "algae_basin",
+    "skill": "logistics",
+    "xp": 15,
+    "reward_items": [
+      "ration_dry"
+    ]
+  },
+  {
+    "id": "job_sub_patrol",
+    "title": "Walk a 6-turn patrol in the Sub-Deck",
+    "kind": "stay",
+    "target": "stn_a_sub",
+    "count": 6,
+    "skill": "engineering",
+    "xp": 25,
+    "reward_items": [
+      "seal_patch"
+    ]
+  },
+  {
+    "id": "job_scrap_smelter",
+    "title": "Deliver 2 Scrap Metal to the Smelter",
+    "kind": "deliver",
+    "target": "luna_smelter",
+    "item": "scrap_metal",
+    "count": 2,
+    "skill": "logistics",
+    "xp": 40,
+    "reward_items": [
+      "chit_transit"
+    ]
+  },
+  {
+    "id": "job_paste_fuel",
+    "title": "Bring Algae Paste to the Fuel Spur",
+    "kind": "deliver",
+    "target": "stn_b_fuel",
+    "item": "algae_paste",
+    "count": 1,
+    "skill": "logistics",
+    "xp": 25,
+    "reward_items": [
+      "ration_dry"
+    ]
+  },
+  {
+    "id": "job_ore_core",
+    "title": "Cut a core at the Deep Mine ore face",
+    "kind": "use",
+    "target": "ore_face",
+    "skill": "survival",
+    "xp": 30,
+    "reward_items": [
+      "chit_transit"
+    ]
+  },
+  {
+    "id": "job_quake_check",
+    "title": "Log the Habitat Dome quake monitor",
+    "kind": "use",
+    "target": "seismic_station",
+    "skill": "engineering",
+    "xp": 10,
+    "reward_items": [
+      "scrip_shift"
+    ]
+  },
+  {
+    "id": "job_sled_salvage",
+    "title": "Strip the old survey sled on the Landing Pad",
+    "kind": "use",
+    "target": "regolith_sled",
+    "skill": "survival",
+    "xp": 20,
+    "reward_items": [
+      "seal_patch"
+    ]
+  },
+  {
+    "id": "job_tray_harvest",
+    "title": "Harvest the Habitat Dome tray",
+    "kind": "use",
+    "target": "hydro_tray",
+    "skill": "logistics",
+    "xp": 15,
+    "reward_items": [
+      "scrip_shift"
+    ]
+  }
+]

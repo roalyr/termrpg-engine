@@ -53,7 +53,7 @@ class Fixture(NamedTuple):
     state: str                 # FixtureState value
     required_tags: Tuple[str, ...]  # Any one of these tags satisfies the fixture (empty = none)
     grants_edge: Optional[str]   # Edge ID in node.edges that this fixture gates
-    on_use_effect: Optional[str] # "unlock", "refill", "repair", "scavenge", "harvest", "smelt", "override", "log"
+    on_use_effect: Optional[str] # "unlock", "refill", "repair", "scavenge", "harvest", "smelt", "override", "log", "sleep"
     description: str
     yields: Tuple[str, ...] = ()            # Item IDs granted by "scavenge" / "harvest"
     log_text: Optional[str] = None          # Text shown by "log" fixtures
@@ -62,6 +62,7 @@ class Fixture(NamedTuple):
     grants_capability: Optional[str] = None # "override": capability added to the player
     on_repair_vitals: Optional[NodeVitals] = None  # "repair": node vitals after the repair
     reseal_on_pass: bool = False            # Gate closes again after the player passes through
+    restock: bool = False                   # Container or harvest spot refills at dawn
 
 class Actor(NamedTuple):
     id: str                    # Unique actor identifier (e.g., "npc_kael")
@@ -125,23 +126,37 @@ class PlayerCharacter(NamedTuple):
     unlocked_capabilities: FrozenSet[str]  # Earned traversal tags & clearances
     exposure: Exposure         # Accumulated environmental harm
 
-class TreeNode(NamedTuple):
-    id: str                              # Capability tag granted on attunement
-    name: str                            # Display name
-    description: str                     # What this attunement enables
-    prerequisite: Optional[str]          # TreeNode ID that must be attuned first
-    unlock_condition: str                # "visit_node", "survive_depth", "complete_trade", "use_fixture"
-    unlock_parameter: str                # node_id, "depth:ticks", actor_id or fixture_id
-    attuned: bool                        # Whether the player has earned this
+class Perk(NamedTuple):
+    level: int                 # Skill level that grants this perk
+    xp: int                    # Experience needed to reach that level
+    grants: str                # Capability tag added to the player
+    text: str                  # Plain description shown to the player
+
+class Skill(NamedTuple):
+    id: str                    # "engineering", "survival", "logistics"
+    name: str                  # Display name
+    earned_by: str             # How experience is earned, shown on the character panel
+    perks: Tuple[Perk, ...]    # One per level from 2 upward
+
+class Job(NamedTuple):
+    id: str                    # Template ID (e.g. "job_scrap_bin")
+    title: str                 # Shown on the jobs panel
+    kind: str                  # "use" a fixture, "deliver" items to a room, "stay" turns in a room
+    target: str                # Fixture ID ("use") or node ID ("deliver", "stay")
+    skill: str                 # Skill that earns the experience
+    xp: int                    # Experience paid on completion
+    reward_items: Tuple[str, ...] = ()  # Item IDs paid on completion
+    item: Optional[str] = None # "deliver": item ID handed over
+    count: int = 1             # "deliver": items needed; "stay": turns needed
+    progress: int = 0          # Turns stayed so far
+    done: bool = False
 
 class GameState(NamedTuple):
     character: PlayerCharacter
     current_node_id: str
     nodes: Mapping[str, Node]
     companions: Tuple[Companion, ...]     # Active party members
-    tree: Tuple[TreeNode, ...]            # Progression tree nodes
-    visited_nodes: FrozenSet[str]         # Explored node IDs (for map & attunement)
-    depth_ticks: Mapping[int, int]        # Hostile ticks survived per depth without critical exposure
+    visited_nodes: FrozenSet[str]         # Explored node IDs (for map and first-visit text)
     cycle: int                            # Global simulation tick counter
     player_row: int                       # Player cursor row on current node grid (0-indexed)
     player_col: int                       # Player cursor column on current node grid (0-indexed)
@@ -154,3 +169,9 @@ class GameState(NamedTuple):
     item_catalog: Mapping[str, Item] = _EMPTY            # Item definitions from the active preset
     companion_catalog: Mapping[str, Companion] = _EMPTY  # Companion definitions from the active preset
     color_enabled: bool = True                           # Bold/dim/inverse styles and the orange accent
+    skills: Mapping[str, int] = _EMPTY                   # Experience per skill ID
+    skill_catalog: Tuple[Skill, ...] = ()                # Skill and perk definitions from the active preset
+    job_catalog: Tuple[Job, ...] = ()                    # Job templates from the active preset
+    jobs: Tuple[Job, ...] = ()                           # Today's jobs with progress
+    day: int = 1                                         # Day counter; advances when the player sleeps
+    woke_at: int = 0                                     # Cycle when the player last woke (fatigue clock)

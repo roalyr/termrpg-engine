@@ -3,7 +3,7 @@ import tempfile
 import json
 from pathlib import Path
 from core.presets import (
-    ensure_presets, load_items, load_nodes, load_companions, load_tree,
+    ensure_presets, load_items, load_nodes, load_companions, load_skills, load_jobs,
     init_game_state
 )
 
@@ -20,17 +20,21 @@ class TestPresets(unittest.TestCase):
         self.assertTrue((self.preset_dir / "items.json").exists())
         self.assertTrue((self.preset_dir / "nodes.json").exists())
         self.assertTrue((self.preset_dir / "companions.json").exists())
-        self.assertTrue((self.preset_dir / "tree.json").exists())
+        self.assertTrue((self.preset_dir / "skills.json").exists())
+        self.assertTrue((self.preset_dir / "jobs.json").exists())
 
         items = load_items(self.preset_dir / "items.json")
         nodes = load_nodes(self.preset_dir / "nodes.json")
         comps = load_companions(self.preset_dir / "companions.json")
-        tree = load_tree(self.preset_dir / "tree.json")
+        skills = load_skills(self.preset_dir / "skills.json")
+        jobs = load_jobs(self.preset_dir / "jobs.json")
 
         self.assertEqual(len(items), 15)
         self.assertEqual(len(nodes), 14)
         self.assertEqual(len(comps), 3)
-        self.assertEqual(len(tree), 12)
+        self.assertEqual(len(skills), 3)
+        self.assertEqual(sum(len(sk.perks) for sk in skills), 12)
+        self.assertGreaterEqual(len(jobs), 6)
 
     def test_init_game_state_variants(self):
         ensure_presets(self.preset_dir)
@@ -67,3 +71,39 @@ class TestPresets(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPresetRefresh(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.dir = Path(self.temp_dir.name) / "default-1.0"
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def test_unedited_copy_follows_new_defaults(self):
+        ensure_presets(self.dir)
+        manifest = json.loads((self.dir / ".defaults.json").read_text())
+        manifest["nodes.json"] = "hash-of-an-older-default"
+        (self.dir / ".defaults.json").write_text(json.dumps(manifest))
+        (self.dir / "nodes.json").write_text("[]")
+        # nodes.json no longer matches its record, so it counts as edited and is kept
+        ensure_presets(self.dir)
+        self.assertEqual((self.dir / "nodes.json").read_text(), "[]")
+
+    def test_stale_unedited_file_is_refreshed(self):
+        ensure_presets(self.dir)
+        (self.dir / "nodes.json").write_text("[]")
+        manifest = json.loads((self.dir / ".defaults.json").read_text())
+        import hashlib
+        manifest["nodes.json"] = hashlib.sha256(b"[]").hexdigest()  # as if [] had been the old default
+        (self.dir / ".defaults.json").write_text(json.dumps(manifest))
+        ensure_presets(self.dir)
+        self.assertEqual(len(load_nodes(self.dir / "nodes.json")), 14)
+
+    def test_untracked_legacy_copy_is_backed_up_and_refreshed(self):
+        self.dir.mkdir(parents=True)
+        (self.dir / "nodes.json").write_text("[]")
+        ensure_presets(self.dir)
+        self.assertEqual((self.dir / "nodes.json.old").read_text(), "[]")
+        self.assertEqual(len(load_nodes(self.dir / "nodes.json")), 14)

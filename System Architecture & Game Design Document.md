@@ -13,7 +13,7 @@ This document specifies the technical architecture, mechanical contracts, domain
 3. **Non-Blocking Raw Input Interface:** The input loop reads single raw keystrokes via `tty`/`termios` without requiring Enter. WASD keys navigate the player cursor on the Zone 2 minimap. All arbitrary input is consumed; typed commands are explicitly initiated with a leading slash `/` (`/command`). The terminal screen is cleared prior to each render cycle to provide a persistent, flicker-free viewport.
 4. **Grounded Hard Sci-Fi Space Opera & Living World:** Everyday lived reality of commoners, orbital technicians, shift workers, and dock hands across orbital platforms, habitat rings, agricultural domes, and low-gravity stellar bodies (moons, asteroids). Deep gravity-well planets with punishing escape velocities are excluded. Physical space hazards (vacuum, pressure differentials, cryogenic cold, ionizing radiation) govern survival. Language is direct, utilitarian, and dry; technobabble, fantasy tropes, and cyberpunk cliches are prohibited.
 5. **Open-World Emergence & Lateral Agency:** The game world is an open spatial web, not a linear quest funnel. Players possess genuine freedom to explore all 14 nodes across 4 clusters, choose their own survival priorities, and solve challenges through diverse disciplines: technical engineering, environmental resilience, or logistics and crew coordination. Artificial choke-points and single-key locks are replaced with multiple traversal pathways (service ducts, crawlways, mechanical overrides, companion aid) and realistic environmental gating.
-6. **Qualitative Progression Over Numerical Bloat:** Traditional RPG tropes—stat point distribution, XP grinding, numerical level bloat, and tiered loot matrices—are completely eliminated. Character advancement is tracked via an authored qualitative progression tree that unlocks interaction verbs, physical tolerances, fabrication recipes, and clearance credentials.
+6. **Work, Routine and Levels:** Progress comes from doing the job. Three work skills (Engineering, Survival, Logistics) level from 1 to 5 on experience earned by the matching work, and each level brings a concrete perk. Days follow a routine: shifts, fatigue, sleep, daily jobs, and stock that refills overnight, so repeating honest work (grinding) is a valid way to get stronger. Numbers stay small and every bonus is stated in plain words. Combat is postponed: the world is small and the threat is the environment.
 
 ---
 
@@ -66,10 +66,11 @@ project_root/
 │   ├── codec.py                    # JSON <-> domain conversion for presets and saves
 │   ├── actions.py                  # Action definitions & tokenization dispatcher
 │   ├── reducers.py                 # Pure reducer functions (Action x State -> State)
-│   ├── tick.py                     # Tick processing pipeline (exposure, decay, tree, revival)
+│   ├── tick.py                     # Tick processing pipeline (exposure, decay, experience, jobs, fatigue)
+│   ├── routine.py                  # Work skills, daily jobs, fatigue and the day cycle
 │   ├── persistence.py              # Save / Load serialization and v1 save migration
 │   ├── presets.py                  # Preset cloning and loaders
-│   └── data/default-1.0/           # Canonical default preset (items, nodes, companions, tree)
+│   └── data/default-1.0/           # Canonical default preset (items, nodes, companions, skills, jobs)
 │
 ├── ui/                             # Pure presentation layer (string output)
 │   ├── __init__.py
@@ -82,7 +83,8 @@ project_root/
 │       ├── items.json              # Item definitions, tags, integrities
 │       ├── nodes.json              # Full 14-node world topology, fixtures, actors
 │       ├── companions.json         # Recruitable crew members & capabilities
-│       └── tree.json               # 3-branch qualitative progression tree
+│       ├── skills.json             # Work skills, level thresholds and perks
+│       └── jobs.json               # Daily job templates
 │
 ├── saves/                          # Persistent runtime save files (git-ignored)
 │   └── <character_name>/
@@ -171,6 +173,7 @@ class Fixture(NamedTuple):
     grants_capability: Optional[str] = None # "override": capability added to the player
     on_repair_vitals: Optional[NodeVitals] = None  # "repair": node vitals after the repair
     reseal_on_pass: bool = False            # Gate closes again after the player passes through
+    restock: bool = False                   # Container or harvest spot refills at dawn
 
 class Actor(NamedTuple):
     id: str                    # Unique actor identifier (e.g. "npc_mira")
@@ -239,23 +242,37 @@ class PlayerCharacter(NamedTuple):
     unlocked_capabilities: FrozenSet[str]  # Earned capabilities and clearances
     exposure: Exposure         # Environmental damage record
 
-class TreeNode(NamedTuple):
-    id: str                    # Capability granted upon attunement
-    name: str                  # Display name
-    description: str           # Detailed mechanical effect
-    prerequisite: Optional[str]# Required prerequisite TreeNode ID
-    unlock_condition: str      # Condition type: "visit_node", "survive_depth", "complete_trade", "use_fixture"
-    unlock_parameter: str      # node_id | "depth:ticks" (bare depth = 5 ticks) | actor_id | fixture_id
-    attuned: bool              # Attunement state
+class Perk(NamedTuple):
+    level: int                 # Skill level that grants this perk
+    xp: int                    # Experience needed to reach that level
+    grants: str                # Capability tag added to the player
+    text: str                  # Plain description shown to the player
+
+class Skill(NamedTuple):
+    id: str                    # "engineering", "survival", "logistics"
+    name: str
+    earned_by: str             # How experience is earned (character panel)
+    perks: Tuple[Perk, ...]    # One per level from 2 upward
+
+class Job(NamedTuple):
+    id: str
+    title: str
+    kind: str                  # "use" a fixture, "deliver" items to a room, "stay" turns in a room
+    target: str                # Fixture ID ("use") or node ID ("deliver", "stay")
+    skill: str                 # Skill that earns the experience
+    xp: int
+    reward_items: Tuple[str, ...] = ()
+    item: Optional[str] = None # "deliver": item handed over
+    count: int = 1             # "deliver": items needed; "stay": turns needed
+    progress: int = 0
+    done: bool = False
 
 class GameState(NamedTuple):
     character: PlayerCharacter
     current_node_id: str
     nodes: Mapping[str, Node]
     companions: Tuple[Companion, ...]
-    tree: Tuple[TreeNode, ...]
     visited_nodes: FrozenSet[str]
-    depth_ticks: Mapping[int, int]
     cycle: int
     player_row: int
     player_col: int
@@ -267,6 +284,13 @@ class GameState(NamedTuple):
     is_running: bool
     item_catalog: Mapping[str, Item]            # Item definitions from the active preset
     companion_catalog: Mapping[str, Companion]  # Companion definitions from the active preset
+    color_enabled: bool                         # Styles and the orange accent (/color)
+    skills: Mapping[str, int]                   # Experience per skill ID
+    skill_catalog: Tuple[Skill, ...]            # Skill and perk definitions from the active preset
+    job_catalog: Tuple[Job, ...]                # Job templates from the active preset
+    jobs: Tuple[Job, ...]                       # Today's jobs with progress
+    day: int                                    # Advances when the player sleeps
+    woke_at: int                                # Cycle when the player last woke (fatigue clock)
 ```
 
 ---
@@ -328,8 +352,8 @@ Challenge scales through authentic environmental hostility and operational logis
 
 1. **Environmental Gating Over Keycard Gating:**
    - Safe Pressurized Havens (`depth == 0`, `environment == "pressurized"`): `stn_a_bunkroom`, `stn_a_berth`, `stn_a_hab`, `stn_b_dock`, `stn_b_array`, `stn_b_fuel`, `luna_dome`, `luna_smelter`. Exposure naturally recovers here by 2.0 per tick.
-   - Hostile Subterranean Conduits (`depth == 1`): `stn_a_sub`, `luna_mine`, `luna_tube`. Depressurized atmospheres, freezing cold, and unshielded rock. Ticks spent here while exposure is actually accumulating (and below Critical) count toward survival milestones. Repairs change a room's vitals: freeing the Sub-Deck valve raises it to 92 kPa / -5°C, and patching the Lava Tube breach raises it to 78 kPa / -20°C.
-   - Unprotected Vacuum (`environment == "vacuum"`): `luna_pad`, `luna_crater`. Zero pressure, cosmic radiation, and temperature extremes. Exploration requires planning, rapid movement, and attunement capabilities.
+   - Hostile Subterranean Conduits (`depth == 1`): `stn_a_sub`, `luna_mine`, `luna_tube`. Depressurized atmospheres, freezing cold, and unshielded rock. Every turn spent where exposure is building up pays Survival experience (§8.1). Repairs change a room's vitals: freeing the Sub-Deck valve raises it to 92 kPa / -5°C, and patching the Lava Tube breach raises it to 78 kPa / -20°C.
+   - Unprotected Vacuum (`environment == "vacuum"`): `luna_pad`, `luna_crater`. Zero pressure, cosmic radiation, and temperature extremes. Exploration requires planning, rapid movement, and Survival levels.
 2. **Resource Logistics:**
    - Sustenance items (`flask_water`, `ration_dry`, `algae_paste`) lose 1 integrity every 10 ticks. Sustenance is consumed with `/consume` to shed exposure (see §5.3), so spigots, algae basins and food trades feed directly into survival planning.
 
@@ -350,9 +374,9 @@ Each tick in a hostile environment accumulates exposure based on the delta betwe
 | Nominal | 0.0 – 4.9 | Full operational capacity. |
 | Stressed | 5.0 – 9.9 | Cautionary telemetry alerts in Zone 5. `inspect` readings report blurred diagnostic telemetry. |
 | Critical | 10.0 – 14.9 | Imminent collapse warning. Hands-on work (use, search, barter) costs two cycles. Walking still costs one. |
-| Incapacitated | 15.0+ | Systems fail; unconsciousness. The session continues: medics carry the player to `stn_a_bunkroom`, exposure clears, 12 cycles pass and one sustenance item is used. |
+| Incapacitated | 15.0+ | Systems fail; unconsciousness. The session continues: medics carry the player to `stn_a_bunkroom`, the night passes (a new day starts, §8.4) and one sustenance item is used. |
 
-*Progression Tree Mitigations:* `vacuum_walk`, `deep_well` and `cold_bypass` halve pressure, radiation and thermal accumulation. `trench_hardened` raises every threshold by +5.0, and all systems (tick, UI, save loading) read thresholds from the same rule. `crew_coordination` subtracts 0.2 per track while any companion travels with the player.
+*Survival and Logistics perks:* `cold_bypass`, `vacuum_walk` and `deep_well` (Survival 2–4) halve pressure, radiation and thermal accumulation. `trench_hardened` (Survival 5) raises every threshold by +5.0, and all systems (tick, UI, save loading) read thresholds from the same rule. `crew_coordination` (Logistics 3) subtracts 0.2 per track while any companion travels with the player.
 
 ---
 
@@ -423,8 +447,10 @@ Arbitrary non-slash keystrokes are silently consumed by the input loop to preven
 | `/map` | `/map` | Opens dedicated ASCII cluster and node topology view. | No |
 | `/back` | `/back` | Exits map topology view and returns to compartment view. | No |
 | `p` / `/pack` | *(single key)* / `/pack` | Shows the pack in Zone 5: stacked items and uses left. | No |
-| `c` / `/character`| *(single key)* / `/character` | Shows background, keepsake, earned skills and skills not yet earned. | No |
+| `c` / `/character`| *(single key)* / `/character` | Shows background, keepsake, and each work skill's level, experience, perks and next perk. | No |
 | `t` / `/team` | *(single key)* / `/team` (`/party`) | Lists team members and what they count as. `t` talks instead when standing on an actor. | No |
+| `j` / `/jobs` | *(single key)* / `/jobs` | Lists today's jobs, progress and pay. | No |
+| `/sleep` | `/sleep` (or `U` on a bunk) | Sleeps in a room with a bunk after 20+ turns awake; starts a new day (§8.4). | Night |
 | `/log` | `/log` | Prints the 10 most recent chronological action entries (moves are not logged). | No |
 | `/flavor` | `/flavor [on\|off]` | Toggles room descriptions on first arrival. | No |
 | `/color` | `/color [on\|off]` | Toggles text styles and the orange accent. | No |
@@ -454,25 +480,27 @@ Fixtures represent the physical affordances of each compartment:
 | `"unlock"` | `SEALED`/`LOCKED` -> `OPEN`. Grants passage through the associated edge. With `reseal_on_pass`, the gate returns to `SEALED` after the player crosses. |
 | `"refill"` | Restores a carried `refillable` item's integrity to `max_integrity`. |
 | `"repair"` | `DISABLED` -> `ACTIVE`. Applies `on_repair_vitals` to the room. Refuses once already `ACTIVE`, so tools are not worn twice. |
-| `"scavenge"` | Searched with `[F]`. Sealed containers are pried open first. Transfers `yields` to the pack and sets `SPENT`. |
-| `"harvest"` | Collects `yields` (default algae paste) from an active tank. Tools used are not worn. |
+| `"scavenge"` | Searched with `[F]`. Sealed containers are pried open first. Transfers `yields` to the pack and sets `SPENT`. Containers with `restock` (bins, skids, sleds, caches, the ore face) refill each morning; personal and one-off finds do not. |
+| `"harvest"` | Collects `yields` (default algae paste). Tools used are not worn. Spots with `restock` are spent until the next morning. |
 | `"smelt"` | Salvage casts a Pipe Fitting. Ore forges a Pry-Bar with `scrap_fabrication`, otherwise melts to scrap. |
 | `"override"` | One-time bypass: opens `opens_fixture`, grants `grants_capability`, then sets `SPENT`. |
+| `"sleep"` | Bunks (`▭`). Sleeping starts a new day (§8.4). |
 | `"log"` | Read with `[R]`, no item needed. Shows `log_text`; `log_text_locked` needs `signal_analysis`, `signal_boost` or `lore`. |
 
 **Wear rules.** Only the carried item that satisfied a requirement wears, and only if no skill, clearance or companion already satisfied it. `conduit_mastery` keeps tools (`force_lever`, `wrench`) from wearing on unlock, repair and pry-open work.
 
 ### 5.6 Tick Processor Pipeline (`core/tick.py`)
 
-Every tick-advancing action triggers a 6-step pure state reduction:
+Every tick-advancing action triggers a 7-step pure state reduction:
 1. `cycle += 1`
-2. **Exposure Accumulation:** Calculate pressure, radiation, and temperature deltas. Apply reductions from progression capabilities and the team.
+2. **Exposure Accumulation:** Calculate pressure, radiation, and temperature deltas. Apply reductions from perks and the team.
 3. **Exposure Recovery:** In Depth 0 Pressurized nodes, reduce all exposure tracks by 2.0 (minimum 0.0).
-4. **Exposure Consequences:** Evaluate Stressed, Critical and Incapacitated limits (+5.0 each with `trench_hardened`). Incapacitation triggers in-game revival.
-5. **Progression Tree Attunement:** Hostile depth ticks are counted, then unlock conditions are checked across all un-attuned nodes whose prerequisites are satisfied.
-6. **Sustenance & Asset Decay:** Every 10 cycles (20 with `wayfarer`), decrement integrity of sustenance items by 1. Update action log history (max 20 entries).
+4. **Exposure Consequences:** Evaluate Stressed, Critical and Incapacitated limits (+5.0 each with `trench_hardened`). Warnings fire on level changes.
+5. **Sustenance & Log:** Every 10 cycles (20 with `wayfarer`), decrement integrity of sustenance items by 1. Update action log history (max 20 entries).
+6. **Experience & Jobs:** Apply experience from the action (passed by the reducer) plus Survival for a hostile turn; perks are granted on level-up. Advance today's jobs and pay for any completed.
+7. **Fatigue:** Warn when tired; at 90 turns awake the player falls asleep (in place if the room is safe, otherwise the medics carry them back). Incapacitation revives the player the same way.
 
-Hands-on actions at Critical exposure run the pipeline twice (§4.3).
+Hands-on actions at Critical exposure or while tired run the pipeline twice.
 
 ---
 
@@ -483,7 +511,7 @@ Hands-on actions at Critical exposure run the pipeline twice (§4.3).
 * Minimum terminal size: 40 columns by 20 rows. Walking into a wall does nothing at all: no message, no time, and the menu for the current tile stays usable. When the terminal is shorter than the frame, the Zone 4 legend is dropped first.
 * Rendered via ANSI terminal clearing and sequential string construction.
 * Zone 2 minimap displays up to a 10×10 grid. Entity glyphs with player cursor overlap are rendered in inverted video (`\033[7m`).
-* Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`) and unicode symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ◆ ■ ~ ·`) are permitted; entity glyphs follow §6.4. Emojis are prohibited.
+* Box-drawing characters (`┌ ─ ┐ │ └ ┘ ├ ┤ ┬ ┴ ┼`) and unicode symbols (`= ⌸ ⎅ ≡ ⚲ ⊞ ◆ ■ ▭ ~ ·`) are permitted; entity glyphs follow §6.4. Emojis are prohibited.
 * **Styles and palette** (`ui/style.py`): bold, dim and inverse, plus one accent colour, orange (`\033[38;5;208m`). No other colours.
   - Orange is reserved for danger: warning messages, the `Strained` status, rising exposure tracks and the hazard words in Zone 1. `DANGER` status is orange inverse.
   - Bold: room name, gains (`+ Skill`, `+ Got`, `+ Crew`), the menu title, the Pack heading.
@@ -500,13 +528,13 @@ Rendered at 40 columns (styles removed):
 │ Berth 04                   Station A │
 │ 101.3 kPa · 18°C · 0.2 mSv  safe air │
 ├──────────────────────────────────────┤
-│┌───────────────────┐│ Turn 41        │
+│┌───────────────────┐│ Day 1 · Evening│
 ││ ░ ░ ░ ░ ◆ ░ ░ ░ ░ ││ Strained /15   │
 ││ ░ · · = · · · · ░ ││ Air   0.0      │
 ││ ░ · · · · · · · ░ ││ Rad   0.0      │
 ││ ░ · · ⊞ · K · ⌸ ░ ││ Cold  5.1 -2   │
-││ ◆ · · · · · · · = ││ Team: Radek    │
-││ ░ · · · · · · ⊞ ░ ││                │
+││ ◆ · · · · · · · = ││ Awake 41/90    │
+││ ░ · · · · · · ⊞ ░ ││ Team: Radek    │
 ││ ░ · · · · · · · ░ ││                │
 ││ ░ · · · ⎅ · · · ░ ││                │
 ││ ░ ░ ░ ░ ░ ░ ░ ░ ░ ││                │
@@ -524,16 +552,16 @@ Rendered at 40 columns (styles removed):
 │ Kael: T talk · B trade               │
 ├──────────────────────────────────────┤
 │ I inspect  X close  WASD move        │
-│ M map  P pack  C char                │
+│ M map  P pack  C char  J jobs        │
 └──────────────────────────────────────┘
 ```
 
 * **Zone 1:** room name and area (`Station A`, `Station B`, `In transit`, `Moon`), then readings and, outside safe havens, hazard words in orange. If both do not fit, the hazard words win.
 * **Zone 2:** the room grid, up to 10×10.
-* **Zone 3:** turn; status `OK`, or `Strained · max 15` / `DANGER · max 15` (the blackout limit shows only when it matters); the three exposure tracks `Air` (low pressure), `Rad`, `Cold` with their per-turn trend (`+3.5`, or `-2` while recovering); the team, shortened to `Radek +2` when long. The pack is not shown here; press `P`.
+* **Zone 3:** day and shift (`Day 1 · Evening`); status `OK`, or `Strained · max 15` / `DANGER · max 15` (the blackout limit shows only when it matters); the three exposure tracks `Air` (low pressure), `Rad`, `Cold` with their per-turn trend (`+3.5`, or `-2` while recovering); turns awake (`Awake 41/90`, orange when tired); the team, shortened to `Radek +2` when long. The pack is not shown here; press `P`.
 * **Zone 4:** legend, one line per glyph (§6.4). Exits are named by destination plus the wall they sit on (`N`, `S`, `E`, `W`), so doors sharing a glyph stay distinguishable. Notable states follow in brackets (`sealed`, `locked`, `broken`, `used`). No IDs.
 * **Zone 5:** messages sorted by kind, then the proximity menu (§5.2). Panels opened with `P`, `C`, `T` appear here. See §6.3.
-* **Zone 6:** two lines of key hints. Normally `WASD move  / command  Q quit` and `M map  P pack  C char  T team`; with the menu open, `I inspect  X close  WASD move` and the panel keys (without `T` when standing on an actor).
+* **Zone 6:** two lines of key hints. Normally `WASD move  / command  Q quit` and `M map  P pack  C char  T team  J jobs`; with the menu open, `I inspect  X close  WASD move` and the panel keys (without `T` when standing on an actor).
 
 ### 6.3 Messages and Wording
 
@@ -565,6 +593,7 @@ One glyph per kind of thing, so the map reads at a glance; the legend names each
 | `⌸` | Screen or panel | Readable logs and bypass panels |
 | `⚲` | Supply | Water taps and food vats |
 | `■` | Machine | Things to repair or smelt |
+| `▭` | Bunk | Where you sleep |
 | `A`–`Z` | Person | First letter of their name |
 
 Walls and floors keep their per-room glyphs. `tests/test_ui_flow.py` checks every fixture against these rules.
@@ -584,49 +613,42 @@ Character creation establishes personal background, starting equipment, and an a
 | | 2. Work Pass (`pass_work`) | Credential; provides `dock_clearance`, `id_verified`. |
 | | 3. Steel Dice (`dice_steel`) | Record item; provides `morale`, `barter_token`. |
 | | 4. Chalk Slate (`slate_tally`) | Record item; provides `record`, `marking`, `lore`. |
-| **Step 3: Past Routine** | 1. Seam Scraper (`seam_scraper`) | `unlocked_capabilities += {"seal_fitting"}`. Can inspect weld integrity, bypass stuck seals, and craft basic fittings. |
-| | 2. Algae Tender (`algae_tender`) | `unlocked_capabilities += {"bio_filter"}`. Can harvest biomass, service scrubbers, and identify potable fluids. |
-| | 3. Cargo Handler (`cargo_handler`) | `unlocked_capabilities += {"heavy_lift"}`. Can brute-force seized levers, lift heavy bulkheads, and handle dense freight. |
+| **Step 3: Past Routine** | 1. Seam Scraper (`seam_scraper`) | `unlocked_capabilities += {"seal_fitting"}`; starts at Engineering 2. Can inspect weld integrity, bypass stuck seals, and craft basic fittings. |
+| | 2. Algae Tender (`algae_tender`) | `unlocked_capabilities += {"bio_filter"}`; starts at Survival 2. Can harvest biomass, service scrubbers, and identify potable fluids. |
+| | 3. Cargo Handler (`cargo_handler`) | `unlocked_capabilities += {"heavy_lift"}`; starts at Logistics 2. Can brute-force seized levers, lift heavy bulkheads, and handle dense freight. |
 
-*Initial Spawn:* Player begins in `stn_a_bunkroom` at grid center `(node.size // 2, node.size // 2)`, with `cycle = 0`, zero exposure, and empty message buffers.
+*Initial Spawn:* Player begins in `stn_a_bunkroom` at grid center `(node.size // 2, node.size // 2)`, with `cycle = 0`, `day = 1`, zero exposure, and day 1's jobs posted.
 
 ---
 
 ## 8. Progression, Capabilities & Team Mechanics
 
-### 8.1 Three-Branch Qualitative Progression Tree
+### 8.1 Work Skills and Levels
 
-Advancement is non-linear and structured across three distinct operational branches:
+Three work skills level from 1 to 5. Experience comes from doing the work; each level grants one perk (a capability tag the rules already understand). Your past routine starts you at level 2 in its skill.
 
-```
-QUALITATIVE PROGRESSION TREE:
+| Skill | Earned by |
+| :--- | :--- |
+| Engineering | Opening (+15), repairing (+20), bypassing (+15), smelting (+10), prying containers open (+10) |
+| Survival | Each turn where exposure builds up (+2, or +3 while Strained or worse) |
+| Logistics | Searching (+8), trading (+20), harvesting (+5), job deliveries |
 
-[ Engineering ]
-  seam_discipline ───> scrap_fabrication ───> bulkhead_ear ───> conduit_mastery
+Jobs pay extra experience in their skill (§8.4).
 
-[ Survival ]
-  cold_bypass ───────> vacuum_walk ─────────> deep_well ───────> trench_hardened
-
-[ Exploration ]
-  scavenger_instinct ─> crew_coordination ─> signal_analysis ─> wayfarer
-```
-
-#### Tree Node Specification
-
-| ID | Name | Branch | Prerequisite | Condition Type | Parameter | Mechanical Effect |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `seam_discipline` | Fixing Leaks | Engineering | None | `use_fixture` | `spigot_01` | Inspect pipes and valves to see leaks and required tools. |
-| `scrap_fabrication` | Making Parts | Engineering | `seam_discipline` | `use_fixture` | `salvage_bin` | Forge pry-bars from ore at the smelter. Without it, ore only melts down to scrap. |
-| `bulkhead_ear` | Hear Pressure | Engineering | `scrap_fabrication`| `visit_node` | `stn_a_sub` | Check air pressure behind closed doors before opening them. |
-| `conduit_mastery` | Careful Hands | Engineering | `bulkhead_ear` | `use_fixture` | `jammed_valve` | Tools do not wear out when fixing standard pipes and valves. |
-| `cold_bypass` | Cold Tolerance | Survival | None | `survive_depth` | `1:5` | Take half as much damage from freezing cold. |
-| `vacuum_walk` | Vacuum Suit | Survival | `cold_bypass` | `visit_node` | `luna_pad` | Take half as much damage from low pressure. |
-| `deep_well` | Lead Skin | Survival | `vacuum_walk` | `survive_depth` | `1:20` | Take half as much damage from radiation. |
-| `trench_hardened` | Iron Body | Survival | `deep_well` | `visit_node` | `luna_mine` | Can take 5 more points of exposure before getting hurt or passing out. |
-| `scavenger_instinct` | Sharp Eye | Exploration | None | `use_fixture` | `personal_locker` | Find more scrap and gear when searching lockers and bins. |
-| `crew_coordination` | Teamwork | Exploration | `scavenger_instinct`| `complete_trade` | `npc_radek` | Companions help the whole crew resist cold, radiation, and low pressure. |
-| `signal_analysis` | Radio Ears | Exploration | `crew_coordination`| `use_fixture` | `comms_rack` | Read the locked part of station logs and notice boards. |
-| `wayfarer` | Deep Traveler | Exploration | `signal_analysis` | `visit_node` | `luna_dome` | Food and water last twice as long. Shuttle rides are free. |
+| Skill | Level | XP | Grants | Perk |
+| :--- | :--- | :--- | :--- | :--- |
+| Engineering | 2 | 30 | `seam_discipline` | Inspecting shows whether you can fix it, and with what. |
+| Engineering | 3 | 90 | `scrap_fabrication` | Forge pry-bars from ore at the smelter. |
+| Engineering | 4 | 180 | `bulkhead_ear` | Hear the air behind a door before you open it. |
+| Engineering | 5 | 300 | `conduit_mastery` | Tools don't wear on pipe and valve work. |
+| Survival | 2 | 30 | `cold_bypass` | Cold builds up half as fast. |
+| Survival | 3 | 90 | `vacuum_walk` | Low pressure builds up half as fast. |
+| Survival | 4 | 180 | `deep_well` | Radiation builds up half as fast. |
+| Survival | 5 | 300 | `trench_hardened` | You can take 5 more of everything before blacking out. |
+| Logistics | 2 | 30 | `scavenger_instinct` | Find extra scrap when searching. |
+| Logistics | 3 | 90 | `crew_coordination` | Your team shields you: every track builds up 0.2 slower. |
+| Logistics | 4 | 180 | `signal_analysis` | Read the scrambled parts of logs and boards. |
+| Logistics | 5 | 300 | `wayfarer` | Food lasts twice as long and shuttle rides are free. |
 
 ### 8.2 Inventory Assets Reference
 
@@ -657,6 +679,16 @@ Companions represent fellow crew members recruited across the stations. They tra
 | `comp_radek` | Radek | Cargo Rigger | Station Alpha (Sub-Deck) | `two_person_lift` | Operates heavy industrial lifts, assists in prying sealed doors, and hauls freight. |
 | `comp_tarek` | Tarek | Array Specialist | Station Beta (Dock / Array) | `signal_boost` | Decodes encrypted station data, intercepts distress traffic, and hacks consoles. |
 | `comp_mira` | Mira | Hab Botanist | Station Alpha (Hab Ring) | `bio_filter` | Optimizes life support scrubbers, harvests algae rations, and purges exposure toxins. |
+
+---
+
+### 8.4 Daily Routine
+
+* **Shifts.** A day is three shifts of 30 turns awake: Morning, Evening, Night.
+* **Fatigue.** At 60 turns awake you are tired: hands-on work takes twice as long. At 90 you fall asleep where you stand. In a safe room you wake there next morning; anywhere else the medics carry you to the Bunkroom and use one ration.
+* **Sleep.** Bunks are in the Bunkroom and the Habitat Dome. Sleeping needs 20+ turns awake. The night passes (30 cycles), exposure clears, and a new day starts.
+* **Each morning:** restocking containers refill, harvest spots regrow, and three jobs are posted from `jobs.json` on a fixed rotation (day *d* posts templates 3(*d*−1) … 3(*d*−1)+2, wrapping around). No randomness.
+* **Jobs** are done by playing: `use` a fixture, `deliver` items to a room (taken on arrival), or `stay` a number of turns in a room. Completion pays experience and items (tokens, patches, rations, scrip), so routine work funds expeditions.
 
 ---
 
@@ -915,6 +947,16 @@ The blocks below are generated from the canonical JSON files and checked by `tes
           "seal_fitting",
           "wrench"
         ]
+      },
+      "crew_bunk": {
+        "id": "crew_bunk",
+        "glyph": "▭",
+        "name": "Crew Bunk",
+        "state": "active",
+        "required_tags": [],
+        "grants_edge": null,
+        "on_use_effect": "sleep",
+        "description": "Fold-down bunk with a thin mattress. Sleep here to start a new day."
       }
     },
     "actors": {},
@@ -938,6 +980,11 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "entity_id": "vent_duct",
         "row": 5,
         "col": 2
+      },
+      {
+        "entity_id": "crew_bunk",
+        "row": 1,
+        "col": 1
       }
     ],
     "edges": {
@@ -1022,7 +1069,8 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "required_tags": [],
         "yields": [
           "scrap_metal"
-        ]
+        ],
+        "restock": true
       },
       "salvage_bin": {
         "id": "salvage_bin",
@@ -1035,7 +1083,8 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "required_tags": [],
         "yields": [
           "fitting_copper"
-        ]
+        ],
+        "restock": true
       },
       "hab_hatch": {
         "id": "hab_hatch",
@@ -1368,7 +1417,8 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "description": "Green spirulina culture bubbling behind acrylic. Can yield fresh nutrient paste.",
         "required_tags": [
           "bio_filter"
-        ]
+        ],
+        "restock": true
       }
     },
     "actors": {
@@ -1904,7 +1954,8 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "required_tags": [],
         "yields": [
           "scrap_metal"
-        ]
+        ],
+        "restock": true
       }
     },
     "actors": {},
@@ -2011,7 +2062,8 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "yields": [
           "ration_dry"
         ],
-        "description": "Shared crew locker by the airlock. Someone left a ration behind."
+        "description": "Shared crew locker by the airlock. Someone left a ration behind.",
+        "restock": true
       },
       "seed_crate": {
         "id": "seed_crate",
@@ -2024,7 +2076,8 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "yields": [
           "algae_paste"
         ],
-        "description": "Cold-packed crate of starter cultures for the trays."
+        "description": "Cold-packed crate of starter cultures for the trays.",
+        "restock": true
       },
       "dome_board": {
         "id": "dome_board",
@@ -2051,7 +2104,8 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "yields": [
           "algae_paste"
         ],
-        "description": "Shallow tray of algae under daylight panels. Filter work needs a trained hand or a spanner."
+        "description": "Shallow tray of algae under daylight panels. Filter work needs a trained hand or a spanner.",
+        "restock": true
       },
       "dome_tap": {
         "id": "dome_tap",
@@ -2064,6 +2118,16 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "state": "active",
         "on_use_effect": "refill",
         "description": "Recycled water tap. Fills any canteen."
+      },
+      "dome_bunk": {
+        "id": "dome_bunk",
+        "glyph": "▭",
+        "name": "Dome Bunk",
+        "state": "active",
+        "required_tags": [],
+        "grants_edge": null,
+        "on_use_effect": "sleep",
+        "description": "Spare bunk behind a privacy curtain. Sleep here to start a new day."
       }
     },
     "actors": {
@@ -2138,6 +2202,11 @@ The blocks below are generated from the canonical JSON files and checked by `tes
       {
         "entity_id": "dome_tap",
         "row": 7,
+        "col": 8
+      },
+      {
+        "entity_id": "dome_bunk",
+        "row": 8,
         "col": 8
       }
     ],
@@ -2324,7 +2393,8 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "required_tags": [],
         "yields": [
           "ration_dry"
-        ]
+        ],
+        "restock": true
       }
     },
     "actors": {},
@@ -2399,7 +2469,8 @@ The blocks below are generated from the canonical JSON files and checked by `tes
         "required_tags": [],
         "yields": [
           "ore_sample"
-        ]
+        ],
+        "restock": true
       }
     },
     "actors": {},
@@ -2542,117 +2613,213 @@ The blocks below are generated from the canonical JSON files and checked by `tes
 ]
 ```
 
-### 9.4 Progression Tree Reference (`tree.json`)
+### 9.4 Work Skills Reference (`skills.json`)
 
 ```json
 [
   {
-    "id": "seam_discipline",
-    "name": "Fixing Leaks",
-    "description": "Inspect pipes and valves to see leaks and required tools.",
-    "prerequisite": null,
-    "unlock_condition": "use_fixture",
-    "unlock_parameter": "spigot_01",
-    "attuned": false
+    "id": "engineering",
+    "name": "Engineering",
+    "earned_by": "Opening, repairing, bypassing and smelting.",
+    "perks": [
+      {
+        "level": 2,
+        "xp": 30,
+        "grants": "seam_discipline",
+        "text": "Inspecting shows whether you can fix it, and with what."
+      },
+      {
+        "level": 3,
+        "xp": 90,
+        "grants": "scrap_fabrication",
+        "text": "Forge pry-bars from ore at the smelter."
+      },
+      {
+        "level": 4,
+        "xp": 180,
+        "grants": "bulkhead_ear",
+        "text": "Hear the air behind a door before you open it."
+      },
+      {
+        "level": 5,
+        "xp": 300,
+        "grants": "conduit_mastery",
+        "text": "Tools don't wear on pipe and valve work."
+      }
+    ]
   },
   {
-    "id": "scrap_fabrication",
-    "name": "Making Parts",
-    "description": "Forge pry-bars from ore at the smelter. Without it, ore only melts down to scrap.",
-    "prerequisite": "seam_discipline",
-    "unlock_condition": "use_fixture",
-    "unlock_parameter": "salvage_bin",
-    "attuned": false
+    "id": "survival",
+    "name": "Survival",
+    "earned_by": "Time spent in cold, thin air or radiation.",
+    "perks": [
+      {
+        "level": 2,
+        "xp": 30,
+        "grants": "cold_bypass",
+        "text": "Cold builds up half as fast."
+      },
+      {
+        "level": 3,
+        "xp": 90,
+        "grants": "vacuum_walk",
+        "text": "Low pressure builds up half as fast."
+      },
+      {
+        "level": 4,
+        "xp": 180,
+        "grants": "deep_well",
+        "text": "Radiation builds up half as fast."
+      },
+      {
+        "level": 5,
+        "xp": 300,
+        "grants": "trench_hardened",
+        "text": "You can take 5 more of everything before blacking out."
+      }
+    ]
   },
   {
-    "id": "bulkhead_ear",
-    "name": "Hear Pressure",
-    "description": "Check air pressure behind closed doors before opening them.",
-    "prerequisite": "scrap_fabrication",
-    "unlock_condition": "visit_node",
-    "unlock_parameter": "stn_a_sub",
-    "attuned": false
+    "id": "logistics",
+    "name": "Logistics",
+    "earned_by": "Searching, trading, harvesting and deliveries.",
+    "perks": [
+      {
+        "level": 2,
+        "xp": 30,
+        "grants": "scavenger_instinct",
+        "text": "Find extra scrap when searching."
+      },
+      {
+        "level": 3,
+        "xp": 90,
+        "grants": "crew_coordination",
+        "text": "Your team shields you: every track builds up 0.2 slower."
+      },
+      {
+        "level": 4,
+        "xp": 180,
+        "grants": "signal_analysis",
+        "text": "Read the scrambled parts of logs and boards."
+      },
+      {
+        "level": 5,
+        "xp": 300,
+        "grants": "wayfarer",
+        "text": "Food lasts twice as long and shuttle rides are free."
+      }
+    ]
+  }
+]
+```
+
+### 9.5 Daily Jobs Reference (`jobs.json`)
+
+```json
+[
+  {
+    "id": "job_scrap_bin",
+    "title": "Empty the Berth 04 scrap bin",
+    "kind": "use",
+    "target": "salvage_bin",
+    "skill": "logistics",
+    "xp": 15,
+    "reward_items": [
+      "scrip_shift"
+    ]
   },
   {
-    "id": "conduit_mastery",
-    "name": "Careful Hands",
-    "description": "Tools do not wear out when fixing standard pipes and valves.",
-    "prerequisite": "bulkhead_ear",
-    "unlock_condition": "use_fixture",
-    "unlock_parameter": "jammed_valve",
-    "attuned": false
+    "id": "job_algae_vat",
+    "title": "Harvest the Hab Ring algae vat",
+    "kind": "use",
+    "target": "algae_basin",
+    "skill": "logistics",
+    "xp": 15,
+    "reward_items": [
+      "ration_dry"
+    ]
   },
   {
-    "id": "cold_bypass",
-    "name": "Cold Tolerance",
-    "description": "Take half as much damage from freezing cold.",
-    "prerequisite": null,
-    "unlock_condition": "survive_depth",
-    "unlock_parameter": "1:5",
-    "attuned": false
+    "id": "job_sub_patrol",
+    "title": "Walk a 6-turn patrol in the Sub-Deck",
+    "kind": "stay",
+    "target": "stn_a_sub",
+    "count": 6,
+    "skill": "engineering",
+    "xp": 25,
+    "reward_items": [
+      "seal_patch"
+    ]
   },
   {
-    "id": "vacuum_walk",
-    "name": "Vacuum Suit",
-    "description": "Take half as much damage from low pressure.",
-    "prerequisite": "cold_bypass",
-    "unlock_condition": "visit_node",
-    "unlock_parameter": "luna_pad",
-    "attuned": false
+    "id": "job_scrap_smelter",
+    "title": "Deliver 2 Scrap Metal to the Smelter",
+    "kind": "deliver",
+    "target": "luna_smelter",
+    "item": "scrap_metal",
+    "count": 2,
+    "skill": "logistics",
+    "xp": 40,
+    "reward_items": [
+      "chit_transit"
+    ]
   },
   {
-    "id": "deep_well",
-    "name": "Lead Skin",
-    "description": "Take half as much damage from radiation.",
-    "prerequisite": "vacuum_walk",
-    "unlock_condition": "survive_depth",
-    "unlock_parameter": "1:20",
-    "attuned": false
+    "id": "job_paste_fuel",
+    "title": "Bring Algae Paste to the Fuel Spur",
+    "kind": "deliver",
+    "target": "stn_b_fuel",
+    "item": "algae_paste",
+    "count": 1,
+    "skill": "logistics",
+    "xp": 25,
+    "reward_items": [
+      "ration_dry"
+    ]
   },
   {
-    "id": "trench_hardened",
-    "name": "Iron Body",
-    "description": "Can take 5 more points of exposure before getting hurt or passing out.",
-    "prerequisite": "deep_well",
-    "unlock_condition": "visit_node",
-    "unlock_parameter": "luna_mine",
-    "attuned": false
+    "id": "job_ore_core",
+    "title": "Cut a core at the Deep Mine ore face",
+    "kind": "use",
+    "target": "ore_face",
+    "skill": "survival",
+    "xp": 30,
+    "reward_items": [
+      "chit_transit"
+    ]
   },
   {
-    "id": "scavenger_instinct",
-    "name": "Sharp Eye",
-    "description": "Find more scrap and gear when searching lockers and bins.",
-    "prerequisite": null,
-    "unlock_condition": "use_fixture",
-    "unlock_parameter": "personal_locker",
-    "attuned": false
+    "id": "job_quake_check",
+    "title": "Log the Habitat Dome quake monitor",
+    "kind": "use",
+    "target": "seismic_station",
+    "skill": "engineering",
+    "xp": 10,
+    "reward_items": [
+      "scrip_shift"
+    ]
   },
   {
-    "id": "crew_coordination",
-    "name": "Teamwork",
-    "description": "Companions help the whole crew resist cold, radiation, and low pressure.",
-    "prerequisite": "scavenger_instinct",
-    "unlock_condition": "complete_trade",
-    "unlock_parameter": "npc_radek",
-    "attuned": false
+    "id": "job_sled_salvage",
+    "title": "Strip the old survey sled on the Landing Pad",
+    "kind": "use",
+    "target": "regolith_sled",
+    "skill": "survival",
+    "xp": 20,
+    "reward_items": [
+      "seal_patch"
+    ]
   },
   {
-    "id": "signal_analysis",
-    "name": "Radio Ears",
-    "description": "Read the locked part of station logs and notice boards.",
-    "prerequisite": "crew_coordination",
-    "unlock_condition": "use_fixture",
-    "unlock_parameter": "comms_rack",
-    "attuned": false
-  },
-  {
-    "id": "wayfarer",
-    "name": "Deep Traveler",
-    "description": "Food and water last twice as long. Shuttle rides are free.",
-    "prerequisite": "signal_analysis",
-    "unlock_condition": "visit_node",
-    "unlock_parameter": "luna_dome",
-    "attuned": false
+    "id": "job_tray_harvest",
+    "title": "Harvest the Habitat Dome tray",
+    "kind": "use",
+    "target": "hydro_tray",
+    "skill": "logistics",
+    "xp": 15,
+    "reward_items": [
+      "scrip_shift"
+    ]
   }
 ]
 ```
@@ -2705,10 +2872,10 @@ def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
 
 ### Phase 1: Domain Typing & Contracts (`core/types.py`)
 - Ensure all enumerations (`ItemCategory`, `FixtureState`, `Environment`, `ExposureType`) match the specification.
-- Retain immutable `NamedTuple` definitions for `GameState`, `PlayerCharacter`, `Fixture`, `Actor`, `Edge`, `Node`, and `TreeNode`.
+- Retain immutable `NamedTuple` definitions for `GameState`, `PlayerCharacter`, `Fixture`, `Actor`, `Edge`, `Node`, `Skill`, `Perk` and `Job`.
 
 ### Phase 2: Preset Data Expansion (`presets/default-1.0/` & `core/presets.py`)
-- Sync `items.json`, `nodes.json`, `companions.json`, and `tree.json` with the full 14-node open-world specifications.
+- Sync `items.json`, `nodes.json`, `companions.json`, `skills.json` and `jobs.json` with the full 14-node open-world specifications.
 - Keep the JSON in `core/data/default-1.0/` as the single source of truth. Do not mirror it in Python.
 
 ### Phase 3: Pure State Reducers (`core/reducers.py`)
@@ -2719,8 +2886,8 @@ def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
 - **Trade Reducers:** `reduce_talk` shows dialogue and offers; `reduce_barter` executes the trade, grants companions and removes recruited actors from the grid.
 
 ### Phase 4: Tick Processor (`core/tick.py`)
-- Execute the 6-step tick processing pipeline.
-- Evaluate progression tree unlock conditions for `visit_node`, `survive_depth`, `complete_trade`, and `use_fixture`.
+- Execute the 7-step tick processing pipeline (§5.6).
+- Reducers pass action experience in the tick context (`{"xp": {skill: amount}}`); `core/routine.py` applies it, grants perks, advances jobs and handles fatigue and new days.
 - Enforce sustenance integrity decay every 10 cycles and record chronological events in `action_log`.
 
 ### Phase 5: Viewport & Presentation (`ui/render.py`, `ui/topology_view.py`)
@@ -2733,7 +2900,7 @@ def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
 - Maintain atomic JSON serialization into `saves/<character_name>/state.json`.
 - Enforce `is_running = True` on save file load.
 - Revival happens in the tick (§4.3). Loading still revives legacy v1 saves that stopped at the moment of collapse, using the capability-aware threshold.
-- Upgrade v1 saves (`schema_version` missing) by merging authored fields from the default preset while keeping fixture state, trades and attunements.
+- Upgrade v1 saves (`schema_version` missing) by merging authored fields from the default preset while keeping fixture state and trades. Schema 5 rebuilds skill experience from the perk capabilities an older save already earned.
 
 ### Phase 7: Verification & E2E Testing (`tests/`)
 - Ensure all automated unit and E2E test suites pass with 100% reliability.
@@ -2745,4 +2912,5 @@ def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
 
 1. **Deterministic Functional Purity:** No runtime randomness (`random.random()`) in core logic. All resolution is deterministic based on item tags, player capabilities, and world vitals.
 2. **Standard Library Only:** Zero external pip packages (`curses`, `urwid`, `rich`, `requests`, `numpy` are prohibited).
-3. **Excluded Mechanics (v1.0):** Combat loops, tactical grid weapons, real-time animation loops, inventory grid weight math, audio synthesis, and deep planetary gravity wells.
+3. **Postponed Mechanics:** Combat is postponed, not banned; the world is small and the environment is the threat for now.
+4. **Excluded Mechanics (v1.0):** Combat loops, tactical grid weapons, real-time animation loops, inventory grid weight math, audio synthesis, and deep planetary gravity wells.

@@ -136,7 +136,7 @@ class TestReducers(unittest.TestCase):
         self.assertTrue(any("PACK" in m for m in s_pack.message_buffer))
 
         s_char = reduce_character(self.state)
-        self.assertTrue(any("SKILLS:" in m for m in s_char.message_buffer))
+        self.assertTrue(any("ENGINEERING" in m for m in s_char.message_buffer))
 
         s_help = reduce_help(self.state)
         self.assertTrue(any("HELP" in m for m in s_help.message_buffer))

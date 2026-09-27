@@ -256,57 +256,24 @@ class TestOpenWorldRPG(unittest.TestCase):
         gate = st_shuttle.nodes["stn_a_berth"].fixtures["shuttle_gate"]
         self.assertEqual(gate.state, FixtureState.OPEN.value)
 
-    def test_progression_tree_unlock_pipeline(self):
-        """Test the 12-node progression tree unlock chain across all 3 branches."""
-        # Branch 1: Engineering
-        # 1. seam_discipline (use spigot_01 with flask_water)
-        st = self.state
-        flask = ALL_ITEMS_BY_ID["flask_water"]._replace(integrity=1)
-        st = st._replace(character=st.character._replace(inventory=st.character.inventory + (flask,)))
-        st1 = reduce_use(st, "flask_water", "spigot_01")
-        self.assertIn("seam_discipline", st1.character.unlocked_capabilities)
-
-        # 2. scrap_fabrication (use/scavenge salvage_bin in berth)
-        st1_berth = st1._replace(current_node_id="stn_a_berth")
-        st2 = reduce_scavenge(st1_berth, "salvage_bin")
-        self.assertIn("scrap_fabrication", st2.character.unlocked_capabilities)
-
-        # 3. bulkhead_ear (visit stn_a_sub)
-        st3 = process_tick(st2._replace(current_node_id="stn_a_sub"), "Enter subdeck")
-        self.assertIn("bulkhead_ear", st3.character.unlocked_capabilities)
-
-        # 4. conduit_mastery (use jammed_valve in stn_a_sub with force_lever tool)
+    def test_work_levels_up_skills_and_grants_perks(self):
+        """Engineering experience from real work reaches level 3 and its perk (forging pry-bars)."""
+        st = self.state  # seam scraper: Engineering starts at 30 XP (level 2)
+        self.assertIn("seam_discipline", st.character.unlocked_capabilities)
         prybar = ALL_ITEMS_BY_ID["tool_prybar"]
-        st3_tool = st3._replace(character=st3.character._replace(inventory=st3.character.inventory + (prybar,)))
-        st4 = reduce_use(st3_tool, "tool_prybar", "jammed_valve")
-        self.assertIn("conduit_mastery", st4.character.unlocked_capabilities)
-
-        # Branch 2: Exploration
-        # 1. scavenger_instinct (scavenge personal_locker)
-        st_exp = self.state
-        st_scav = reduce_scavenge(st_exp, "personal_locker")
-        self.assertIn("scavenger_instinct", st_scav.character.unlocked_capabilities)
-
-        # 2. crew_coordination (trade with npc_radek)
-        prybar = ALL_ITEMS_BY_ID["tool_prybar"]
-        st_trade = st_scav._replace(
-            current_node_id="stn_a_sub",
-            character=st_scav.character._replace(inventory=(prybar,))
-        )
-        st_crew = reduce_barter(st_trade, "npc_radek")
-        self.assertIn("crew_coordination", st_crew.character.unlocked_capabilities)
-
-        # 3. signal_analysis (use comms_rack in stn_b_array)
-        st_array = st_crew._replace(
-            current_node_id="stn_b_array",
-            character=st_crew.character._replace(inventory=(ALL_ITEMS_BY_ID["fitting_copper"],))
-        )
-        st_comms = reduce_use(st_array, "fitting_copper", "comms_rack")
-        self.assertIn("signal_analysis", st_comms.character.unlocked_capabilities)
-
-        # 4. wayfarer (visit luna_dome)
-        st_dome = process_tick(st_comms._replace(current_node_id="luna_dome"), "Enter dome")
-        self.assertIn("wayfarer", st_dome.character.unlocked_capabilities)
+        st = st._replace(current_node_id="stn_a_sub", character=st.character._replace(inventory=(prybar,)))
+        st = reduce_use(st, "tool_prybar", "jammed_valve")         # repair: +20
+        self.assertEqual(st.skills["engineering"], 50)
+        st = st._replace(current_node_id="stn_b_array", character=st.character._replace(
+            inventory=st.character.inventory + (ALL_ITEMS_BY_ID["wire_spool"],)))
+        st = reduce_use(st, "wire_spool", "crypto_terminal")        # bypass: +15
+        st = st._replace(current_node_id="luna_smelter", character=st.character._replace(
+            inventory=st.character.inventory + (ALL_ITEMS_BY_ID["scrap_metal"],) * 3))
+        for _ in range(3):
+            st = reduce_use(st, "scrap_metal", "smelting_crucible")  # smelt: +10 each
+        self.assertEqual(st.skills["engineering"], 95)
+        self.assertIn("scrap_fabrication", st.character.unlocked_capabilities)
+        self.assertTrue(any("Engineering 3!" in m for m in st.message_buffer))
 
     def test_proximity_menu_and_wasd_interactions(self):
         """Verify WASD movement lands on entity tiles, activates proximity menu, and executes actions."""

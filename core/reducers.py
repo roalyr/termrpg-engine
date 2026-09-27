@@ -7,6 +7,7 @@ from core.tick import process_tick
 from core.presets import DEFAULT_DATA_DIR, load_catalogs
 from core import rules
 from core.rules import Source
+from core import routine
 from core.menu import DONE_STATES, CLOSED_STATES, get_entity_at, entity_under_cursor
 from core.text import danger, gain, quiet, speech, needs, tag_name, hazard_words, TAG_NAMES, STATE_WORDS
 
@@ -367,7 +368,8 @@ def reduce_barter(state: GameState, actor_id: str = "", item_id: str = "") -> Ga
         message_buffer=tuple(messages),
     )
     return _refresh_menu(process_tick(
-        traded, f"Traded with {actor.name}.", {"traded_actor_id": actor.id}, physical=True))
+        traded, f"Traded with {actor.name}.",
+        {"traded_actor_id": actor.id, "xp": {"logistics": routine.XP_TRADE}}, physical=True))
 
 
 # --- Fixtures --------------------------------------------------------------
@@ -435,11 +437,13 @@ def reduce_scavenge(state: GameState, fixture_id: Optional[str] = None,
 
     inventory = state.character.inventory
     tool_note = ""
+    xp = {"logistics": routine.XP_SEARCH}
     if fixture.state in CLOSED_STATES and fixture.required_tags:
         source = rules.resolve_requirement(state, fixture.required_tags, preferred_item_idx)
         if not source:
             return _say(state, f"The {fixture.name} is sealed. Needs {needs(fixture.required_tags)}.")
         inventory, tool_note = _spend(state, source, "unlock")
+        xp["engineering"] = routine.XP_PRY
 
     found: List[Item] = [it for it in (rules.catalog_item(state, i) for i in fixture.yields or ("scrap_metal",)) if it]
     bonus = ""
@@ -459,7 +463,7 @@ def reduce_scavenge(state: GameState, fixture_id: Optional[str] = None,
         message_buffer=tuple(messages),
     )
     return _refresh_menu(process_tick(
-        searched, f"Searched the {fixture.name}.", {"used_fixture_id": fixture.id}, physical=True))
+        searched, f"Searched the {fixture.name}.", {"used_fixture_id": fixture.id, "xp": xp}, physical=True))
 
 
 def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState:
@@ -482,6 +486,8 @@ def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState:
     effect = fixture.on_use_effect
     if effect == "log":
         return reduce_read(state, fixture.id)
+    if effect == "sleep":
+        return reduce_sleep(state)
     if fixture.state in DONE_STATES:
         return _say(state, f"The {fixture.name} is already {STATE_WORDS.get(fixture.state, fixture.state)}.")
     if effect == "repair" and fixture.state == FixtureState.ACTIVE.value:
@@ -493,7 +499,7 @@ def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState:
 
     inventory = state.character.inventory
     new_node = node
-    context = {"used_fixture_id": fixture.id}
+    context: Dict[str, object] = {"used_fixture_id": fixture.id}
     messages: List[str] = []
 
     if effect == "refill":
@@ -520,6 +526,7 @@ def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState:
         if product:
             inventory = inventory + (product,)
             messages.insert(0, gain(f"Got: {product.name}, smelted from your {item.name}."))
+        context["xp"] = {"engineering": routine.XP_SMELT}
 
     elif effect in _TOOL_EFFECTS and fixture.required_tags:
         source = rules.resolve_requirement(state, fixture.required_tags, item_idx)
@@ -529,6 +536,8 @@ def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState:
             return _say(state, f"Needs {needs(fixture.required_tags)}.")
         inventory, note = _spend(state, source, effect)
 
+        context["xp"] = {"engineering": {"unlock": routine.XP_UNLOCK, "repair": routine.XP_REPAIR,
+                                         "override": routine.XP_OVERRIDE}.get(effect, 0)}
         if effect == "unlock":
             new_node = _with_fixture(node, fixture._replace(state=FixtureState.OPEN.value))
             messages.append(f"The {fixture.name} opens.{note}")
@@ -545,6 +554,10 @@ def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState:
             yields = [it for it in (rules.catalog_item(state, i) for i in fixture.yields or ("algae_paste",)) if it]
             inventory = inventory + tuple(yields)
             messages.append(gain(f"Got: {', '.join(it.name for it in yields)}.") + note)
+            context["xp"] = {"logistics": routine.XP_HARVEST}
+            if fixture.restock:
+                new_node = _with_fixture(node, fixture._replace(state=FixtureState.SPENT.value))
+                messages.append(f"The {fixture.name} regrows overnight.")
         else:  # override
             new_node = _with_fixture(node, fixture._replace(state=FixtureState.SPENT.value))
             messages.append(f"You bypass the {fixture.name}.{note}")
@@ -639,18 +652,47 @@ def reduce_pack(state: GameState) -> GameState:
 
 
 def reduce_character(state: GameState) -> GameState:
-    """Displays qualitative progression tree and attunements."""
+    """Background plus each work skill's level, experience and next perk."""
     lines = [f"{state.character.name}, former {state.character.past_work.replace('_', ' ')}. "
-             f"Keepsake: {state.character.personal_anchor.name}.", "SKILLS:"]
-    for node in state.tree:
-        if node.attuned:
-            lines.append(f"  + {node.name}: {node.description}")
-    locked = [node for node in state.tree if not node.attuned]
-    if locked:
-        lines.append("NOT YET:")
-        for node in locked:
-            lines.append(f"  - {node.name}: {node.description}")
+             f"Keepsake: {state.character.personal_anchor.name}."]
+    for skill in state.skill_catalog:
+        xp = state.skills.get(skill.id, 0)
+        level = routine.skill_level(skill, xp)
+        upcoming = routine.next_perk(skill, xp)
+        progress = f"{xp}/{upcoming.xp} XP" if upcoming else f"{xp} XP, max"
+        lines.append(f"{skill.name.upper()} {level} ({progress}). {skill.earned_by}")
+        for perk in skill.perks:
+            if xp >= perk.xp:
+                lines.append(f"  + {perk.text}")
+        if upcoming:
+            lines.append(f"  Next at {upcoming.level}: {upcoming.text}")
     return state._replace(message_buffer=tuple(lines))
+
+
+def reduce_jobs(state: GameState) -> GameState:
+    """Today's jobs and their progress."""
+    lines = [f"JOBS, DAY {state.day} ({routine.shift_name(state).lower()} shift):"]
+    if not state.jobs:
+        lines.append("  No jobs posted.")
+    for job in state.jobs:
+        mark = "x" if job.done else " "
+        step = f" ({job.progress}/{job.count})" if job.kind == "stay" and not job.done else ""
+        rewards = [state.item_catalog[i].name for i in job.reward_items if i in state.item_catalog]
+        pay = f"{job.xp} {routine.skill_name(state, job.skill)}" + (f", {', '.join(rewards)}" if rewards else "")
+        lines.append(f"  [{mark}] {job.title}{step}. Pays {pay}.")
+    lines.append("New jobs are posted each morning.")
+    return state._replace(message_buffer=tuple(lines))
+
+
+def reduce_sleep(state: GameState) -> GameState:
+    """Sleeps in a bunk: night passes, exposure clears, stock refills and new jobs are posted."""
+    node = state.nodes[state.current_node_id]
+    if not any(f.on_use_effect == "sleep" for f in node.fixtures.values()):
+        return _say(state, "There is no bunk here. Bunks are in the Bunkroom and the Habitat Dome.")
+    if routine.awake_turns(state) < routine.MIN_AWAKE_TO_SLEEP:
+        return _say(state, "You're not tired enough to sleep yet.")
+    slept = routine.start_day(state, node.id, ("You sleep through the night.",))
+    return slept._replace(action_log=(state.action_log + (f"Slept. Day {slept.day}.",))[-20:])
 
 
 def reduce_team(state: GameState) -> GameState:
@@ -690,7 +732,7 @@ def reduce_color(state: GameState, toggle: str) -> GameState:
 HELP_TOPICS: Dict[str, Tuple[str, ...]] = {
     "": (
         "HELP. Walk onto things to use them.",
-        "  WASD move  M map  P pack  C character  T team",
+        "  WASD move  M map  P pack  C character  T team  J jobs",
         "  Q quit  / type a command",
         "  On a tile:  I inspect  U use  F search  R read",
         "              T talk  B trade  G go  X close",
@@ -701,6 +743,8 @@ HELP_TOPICS: Dict[str, Tuple[str, ...]] = {
         "  At 15 you black out and wake in the Bunkroom.",
         "  Safe rooms (normal air, top level) lower all three.",
         "  /consume eats or drinks to lower them.",
+        "  After 60 turns awake you're tired; at 90 you drop.",
+        "  Sleep in a bunk (Bunkroom, Habitat Dome) to start a new day.",
         "  Fixing broken valves and walls makes rooms safer.",
     ),
     "trade": (
@@ -714,7 +758,8 @@ HELP_TOPICS: Dict[str, Tuple[str, ...]] = {
         "  /search <thing>  /read <thing>  /talk <person>",
         "  /barter [person] [item]  /consume [item]",
         "  /leave <exit>  /wait  /map  /pack  /character",
-        "  /team  /log  /flavor on|off  /color on|off  /quit",
+        "  /team  /jobs  /sleep  /log  /flavor on|off",
+        "  /color on|off  /quit",
     ),
 }
 

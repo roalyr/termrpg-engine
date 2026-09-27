@@ -78,8 +78,10 @@ def menu_for(state: GameState) -> Optional[Menu]:
                     hint = f"Sealed. Needs {needs(fixture.required_tags)}."
             else:
                 options.append(MenuOption("F", "search"))
-        if fixture.on_use_effect == "scavenge" and fixture.state == FixtureState.SPENT.value:
-            hint = "Already searched."
+        if fixture.state == FixtureState.SPENT.value and fixture.on_use_effect in ("scavenge", "harvest"):
+            hint = "Restocks overnight." if fixture.restock else "Already searched."
+        if fixture.on_use_effect == "sleep":
+            options.append(MenuOption("U", "sleep"))
         if fixture.on_use_effect == "log":
             options.append(MenuOption("R", "read"))
         use, why = _use_option(state, fixture)

@@ -3,7 +3,7 @@ from typing import Any, Dict, Mapping, Optional
 
 from core.types import (
     Item, Fixture, Actor, GridPlacement, Edge, NodeVitals, Node,
-    Companion, TreeNode, Exposure,
+    Companion, Exposure, Perk, Skill, Job,
 )
 
 
@@ -61,15 +61,31 @@ def parse_companion(raw: Dict[str, Any]) -> Companion:
     )
 
 
-def parse_tree_node(raw: Dict[str, Any]) -> TreeNode:
-    return TreeNode(
+def parse_skill(raw: Dict[str, Any]) -> Skill:
+    return Skill(
         id=str(raw["id"]),
         name=str(raw["name"]),
-        description=str(raw["description"]),
-        prerequisite=raw.get("prerequisite"),
-        unlock_condition=str(raw["unlock_condition"]),
-        unlock_parameter=str(raw["unlock_parameter"]),
-        attuned=bool(raw.get("attuned", False)),
+        earned_by=str(raw.get("earned_by", "")),
+        perks=tuple(
+            Perk(level=int(p["level"]), xp=int(p["xp"]), grants=str(p["grants"]), text=str(p["text"]))
+            for p in raw.get("perks", [])
+        ),
+    )
+
+
+def parse_job(raw: Dict[str, Any]) -> Job:
+    return Job(
+        id=str(raw["id"]),
+        title=str(raw["title"]),
+        kind=str(raw["kind"]),
+        target=str(raw["target"]),
+        skill=str(raw["skill"]),
+        xp=int(raw["xp"]),
+        reward_items=tuple(str(i) for i in raw.get("reward_items") or []),
+        item=raw.get("item"),
+        count=int(raw.get("count", 1)),
+        progress=int(raw.get("progress", 0)),
+        done=bool(raw.get("done", False)),
     )
 
 
@@ -90,6 +106,7 @@ def parse_fixture(raw: Dict[str, Any]) -> Fixture:
         grants_capability=raw.get("grants_capability"),
         on_repair_vitals=parse_vitals(raw.get("on_repair_vitals")),
         reseal_on_pass=bool(raw.get("reseal_on_pass", False)),
+        restock=bool(raw.get("restock", False)),
     )
 
 

@@ -4,13 +4,14 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 from core.codec import (
-    to_jsonable, parse_item, parse_companion, parse_tree_node, parse_node, parse_exposure,
+    to_jsonable, parse_item, parse_companion, parse_skill, parse_job, parse_node, parse_exposure,
 )
-from core.presets import DEFAULT_DATA_DIR, load_catalogs
+from core.presets import DEFAULT_DATA_DIR, load_catalogs, load_skills, load_jobs, ROUTINE_SKILLS, ROUTINE_START_XP
+from core.routine import jobs_for_day
 from core.rules import exposure_thresholds, max_exposure, REVIVE_NODE_ID
 from core.types import GameState, PlayerCharacter, Exposure
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 # Authored fields refreshed from the default preset when upgrading an older save.
 # Progress fields (state, trade_completed, attuned, vitals) are kept from the save.
@@ -22,7 +23,6 @@ _STATIC_ACTOR_FIELDS = (
     "trade_required_tags", "dialogue_variants", "name", "title", "status",
     "dialogue_idle", "dialogue_post_trade", "glyph",
 )
-_STATIC_TREE_FIELDS = ("unlock_parameter", "description", "name")
 _STATIC_ITEM_FIELDS = ("name", "description", "tags")
 
 
@@ -51,8 +51,6 @@ def _upgrade(data: Dict[str, Any]) -> Dict[str, Any]:
     """Merges current world data and wording from the default preset into an older save without losing progress."""
     with open(DEFAULT_DATA_DIR / "nodes.json", "r", encoding="utf-8") as f:
         defaults = {n["id"]: n for n in json.load(f)}
-    with open(DEFAULT_DATA_DIR / "tree.json", "r", encoding="utf-8") as f:
-        tree_defaults = {t["id"]: t for t in json.load(f)}
 
     for nid, node in data["nodes"].items():
         ref = defaults.get(nid)
@@ -85,11 +83,24 @@ def _upgrade(data: Dict[str, Any]) -> Dict[str, Any]:
         node["description"] = ref["description"]
         _resize(data, node, ref)
 
-    for entry in data.get("tree", []):
-        ref = tree_defaults.get(entry["id"])
-        if ref:
-            for key in _STATIC_TREE_FIELDS:
-                entry[key] = ref[key]
+    # Schema 5 replaced the skill tree with work-skill levels. Tree node IDs are the
+    # perk capabilities, so experience is rebuilt from what the save already earned.
+    data.pop("tree", None)
+    data.pop("depth_ticks", None)
+    if "skills" not in data:
+        caps = set(data["character"]["unlocked_capabilities"])
+        start = ROUTINE_SKILLS.get(data["character"]["past_work"])
+        data["skills"] = {
+            sk.id: max([ROUTINE_START_XP if sk.id == start else 0] + [p.xp for p in sk.perks if p.grants in caps])
+            for sk in load_skills(DEFAULT_DATA_DIR / "skills.json")
+        }
+        data["character"]["unlocked_capabilities"] = sorted(caps | {
+            p.grants for sk in load_skills(DEFAULT_DATA_DIR / "skills.json")
+            for p in sk.perks if data["skills"][sk.id] >= p.xp})
+        data["woke_at"] = int(data["cycle"])
+        data["day"] = 1
+    data.pop("skill_catalog", None)
+    data.pop("job_catalog", None)
 
     with open(DEFAULT_DATA_DIR / "items.json", "r", encoding="utf-8") as f:
         item_defaults = {i["id"]: i for i in json.load(f)}
@@ -139,6 +150,12 @@ def state_from_dict(data: Dict[str, Any]) -> GameState:
         companion_catalog = {k: parse_companion(v) for k, v in data["companion_catalog"].items()}
     else:
         item_catalog, companion_catalog = load_catalogs(DEFAULT_DATA_DIR)
+    if data.get("skill_catalog"):
+        skill_catalog = tuple(parse_skill(sk) for sk in data["skill_catalog"])
+        job_catalog = tuple(parse_job(j) for j in data.get("job_catalog", []))
+    else:
+        skill_catalog = load_skills(DEFAULT_DATA_DIR / "skills.json")
+        job_catalog = load_jobs(DEFAULT_DATA_DIR / "jobs.json")
 
     cur_node_id = str(data["current_node_id"])
     cur_node = nodes.get(cur_node_id)
@@ -160,9 +177,7 @@ def state_from_dict(data: Dict[str, Any]) -> GameState:
         current_node_id=cur_node_id,
         nodes=nodes,
         companions=tuple(parse_companion(c) for c in data.get("companions", [])),
-        tree=tuple(parse_tree_node(t) for t in data.get("tree", [])),
         visited_nodes=frozenset(str(v) for v in data.get("visited_nodes", [])),
-        depth_ticks={int(k): int(v) for k, v in data.get("depth_ticks", {}).items()},
         cycle=int(data["cycle"]),
         player_row=player_row,
         player_col=player_col,
@@ -175,6 +190,12 @@ def state_from_dict(data: Dict[str, Any]) -> GameState:
         item_catalog=item_catalog,
         companion_catalog=companion_catalog,
         color_enabled=bool(data.get("color_enabled", True)),
+        skills={str(k): int(v) for k, v in data.get("skills", {}).items()},
+        skill_catalog=skill_catalog,
+        job_catalog=job_catalog,
+        jobs=tuple(parse_job(j) for j in data["jobs"]) if "jobs" in data else jobs_for_day(job_catalog, int(data.get("day", 1))),
+        day=int(data.get("day", 1)),
+        woke_at=int(data.get("woke_at", data["cycle"])),
     )
 
 

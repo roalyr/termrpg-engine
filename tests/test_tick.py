@@ -60,7 +60,8 @@ class TestTickProcessor(unittest.TestCase):
         self.assertTrue(any("black out" in m for m in s1.message_buffer))
         self.assertEqual(s1.current_node_id, "stn_a_bunkroom")
         self.assertEqual(s1.character.exposure, Exposure(0.0, 0.0, 0.0))
-        self.assertEqual(s1.cycle, 6 + 12)
+        self.assertEqual(s1.cycle, 6 + 30)  # the night passes
+        self.assertEqual(s1.day, 2)
         self.assertFalse(any(i.id == "ration_dry" for i in s1.character.inventory))
 
     def test_sustenance_decay_every_10_cycles(self):

@@ -154,7 +154,7 @@ class TestHotkeysAndGlyphs(unittest.TestCase):
     def test_p_c_t_open_panels(self):
         s = new()
         self.assertEqual(dispatch_action(s, "p").message_buffer[0], "PACK:")
-        self.assertIn("SKILLS:", dispatch_action(s, "c").message_buffer)
+        self.assertTrue(any("ENGINEERING" in m for m in dispatch_action(s, "c").message_buffer))
         self.assertEqual(dispatch_action(s, "t").message_buffer[0], "TEAM:")
         self.assertEqual(dispatch_action(s, "/party").message_buffer[0], "TEAM:")
 
@@ -206,7 +206,7 @@ def expected_glyph(state, node, fixture):
         if dest.depth != node.depth or "lift" in name or "ladder" in name:
             return "⎅"
         return "◆"
-    return {"scavenge": "⊞", "log": "⌸", "override": "⌸", "refill": "⚲", "harvest": "⚲"}.get(
+    return {"scavenge": "⊞", "log": "⌸", "override": "⌸", "refill": "⚲", "harvest": "⚲", "sleep": "▭"}.get(
         fixture.on_use_effect, "■")
 
 

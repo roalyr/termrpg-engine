@@ -57,13 +57,9 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertEqual(state.current_node_id, "stn_a_sub")
         self.assertEqual(state.nodes["stn_a_sub"].depth, 1)
 
-        # Check progression tree: Bulkhead Ear requires visiting stn_a_sub
-        # Seam Discipline was unlocked when visiting or fixture used
         self.assertIn("stn_a_sub", state.visited_nodes)
-        bulkhead_node = next(t for t in state.tree if t.id == "bulkhead_ear")
-        # Bulkhead ear prerequisite is seam_discipline. Let's inspect tree
         char_view = dispatch_action(state, "character")
-        self.assertTrue(any("SKILLS" in m for m in char_view.message_buffer))
+        self.assertTrue(any("ENGINEERING" in m for m in char_view.message_buffer))
 
         # Give player a prybar to interact with Radek and the frozen valve
         prybar = ALL_ITEMS_BY_ID["tool_prybar"]
@@ -221,10 +217,10 @@ class TestE2EWalkthrough(unittest.TestCase):
         """Full open-world expedition: alternate routes, scavenging, companion recruitment, crafting, and lunar descent."""
         state = self.state  # Starts in stn_a_bunkroom with fitting_copper
 
-        # 1. Scavenge personal locker in bunkroom -> unlocks scavenger_instinct
+        # 1. Scavenge personal locker in bunkroom -> Logistics experience
         state = dispatch_action(state, "/scavenge personal_locker")
         self.assertTrue(any(i.id == "wire_spool" for i in state.character.inventory))
-        self.assertIn("scavenger_instinct", state.character.unlocked_capabilities)
+        self.assertGreater(state.skills["logistics"], 0)
 
         # 2. Open-world bypass: unlock service crawlway (vent_duct) directly to sub-deck
         # Uses player's starting fitting_copper (seal_fitting tag)
@@ -247,7 +243,6 @@ class TestE2EWalkthrough(unittest.TestCase):
         state = dispatch_action(state, "/barter npc_radek")
         self.assertTrue(any(c.id == "comp_radek" for c in state.companions))
         self.assertTrue(any(i.id == "chit_transit" for i in state.character.inventory))
-        self.assertIn("crew_coordination", state.character.unlocked_capabilities)
 
         # 6. Ascend to Berth 04 and unlock shuttle gate
         state = dispatch_action(state, "leave to_berth")
@@ -273,7 +268,6 @@ class TestE2EWalkthrough(unittest.TestCase):
         state = dispatch_action(state, "leave to_array")
         self.assertEqual(state.current_node_id, "stn_b_array")
         state = dispatch_action(state, "/use wire_spool comms_rack")
-        self.assertIn("signal_analysis", state.character.unlocked_capabilities)
 
         # 11. Return to Dock and board Shuttle Hopper back
         state = dispatch_action(state, "leave to_dock")
@@ -291,10 +285,9 @@ class TestE2EWalkthrough(unittest.TestCase):
         state = dispatch_action(state, "leave to_luna")
         self.assertEqual(state.current_node_id, "luna_pad")
 
-        # 13. Enter Luna Habitat Dome -> unlocks wayfarer
+        # 13. Enter Luna Habitat Dome
         state = dispatch_action(state, "leave to_dome")
         self.assertEqual(state.current_node_id, "luna_dome")
-        self.assertIn("wayfarer", state.character.unlocked_capabilities)
 
         # 14. Enter Luna Smelter
         state = dispatch_action(state, "leave to_smelter")

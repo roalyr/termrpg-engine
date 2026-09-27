@@ -171,21 +171,25 @@ class TestExposure(unittest.TestCase):
         self.assertEqual(exposure_status(s), "STRESSED")
         self.assertIn(" Strained", render_frame(s, 40))
 
-    def test_lead_skin_needs_its_own_depth_time(self):
-        s = with_caps(new(), "cold_bypass", "vacuum_walk")
-        tree = tuple(t._replace(attuned=t.id in ("cold_bypass", "vacuum_walk")) for t in s.tree)
-        s = s._replace(tree=tree, depth_ticks={1: 5}, current_node_id="stn_a_sub")
-        s1 = process_tick(s, "wait")
-        self.assertNotIn("deep_well", s1.character.unlocked_capabilities)
-        s20 = s._replace(depth_ticks={1: 19})
-        self.assertIn("deep_well", process_tick(s20, "wait").character.unlocked_capabilities)
+    def test_survival_xp_comes_from_hostile_turns_only(self):
+        s = new()._replace(current_node_id="stn_a_sub")
+        s1 = dispatch_action(s, "/wait")
+        self.assertEqual(s1.skills["survival"], 2)
+        safe = dispatch_action(new(), "/wait")
+        self.assertEqual(safe.skills["survival"], 0)
 
-    def test_safe_rooms_do_not_count_as_surviving_depth(self):
+    def test_repaired_rooms_stop_paying_survival_xp(self):
         s = on(carrying(new(), "tool_prybar"), "jammed_valve")
         s = dispatch_action(s, "u")  # repair valve: 92 kPa, -5 C
-        before = s.depth_ticks.get(1, 0)
+        before = s.skills["survival"]
         s = dispatch_action(s, "/wait")
-        self.assertEqual(s.depth_ticks.get(1, 0), before)
+        self.assertEqual(s.skills["survival"], before)
+
+    def test_survival_levels_halve_cold(self):
+        s = new()._replace(current_node_id="stn_a_sub", skills={"engineering": 30, "survival": 28, "logistics": 0})
+        s = dispatch_action(s, "/wait")
+        self.assertIn("cold_bypass", s.character.unlocked_capabilities)
+        self.assertTrue(any("Survival 2!" in m for m in s.message_buffer))
 
     def test_critical_work_costs_two_cycles_but_walking_does_not(self):
         s = on(new(), "tool_rack")

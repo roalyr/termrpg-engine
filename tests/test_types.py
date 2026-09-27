@@ -1,7 +1,7 @@
 import unittest
 from core.types import (
     Item, Fixture, Actor, GridPlacement, Edge, NodeVitals, Node,
-    Companion, Exposure, PlayerCharacter, TreeNode, GameState,
+    Companion, Exposure, PlayerCharacter, GameState, Skill, Job,
     ItemCategory, FixtureState, Environment, ExposureType
 )
 

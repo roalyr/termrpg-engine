@@ -21,20 +21,18 @@ class TestPersistence(unittest.TestCase):
     def test_full_roundtrip_persistence(self):
         state = init_game_state(self.preset_dir, "TestPilot", 1, 1)
 
-        # Modify state: add item, add companion, attune tree node, change location
+        # Modify state: add item, add companion, gain experience, change location
         modified_char = state.character._replace(
             inventory=state.character.inventory + (ALL_ITEMS_BY_ID["tool_prybar"],),
             unlocked_capabilities=state.character.unlocked_capabilities | {"seam_discipline"}
-        )
-        modified_tree = tuple(
-            t._replace(attuned=True) if t.id == "seam_discipline" else t
-            for t in state.tree
         )
         modified_state = state._replace(
             character=modified_char,
             current_node_id="stn_a_sub",
             companions=(ALL_COMPANIONS_BY_ID["comp_radek"],),
-            tree=modified_tree,
+            skills={**state.skills, "survival": 44},
+            day=3,
+            woke_at=40,
             visited_nodes=state.visited_nodes | {"stn_a_sub"},
             cycle=42,
             player_row=3,
@@ -56,6 +54,9 @@ class TestPersistence(unittest.TestCase):
         self.assertTrue(any(i.id == "tool_prybar" for i in loaded.character.inventory))
         self.assertTrue(any(c.id == "comp_radek" for c in loaded.companions))
         self.assertIn("seam_discipline", loaded.character.unlocked_capabilities)
+        self.assertEqual(loaded.skills["survival"], 44)
+        self.assertEqual((loaded.day, loaded.woke_at), (3, 40))
+        self.assertEqual(loaded.jobs, state.jobs)
         self.assertIn("stn_a_sub", loaded.visited_nodes)
         self.assertTrue(loaded.is_running)
 

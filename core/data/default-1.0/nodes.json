@@ -62,6 +62,16 @@
           "seal_fitting",
           "wrench"
         ]
+      },
+      "crew_bunk": {
+        "id": "crew_bunk",
+        "glyph": "▭",
+        "name": "Crew Bunk",
+        "state": "active",
+        "required_tags": [],
+        "grants_edge": null,
+        "on_use_effect": "sleep",
+        "description": "Fold-down bunk with a thin mattress. Sleep here to start a new day."
       }
     },
     "actors": {},
@@ -85,6 +95,11 @@
         "entity_id": "vent_duct",
         "row": 5,
         "col": 2
+      },
+      {
+        "entity_id": "crew_bunk",
+        "row": 1,
+        "col": 1
       }
     ],
     "edges": {
@@ -169,7 +184,8 @@
         "required_tags": [],
         "yields": [
           "scrap_metal"
-        ]
+        ],
+        "restock": true
       },
       "salvage_bin": {
         "id": "salvage_bin",
@@ -182,7 +198,8 @@
         "required_tags": [],
         "yields": [
           "fitting_copper"
-        ]
+        ],
+        "restock": true
       },
       "hab_hatch": {
         "id": "hab_hatch",
@@ -515,7 +532,8 @@
         "description": "Green spirulina culture bubbling behind acrylic. Can yield fresh nutrient paste.",
         "required_tags": [
           "bio_filter"
-        ]
+        ],
+        "restock": true
       }
     },
     "actors": {
@@ -1051,7 +1069,8 @@
         "required_tags": [],
         "yields": [
           "scrap_metal"
-        ]
+        ],
+        "restock": true
       }
     },
     "actors": {},
@@ -1158,7 +1177,8 @@
         "yields": [
           "ration_dry"
         ],
-        "description": "Shared crew locker by the airlock. Someone left a ration behind."
+        "description": "Shared crew locker by the airlock. Someone left a ration behind.",
+        "restock": true
       },
       "seed_crate": {
         "id": "seed_crate",
@@ -1171,7 +1191,8 @@
         "yields": [
           "algae_paste"
         ],
-        "description": "Cold-packed crate of starter cultures for the trays."
+        "description": "Cold-packed crate of starter cultures for the trays.",
+        "restock": true
       },
       "dome_board": {
         "id": "dome_board",
@@ -1198,7 +1219,8 @@
         "yields": [
           "algae_paste"
         ],
-        "description": "Shallow tray of algae under daylight panels. Filter work needs a trained hand or a spanner."
+        "description": "Shallow tray of algae under daylight panels. Filter work needs a trained hand or a spanner.",
+        "restock": true
       },
       "dome_tap": {
         "id": "dome_tap",
@@ -1211,6 +1233,16 @@
         "state": "active",
         "on_use_effect": "refill",
         "description": "Recycled water tap. Fills any canteen."
+      },
+      "dome_bunk": {
+        "id": "dome_bunk",
+        "glyph": "▭",
+        "name": "Dome Bunk",
+        "state": "active",
+        "required_tags": [],
+        "grants_edge": null,
+        "on_use_effect": "sleep",
+        "description": "Spare bunk behind a privacy curtain. Sleep here to start a new day."
       }
     },
     "actors": {
@@ -1285,6 +1317,11 @@
       {
         "entity_id": "dome_tap",
         "row": 7,
+        "col": 8
+      },
+      {
+        "entity_id": "dome_bunk",
+        "row": 8,
         "col": 8
       }
     ],
@@ -1471,7 +1508,8 @@
         "required_tags": [],
         "yields": [
           "ration_dry"
-        ]
+        ],
+        "restock": true
       }
     },
     "actors": {},
@@ -1546,7 +1584,8 @@
         "required_tags": [],
         "yields": [
           "ore_sample"
-        ]
+        ],
+        "restock": true
       }
     },
     "actors": {},

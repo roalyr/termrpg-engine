@@ -8,14 +8,14 @@ from core.reducers import (
     reduce_inspect, reduce_talk, reduce_use, reduce_leave,
     reduce_wait, reduce_map, reduce_back, reduce_pack,
     reduce_character, reduce_team, reduce_log, reduce_flavor,
-    reduce_help, reduce_look, reduce_color,
+    reduce_help, reduce_look, reduce_color, reduce_jobs, reduce_sleep,
 )
 from core.menu import entity_under_cursor
 
 # Single keys that act on the entity under the cursor while the proximity menu is open.
 MENU_KEYS = ("i", "u", "g", "t", "f", "r", "b", "x")
 # Single keys that open a panel in Zone 5 from anywhere: pack, character, team.
-PANEL_KEYS = ("p", "c", "t")
+PANEL_KEYS = ("p", "c", "t", "j")
 
 
 def tokenize_command(raw_input: str) -> Tuple[str, ...]:
@@ -96,7 +96,7 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
         return reduce_read(state, rest) if rest else reduce_interact_read(state)
     if verb in ("consume", "eat", "drink"):
         return reduce_consume(state, rest)
-    if verb in ("wait", "rest"):
+    if verb == "wait":
         return reduce_wait(state)
     if verb in ("leave", "go", "move"):
         return reduce_leave(state, args[0]) if args else reduce_interact_go(state)
@@ -110,6 +110,10 @@ def dispatch_action(state: GameState, raw_input: str) -> GameState:
         return reduce_character(state)
     if verb in ("team", "party", "t"):
         return reduce_team(state)
+    if verb in ("jobs", "job", "j"):
+        return reduce_jobs(state)
+    if verb in ("sleep", "rest"):
+        return reduce_sleep(state)
     if verb == "log":
         return reduce_log(state)
     if verb in ("flavor", "flavor_text"):

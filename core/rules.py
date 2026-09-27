@@ -14,9 +14,7 @@ ROUTINE_LABELS: Dict[str, str] = {
     "bio_filter": "Algae Tender training",
     "heavy_lift": "Cargo Handler training",
 }
-DEFAULT_SURVIVE_TICKS = 5
 REVIVE_NODE_ID = "stn_a_bunkroom"
-REVIVE_CYCLES = 12
 
 
 class Thresholds(NamedTuple):
@@ -94,12 +92,12 @@ def is_safe_haven(node: Node) -> bool:
 
 def free_tag_sources(state: GameState) -> Dict[str, str]:
     """Tags the party provides without spending an item, mapped to a display label."""
-    tree_names = {t.id: t.name for t in state.tree}
+    perk_names = {p.grants: f"{sk.name} {p.level}" for sk in state.skill_catalog for p in sk.perks}
     sources: Dict[str, str] = {}
     for cap in state.character.unlocked_capabilities:
-        sources[cap] = ROUTINE_LABELS.get(cap) or tree_names.get(cap) or "clearance on file"
+        sources[cap] = ROUTINE_LABELS.get(cap) or perk_names.get(cap) or "clearance on file"
     if "wayfarer" in state.character.unlocked_capabilities:
-        sources.setdefault("transit_clearance", tree_names.get("wayfarer", "Deep Traveler"))
+        sources.setdefault("transit_clearance", perk_names.get("wayfarer", "free rides"))
     for comp in state.companions:
         if comp.capability_tag:
             sources.setdefault(comp.capability_tag, comp.name)
@@ -236,12 +234,6 @@ def dialogue_for(state: GameState, actor: Actor) -> str:
         if condition_met(state, condition):
             return text
     return actor.dialogue_idle
-
-
-def parse_survive_parameter(parameter: str) -> Tuple[int, int]:
-    """'depth:ticks' -> (depth, ticks); a bare depth means the default tick count."""
-    depth, _, ticks = parameter.partition(":")
-    return int(depth), int(ticks) if ticks else DEFAULT_SURVIVE_TICKS
 
 
 def stack_items(inventory: Tuple[Item, ...]) -> Tuple[Tuple[Item, int], ...]:

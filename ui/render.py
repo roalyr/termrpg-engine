@@ -2,7 +2,7 @@ import re
 from typing import Callable, Dict, List, Optional, Tuple
 
 from core.types import GameState, Node, Fixture, FixtureState
-from core import rules
+from core import rules, routine
 from core.menu import menu_for, entity_under_cursor
 from core.text import STATUS_NAMES, STATE_WORDS, TRACK_NAMES, message_kind, strip_kind, hazard_words
 from ui.text_tools import wrap_text, pad_visible
@@ -75,7 +75,8 @@ def _status_rows(state: GameState, node: Node, z3_w: int, on: bool) -> List[str]
     else:
         text = fit(shortest(f" {label} · max {limit}", f" {label} /{limit}"))
         status_line = style.alarm(text, on) if status == "CRITICAL" else style.accent(text, on)
-    rows = [fit(f" Turn {state.cycle}"), status_line]
+    rows = [fit(shortest(f" Day {state.day} · {routine.shift_name(state)}",
+                         f" Day {state.day} {routine.shift_name(state)[:3]}")), status_line]
 
     safe = rules.is_safe_haven(node)
     deltas = tuple(rules.exposure_deltas(state, node))
@@ -88,6 +89,10 @@ def _status_rows(state: GameState, node: Node, z3_w: int, on: bool) -> List[str]
             trend = ""
         text = fit(shortest(f" {name:<4} {value:4.1f}{trend}", f" {name} {value:.0f}{trend}"))
         rows.append(style.accent(text, on) if value >= th.stressed or delta > 0 else text)
+
+    awake = routine.awake_turns(state)
+    awake_text = fit(shortest(f" Awake {awake}/{routine.COLLAPSE_AFTER}", f" Awake {awake}"))
+    rows.append(style.accent(awake_text, on) if routine.is_tired(state) else awake_text)
 
     if state.companions:
         names = [c.name for c in state.companions]
@@ -239,9 +244,9 @@ def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = Fals
         if state.proximity_menu_active:
             talking = entity_under_cursor(state)[1] is not None
             hints = [" I inspect  X close  WASD move",
-                     " M map  P pack  C char" + ("" if talking else "  T team")]
+                     " M map  P pack  C char" + ("" if talking else "  T team") + "  J jobs"]
         else:
-            hints = [" WASD move  / command  Q quit", " M map  P pack  C char  T team"]
+            hints = [" WASD move  / command  Q quit", " M map  P pack  C char  T team  J jobs"]
         zone6 = [mid] + [_boxed(h, inner, lambda t: style.dim(t, on)) for h in hints] + [bot]
 
     lines = zone1 + split + zone4 + zone5 + zone6
