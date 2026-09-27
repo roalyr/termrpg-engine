@@ -1,5 +1,6 @@
-from typing import Tuple, List, Optional
+from typing import Tuple, List
 from core.types import GameState, Node, Fixture, Actor
+from core import rules
 from ui.text_tools import wrap_text, pad_visible
 from ui.topology_view import render_topology
 
@@ -53,18 +54,19 @@ def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = Fals
     node = state.nodes[state.current_node_id]
 
     # --- ZONE 1: LOCATION HEADER ---
-    border_horiz = "+" + "─" * (w - 2) + "+"
-    title_line = f" {node.name.upper()} [{node.cluster.upper()}]"
-    title_line = title_line[:w - 2]
+    border_top = "┌" + "─" * (w - 2) + "┐"
+    border_mid = "├" + "─" * (w - 2) + "┤"
+    border_bot = "└" + "─" * (w - 2) + "┘"
+    cluster = node.cluster.replace("_", " ").upper()
+    title_line = f" {node.name.upper()} [{cluster}]"[:w - 2]
     vitals = node.base_vitals
-    vitals_line = f" ATM:{int(vitals.pressure_kpa)}kPa | TMP:{vitals.temperature_c}C | RAD:{vitals.radiation_msv}mSv"
-    vitals_line = vitals_line[:w - 2]
+    vitals_line = f" ATM:{vitals.pressure_kpa:g}kPa | TMP:{vitals.temperature_c}C | RAD:{vitals.radiation_msv:g}mSv"[:w - 2]
 
     zone1_lines = [
-        border_horiz,
+        border_top,
         f"│{title_line:<{w - 2}}│",
         f"│{vitals_line:<{w - 2}}│",
-        border_horiz
+        border_mid,
     ]
 
     # --- ZONE 2 & 3: SPLIT UPPER VIEWPORT ---
@@ -84,32 +86,34 @@ def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = Fals
         z2_rows.append("│" + pad_visible(row, z2_w - 2, align='^') + "│")
     z2_rows.append(z2_bot)
 
-    # Format Zone 3 (Status)
+    # Format Zone 3 (Status): exposure triplet, limit and per-cycle rate (§6.2)
     exp = state.character.exposure
-    max_exp = max(exp.pressure_debt, exp.radiation_dose, exp.thermal_stress)
-    if max_exp >= 10.0:
-        exp_status = "CRITICAL"
-    elif max_exp >= 5.0:
-        exp_status = "STRESSED"
+    limit = rules.exposure_thresholds(state.character.unlocked_capabilities).incapacitated
+    if rules.is_safe_haven(node):
+        rate = "-2.0/c"
     else:
-        exp_status = "NOMINAL"
+        deltas = rules.exposure_deltas(state, node)
+        track, worst = max(zip("PRT", deltas), key=lambda pair: pair[1])
+        rate = f"{track}+{worst:.1f}/c" if worst > 0 else "steady"
 
     z3_rows: List[str] = [
-        f" CYCLE: {state.cycle:03d}"[:z3_w],
-        f" AIR: {exp_status}"[:z3_w],
-        " PACK:"[:z3_w]
+        f" CYCLE {state.cycle:03d}",
+        f" {rules.exposure_status(state)}",
+        f" P{exp.pressure_debt:.1f} R{exp.radiation_dose:.1f} T{exp.thermal_stress:.1f}",
+        f" MAX {limit:g} {rate}",
+        " PACK:",
     ]
     if not state.character.inventory:
-        z3_rows.append("  (empty)"[:z3_w])
-    else:
-        for it in state.character.inventory:
-            cond = f"({it.integrity})" if it.max_integrity > 0 else ""
-            line = f"  - {it.name[:z3_w - 8]}{cond}"
-            z3_rows.append(line[:z3_w])
-
+        z3_rows.append("  (empty)")
+    for it, count in rules.stack_items(state.character.inventory):
+        cond = f"({it.integrity})" if it.max_integrity > 0 else ""
+        qty = f"x{count}" if count > 1 else ""
+        tail = cond + qty
+        z3_rows.append(f"  {it.name[:max(1, z3_w - 3 - len(tail))]}{tail}")
     if state.companions:
         names = ", ".join(c.name for c in state.companions)
-        z3_rows.append(f" CREW: {names[:z3_w - 8]}"[:z3_w])
+        z3_rows.append(f" CREW: {names}")
+    z3_rows = [row[:z3_w] for row in z3_rows]
 
     # Equalize row counts between Zone 2 and Zone 3
     max_rows = max(len(z2_rows), len(z3_rows))
@@ -141,7 +145,7 @@ def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = Fals
             z4_entries.append(line[:w - 2])
 
     zone4_lines = [
-        border_horiz,
+        border_mid,
         f"│{' MAP LEGEND':<{w - 2}}│"
     ]
     for ent in z4_entries:
@@ -153,7 +157,7 @@ def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = Fals
     zone4_lines.append(f"│{exits_line[:w - 2]:<{w - 2}}│")
 
     # --- ZONE 5: MESSAGES / PROXIMITY MENU ---
-    zone5_lines = [border_horiz]
+    zone5_lines = [border_mid]
     if state.proximity_menu_active:
         for msg in state.message_buffer:
             wrapped = wrap_text(msg, w - 4)
@@ -174,19 +178,16 @@ def render_frame(state: GameState, terminal_width: int, prompt_mode: bool = Fals
 
     # --- ZONE 6: PROMPT / KEY HINTS ---
     if prompt_mode:
-        zone6_lines = [
-            border_horiz,
-            "> "
-        ]
+        zone6_lines = [border_mid, "> "]
     else:
         if state.proximity_menu_active:
-            hint = " I: inspect  U: use  S: scavenge  T: talk  G: go  X: exit"
+            hint = " Menu keys shown above. X: close"
         else:
             hint = " WASD: move  /: cmd  M: map  Q: quit"
         zone6_lines = [
-            border_horiz,
+            border_mid,
             f"│{hint[:w - 2]:<{w - 2}}│",
-            border_horiz
+            border_bot,
         ]
 
     all_lines = (

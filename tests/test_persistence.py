@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 from pathlib import Path
-from core.presets import init_game_state
+from core.presets import init_game_state, DEFAULT_DATA_DIR
 from core.persistence import save_state, load_state
 from core.reducers import ALL_ITEMS_BY_ID, ALL_COMPANIONS_BY_ID
 
@@ -9,7 +9,7 @@ class TestPersistence(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.save_dir = Path(self.temp_dir.name) / "saves" / "TestPilot"
-        self.preset_dir = Path("presets/default-1.0")
+        self.preset_dir = DEFAULT_DATA_DIR
 
     def tearDown(self):
         self.temp_dir.cleanup()

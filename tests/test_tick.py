@@ -1,12 +1,12 @@
 import unittest
 from pathlib import Path
-from core.presets import init_game_state
+from core.presets import init_game_state, DEFAULT_DATA_DIR
 from core.tick import process_tick
 from core.types import Exposure, Item, ItemCategory
 
 class TestTickProcessor(unittest.TestCase):
     def setUp(self):
-        self.preset_dir = Path("presets/default-1.0")
+        self.preset_dir = DEFAULT_DATA_DIR
         self.state = init_game_state(self.preset_dir, "Vaelen", 1, 1)
 
     def test_cycle_increment(self):
@@ -47,13 +47,21 @@ class TestTickProcessor(unittest.TestCase):
         self.assertEqual(exp.radiation_dose, 3.0)
         self.assertEqual(exp.thermal_stress, 3.0)
 
-    def test_incapacitation(self):
-        # Exceed threshold (15.0) in hostile environment without recovery
-        char = self.state.character._replace(exposure=Exposure(15.0, 0.0, 0.0))
-        s_crit = self.state._replace(character=char, current_node_id="stn_a_sub")
+    def test_incapacitation_revives_in_game(self):
+        # Exceeding 15.0 collapses the player; medics carry them to the bunkroom and the game continues
+        ration = Item("ration_dry", "Ration", ItemCategory.SUSTENANCE.value, ("nutrition",), 2, 2, "Test")
+        char = self.state.character._replace(
+            exposure=Exposure(15.0, 0.0, 0.0),
+            inventory=self.state.character.inventory + (ration,),
+        )
+        s_crit = self.state._replace(character=char, current_node_id="stn_a_sub", cycle=5)
         s1 = process_tick(s_crit, "Final tick")
-        self.assertFalse(s1.is_running)
+        self.assertTrue(s1.is_running)
         self.assertTrue(any("Incapacitated" in m for m in s1.message_buffer))
+        self.assertEqual(s1.current_node_id, "stn_a_bunkroom")
+        self.assertEqual(s1.character.exposure, Exposure(0.0, 0.0, 0.0))
+        self.assertEqual(s1.cycle, 6 + 12)
+        self.assertFalse(any(i.id == "ration_dry" for i in s1.character.inventory))
 
     def test_sustenance_decay_every_10_cycles(self):
         ration = Item("ration_dry", "Ration", ItemCategory.SUSTENANCE.value, ("nutrition",), 2, 2, "Test")

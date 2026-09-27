@@ -3,7 +3,10 @@
     "id": "fitting_copper",
     "name": "Copper Pipe Fitting",
     "category": "utility",
-    "tags": ["seal_fitting", "conductive"],
+    "tags": [
+      "seal_fitting",
+      "conductive"
+    ],
     "integrity": 1,
     "max_integrity": 1,
     "description": "Standard threaded pipe collar with a clean silicone ring."
@@ -12,7 +15,10 @@
     "id": "pass_work",
     "name": "Stamped Work Pass",
     "category": "credential",
-    "tags": ["dock_clearance", "id_verified"],
+    "tags": [
+      "dock_clearance",
+      "id_verified"
+    ],
     "integrity": 0,
     "max_integrity": 0,
     "description": "Laminated shift card signed by the transit stevedore office."
@@ -21,7 +27,10 @@
     "id": "dice_steel",
     "name": "Steel Dice",
     "category": "record",
-    "tags": ["morale", "barter_token"],
+    "tags": [
+      "morale",
+      "barter_token"
+    ],
     "integrity": 0,
     "max_integrity": 0,
     "description": "Two milled steel cubes, pips worn flat from rolling on deck plate."
@@ -30,7 +39,11 @@
     "id": "slate_tally",
     "name": "Chalk Slate",
     "category": "record",
-    "tags": ["record", "marking", "lore"],
+    "tags": [
+      "record",
+      "marking",
+      "lore"
+    ],
     "integrity": 0,
     "max_integrity": 0,
     "description": "Flat slate slab showing scratched shift quotas and valve coordinates."
@@ -39,7 +52,9 @@
     "id": "chit_transit",
     "name": "Transit Token",
     "category": "credential",
-    "tags": ["transit_clearance"],
+    "tags": [
+      "transit_clearance"
+    ],
     "integrity": 1,
     "max_integrity": 1,
     "description": "Stamped metal token granting single-hop shuttle boarding."
@@ -48,7 +63,10 @@
     "id": "tool_prybar",
     "name": "Thermal Pry-Bar",
     "category": "utility",
-    "tags": ["force_lever", "heavy_duty"],
+    "tags": [
+      "force_lever",
+      "heavy_duty"
+    ],
     "integrity": 4,
     "max_integrity": 4,
     "description": "Flat-nosed iron lever rated for stuck latches and warped plates."
@@ -57,7 +75,10 @@
     "id": "tool_spanner",
     "name": "Filter Spanner",
     "category": "utility",
-    "tags": ["bio_filter", "wrench"],
+    "tags": [
+      "bio_filter",
+      "wrench"
+    ],
     "integrity": 3,
     "max_integrity": 3,
     "description": "Offset ring spanner sized for standard filtration cartridge bolts."
@@ -66,7 +87,10 @@
     "id": "flask_water",
     "name": "Insulated Canteen",
     "category": "sustenance",
-    "tags": ["hydration", "refillable"],
+    "tags": [
+      "hydration",
+      "refillable"
+    ],
     "integrity": 3,
     "max_integrity": 3,
     "description": "Metal drinking flask fitted with a screw seal."
@@ -75,7 +99,9 @@
     "id": "ration_dry",
     "name": "Compressed Ration",
     "category": "sustenance",
-    "tags": ["nutrition"],
+    "tags": [
+      "nutrition"
+    ],
     "integrity": 3,
     "max_integrity": 3,
     "description": "Dense calorie block in foil wrap. Tastes like salted chalk."
@@ -84,7 +110,10 @@
     "id": "algae_paste",
     "name": "Fresh Algae Paste",
     "category": "sustenance",
-    "tags": ["nutrition", "biomass"],
+    "tags": [
+      "nutrition",
+      "biomass"
+    ],
     "integrity": 2,
     "max_integrity": 2,
     "description": "High-protein spirulina slurry harvested from station hydroponics."
@@ -93,7 +122,10 @@
     "id": "wire_spool",
     "name": "Insulated Copper Wire",
     "category": "utility",
-    "tags": ["conductive", "electrical"],
+    "tags": [
+      "conductive",
+      "electrical"
+    ],
     "integrity": 2,
     "max_integrity": 2,
     "description": "Flexible coil of copper wiring suitable for circuit overrides."
@@ -102,7 +134,10 @@
     "id": "seal_patch",
     "name": "Silicone Seal Patch",
     "category": "utility",
-    "tags": ["vacuum_seal", "adhesive"],
+    "tags": [
+      "vacuum_seal",
+      "adhesive"
+    ],
     "integrity": 2,
     "max_integrity": 2,
     "description": "Self-curing elastomer patch rated for sudden pressure drops."
@@ -111,7 +146,10 @@
     "id": "scrap_metal",
     "name": "Basalt Scrap Metal",
     "category": "material",
-    "tags": ["salvage", "conductive"],
+    "tags": [
+      "salvage",
+      "conductive"
+    ],
     "integrity": 0,
     "max_integrity": 0,
     "description": "Twisted structural alloy plates suitable for smelting."
@@ -120,9 +158,22 @@
     "id": "ore_sample",
     "name": "High-Grade Lunar Ore",
     "category": "material",
-    "tags": ["mineral", "smeltable"],
+    "tags": [
+      "mineral"
+    ],
     "integrity": 0,
     "max_integrity": 0,
     "description": "Heavy core of titanium-rich lunar basalt extracted from the deep shaft."
+  },
+  {
+    "id": "scrip_shift",
+    "name": "Shift Scrip",
+    "category": "record",
+    "tags": [
+      "barter_token"
+    ],
+    "integrity": 1,
+    "max_integrity": 1,
+    "description": "Punched ration-office scrip good for one favor between shift crews."
   }
 ]

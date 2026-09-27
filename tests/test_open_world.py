@@ -1,11 +1,11 @@
 import unittest
 from pathlib import Path
-from core.presets import init_game_state
+from core.presets import init_game_state, DEFAULT_DATA_DIR
 from core.reducers import (
     reduce_scavenge, reduce_use, reduce_talk, reduce_inspect,
     reduce_move, reduce_interact_go, reduce_interact_scavenge,
     reduce_interact_use, reduce_interact_talk, reduce_interact_cancel,
-    ALL_ITEMS_BY_ID, ALL_COMPANIONS_BY_ID, SCAVENGE_YIELDS
+    reduce_barter, ALL_ITEMS_BY_ID, ALL_COMPANIONS_BY_ID
 )
 from core.actions import dispatch_action
 from core.tick import process_tick
@@ -14,12 +14,17 @@ from core.types import Exposure, FixtureState, Item, ItemCategory, Companion
 
 class TestOpenWorldRPG(unittest.TestCase):
     def setUp(self):
-        self.preset_dir = Path("presets/default-1.0")
+        self.preset_dir = DEFAULT_DATA_DIR
         self.state = init_game_state(self.preset_dir, "Explorer", 1, 1)
 
     def test_scavenge_all_container_yields(self):
-        """Verify each container in SCAVENGE_YIELDS correctly yields its designated item."""
-        for fixture_id, (expected_item_id, _) in SCAVENGE_YIELDS.items():
+        """Verify each container fixture yields every item listed in its data."""
+        containers = {
+            f.id: f.yields for node in self.state.nodes.values()
+            for f in node.fixtures.values() if f.on_use_effect == "scavenge"
+        }
+        self.assertEqual(len(containers), 10)
+        for fixture_id, yields in containers.items():
             # Find which node hosts this fixture
             host_node_id = None
             for nid, node in self.state.nodes.items():
@@ -33,16 +38,17 @@ class TestOpenWorldRPG(unittest.TestCase):
             fix = st.nodes[host_node_id].fixtures[fixture_id]
 
             # If sealed with tool requirement (e.g. freight_crate), provide the required tool
-            if fix.state in (FixtureState.SEALED.value, FixtureState.LOCKED.value) and fix.required_tag:
+            if fix.state in (FixtureState.SEALED.value, FixtureState.LOCKED.value) and fix.required_tags:
                 prybar = ALL_ITEMS_BY_ID["tool_prybar"]
                 st = st._replace(character=st.character._replace(inventory=st.character.inventory + (prybar,)))
 
             # Execute scavenge
             st_scavenged = reduce_scavenge(st, fixture_id)
-            self.assertTrue(
-                any(it.id == expected_item_id for it in st_scavenged.character.inventory),
-                f"Scavenging {fixture_id} did not yield {expected_item_id}."
-            )
+            for expected_item_id in yields:
+                self.assertTrue(
+                    any(it.id == expected_item_id for it in st_scavenged.character.inventory),
+                    f"Scavenging {fixture_id} did not yield {expected_item_id}."
+                )
             # Verify fixture is now SPENT
             updated_fix = st_scavenged.nodes[host_node_id].fixtures[fixture_id]
             self.assertEqual(updated_fix.state, FixtureState.SPENT.value)
@@ -104,13 +110,20 @@ class TestOpenWorldRPG(unittest.TestCase):
         self.assertTrue(any("Harvested fresh algae paste" in m for m in st_harvested.message_buffer))
 
     def test_smelt_ore_and_scrap_in_crucible(self):
-        """Verify smelting crucible refines ore into prybar and scrap into copper fitting."""
+        """Ore forges a pry-bar only with Making Parts; scrap always casts a copper fitting."""
         # luna_smelter has smelting_crucible
         st = self.state._replace(current_node_id="luna_smelter")
-
-        # 1. Ore -> Pry-Bar
         ore = ALL_ITEMS_BY_ID["ore_sample"]
-        st_ore = st._replace(character=st.character._replace(inventory=(ore,)))
+
+        # 0. Ore without Making Parts melts down to scrap
+        st_raw = st._replace(character=st.character._replace(inventory=(ore,)))
+        st_melted = reduce_use(st_raw, "ore_sample", "smelting_crucible")
+        self.assertTrue(any(it.id == "scrap_metal" for it in st_melted.character.inventory))
+        self.assertFalse(any(it.id == "tool_prybar" for it in st_melted.character.inventory))
+
+        # 1. Ore -> Pry-Bar with scrap_fabrication
+        caps = st.character.unlocked_capabilities | {"scrap_fabrication"}
+        st_ore = st._replace(character=st.character._replace(inventory=(ore,), unlocked_capabilities=caps))
         st_smelt_ore = reduce_use(st_ore, "ore_sample", "smelting_crucible")
         self.assertTrue(any(it.id == "tool_prybar" for it in st_smelt_ore.character.inventory))
         self.assertFalse(any(it.id == "ore_sample" for it in st_smelt_ore.character.inventory))
@@ -125,12 +138,16 @@ class TestOpenWorldRPG(unittest.TestCase):
         self.assertTrue(any("Melted" in m and "Copper Pipe Fitting" in m for m in st_smelt_scrap.message_buffer))
 
     def test_override_crypto_terminal(self):
-        """Verify overriding crypto terminal with wire spool."""
+        """Overriding the crypto terminal with wire forges a dock clearance and spends the terminal."""
         st = self.state._replace(current_node_id="stn_b_array")
         wire = ALL_ITEMS_BY_ID["wire_spool"]
         st = st._replace(character=st.character._replace(inventory=(wire,)))
         st_override = reduce_use(st, "wire_spool", "crypto_terminal")
-        self.assertTrue(any("Bypassed" in m and "Decoded surveyor telemetry" in m for m in st_override.message_buffer))
+        self.assertTrue(any("Bypassed" in m for m in st_override.message_buffer))
+        self.assertIn("dock_clearance", st_override.character.unlocked_capabilities)
+        self.assertEqual(st_override.nodes["stn_b_array"].fixtures["crypto_terminal"].state, FixtureState.SPENT.value)
+        # Wire has 2 integrity, one point spent
+        self.assertEqual(next(i for i in st_override.character.inventory if i.id == "wire_spool").integrity, 1)
 
     def test_npc_trades_and_companion_recruitment(self):
         """Verify all NPCs across Alpha, Beta, Luna execute valid trades and companion recruitment."""
@@ -138,7 +155,7 @@ class TestOpenWorldRPG(unittest.TestCase):
         st_radek = self.state._replace(current_node_id="stn_a_sub")
         prybar = ALL_ITEMS_BY_ID["tool_prybar"]
         st_radek = st_radek._replace(character=st_radek.character._replace(inventory=(prybar,)))
-        res_radek = reduce_talk(st_radek, "npc_radek")
+        res_radek = reduce_barter(st_radek, "npc_radek")
         self.assertTrue(any(it.id == "chit_transit" for it in res_radek.character.inventory))
         self.assertTrue(any(c.id == "comp_radek" for c in res_radek.companions))
         self.assertTrue(any("Companion joined" in m for m in res_radek.message_buffer))
@@ -147,7 +164,7 @@ class TestOpenWorldRPG(unittest.TestCase):
         st_tarek = self.state._replace(current_node_id="stn_b_dock")
         dice = ALL_ITEMS_BY_ID["dice_steel"]
         st_tarek = st_tarek._replace(character=st_tarek.character._replace(inventory=(dice,)))
-        res_tarek = reduce_talk(st_tarek, "npc_tarek")
+        res_tarek = reduce_barter(st_tarek, "npc_tarek")
         self.assertTrue(any(it.id == "wire_spool" for it in res_tarek.character.inventory))
         self.assertTrue(any(c.id == "comp_tarek" for c in res_tarek.companions))
 
@@ -155,7 +172,7 @@ class TestOpenWorldRPG(unittest.TestCase):
         st_mira = self.state._replace(current_node_id="stn_a_hab")
         fitting = ALL_ITEMS_BY_ID["fitting_copper"]
         st_mira = st_mira._replace(character=st_mira.character._replace(inventory=(fitting,)))
-        res_mira = reduce_talk(st_mira, "npc_mira")
+        res_mira = reduce_barter(st_mira, "npc_mira")
         self.assertTrue(any(it.id == "flask_water" for it in res_mira.character.inventory))
         self.assertTrue(any(c.id == "comp_mira" for c in res_mira.companions))
 
@@ -163,21 +180,21 @@ class TestOpenWorldRPG(unittest.TestCase):
         st_kovac = self.state._replace(current_node_id="stn_b_fuel")
         ration = ALL_ITEMS_BY_ID["ration_dry"]
         st_kovac = st_kovac._replace(character=st_kovac.character._replace(inventory=(ration,)))
-        res_kovac = reduce_talk(st_kovac, "npc_kovac")
+        res_kovac = reduce_barter(st_kovac, "npc_kovac")
         self.assertTrue(any(it.id == "seal_patch" for it in res_kovac.character.inventory))
 
         # 5. Chen (luna_dome): trades scrap_metal (salvage) -> tool_spanner
         st_chen = self.state._replace(current_node_id="luna_dome")
         scrap = ALL_ITEMS_BY_ID["scrap_metal"]
         st_chen = st_chen._replace(character=st_chen.character._replace(inventory=(scrap,)))
-        res_chen = reduce_talk(st_chen, "npc_chen")
+        res_chen = reduce_barter(st_chen, "npc_chen")
         self.assertTrue(any(it.id == "tool_spanner" for it in res_chen.character.inventory))
 
         # 6. Vance (luna_smelter): trades ore_sample (mineral) -> tool_prybar
         st_vance = self.state._replace(current_node_id="luna_smelter")
         ore = ALL_ITEMS_BY_ID["ore_sample"]
         st_vance = st_vance._replace(character=st_vance.character._replace(inventory=(ore,)))
-        res_vance = reduce_talk(st_vance, "npc_vance")
+        res_vance = reduce_barter(st_vance, "npc_vance")
         self.assertTrue(any(it.id == "tool_prybar" for it in res_vance.character.inventory))
 
     def test_crew_coordination_exposure_mitigation(self):
@@ -275,7 +292,7 @@ class TestOpenWorldRPG(unittest.TestCase):
             current_node_id="stn_a_sub",
             character=st_scav.character._replace(inventory=(prybar,))
         )
-        st_crew = reduce_talk(st_trade, "npc_radek")
+        st_crew = reduce_barter(st_trade, "npc_radek")
         self.assertIn("crew_coordination", st_crew.character.unlocked_capabilities)
 
         # 3. signal_analysis (use comms_rack in stn_b_array)
@@ -303,11 +320,12 @@ class TestOpenWorldRPG(unittest.TestCase):
         self.assertEqual((st.player_row, st.player_col), (1, 3))
         self.assertTrue(st.proximity_menu_active)
         self.assertTrue(any("Near: Crew Storage Locker" in m for m in st.message_buffer))
-        self.assertTrue(any("[S] Scavenge" in m for m in st.message_buffer))
+        self.assertTrue(any("[F] Search" in m for m in st.message_buffer))
 
-        # Single key 's' while on scavengeable fixture executes scavenge
-        st_scav = dispatch_action(st, "s")
-        self.assertFalse(st_scav.proximity_menu_active)
+        # Single key 'f' while on a container searches it; the menu refreshes without [F]
+        st_scav = dispatch_action(st, "f")
+        self.assertTrue(st_scav.proximity_menu_active)
+        self.assertFalse(any("[F] Search" in m for m in st_scav.message_buffer))
         self.assertTrue(any(it.id == "wire_spool" for it in st_scav.character.inventory))
 
         # Slash commands: /scavenge, /search, /inspect

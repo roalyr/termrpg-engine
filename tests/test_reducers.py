@@ -1,11 +1,11 @@
 import unittest
 from pathlib import Path
-from core.presets import init_game_state
+from core.presets import init_game_state, DEFAULT_DATA_DIR
 from core.reducers import (
     reduce_inspect, reduce_talk, reduce_use, reduce_leave,
     reduce_wait, reduce_map, reduce_back, reduce_pack,
     reduce_character, reduce_party, reduce_log, reduce_flavor,
-    reduce_help, reduce_move, reduce_interact_go,
+    reduce_help, reduce_move, reduce_barter, reduce_interact_go,
     reduce_interact_inspect, reduce_interact_use,
     reduce_interact_talk, reduce_interact_cancel,
     ALL_ITEMS_BY_ID
@@ -14,7 +14,7 @@ from core.types import FixtureState, Exposure
 
 class TestReducers(unittest.TestCase):
     def setUp(self):
-        self.preset_dir = Path("presets/default-1.0")
+        self.preset_dir = DEFAULT_DATA_DIR
         self.state = init_game_state(self.preset_dir, "Vaelen", 1, 1)
 
     def test_inspect_fixture_and_actor(self):
@@ -43,8 +43,13 @@ class TestReducers(unittest.TestCase):
 
     def test_talk_and_trade(self):
         s_berth = self.state._replace(current_node_id="stn_a_berth")
+        # Talking describes the offer but never trades by itself
+        s_talk = reduce_talk(s_berth, "npc_kael")
+        self.assertTrue(any("Trade offer" in m for m in s_talk.message_buffer))
+        self.assertTrue(any(i.id == "fitting_copper" for i in s_talk.character.inventory))
+
         # Player has fitting_copper with tag 'seal_fitting' which Kael needs
-        s_traded = reduce_talk(s_berth, "npc_kael")
+        s_traded = reduce_barter(s_berth, "npc_kael")
         self.assertTrue(any("Exchanged Copper Pipe Fitting for Stamped Work Pass" in m for m in s_traded.message_buffer))
 
         # Kael trade is now completed
@@ -108,8 +113,8 @@ class TestReducers(unittest.TestCase):
         char = self.state.character._replace(inventory=(prybar,))
         s_sub = self.state._replace(current_node_id="stn_a_sub", character=char)
 
-        # Talk to Radek with prybar (matches 'force_lever')
-        s_radek = reduce_talk(s_sub, "npc_radek")
+        # Barter with Radek with prybar (matches 'force_lever')
+        s_radek = reduce_barter(s_sub, "npc_radek")
         self.assertTrue(any(c.id == "comp_radek" for c in s_radek.companions))
 
         # Test party command

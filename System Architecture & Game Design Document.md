@@ -23,8 +23,8 @@ This document specifies the technical architecture, mechanical contracts, domain
 
 * **Platform:** Python 3.10+ Standard Library.
 * **Terminal Constraints:** Designed for viewport widths >= 40 columns. The engine reads terminal width once per render via `os.get_terminal_size()`. If columns < 40, the engine suspends rendering and emits a resize warning to stdout.
-* **Persistence:** Deterministic auto-save after every tick-advancing action into `saves/<character_name>/state.json`. Restored games always resume with `is_running = True` and handle incapacitation revival deterministically.
-* **Preset Cloning & Modding:** Hardcoded default assets are cloned on initial startup into `presets/default-1.0/`. The runtime engine loads definitions exclusively from the active preset folder, enabling clean resets and total-conversion modding without manual file backups.
+* **Persistence:** Deterministic auto-save after every tick-advancing action into `saves/<character_name>/state.json`. Saves are self-contained (world, item catalogue, companion catalogue) and carry `schema_version`; v1 saves are upgraded on load without losing progress. Restored games always resume with `is_running = True`.
+* **Preset Cloning & Modding:** The canonical default preset ships in `core/data/default-1.0/` (JSON only; there are no Python copies). Missing files are cloned on startup into the runtime folder `presets/default-1.0/`, which players may edit. A new game reads items, companions, nodes and the tree exclusively from the active preset folder, enabling clean resets and total-conversion modding.
 
 ### 2.2 System Architecture Overview
 
@@ -62,11 +62,14 @@ project_root/
 ├── core/                           # Pure functional domain layer
 │   ├── __init__.py
 │   ├── types.py                    # Domain models, Enums, NamedTuples
+│   ├── rules.py                    # Shared rules: requirement resolution, wear, exposure thresholds
+│   ├── codec.py                    # JSON <-> domain conversion for presets and saves
 │   ├── actions.py                  # Action definitions & tokenization dispatcher
 │   ├── reducers.py                 # Pure reducer functions (Action x State -> State)
-│   ├── tick.py                     # Tick processing pipeline (exposure, decay, tree)
-│   ├── persistence.py              # Save / Load / Init serialization
-│   └── presets.py                  # Seed asset loaders & fallback dictionaries
+│   ├── tick.py                     # Tick processing pipeline (exposure, decay, tree, revival)
+│   ├── persistence.py              # Save / Load serialization and v1 save migration
+│   ├── presets.py                  # Preset cloning and loaders
+│   └── data/default-1.0/           # Canonical default preset (items, nodes, companions, tree)
 │
 ├── ui/                             # Pure presentation layer (string output)
 │   ├── __init__.py
@@ -74,7 +77,7 @@ project_root/
 │   ├── text_tools.py               # Raw input, ANSI clearing, visible length math
 │   └── topology_view.py            # ASCII node map renderer
 │
-├── presets/                        # User-editable JSON preset datasets
+├── presets/                        # Runtime preset copies, cloned from core/data (git-ignored)
 │   └── default-1.0/
 │       ├── items.json              # Item definitions, tags, integrities
 │       ├── nodes.json              # Full 14-node world topology, fixtures, actors
@@ -92,7 +95,9 @@ project_root/
 │   ├── test_tick.py
 │   ├── test_persistence.py
 │   ├── test_ui.py
-│   └── test_e2e.py
+│   ├── test_e2e.py
+│   ├── test_open_world.py
+│   └── test_rules_and_mechanics.py # Regression, solvability and save-migration checks
 │
 ├── main.py                         # Non-blocking input loop & runtime entry point
 └── System Architecture & Game Design Document.md
@@ -142,18 +147,30 @@ class Item(NamedTuple):
     category: str              # ItemCategory value
     tags: Tuple[str, ...]      # Functional tags (e.g. ("force_lever", "heavy_duty"))
     integrity: int             # Current condition / remaining charges
-    max_integrity: int         # 0 = indestructible; >0 = degrades with use
+    max_integrity: int         # 0 = does not wear; >0 = degrades with use
     description: str           # Utility-focused hard sci-fi description
+
+class NodeVitals(NamedTuple):
+    pressure_kpa: float        # Atmospheric pressure (101.3 nominal, 0.0 vacuum)
+    radiation_msv: float       # Ambient radiation field
+    temperature_c: int         # Ambient temperature in Celsius
 
 class Fixture(NamedTuple):
     id: str                    # Unique fixture identifier (e.g. "salvage_bin")
     glyph: str                 # Single glyph rendered on minimap
     name: str                  # Display name
     state: str                 # FixtureState value
-    required_tag: Optional[str]# Tag required to change state or operate
+    required_tags: Tuple[str, ...]  # Any ONE of these tags satisfies the fixture (empty = none)
     grants_edge: Optional[str] # Edge ID in node.edges that this fixture gates
     on_use_effect: Optional[str]# "unlock", "refill", "repair", "scavenge", "harvest", "smelt", "override", "log"
     description: str           # Physical description with interactive clues
+    yields: Tuple[str, ...] = ()            # Items granted by "scavenge" / "harvest"
+    log_text: Optional[str] = None          # Text shown by "log" fixtures
+    log_text_locked: Optional[str] = None   # Extra text for readers with signal_analysis / signal_boost / lore
+    opens_fixture: Optional[str] = None     # "override": fixture in the same node set to OPEN
+    grants_capability: Optional[str] = None # "override": capability added to the player
+    on_repair_vitals: Optional[NodeVitals] = None  # "repair": node vitals after the repair
+    reseal_on_pass: bool = False            # Gate closes again after the player passes through
 
 class Actor(NamedTuple):
     id: str                    # Unique actor identifier (e.g. "npc_mira")
@@ -162,11 +179,13 @@ class Actor(NamedTuple):
     title: str                 # Profession / role (e.g. "Hab Botanist")
     status: str                # Current observational activity
     trade_offered_id: Optional[str]    # Item offered in primary exchange
-    trade_required_tag: Optional[str]  # Required tag for trade (or category tag)
+    trade_required_tags: Tuple[str, ...]  # Any carried item with one of these tags is accepted
     trade_completed: bool              # Whether primary trade fulfilled
     dialogue_idle: str                 # Initial ambient dialogue & rumors
     dialogue_post_trade: Optional[str] # Follow-up dialogue acknowledging changes
     companion_unlock: Optional[str]    # Companion ID recruited on alliance
+    dialogue_variants: Tuple[Tuple[str, str], ...] = ()  # (condition, text); first match replaces dialogue_idle
+                                       # conditions: "past_work:<id>", "visited:<node>", "party:<companion>", "has_cap:<cap>"
 
 class GridPlacement(NamedTuple):
     entity_id: str             # Fixture or Actor ID
@@ -180,11 +199,6 @@ class Edge(NamedTuple):
     gated_by_fixture: Optional[str]  # Fixture that must be OPEN to traverse
     requires_capability: Optional[str]# Capability tag player must possess
 
-class NodeVitals(NamedTuple):
-    pressure_kpa: float        # Atmospheric pressure (101.3 nominal, 0.0 vacuum)
-    radiation_msv: float       # Ambient radiation field
-    temperature_c: int         # Ambient temperature in Celsius
-
 class Node(NamedTuple):
     id: str                    # Unique node ID
     name: str                  # Display name
@@ -192,7 +206,7 @@ class Node(NamedTuple):
     size: int                  # Grid dimension N (N x N, where N <= 8)
     depth: int                 # Vertical depth (0 = surface/concourse, 1+ = subterranean)
     environment: str           # Environment enum value
-    base_vitals: NodeVitals    # Nominal sensor readings
+    base_vitals: NodeVitals    # Current sensor readings (changed by repairs)
     grid_floor: str            # Empty floor glyph (e.g. "·", "~")
     grid_wall: str             # Border wall glyph (e.g. "░", "█")
     fixtures: Mapping[str, Fixture]       # Fixtures keyed by ID
@@ -230,8 +244,8 @@ class TreeNode(NamedTuple):
     name: str                  # Display name
     description: str           # Detailed mechanical effect
     prerequisite: Optional[str]# Required prerequisite TreeNode ID
-    unlock_condition: str      # Condition type: "visit_node", "survive_depth", "complete_trade", "use_fixture", "inspect_count"
-    unlock_parameter: str      # Parameter for unlock condition evaluation
+    unlock_condition: str      # Condition type: "visit_node", "survive_depth", "complete_trade", "use_fixture"
+    unlock_parameter: str      # node_id | "depth:ticks" (bare depth = 5 ticks) | actor_id | fixture_id
     attuned: bool              # Attunement state
 
 class GameState(NamedTuple):
@@ -251,6 +265,8 @@ class GameState(NamedTuple):
     active_view: str                  # "compartment" or "map_topology"
     proximity_menu_active: bool       # True when Zone 5 presents proximity options
     is_running: bool
+    item_catalog: Mapping[str, Item]            # Item definitions from the active preset
+    companion_catalog: Mapping[str, Companion]  # Companion definitions from the active preset
 ```
 
 ---
@@ -292,18 +308,19 @@ Deep Mine      Lava Tube (luna_tube) [D:1 Basalt Cavern]
 ```
 
 #### Multi-Path Traversal & Anti-Linear Bypass Design
+Fixtures take an any-of list (`required_tags`), and every lock below has at least two answers. A static solvability test checks that all 12 starts (4 anchors x 3 routines) can reach all 14 nodes and recruit all 3 companions.
 1. **Sub-Deck Access (Station Alpha):**
-   - *Primary Route:* Cargo Hoist Platform from Berth 04 (requires `dock_clearance`, or forced with `force_lever`, or companion assistance from Radek).
-   - *Alternative Route:* Service Crawlway from the Bunkroom (unlocked with `seal_fitting` or `wrench` by removing maintenance grilles).
-2. **Shuttle Boarding (Transit Cluster):**
-   - *Route A:* Present Stamped Work Pass (`dock_clearance`) or Transit Token (`transit_clearance`).
-   - *Route B:* Technical Umbilical Override (player with `seal_fitting` or `wrench` calibrates docking collar directly).
-   - *Route C:* Freight Skid Stowaway (examine and manipulate the tension clamps on the freight skid in Berth 04).
+   - *Cargo Hoist* from Berth 04: `dock_clearance` | `force_lever` | `heavy_lift` | `two_person_lift`. A forged clearance from the Station Beta crypto terminal also counts.
+   - *Service Crawlway* from the Bunkroom: `seal_fitting` | `wrench`.
+2. **Shuttle Boarding (Berth 04).** The boarding gate reseals after every crossing:
+   - *Route A:* present `transit_clearance` (a Transit Token is spent per boarding; Deep Traveler waives the fare).
+   - *Route B:* re-seat the Umbilical Collar Panel with `wrench` | `seal_fitting` to cycle the gate open once.
+   - *Route C:* release the Skid Tension Clamps (`force_lever` | `heavy_lift` | `two_person_lift`) and stow away in the hopper hold. Repeatable; the clamps relock behind you.
 3. **Station Beta Access:**
    - Unlocked via shuttle transfer. The Dock Ring grants immediate access to the Comms Array Hub and Fuel Processing Spur.
 4. **Lunar Surface & Subterranean Depths:**
    - The shuttle lands on `luna_pad`. Because the surface is unpressurized vacuum, traversal is gated by **environmental survival and preparation** rather than locked doors. Players can make a dash across the regolith into the pressurized `luna_dome`.
-   - Access to the subterranean depths (`luna_mine` and `luna_tube`) is possible via the Smelter Cage Lift or the Crater Rim Descent Hatch.
+   - The Smelter Cage Lift to `luna_mine` takes `two_person_lift` | `heavy_lift`. The Crater Rim descent to `luna_tube` is open.
 
 ### 4.2 Progressive Spatial Scaling & Environmental Gating
 
@@ -311,10 +328,10 @@ Challenge scales through authentic environmental hostility and operational logis
 
 1. **Environmental Gating Over Keycard Gating:**
    - Safe Pressurized Havens (`depth == 0`, `environment == "pressurized"`): `stn_a_bunkroom`, `stn_a_berth`, `stn_a_hab`, `stn_b_dock`, `stn_b_array`, `stn_b_fuel`, `luna_dome`, `luna_smelter`. Exposure naturally recovers here by 2.0 per tick.
-   - Hostile Subterranean Conduits (`depth == 1`): `stn_a_sub`, `luna_mine`, `luna_tube`. Depressurized atmospheres, freezing cold, and unshielded rock. Ticks accumulated here count toward progression tree survival milestones.
+   - Hostile Subterranean Conduits (`depth == 1`): `stn_a_sub`, `luna_mine`, `luna_tube`. Depressurized atmospheres, freezing cold, and unshielded rock. Ticks spent here while exposure is actually accumulating (and below Critical) count toward survival milestones. Repairs change a room's vitals: freeing the Sub-Deck valve raises it to 92 kPa / -5°C, and patching the Lava Tube breach raises it to 78 kPa / -20°C.
    - Unprotected Vacuum (`environment == "vacuum"`): `luna_pad`, `luna_crater`. Zero pressure, cosmic radiation, and temperature extremes. Exploration requires planning, rapid movement, and attunement capabilities.
 2. **Resource Logistics:**
-   - Sustenance items (`flask_water`, `ration_dry`, `algae_paste`) lose 1 integrity every 10 ticks. Players must utilize water spigots, harvest algae basins, or trade with station cooks to sustain long expeditions.
+   - Sustenance items (`flask_water`, `ration_dry`, `algae_paste`) lose 1 integrity every 10 ticks. Sustenance is consumed with `/consume` to shed exposure (see §5.3), so spigots, algae basins and food trades feed directly into survival planning.
 
 ### 4.3 Exposure & Consequence Model
 
@@ -332,10 +349,10 @@ Each tick in a hostile environment accumulates exposure based on the delta betwe
 | :--- | :--- | :--- |
 | Nominal | 0.0 – 4.9 | Full operational capacity. |
 | Stressed | 5.0 – 9.9 | Cautionary telemetry alerts in Zone 5. `inspect` readings report blurred diagnostic telemetry. |
-| Critical | 10.0 – 14.9 | Imminent collapse warning. Forced physiological delay on physical actions. |
-| Incapacitated | 15.0+ | Systems fail; unconsciousness. The engine halts execution (`is_running = False`). On subsequent reload, emergency medical protocols revive the player in the bunkroom with cleared exposure. |
+| Critical | 10.0 – 14.9 | Imminent collapse warning. Hands-on work (use, search, barter) costs two cycles. Walking still costs one. |
+| Incapacitated | 15.0+ | Systems fail; unconsciousness. The session continues: medics carry the player to `stn_a_bunkroom`, exposure clears, 12 cycles pass and one sustenance item is used. |
 
-*Progression Tree Mitigations:* Capabilities like `vacuum_walk`, `deep_well`, `cold_bypass`, and `trench_hardened` halve accumulation rates or increase thresholds by +5.0.
+*Progression Tree Mitigations:* `vacuum_walk`, `deep_well` and `cold_bypass` halve pressure, radiation and thermal accumulation. `trench_hardened` raises every threshold by +5.0, and all systems (tick, UI, save loading) read thresholds from the same rule. `crew_coordination` subtracts 0.2 per track while any companion travels with the player.
 
 ---
 
@@ -362,16 +379,21 @@ When the cursor rests on an entity tile, Zone 5 presents an enumerated action li
 
 ```text
 ZONE 5 (Proximity Menu):
-  [I] Inspect   [U] Use prybar   [S] Scavenge bin   [G] Go -> Berth 04   [X] Cancel
+  Near: Crew Storage Locker
+  [I] Inspect  [F] Search  [X] Cancel
 ```
 
 **Dynamic Menu Construction Rules:**
-- `[I] Inspect`: Always present. Inspects the physical condition, state, and environmental cues of the entity under cursor.
-- `[U] Use <item>`: Present if the entity is a fixture with an active `on_use_effect` and the player inventory or active companion party holds a matching tag.
-- `[S] Search / Scavenge`: Present if the entity is a container, salvage bin, locker, or terminal with unclaimed resources or data.
-- `[G] Go through -> <edge_label>`: Present if the entity is an edge portal in `OPEN` state.
-- `[T] Talk`: Present if the entity is an actor.
-- `[X] Cancel`: Dismisses the menu, returning Zone 5 to normal message log display.
+- `[I] Inspect`: Always present.
+- `[F] Search`: Present on containers (`scavenge`) that are not yet `SPENT`. Sealed containers are pried open with any matching tag.
+- `[R] Read`: Present on `log` fixtures. Needs no item.
+- `[U] Use <source>`: Present when the fixture can be operated right now. The label names what will satisfy it: a skill (`Cargo Handler training`), a companion (`Radek`), or a carried item. Free sources (skills, clearances, companions) are always preferred so no item wears needlessly.
+- `[G] Go -> <edge_label>`: Present when the fixture grants an edge and is `OPEN`.
+- `[T] Talk`: Present on actors. Talking describes any trade but never executes it.
+- `[B] Barter`: Present when the actor would accept something the player carries.
+- `[X] Cancel`: Dismisses the menu.
+
+The menu is rebuilt after every action, so a newly opened hatch offers `[G]` immediately. `s` always moves south; searching uses `f`.
 
 ### 5.3 Command Grammar & Slash Command System
 
@@ -379,23 +401,30 @@ Arbitrary non-slash keystrokes are silently consumed by the input loop to preven
 
 | Action / Verb | Syntax | Execution Details | Advances Tick? |
 | :--- | :--- | :--- | :--- |
-| `w`/`a`/`s`/`d` | *(single key)* | Moves cursor 1 tile; auto-opens proximity menu on entity tiles. | Yes |
+| `w`/`a`/`s`/`d` | *(single key)* | Moves cursor 1 tile; opens the proximity menu on entity tiles. | Yes |
 | `i` / `e` | *(single key / menu)* | Inspects entity under player cursor. | No |
-| `u` | *(single key / menu)* | Applies matching item or capability to fixture under cursor. | Yes |
-| `s` | *(single key / menu)* | Scavenges/searches container fixture under cursor. | Yes |
+| `u` | *(menu)* | Operates the fixture under the cursor with the best matching source. | Yes |
+| `f` | *(menu)* | Searches the container under the cursor. | Yes |
+| `r` | *(menu)* | Reads the log fixture under the cursor. | Yes |
 | `g` | *(single key / menu)* | Traverses open hatch or umbilical under cursor. | Yes |
-| `t` | *(single key / menu)* | Initiates dialogue/barter with actor under cursor. | Yes |
-| `x` | *(single key / menu)* | Clears proximity menu and restores standard message buffer. | No |
-| `/inspect` | `/inspect <target>` | Examines fixture, actor, or inventory item by ID. | No |
-| `/use` | `/use <item> <fixture>` | Directly applies item to fixture in the current room. | Yes |
-| `/talk` | `/talk <actor>` | Engages dialogue, barter, or recruitment with specified actor. | Yes |
+| `t` | *(menu)* | Talks with the actor under the cursor. | Yes |
+| `b` | *(menu)* | Accepts the actor's trade. Outside the menu, `b` returns from the map. | Yes |
+| `x` | *(menu)* | Clears proximity menu and restores standard message buffer. | No |
+| `/inspect` | `/inspect <target>` | Examines fixture, actor, inventory item, or exit by ID. | No |
+| `/use` | `/use [item] <fixture>` | Operates a fixture in the current room, preferring the named item. | Yes |
+| `/search` | `/search <fixture>` | Searches a container in the current room. | Yes |
+| `/read` | `/read <fixture>` | Reads a terminal or notice board. | Yes |
+| `/talk` | `/talk <actor>` | Engages dialogue with specified actor. | Yes |
+| `/barter` | `/barter [actor] [item]` | Accepts an actor's trade, optionally offering a specific item. | Yes |
+| `/consume` | `/consume [item]` (`/eat`, `/drink`) | Eats or drinks sustenance: `hydration` T-1.5, `nutrition` all tracks -1.0, `biomass` R-2.0 more with `bio_filter` in the party. | Yes |
+| `/leave` | `/leave <exit>` | Walks to the exit's hatch and crosses it; costs one cycle per tile walked. | Yes |
 | `/wait` | `/wait` | Pauses for 1 cycle; processes exposure and environmental decay. | Yes |
 | `/map` | `/map` | Opens dedicated ASCII cluster and node topology view. | No |
 | `/back` | `/back` | Exits map topology view and returns to compartment view. | No |
-| `/pack` | `/pack` | Displays inventory items, conditions, integrity, and capability tags. | No |
+| `/pack` | `/pack` | Displays inventory items (stacked), conditions, integrity, and tags. | No |
 | `/character`| `/character` | Displays qualitative progression tree status and unlock criteria. | No |
 | `/party` | `/party` | Lists recruited companions and their active party capability tags. | No |
-| `/log` | `/log` | Prints the 10 most recent chronological action entries. | No |
+| `/log` | `/log` | Prints the 10 most recent chronological action entries (moves are not logged). | No |
 | `/flavor` | `/flavor [on\|off]` | Toggles atmospheric prose rendering in Zone 4. | No |
 | `/help` | `/help` | Displays complete command syntax and operational hints. | No |
 | `/quit` | `/quit` | Deterministically saves state to disk and exits engine. | No |
@@ -405,13 +434,14 @@ Arbitrary non-slash keystrokes are silently consumed by the input loop to preven
 NPCs are persistent actors with distinct motivations, dialogue reactivity, and roleplay utility:
 
 1. **Contextual & Background Awareness:**
-   - Dialogue reflects player background (`seam_scraper`, `algae_tender`, `cargo_handler`). NPCs offer unique insights, trade discounts, or direct favors to fellow craftspeople.
-   - Dialogue updates dynamically when players have visited hazardous nodes (e.g. visiting Lunar Mine or Lava Tube) or recruited specific companions.
-2. **Flexible Multi-Tag Barter:**
-   - Rather than demanding a single rigid quest item, NPCs accept any inventory item that satisfies their required trade tag (e.g., `seal_fitting`, `barter_token`, `salvage`, `conductive`, or `sustenance`).
-   - Completing a barter trade decrements item integrity by 1 (consumed if 0), grants the actor's offered item, sets `trade_completed = True`, and updates the actor's dialogue.
+   - Actors carry `dialogue_variants`, evaluated in order: `past_work:<routine>`, `visited:<node>`, `party:<companion>`, `has_cap:<capability>`. The first match replaces the idle line until the trade is done.
+2. **Explicit, Flexible Barter:**
+   - `[T]` / `/talk` states the offer. `[B]` / `/barter` executes it. Nothing is traded by talking.
+   - Actors accept any carried item carrying one of their `trade_required_tags`.
+   - Handing over: credentials are shown and kept; items that wear lose 1 integrity (consumed at 0); anything else (materials, dice, scrip) changes hands entirely.
+   - The actor's offered item is added, `trade_completed = True`, and dialogue updates.
 3. **Companion Recruitment:**
-   - Specific actors can be recruited into the player's permanent crew (`companion_unlock` field). Companions contribute their capability tags (`two_person_lift`, `signal_boost`, `bio_filter`) to the entire party.
+   - Actors with `companion_unlock` join the party on trade and leave their room's grid. Companions contribute their capability tags (`two_person_lift`, `signal_boost`, `bio_filter`) to the whole party.
 
 ### 5.5 Expanded Fixture Functionality & Environmental Systems
 
@@ -419,24 +449,28 @@ Fixtures represent the physical affordances of each compartment:
 
 | Effect Key | Description & Mechanical Behavior |
 | :--- | :--- |
-| `"unlock"` | Changes fixture state from `SEALED`/`LOCKED` to `OPEN`. Grants passage through associated edge. |
-| `"refill"` | Restores used container item's integrity to `max_integrity` (e.g. refilling canteens at water taps). |
-| `"repair"` | Restores `DISABLED` machinery to `ACTIVE` using tools, clearing hazards or stabilizing room vitals. |
-| `"scavenge"` | Searches lockers, tool racks, or debris piles; transfers discovered item to inventory and transitions fixture to `SPENT`. |
-| `"harvest"` | Collects organic biomass or algae paste from active hydroponic tanks. Decrements fixture yield or charges. |
-| `"smelt"` | Refines raw ore or scrap metal at the smelter crucible into replacement tools, pipe collars, or prybars. |
-| `"override"` | Bypasses an electrical or pneumatic lock without keys using conductive wire, spanners, or technical skill. |
-| `"log"` | Displays technical schematics, audio recordings, or station telemetry, providing environmental lore and clues. |
+| `"unlock"` | `SEALED`/`LOCKED` -> `OPEN`. Grants passage through the associated edge. With `reseal_on_pass`, the gate returns to `SEALED` after the player crosses. |
+| `"refill"` | Restores a carried `refillable` item's integrity to `max_integrity`. |
+| `"repair"` | `DISABLED` -> `ACTIVE`. Applies `on_repair_vitals` to the room. Refuses once already `ACTIVE`, so tools are not worn twice. |
+| `"scavenge"` | Searched with `[F]`. Sealed containers are pried open first. Transfers `yields` to the pack and sets `SPENT`. |
+| `"harvest"` | Collects `yields` (default algae paste) from an active tank. Tools used are not worn. |
+| `"smelt"` | Salvage casts a Copper Pipe Fitting. Ore forges a Thermal Pry-Bar with `scrap_fabrication`, otherwise melts to scrap. |
+| `"override"` | One-time bypass: opens `opens_fixture`, grants `grants_capability`, then sets `SPENT`. |
+| `"log"` | Read with `[R]`, no item needed. Shows `log_text`; `log_text_locked` needs `signal_analysis`, `signal_boost` or `lore`. |
+
+**Wear rules.** Only the carried item that satisfied a requirement wears, and only if no skill, clearance or companion already satisfied it. `conduit_mastery` keeps tools (`force_lever`, `wrench`) from wearing on unlock, repair and pry-open work.
 
 ### 5.6 Tick Processor Pipeline (`core/tick.py`)
 
 Every tick-advancing action triggers a 6-step pure state reduction:
 1. `cycle += 1`
-2. **Exposure Accumulation:** Calculate pressure, radiation, and temperature deltas. Apply reductions from progression capabilities.
+2. **Exposure Accumulation:** Calculate pressure, radiation, and temperature deltas. Apply reductions from progression capabilities and party.
 3. **Exposure Recovery:** In Depth 0 Pressurized nodes, reduce all exposure tracks by 2.0 (minimum 0.0).
-4. **Exposure Consequences:** Evaluate Stressed (5.0), Critical (10.0), and Incapacitated (15.0) limits.
-5. **Progression Tree Attunement:** Check unlock conditions across all un-attuned nodes whose prerequisites are satisfied. Attuned nodes unlock new capability tags.
-6. **Sustenance & Asset Decay:** Every 10 cycles (`cycle % 10 == 0`), decrement integrity of sustenance items by 1. Update action log history (max 20 entries).
+4. **Exposure Consequences:** Evaluate Stressed, Critical and Incapacitated limits (+5.0 each with `trench_hardened`). Incapacitation triggers in-game revival.
+5. **Progression Tree Attunement:** Hostile depth ticks are counted, then unlock conditions are checked across all un-attuned nodes whose prerequisites are satisfied.
+6. **Sustenance & Asset Decay:** Every 10 cycles (20 with `wayfarer`), decrement integrity of sustenance items by 1. Update action log history (max 20 entries).
+
+Hands-on actions at Critical exposure run the pipeline twice (§4.3).
 
 ---
 
@@ -456,11 +490,11 @@ Every tick-advancing action triggers a 6-step pure state reduction:
 │ STN ALPHA: Berth 04              C:0042  P:101.3kPa│
 ├───────────────┬────────────────────────────────────┤
 │ Zone 2: Grid  │ Zone 3: Vitals & Status            │
-│  ░ ░ ░ = ░ ░  │ Pressure: 101.3 kPa  (Nominal)     │
-│  ░ · · · · ░  │ Radiation:  0.2 mSv  (Clean)       │
-│  ░ · ▓ · K ░  │ Temp:        18 C    (Nominal)     │
-│  ≡ · · @ · =  │ Exposure: [0.0 / 0.0 / 0.0]        │
-│  ░ · · · · ░  │ Crew: Vaelen (Scraper)             │
+│  ░ ░ ░ = ░ ░  │ CYCLE 042                          │
+│  ░ · · · · ░  │ NOMINAL                            │
+│  ░ · ▓ · K ░  │ P0.0 R0.0 T0.0                     │
+│  ≡ · · @ · =  │ MAX 15 -2.0/c                      │
+│  ░ · · · · ░  │ PACK: Scrap Metal x2               │
 │  ░ ░ ░ ⎅ ░ ░  │ Party: Radek (Rigger)              │
 ├───────────────┴────────────────────────────────────┤
 │ Zone 4: Compartment & Sensor Prose                 │
@@ -468,12 +502,14 @@ Every tick-advancing action triggers a 6-step pure state reduction:
 │ ozone. Cargo skids line the deck under harsh tubes.│
 ├────────────────────────────────────────────────────┤
 │ Zone 5: Dynamic Message Buffer / Proximity Menu    │
-│ [I] Inspect   [U] Use prybar   [T] Talk   [X] Exit │
+│ [I] Inspect  [T] Talk  [B] Barter  [X] Cancel      │
 ├────────────────────────────────────────────────────┤
 │ Zone 6: Persistent Command Bar / Prompt            │
-│ /: cmd  wasd: move  i: inspect  u: use  g: go  t: talk
+│ WASD: move  /: cmd  M: map  Q: quit                │
 └────────────────────────────────────────────────────┘
 ```
+
+Zone 3 shows the exposure triplet, the incapacitation limit and the worst per-cycle rate in the current room (`T+3.5/c`, or `-2.0/c` in safe havens). Duplicate items are stacked (`x2`).
 
 ---
 
@@ -522,16 +558,16 @@ QUALITATIVE PROGRESSION TREE:
 | ID | Name | Branch | Prerequisite | Condition Type | Parameter | Mechanical Effect |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `seam_discipline` | Fixing Leaks | Engineering | None | `use_fixture` | `spigot_01` | Inspect pipes and valves to see leaks and required tools. |
-| `scrap_fabrication` | Making Parts | Engineering | `seam_discipline` | `use_fixture` | `salvage_bin` | Make pipe fittings and prybars at a workbench or smelter. |
+| `scrap_fabrication` | Making Parts | Engineering | `seam_discipline` | `use_fixture` | `salvage_bin` | Forge pry-bars from ore at the smelter. Without it, ore only melts down to scrap. |
 | `bulkhead_ear` | Hear Pressure | Engineering | `scrap_fabrication`| `visit_node` | `stn_a_sub` | Check air pressure behind closed doors before opening them. |
 | `conduit_mastery` | Careful Hands | Engineering | `bulkhead_ear` | `use_fixture` | `jammed_valve` | Tools do not wear out when fixing standard pipes and valves. |
-| `cold_bypass` | Cold Tolerance | Survival | None | `survive_depth` | `1` | Take half as much damage from freezing cold. |
-| `vacuum_walk` | Vacuum Suit | Survival | `cold_bypass` | `visit_node` | `luna_pad` | Take half as much damage from low pressure. Can walk in vacuum. |
-| `deep_well` | Lead Skin | Survival | `vacuum_walk` | `survive_depth` | `1` | Take half as much damage from radiation. |
+| `cold_bypass` | Cold Tolerance | Survival | None | `survive_depth` | `1:5` | Take half as much damage from freezing cold. |
+| `vacuum_walk` | Vacuum Suit | Survival | `cold_bypass` | `visit_node` | `luna_pad` | Take half as much damage from low pressure. |
+| `deep_well` | Lead Skin | Survival | `vacuum_walk` | `survive_depth` | `1:20` | Take half as much damage from radiation. |
 | `trench_hardened` | Iron Body | Survival | `deep_well` | `visit_node` | `luna_mine` | Can take 5 more points of exposure before getting hurt or passing out. |
 | `scavenger_instinct` | Sharp Eye | Exploration | None | `use_fixture` | `personal_locker` | Find more scrap and gear when searching lockers and bins. |
 | `crew_coordination` | Teamwork | Exploration | `scavenger_instinct`| `complete_trade` | `npc_radek` | Companions help the whole crew resist cold, radiation, and low pressure. |
-| `signal_analysis` | Radio Ears | Exploration | `crew_coordination`| `use_fixture` | `comms_rack` | Read locked station logs and radio signals on notice boards. |
+| `signal_analysis` | Radio Ears | Exploration | `crew_coordination`| `use_fixture` | `comms_rack` | Read the locked part of station logs and notice boards. |
 | `wayfarer` | Deep Traveler | Exploration | `signal_analysis` | `visit_node` | `luna_dome` | Food and water last twice as long. Shuttle rides are free. |
 
 ### 8.2 Inventory Assets Reference
@@ -549,9 +585,10 @@ QUALITATIVE PROGRESSION TREE:
 | `ration_dry` | Compressed Ration | sustenance | `nutrition` | 3 | Calorie bar; satisfies metabolic requirements. Decays over cycles. |
 | `algae_paste` | Fresh Algae Paste | sustenance | `nutrition`, `biomass` | 2 | Nutrient slurry harvested from active hydroponic tanks. |
 | `wire_spool` | Insulated Copper Wire | utility | `conductive`, `electrical` | 2 | Used for rewiring damaged consoles and electrical overrides. |
-| `seal_patch` | Silicone Seal Patch | utility | `vacuum_seal`, `adhesive` | 2 | Emergency patch for repairing leaking valves and breached conduits. |
+| `seal_patch` | Silicone Seal Patch | utility | `vacuum_seal`, `adhesive` | 2 | Seals the Lava Tube breach, restoring partial pressure there. |
 | `scrap_metal` | Basalt Scrap Metal | material | `salvage`, `conductive` | 0 | Salvaged plates; used as raw stock in the smelter crucible. |
-| `ore_sample` | High-Grade Lunar Ore | material | `mineral`, `smeltable` | 0 | Heavy basalt core extracted from deep mining veins. |
+| `ore_sample` | High-Grade Lunar Ore | material | `mineral` | 0 | Heavy basalt core extracted from deep mining veins. |
+| `scrip_shift` | Shift Scrip | record | `barter_token` | 1 | Ration-office scrip; found in the Bunkroom locker and the Fuel Spur cabinet. Buys Tarek's help. |
 
 ### 8.3 Companion Roster & Party Synergy
 
@@ -565,7 +602,9 @@ Companions represent fellow crew members recruited across the stations. They tra
 
 ---
 
-## 9. Preset Reference Dataset (`presets/default-1.0/`)
+## 9. Preset Reference Dataset (`core/data/default-1.0/`)
+
+The blocks below are generated from the canonical JSON files and checked by `tests/test_gdd_sync.py`.
 
 ### 9.1 Items (`items.json`)
 
@@ -575,7 +614,10 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "fitting_copper",
     "name": "Copper Pipe Fitting",
     "category": "utility",
-    "tags": ["seal_fitting", "conductive"],
+    "tags": [
+      "seal_fitting",
+      "conductive"
+    ],
     "integrity": 1,
     "max_integrity": 1,
     "description": "Standard threaded pipe collar with a clean silicone ring."
@@ -584,7 +626,10 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "pass_work",
     "name": "Stamped Work Pass",
     "category": "credential",
-    "tags": ["dock_clearance", "id_verified"],
+    "tags": [
+      "dock_clearance",
+      "id_verified"
+    ],
     "integrity": 0,
     "max_integrity": 0,
     "description": "Laminated shift card signed by the transit stevedore office."
@@ -593,7 +638,10 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "dice_steel",
     "name": "Steel Dice",
     "category": "record",
-    "tags": ["morale", "barter_token"],
+    "tags": [
+      "morale",
+      "barter_token"
+    ],
     "integrity": 0,
     "max_integrity": 0,
     "description": "Two milled steel cubes, pips worn flat from rolling on deck plate."
@@ -602,7 +650,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "slate_tally",
     "name": "Chalk Slate",
     "category": "record",
-    "tags": ["record", "marking", "lore"],
+    "tags": [
+      "record",
+      "marking",
+      "lore"
+    ],
     "integrity": 0,
     "max_integrity": 0,
     "description": "Flat slate slab showing scratched shift quotas and valve coordinates."
@@ -611,7 +663,9 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "chit_transit",
     "name": "Transit Token",
     "category": "credential",
-    "tags": ["transit_clearance"],
+    "tags": [
+      "transit_clearance"
+    ],
     "integrity": 1,
     "max_integrity": 1,
     "description": "Stamped metal token granting single-hop shuttle boarding."
@@ -620,7 +674,10 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "tool_prybar",
     "name": "Thermal Pry-Bar",
     "category": "utility",
-    "tags": ["force_lever", "heavy_duty"],
+    "tags": [
+      "force_lever",
+      "heavy_duty"
+    ],
     "integrity": 4,
     "max_integrity": 4,
     "description": "Flat-nosed iron lever rated for stuck latches and warped plates."
@@ -629,7 +686,10 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "tool_spanner",
     "name": "Filter Spanner",
     "category": "utility",
-    "tags": ["bio_filter", "wrench"],
+    "tags": [
+      "bio_filter",
+      "wrench"
+    ],
     "integrity": 3,
     "max_integrity": 3,
     "description": "Offset ring spanner sized for standard filtration cartridge bolts."
@@ -638,7 +698,10 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "flask_water",
     "name": "Insulated Canteen",
     "category": "sustenance",
-    "tags": ["hydration", "refillable"],
+    "tags": [
+      "hydration",
+      "refillable"
+    ],
     "integrity": 3,
     "max_integrity": 3,
     "description": "Metal drinking flask fitted with a screw seal."
@@ -647,7 +710,9 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "ration_dry",
     "name": "Compressed Ration",
     "category": "sustenance",
-    "tags": ["nutrition"],
+    "tags": [
+      "nutrition"
+    ],
     "integrity": 3,
     "max_integrity": 3,
     "description": "Dense calorie block in foil wrap. Tastes like salted chalk."
@@ -656,7 +721,10 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "algae_paste",
     "name": "Fresh Algae Paste",
     "category": "sustenance",
-    "tags": ["nutrition", "biomass"],
+    "tags": [
+      "nutrition",
+      "biomass"
+    ],
     "integrity": 2,
     "max_integrity": 2,
     "description": "High-protein spirulina slurry harvested from station hydroponics."
@@ -665,7 +733,10 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "wire_spool",
     "name": "Insulated Copper Wire",
     "category": "utility",
-    "tags": ["conductive", "electrical"],
+    "tags": [
+      "conductive",
+      "electrical"
+    ],
     "integrity": 2,
     "max_integrity": 2,
     "description": "Flexible coil of copper wiring suitable for circuit overrides."
@@ -674,7 +745,10 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "seal_patch",
     "name": "Silicone Seal Patch",
     "category": "utility",
-    "tags": ["vacuum_seal", "adhesive"],
+    "tags": [
+      "vacuum_seal",
+      "adhesive"
+    ],
     "integrity": 2,
     "max_integrity": 2,
     "description": "Self-curing elastomer patch rated for sudden pressure drops."
@@ -683,7 +757,10 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "scrap_metal",
     "name": "Basalt Scrap Metal",
     "category": "material",
-    "tags": ["salvage", "conductive"],
+    "tags": [
+      "salvage",
+      "conductive"
+    ],
     "integrity": 0,
     "max_integrity": 0,
     "description": "Twisted structural alloy plates suitable for smelting."
@@ -692,10 +769,23 @@ Companions represent fellow crew members recruited across the stations. They tra
     "id": "ore_sample",
     "name": "High-Grade Lunar Ore",
     "category": "material",
-    "tags": ["mineral", "smeltable"],
+    "tags": [
+      "mineral"
+    ],
     "integrity": 0,
     "max_integrity": 0,
     "description": "Heavy core of titanium-rich lunar basalt extracted from the deep shaft."
+  },
+  {
+    "id": "scrip_shift",
+    "name": "Shift Scrip",
+    "category": "record",
+    "tags": [
+      "barter_token"
+    ],
+    "integrity": 1,
+    "max_integrity": 1,
+    "description": "Punched ration-office scrip good for one favor between shift crews."
   }
 ]
 ```
@@ -711,7 +801,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 5,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": { "pressure_kpa": 101.3, "radiation_msv": 0.1, "temperature_c": 20 },
+    "base_vitals": {
+      "pressure_kpa": 101.3,
+      "radiation_msv": 0.1,
+      "temperature_c": 20
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -720,48 +814,73 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "=",
         "name": "Transit Hatch",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_berth",
         "on_use_effect": null,
-        "description": "Oval pressure seal leading to the primary transfer platform."
+        "description": "Oval pressure seal leading to the primary transfer platform.",
+        "required_tags": []
       },
       "spigot_01": {
         "id": "spigot_01",
         "glyph": "⌸",
         "name": "Water Spigot",
         "state": "active",
-        "required_tag": "refillable",
         "grants_edge": null,
         "on_use_effect": "refill",
-        "description": "Push-valve tap metering gray-line recycled potable water."
+        "description": "Push-valve tap metering gray-line recycled potable water.",
+        "required_tags": [
+          "refillable"
+        ]
       },
       "personal_locker": {
         "id": "personal_locker",
         "glyph": "⚲",
         "name": "Crew Storage Locker",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Metal footlocker tucked under a cot. Contains discarded shift notes and copper wire."
+        "description": "Metal footlocker tucked under a cot. Contains discarded shift notes and copper wire.",
+        "required_tags": [],
+        "yields": [
+          "wire_spool",
+          "scrip_shift"
+        ]
       },
       "vent_duct": {
         "id": "vent_duct",
         "glyph": "≡",
         "name": "Service Crawlway",
         "state": "sealed",
-        "required_tag": "seal_fitting",
         "grants_edge": "to_sub_vent",
         "on_use_effect": "unlock",
-        "description": "Narrow maintenance duct descending behind conduit lines straight to the sub-deck."
+        "description": "Narrow maintenance duct descending behind conduit lines straight to the sub-deck.",
+        "required_tags": [
+          "seal_fitting",
+          "wrench"
+        ]
       }
     },
     "actors": {},
     "placements": [
-      { "entity_id": "hatch_berth", "row": 0, "col": 2 },
-      { "entity_id": "spigot_01", "row": 3, "col": 1 },
-      { "entity_id": "personal_locker", "row": 1, "col": 3 },
-      { "entity_id": "vent_duct", "row": 4, "col": 2 }
+      {
+        "entity_id": "hatch_berth",
+        "row": 0,
+        "col": 2
+      },
+      {
+        "entity_id": "spigot_01",
+        "row": 3,
+        "col": 1
+      },
+      {
+        "entity_id": "personal_locker",
+        "row": 1,
+        "col": 3
+      },
+      {
+        "entity_id": "vent_duct",
+        "row": 4,
+        "col": 2
+      }
     ],
     "edges": {
       "to_berth": {
@@ -788,7 +907,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 7,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": { "pressure_kpa": 101.3, "radiation_msv": 0.2, "temperature_c": 18 },
+    "base_vitals": {
+      "pressure_kpa": 101.3,
+      "radiation_msv": 0.2,
+      "temperature_c": 18
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -797,60 +920,103 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "◆",
         "name": "Bunkroom Hatch",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_bunks",
         "on_use_effect": null,
-        "description": "Hatch back to the shared sleeping quarters."
+        "description": "Hatch back to the shared sleeping quarters.",
+        "required_tags": []
       },
       "cargo_hoist": {
         "id": "cargo_hoist",
         "glyph": "⎅",
         "name": "Cargo Hoist Platform",
         "state": "locked",
-        "required_tag": "dock_clearance",
         "grants_edge": "to_subdeck",
         "on_use_effect": "unlock",
-        "description": "Chain-driven freight platform descending into the sub-deck conduit well."
+        "description": "Chain-driven freight platform descending into the sub-deck conduit well.",
+        "required_tags": [
+          "dock_clearance",
+          "force_lever",
+          "heavy_lift",
+          "two_person_lift"
+        ]
       },
       "shuttle_gate": {
         "id": "shuttle_gate",
         "glyph": "=",
         "name": "Shuttle Boarding Gate",
         "state": "sealed",
-        "required_tag": "transit_clearance",
         "grants_edge": "to_shuttle",
         "on_use_effect": "unlock",
-        "description": "Flexible boarding seal clamped to the exterior hopper vessel."
+        "description": "Flexible boarding seal clamped to the hopper. Takes one transit token per boarding, then reseals.",
+        "required_tags": [
+          "transit_clearance"
+        ],
+        "reseal_on_pass": true
       },
       "freight_skid": {
         "id": "freight_skid",
         "glyph": "▓",
         "name": "Lashed Freight Skid",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Heavy industrial pallet lashed down with tension clamps. Loose packing holds spare salvage."
+        "description": "Heavy industrial pallet lashed down with tension clamps. Loose packing holds spare salvage.",
+        "required_tags": [],
+        "yields": [
+          "scrap_metal"
+        ]
       },
       "salvage_bin": {
         "id": "salvage_bin",
         "glyph": "⊞",
         "name": "Maintenance Scrap Bin",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Welded steel bin holding discarded copper pipe fittings and scrap brackets."
+        "description": "Welded steel bin holding discarded copper pipe fittings and scrap brackets.",
+        "required_tags": [],
+        "yields": [
+          "fitting_copper"
+        ]
       },
       "hab_hatch": {
         "id": "hab_hatch",
         "glyph": "≡",
         "name": "Hab Ring Corridor",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_hab",
         "on_use_effect": null,
-        "description": "Wide corridor hatch leading up to the hab ring common gallery."
+        "description": "Wide corridor hatch leading up to the hab ring common gallery.",
+        "required_tags": []
+      },
+      "umbilical_collar": {
+        "id": "umbilical_collar",
+        "glyph": "*",
+        "name": "Umbilical Collar Panel",
+        "state": "active",
+        "required_tags": [
+          "wrench",
+          "seal_fitting"
+        ],
+        "grants_edge": null,
+        "on_use_effect": "override",
+        "opens_fixture": "shuttle_gate",
+        "description": "Access panel for the hopper docking collar. Re-seating the collar by hand fools the gate into cycling open once."
+      },
+      "freight_clamps": {
+        "id": "freight_clamps",
+        "glyph": "┼",
+        "name": "Skid Tension Clamps",
+        "state": "sealed",
+        "required_tags": [
+          "force_lever",
+          "heavy_lift",
+          "two_person_lift"
+        ],
+        "grants_edge": "to_shuttle_skid",
+        "on_use_effect": "unlock",
+        "reseal_on_pass": true,
+        "description": "Ratchet clamps holding a freight skid bound for the hopper hold. Released, there is room to ride along unseen."
       }
     },
     "actors": {
@@ -861,21 +1027,67 @@ Companions represent fellow crew members recruited across the stations. They tra
         "title": "Dock Stevedore",
         "status": "Checking tension clamps on freight skid",
         "trade_offered_id": "pass_work",
-        "trade_required_tag": "seal_fitting",
         "trade_completed": false,
         "dialogue_idle": "Hopper to Luna is spooling. If you've got spare pipe collars or salvage, I can endorse a work pass for the freight deck.",
         "dialogue_post_trade": "Collar's seated. Pass endorsed. Take care on the sub-deck; Radek's down there cursing at a frozen valve.",
-        "companion_unlock": null
+        "companion_unlock": null,
+        "trade_required_tags": [
+          "seal_fitting"
+        ],
+        "dialogue_variants": [
+          [
+            "past_work:cargo_handler",
+            "You lash skids like a Berth hand. Bring me a pipe collar and I'll stamp you a pass; the hoist knows your kind of shoulders anyway."
+          ]
+        ]
       }
     },
     "placements": [
-      { "entity_id": "hatch_bunks", "row": 0, "col": 3 },
-      { "entity_id": "freight_skid", "row": 2, "col": 2 },
-      { "entity_id": "npc_kael", "row": 2, "col": 4 },
-      { "entity_id": "salvage_bin", "row": 4, "col": 5 },
-      { "entity_id": "hab_hatch", "row": 3, "col": 0 },
-      { "entity_id": "shuttle_gate", "row": 3, "col": 6 },
-      { "entity_id": "cargo_hoist", "row": 5, "col": 3 }
+      {
+        "entity_id": "hatch_bunks",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "freight_skid",
+        "row": 2,
+        "col": 2
+      },
+      {
+        "entity_id": "npc_kael",
+        "row": 2,
+        "col": 4
+      },
+      {
+        "entity_id": "salvage_bin",
+        "row": 4,
+        "col": 5
+      },
+      {
+        "entity_id": "hab_hatch",
+        "row": 3,
+        "col": 0
+      },
+      {
+        "entity_id": "shuttle_gate",
+        "row": 3,
+        "col": 6
+      },
+      {
+        "entity_id": "cargo_hoist",
+        "row": 5,
+        "col": 3
+      },
+      {
+        "entity_id": "umbilical_collar",
+        "row": 2,
+        "col": 5
+      },
+      {
+        "entity_id": "freight_clamps",
+        "row": 1,
+        "col": 2
+      }
     ],
     "edges": {
       "to_bunks": {
@@ -905,6 +1117,13 @@ Companions represent fellow crew members recruited across the stations. They tra
         "label": "Sub-Deck",
         "gated_by_fixture": "cargo_hoist",
         "requires_capability": null
+      },
+      "to_shuttle_skid": {
+        "id": "to_shuttle_skid",
+        "target_node_id": "shuttle_ab",
+        "label": "Hopper Hold (stowaway)",
+        "gated_by_fixture": "freight_clamps",
+        "requires_capability": null
       }
     },
     "description": "Open transfer bay smelling of hydraulic fluid and ozone. Cargo skids line the deck under industrial lighting."
@@ -916,7 +1135,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 6,
     "depth": 1,
     "environment": "depressurizing",
-    "base_vitals": { "pressure_kpa": 65.0, "radiation_msv": 2.0, "temperature_c": -25 },
+    "base_vitals": {
+      "pressure_kpa": 65.0,
+      "radiation_msv": 2.0,
+      "temperature_c": -25
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -925,40 +1148,51 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "⎅",
         "name": "Cargo Hoist (Up)",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_berth",
         "on_use_effect": null,
-        "description": "Chain platform ascending back to Berth 04."
+        "description": "Chain platform ascending back to Berth 04.",
+        "required_tags": []
       },
       "vent_to_bunk": {
         "id": "vent_to_bunk",
         "glyph": "≡",
         "name": "Service Vent (Up)",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_bunk_vent",
         "on_use_effect": null,
-        "description": "Climbing rungs inside the ventilation riser back to the bunkroom."
+        "description": "Climbing rungs inside the ventilation riser back to the bunkroom.",
+        "required_tags": []
       },
       "jammed_valve": {
         "id": "jammed_valve",
         "glyph": "■",
         "name": "Jammed Pressure Valve",
         "state": "disabled",
-        "required_tag": "force_lever",
         "grants_edge": null,
         "on_use_effect": "repair",
-        "description": "Thermal bypass valve seized shut by freezing line ice. Requires heavy levering."
+        "description": "Thermal bypass valve seized shut by line ice. Freeing it restores pressure and heat to the conduits.",
+        "required_tags": [
+          "force_lever",
+          "wrench"
+        ],
+        "on_repair_vitals": {
+          "pressure_kpa": 92.0,
+          "radiation_msv": 2.0,
+          "temperature_c": -5
+        }
       },
       "tool_rack": {
         "id": "tool_rack",
         "glyph": "⊞",
         "name": "Rigging Tool Rack",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Industrial tool board mounted on the conduit wall. Holds a thermal pry-bar."
+        "description": "Industrial tool board mounted on the conduit wall. Holds a thermal pry-bar.",
+        "required_tags": [],
+        "yields": [
+          "tool_prybar"
+        ]
       }
     },
     "actors": {
@@ -969,19 +1203,47 @@ Companions represent fellow crew members recruited across the stations. They tra
         "title": "Cargo Rigger",
         "status": "Shivering over frozen conduit junction",
         "trade_offered_id": "chit_transit",
-        "trade_required_tag": "force_lever",
         "trade_completed": false,
         "dialogue_idle": "Valve's iced solid. Can't equalize pressure without a prybar. Got one? I've got an extra transit chit if you help crack it.",
         "dialogue_post_trade": "Valve's turning. Heat's coming back. I'm ready to roll if you need a hand hauling freight.",
-        "companion_unlock": "comp_radek"
+        "companion_unlock": "comp_radek",
+        "trade_required_tags": [
+          "force_lever"
+        ],
+        "dialogue_variants": [
+          [
+            "past_work:cargo_handler",
+            "Another lifter. Good. Crack this valve with me and I'll ride along wherever you're hauling."
+          ]
+        ]
       }
     },
     "placements": [
-      { "entity_id": "hoist_up", "row": 0, "col": 3 },
-      { "entity_id": "vent_to_bunk", "row": 5, "col": 1 },
-      { "entity_id": "jammed_valve", "row": 3, "col": 1 },
-      { "entity_id": "tool_rack", "row": 2, "col": 4 },
-      { "entity_id": "npc_radek", "row": 3, "col": 4 }
+      {
+        "entity_id": "hoist_up",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "vent_to_bunk",
+        "row": 5,
+        "col": 1
+      },
+      {
+        "entity_id": "jammed_valve",
+        "row": 3,
+        "col": 1
+      },
+      {
+        "entity_id": "tool_rack",
+        "row": 2,
+        "col": 4
+      },
+      {
+        "entity_id": "npc_radek",
+        "row": 3,
+        "col": 4
+      }
     ],
     "edges": {
       "to_berth": {
@@ -1008,7 +1270,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 6,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": { "pressure_kpa": 101.3, "radiation_msv": 0.1, "temperature_c": 21 },
+    "base_vitals": {
+      "pressure_kpa": 101.3,
+      "radiation_msv": 0.1,
+      "temperature_c": 21
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1017,30 +1283,34 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "=",
         "name": "Berth Access Hatch",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_berth",
         "on_use_effect": null,
-        "description": "Wide corridor hatch leading down to the transfer berths."
+        "description": "Wide corridor hatch leading down to the transfer berths.",
+        "required_tags": []
       },
       "notice_board": {
         "id": "notice_board",
         "glyph": "≡",
         "name": "Station Notice Board",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "log",
-        "description": "Postings: shift rosters, fuel quotas on Station Beta, and reports of seismic tremors in the lunar mines."
+        "description": "Postings: shift rosters, fuel quotas on Station Beta, and reports of seismic tremors in the lunar mines.",
+        "required_tags": [],
+        "log_text": "Shift roster: Berth 04 hoist crew short two riggers. Fuel quota on Station Beta raised 8%. Lunar mine reports tremors on the lower gallery.",
+        "log_text_locked": "Maintenance memo, scratched over: 'Hopper umbilical collar can be re-seated by hand with a spanner or a pipe collar. Gate logic trusts the collar.'"
       },
       "algae_basin": {
         "id": "algae_basin",
         "glyph": "⌸",
         "name": "Hydroponic Algae Vat",
         "state": "active",
-        "required_tag": "bio_filter",
         "grants_edge": null,
         "on_use_effect": "harvest",
-        "description": "Green spirulina culture bubbling behind acrylic. Can yield fresh nutrient paste."
+        "description": "Green spirulina culture bubbling behind acrylic. Can yield fresh nutrient paste.",
+        "required_tags": [
+          "bio_filter"
+        ]
       }
     },
     "actors": {
@@ -1051,18 +1321,42 @@ Companions represent fellow crew members recruited across the stations. They tra
         "title": "Hab Botanist",
         "status": "Checking nutrient flow in algae basin",
         "trade_offered_id": "flask_water",
-        "trade_required_tag": "conductive",
         "trade_completed": false,
         "dialogue_idle": "Recycler pumps are surging. If you have clean wire or copper fittings to ground this sensor, I can spare a clean canteen.",
         "dialogue_post_trade": "Sensor's grounded. Water's running sweet. If you're heading out to the outer rings, I can monitor your bio-filters.",
-        "companion_unlock": "comp_mira"
+        "companion_unlock": "comp_mira",
+        "trade_required_tags": [
+          "conductive"
+        ],
+        "dialogue_variants": [
+          [
+            "past_work:algae_tender",
+            "You've rinsed filters before, I can tell. Ground this sensor with wire or copper and I'll trade you a canteen."
+          ]
+        ]
       }
     },
     "placements": [
-      { "entity_id": "hatch_to_berth", "row": 5, "col": 3 },
-      { "entity_id": "notice_board", "row": 2, "col": 1 },
-      { "entity_id": "algae_basin", "row": 2, "col": 4 },
-      { "entity_id": "npc_mira", "row": 3, "col": 4 }
+      {
+        "entity_id": "hatch_to_berth",
+        "row": 5,
+        "col": 3
+      },
+      {
+        "entity_id": "notice_board",
+        "row": 2,
+        "col": 1
+      },
+      {
+        "entity_id": "algae_basin",
+        "row": 2,
+        "col": 4
+      },
+      {
+        "entity_id": "npc_mira",
+        "row": 3,
+        "col": 4
+      }
     ],
     "edges": {
       "to_berth": {
@@ -1082,7 +1376,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 5,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": { "pressure_kpa": 98.0, "radiation_msv": 1.5, "temperature_c": 16 },
+    "base_vitals": {
+      "pressure_kpa": 98.0,
+      "radiation_msv": 1.5,
+      "temperature_c": 16
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1091,48 +1389,66 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "◆",
         "name": "Station Alpha Umbilical",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_stn_a",
         "on_use_effect": null,
-        "description": "Docking collar sealed to Station Alpha's Berth 04."
+        "description": "Docking collar sealed to Station Alpha's Berth 04.",
+        "required_tags": []
       },
       "gate_beta": {
         "id": "gate_beta",
         "glyph": "=",
         "name": "Station Beta Umbilical",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_stn_b",
         "on_use_effect": null,
-        "description": "Docking collar clamped to Station Beta's Dock Ring."
+        "description": "Docking collar clamped to Station Beta's Dock Ring.",
+        "required_tags": []
       },
       "gate_luna": {
         "id": "gate_luna",
         "glyph": "▲",
         "name": "Lunar Descent Hatch",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_luna",
         "on_use_effect": null,
-        "description": "Reinforced exterior airlock leading directly down to the lunar surface apron."
+        "description": "Reinforced exterior airlock leading directly down to the lunar surface apron.",
+        "required_tags": []
       },
       "flight_console": {
         "id": "flight_console",
         "glyph": "≡",
         "name": "Navigational Telemetry Console",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "log",
-        "description": "Automated guidance screen displaying orbital ephemeris, lunar pad coordinates, and radiation forecasts."
+        "description": "Automated guidance screen displaying orbital ephemeris, lunar pad coordinates, and radiation forecasts.",
+        "required_tags": [],
+        "log_text": "Ephemeris: lunar pad window open. Surface forecast 25 mSv, -80 C. Pad-to-dome airlock is 3 tiles south of the lander hatch. Do not linger.",
+        "log_text_locked": "Cargo manifest, restricted: freight skids at Berth 04 ride the hopper hold unsealed. Clamp tension is the only check."
       }
     },
     "actors": {},
     "placements": [
-      { "entity_id": "gate_alpha", "row": 0, "col": 1 },
-      { "entity_id": "gate_beta", "row": 0, "col": 3 },
-      { "entity_id": "gate_luna", "row": 4, "col": 2 },
-      { "entity_id": "flight_console", "row": 2, "col": 2 }
+      {
+        "entity_id": "gate_alpha",
+        "row": 0,
+        "col": 1
+      },
+      {
+        "entity_id": "gate_beta",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "gate_luna",
+        "row": 4,
+        "col": 2
+      },
+      {
+        "entity_id": "flight_console",
+        "row": 2,
+        "col": 2
+      }
     ],
     "edges": {
       "to_stn_a": {
@@ -1166,7 +1482,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 6,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": { "pressure_kpa": 100.5, "radiation_msv": 0.3, "temperature_c": 19 },
+    "base_vitals": {
+      "pressure_kpa": 100.5,
+      "radiation_msv": 0.3,
+      "temperature_c": 19
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1175,40 +1495,46 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "◆",
         "name": "Shuttle Docking Port",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_shuttle",
         "on_use_effect": null,
-        "description": "Umbilical back to the inter-station shuttle hopper."
+        "description": "Umbilical back to the inter-station shuttle hopper.",
+        "required_tags": []
       },
       "hatch_array": {
         "id": "hatch_array",
         "glyph": "=",
         "name": "Array Corridor Hatch",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_array",
         "on_use_effect": null,
-        "description": "Pressure hatch leading to the communications array center."
+        "description": "Pressure hatch leading to the communications array center.",
+        "required_tags": []
       },
       "hatch_fuel": {
         "id": "hatch_fuel",
         "glyph": "▲",
         "name": "Fuel Spur Access",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_fuel",
         "on_use_effect": null,
-        "description": "Blast door to the fuel processing and propellant manifold."
+        "description": "Blast door to the fuel processing and propellant manifold.",
+        "required_tags": []
       },
       "freight_crate": {
         "id": "freight_crate",
         "glyph": "▓",
         "name": "Sealed Cargo Crate",
         "state": "sealed",
-        "required_tag": "force_lever",
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Steel shipping crate bound with nylon bands. Can be levered open with a prybar."
+        "description": "Steel shipping crate bound with nylon bands. Can be levered open with a prybar.",
+        "required_tags": [
+          "force_lever",
+          "heavy_lift"
+        ],
+        "yields": [
+          "chit_transit"
+        ]
       }
     },
     "actors": {
@@ -1219,19 +1545,47 @@ Companions represent fellow crew members recruited across the stations. They tra
         "title": "Array Specialist",
         "status": "Monitoring signal telemetry on hand slate",
         "trade_offered_id": "wire_spool",
-        "trade_required_tag": "barter_token",
         "trade_completed": false,
         "dialogue_idle": "Comms array on Beta is picking up anomalous seismic echoes from the lunar crater. Got steel dice or trade tokens? I have copper wire coils.",
         "dialogue_post_trade": "Deal. If you ever need remote terminals bypassed or signals boosted, signal me.",
-        "companion_unlock": "comp_tarek"
+        "companion_unlock": "comp_tarek",
+        "trade_required_tags": [
+          "barter_token"
+        ],
+        "dialogue_variants": [
+          [
+            "has_cap:signal_analysis",
+            "You read the array bursts too? Then you know the tube is leaking. Trade tokens still buy my wire and my time."
+          ]
+        ]
       }
     },
     "placements": [
-      { "entity_id": "shuttle_return", "row": 0, "col": 3 },
-      { "entity_id": "hatch_array", "row": 3, "col": 0 },
-      { "entity_id": "hatch_fuel", "row": 3, "col": 5 },
-      { "entity_id": "freight_crate", "row": 4, "col": 4 },
-      { "entity_id": "npc_tarek", "row": 2, "col": 2 }
+      {
+        "entity_id": "shuttle_return",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "hatch_array",
+        "row": 3,
+        "col": 0
+      },
+      {
+        "entity_id": "hatch_fuel",
+        "row": 3,
+        "col": 5
+      },
+      {
+        "entity_id": "freight_crate",
+        "row": 4,
+        "col": 4
+      },
+      {
+        "entity_id": "npc_tarek",
+        "row": 2,
+        "col": 2
+      }
     ],
     "edges": {
       "to_shuttle": {
@@ -1265,7 +1619,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 5,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": { "pressure_kpa": 101.0, "radiation_msv": 0.2, "temperature_c": 20 },
+    "base_vitals": {
+      "pressure_kpa": 101.0,
+      "radiation_msv": 0.2,
+      "temperature_c": 20
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1274,37 +1632,54 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "◆",
         "name": "Dock Ring Hatch",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_dock",
         "on_use_effect": null,
-        "description": "Corridor hatch leading back to Dock Ring Bay 7."
+        "description": "Corridor hatch leading back to Dock Ring Bay 7.",
+        "required_tags": []
       },
       "comms_rack": {
         "id": "comms_rack",
         "glyph": "≡",
         "name": "Deep-Space Comms Rack",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "log",
-        "description": "Signal array intercepting transmissions across the orbit. Mentions high-grade ore found in the Lunar Lava Tube."
+        "description": "Signal array intercepting transmissions across the orbit. Mentions high-grade ore found in the Lunar Lava Tube.",
+        "required_tags": [],
+        "log_text": "Intercepts across the orbit. Routine traffic between Beta dock and the lunar dome.",
+        "log_text_locked": "Decoded burst from a surveyor beacon: breach in the lava tube wall, east of the ladder. Elastomer patch would hold it. Tube pressure recovers if sealed."
       },
       "crypto_terminal": {
         "id": "crypto_terminal",
         "glyph": "⊞",
         "name": "Terminal Diagnostics Console",
         "state": "active",
-        "required_tag": "conductive",
         "grants_edge": null,
         "on_use_effect": "override",
-        "description": "Encrypted terminal. Bypassing its relay reveals surveyor manifests for Lunar Mine."
+        "description": "Encrypted relay terminal with exposed wiring. Bridging its relay with electrical wire prints a forged shift clearance.",
+        "required_tags": [
+          "electrical"
+        ],
+        "grants_capability": "dock_clearance"
       }
     },
     "actors": {},
     "placements": [
-      { "entity_id": "hatch_dock", "row": 4, "col": 2 },
-      { "entity_id": "comms_rack", "row": 1, "col": 2 },
-      { "entity_id": "crypto_terminal", "row": 2, "col": 3 }
+      {
+        "entity_id": "hatch_dock",
+        "row": 4,
+        "col": 2
+      },
+      {
+        "entity_id": "comms_rack",
+        "row": 1,
+        "col": 2
+      },
+      {
+        "entity_id": "crypto_terminal",
+        "row": 2,
+        "col": 3
+      }
     ],
     "edges": {
       "to_dock": {
@@ -1324,7 +1699,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 5,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": { "pressure_kpa": 99.0, "radiation_msv": 1.0, "temperature_c": 22 },
+    "base_vitals": {
+      "pressure_kpa": 99.0,
+      "radiation_msv": 1.0,
+      "temperature_c": 22
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1333,30 +1712,36 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "◆",
         "name": "Dock Ring Hatch",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_dock",
         "on_use_effect": null,
-        "description": "Blast door back to Dock Ring."
+        "description": "Blast door back to Dock Ring.",
+        "required_tags": []
       },
       "fuel_manifold": {
         "id": "fuel_manifold",
         "glyph": "⌸",
         "name": "Propellant Manifold",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "log",
-        "description": "High-pressure fuel injection lines running floor to ceiling."
+        "description": "High-pressure fuel injection lines running floor to ceiling.",
+        "required_tags": [],
+        "log_text": "Line pressures nominal. Placard: propellant crews eat on shift; bring your own rations.",
+        "log_text_locked": "Refinery ledger: Kovac trades patches for food. Vance on the smelter floor pays in tools for raw ore."
       },
       "spares_cabinet": {
         "id": "spares_cabinet",
         "glyph": "⊞",
         "name": "Sealant Spares Cabinet",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Steel wall cabinet storing silicone seal patches."
+        "description": "Steel wall cabinet storing silicone seal patches.",
+        "required_tags": [],
+        "yields": [
+          "seal_patch",
+          "scrip_shift"
+        ]
       }
     },
     "actors": {
@@ -1367,18 +1752,42 @@ Companions represent fellow crew members recruited across the stations. They tra
         "title": "Refinery Tech",
         "status": "Checking pressure gauges on propellant lines",
         "trade_offered_id": "seal_patch",
-        "trade_required_tag": "nutrition",
         "trade_completed": false,
         "dialogue_idle": "Shift's gone four hours past relief. Got a ration block? I can trade high-temp silicone seal patches.",
         "dialogue_post_trade": "Much obliged. These patches will hold against pure vacuum if you blow a seal down on the pad.",
-        "companion_unlock": null
+        "companion_unlock": null,
+        "trade_required_tags": [
+          "nutrition"
+        ],
+        "dialogue_variants": [
+          [
+            "party:comp_mira",
+            "Is that Mira? Tell her the fuel spur air is fine. Rations still buy patches."
+          ]
+        ]
       }
     },
     "placements": [
-      { "entity_id": "hatch_dock_fuel", "row": 4, "col": 2 },
-      { "entity_id": "fuel_manifold", "row": 1, "col": 2 },
-      { "entity_id": "spares_cabinet", "row": 2, "col": 1 },
-      { "entity_id": "npc_kovac", "row": 2, "col": 3 }
+      {
+        "entity_id": "hatch_dock_fuel",
+        "row": 4,
+        "col": 2
+      },
+      {
+        "entity_id": "fuel_manifold",
+        "row": 1,
+        "col": 2
+      },
+      {
+        "entity_id": "spares_cabinet",
+        "row": 2,
+        "col": 1
+      },
+      {
+        "entity_id": "npc_kovac",
+        "row": 2,
+        "col": 3
+      }
     ],
     "edges": {
       "to_dock": {
@@ -1398,7 +1807,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 7,
     "depth": 0,
     "environment": "vacuum",
-    "base_vitals": { "pressure_kpa": 0.0, "radiation_msv": 25.0, "temperature_c": -80 },
+    "base_vitals": {
+      "pressure_kpa": 0.0,
+      "radiation_msv": 25.0,
+      "temperature_c": -80
+    },
     "grid_floor": "~",
     "grid_wall": "░",
     "fixtures": {
@@ -1407,37 +1820,52 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "▲",
         "name": "Lander Ascent Hatch",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_shuttle",
         "on_use_effect": null,
-        "description": "Ascent module hatch back to the shuttle hopper."
+        "description": "Ascent module hatch back to the shuttle hopper.",
+        "required_tags": []
       },
       "dome_airlock": {
         "id": "dome_airlock",
         "glyph": "=",
         "name": "Habitat Dome Airlock",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_dome",
         "on_use_effect": null,
-        "description": "Reinforced airlock cylinder leading into the pressurized habitat dome."
+        "description": "Reinforced airlock cylinder leading into the pressurized habitat dome.",
+        "required_tags": []
       },
       "regolith_sled": {
         "id": "regolith_sled",
         "glyph": "▓",
         "name": "Abandoned Survey Sled",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Unmanned lunar utility sled abandoned on the regolith. Contains basalt scrap."
+        "description": "Unmanned lunar utility sled abandoned on the regolith. Contains basalt scrap.",
+        "required_tags": [],
+        "yields": [
+          "scrap_metal"
+        ]
       }
     },
     "actors": {},
     "placements": [
-      { "entity_id": "lander_hatch", "row": 0, "col": 3 },
-      { "entity_id": "dome_airlock", "row": 6, "col": 3 },
-      { "entity_id": "regolith_sled", "row": 3, "col": 4 }
+      {
+        "entity_id": "lander_hatch",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "dome_airlock",
+        "row": 6,
+        "col": 3
+      },
+      {
+        "entity_id": "regolith_sled",
+        "row": 3,
+        "col": 4
+      }
     ],
     "edges": {
       "to_shuttle": {
@@ -1464,7 +1892,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 7,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": { "pressure_kpa": 95.0, "radiation_msv": 3.0, "temperature_c": 17 },
+    "base_vitals": {
+      "pressure_kpa": 95.0,
+      "radiation_msv": 3.0,
+      "temperature_c": 17
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1473,40 +1905,42 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "=",
         "name": "Surface Pad Airlock",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_pad",
         "on_use_effect": null,
-        "description": "Airlock back to the exposed lunar surface pad."
+        "description": "Airlock back to the exposed lunar surface pad.",
+        "required_tags": []
       },
       "hatch_smelter": {
         "id": "hatch_smelter",
         "glyph": "◆",
         "name": "Smelter Corridor",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_smelter",
         "on_use_effect": null,
-        "description": "Reinforced hatch leading to the smelting floor."
+        "description": "Reinforced hatch leading to the smelting floor.",
+        "required_tags": []
       },
       "hatch_crater": {
         "id": "hatch_crater",
         "glyph": "▲",
         "name": "Crater Rim Access",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_crater",
         "on_use_effect": null,
-        "description": "Exterior airlock leading out to the crater observation rim."
+        "description": "Exterior airlock leading out to the crater observation rim.",
+        "required_tags": []
       },
       "seismic_station": {
         "id": "seismic_station",
         "glyph": "≡",
         "name": "Seismic Telemetry Station",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "log",
-        "description": "Readouts confirm cavernous basalt structures beneath the crater floor."
+        "description": "Readouts confirm cavernous basalt structures beneath the crater floor.",
+        "required_tags": [],
+        "log_text": "Readouts confirm cavernous basalt structures beneath the crater floor.",
+        "log_text_locked": "Seismic survey note: the mine cage takes two operators or one trained lifter. Mine air is thin and hot with radiation. Budget your exposure."
       }
     },
     "actors": {
@@ -1517,19 +1951,47 @@ Companions represent fellow crew members recruited across the stations. They tra
         "title": "Field Geologist",
         "status": "Analyzing core samples from deep mine",
         "trade_offered_id": "tool_spanner",
-        "trade_required_tag": "salvage",
         "trade_completed": false,
         "dialogue_idle": "The volcanic tube below the crater is rich with ancient minerals. Bring me scrap from the surface sled and I will trade specialized tools.",
         "dialogue_post_trade": "Excellent material. If you descend into the crater or lava tube, watch your pressure gauge; the cold contracts valve seals rapidly.",
-        "companion_unlock": null
+        "companion_unlock": null,
+        "trade_required_tags": [
+          "salvage"
+        ],
+        "dialogue_variants": [
+          [
+            "visited:luna_tube",
+            "You've been in the tube. Did you see the east wall? That seam is venting. Scrap buys you a spanner."
+          ]
+        ]
       }
     },
     "placements": [
-      { "entity_id": "airlock_pad", "row": 0, "col": 3 },
-      { "entity_id": "hatch_smelter", "row": 3, "col": 0 },
-      { "entity_id": "hatch_crater", "row": 3, "col": 6 },
-      { "entity_id": "seismic_station", "row": 2, "col": 4 },
-      { "entity_id": "npc_chen", "row": 2, "col": 2 }
+      {
+        "entity_id": "airlock_pad",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "hatch_smelter",
+        "row": 3,
+        "col": 0
+      },
+      {
+        "entity_id": "hatch_crater",
+        "row": 3,
+        "col": 6
+      },
+      {
+        "entity_id": "seismic_station",
+        "row": 2,
+        "col": 4
+      },
+      {
+        "entity_id": "npc_chen",
+        "row": 2,
+        "col": 2
+      }
     ],
     "edges": {
       "to_pad": {
@@ -1563,7 +2025,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 6,
     "depth": 0,
     "environment": "pressurized",
-    "base_vitals": { "pressure_kpa": 93.0, "radiation_msv": 5.0, "temperature_c": 35 },
+    "base_vitals": {
+      "pressure_kpa": 93.0,
+      "radiation_msv": 5.0,
+      "temperature_c": 35
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1572,30 +2038,33 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "◆",
         "name": "Dome Corridor",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_dome",
         "on_use_effect": null,
-        "description": "Corridor back to the habitat dome."
+        "description": "Corridor back to the habitat dome.",
+        "required_tags": []
       },
       "mine_shaft": {
         "id": "mine_shaft",
         "glyph": "⎅",
         "name": "Mine Shaft Cage Lift",
         "state": "locked",
-        "required_tag": "two_person_lift",
         "grants_edge": "to_mine",
         "on_use_effect": "unlock",
-        "description": "Heavy industrial lift descending into the deep mining shaft. Requires two operators."
+        "description": "Heavy industrial lift descending into the deep mining shaft. Requires two operators.",
+        "required_tags": [
+          "two_person_lift",
+          "heavy_lift"
+        ]
       },
       "smelting_crucible": {
         "id": "smelting_crucible",
         "glyph": "■",
         "name": "Smelting Crucible",
         "state": "active",
-        "required_tag": "mineral",
         "grants_edge": null,
         "on_use_effect": "smelt",
-        "description": "Induction furnace capable of refining raw basalt ore into structural fittings and tools."
+        "description": "Induction furnace capable of refining raw basalt ore into structural fittings and tools.",
+        "required_tags": []
       }
     },
     "actors": {
@@ -1606,18 +2075,42 @@ Companions represent fellow crew members recruited across the stations. They tra
         "title": "Smelter Veteran",
         "status": "Stoking the induction coils",
         "trade_offered_id": "tool_prybar",
-        "trade_required_tag": "mineral",
         "trade_completed": false,
         "dialogue_idle": "Deep mine has plenty of raw basalt ore, but the lift needs nerve to ride. Bring me an ore sample and I'll forge you a heavy prybar.",
         "dialogue_post_trade": "Clean melt. Here's your iron bar. Treat it right and it'll crack open any sealed hatch on this moon.",
-        "companion_unlock": null
+        "companion_unlock": null,
+        "trade_required_tags": [
+          "mineral"
+        ],
+        "dialogue_variants": [
+          [
+            "visited:luna_mine",
+            "You rode the cage and came back. Hand me a core of that ore and I'll forge you a bar."
+          ]
+        ]
       }
     },
     "placements": [
-      { "entity_id": "hatch_dome_smelter", "row": 0, "col": 3 },
-      { "entity_id": "mine_shaft", "row": 5, "col": 3 },
-      { "entity_id": "smelting_crucible", "row": 3, "col": 1 },
-      { "entity_id": "npc_vance", "row": 3, "col": 4 }
+      {
+        "entity_id": "hatch_dome_smelter",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "mine_shaft",
+        "row": 5,
+        "col": 3
+      },
+      {
+        "entity_id": "smelting_crucible",
+        "row": 3,
+        "col": 1
+      },
+      {
+        "entity_id": "npc_vance",
+        "row": 3,
+        "col": 4
+      }
     ],
     "edges": {
       "to_dome": {
@@ -1644,7 +2137,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 6,
     "depth": 0,
     "environment": "vacuum",
-    "base_vitals": { "pressure_kpa": 0.0, "radiation_msv": 30.0, "temperature_c": -120 },
+    "base_vitals": {
+      "pressure_kpa": 0.0,
+      "radiation_msv": 30.0,
+      "temperature_c": -120
+    },
     "grid_floor": "~",
     "grid_wall": "░",
     "fixtures": {
@@ -1653,37 +2150,52 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "◆",
         "name": "Dome Access Hatch",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_dome",
         "on_use_effect": null,
-        "description": "Airlock back to the pressurized habitat dome."
+        "description": "Airlock back to the pressurized habitat dome.",
+        "required_tags": []
       },
       "tube_entrance": {
         "id": "tube_entrance",
         "glyph": "⎅",
         "name": "Lava Tube Descent",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_tube",
         "on_use_effect": null,
-        "description": "Ladder and winch system descending into a vast subsurface volcanic tube."
+        "description": "Ladder and winch system descending into a vast subsurface volcanic tube.",
+        "required_tags": []
       },
       "surveyor_cache": {
         "id": "surveyor_cache",
         "glyph": "⊞",
         "name": "Surveyor Supply Cache",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Pressurized container bolted to the crater rim containing emergency rations."
+        "description": "Pressurized container bolted to the crater rim containing emergency rations.",
+        "required_tags": [],
+        "yields": [
+          "ration_dry"
+        ]
       }
     },
     "actors": {},
     "placements": [
-      { "entity_id": "hatch_dome_crater", "row": 0, "col": 3 },
-      { "entity_id": "tube_entrance", "row": 5, "col": 3 },
-      { "entity_id": "surveyor_cache", "row": 2, "col": 2 }
+      {
+        "entity_id": "hatch_dome_crater",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "tube_entrance",
+        "row": 5,
+        "col": 3
+      },
+      {
+        "entity_id": "surveyor_cache",
+        "row": 2,
+        "col": 2
+      }
     ],
     "edges": {
       "to_dome": {
@@ -1710,7 +2222,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 5,
     "depth": 1,
     "environment": "depressurizing",
-    "base_vitals": { "pressure_kpa": 50.0, "radiation_msv": 15.0, "temperature_c": -30 },
+    "base_vitals": {
+      "pressure_kpa": 50.0,
+      "radiation_msv": 15.0,
+      "temperature_c": -30
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1719,26 +2235,37 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "⎅",
         "name": "Mine Cage (Up)",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_smelter",
         "on_use_effect": null,
-        "description": "Cage lift ascending back to Smelter Flat."
+        "description": "Cage lift ascending back to Smelter Flat.",
+        "required_tags": []
       },
       "ore_face": {
         "id": "ore_face",
         "glyph": "■",
         "name": "Exposed Mineral Face",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Dark basalt vein rich in metallic deposits. Yields high-grade lunar ore."
+        "description": "Dark basalt vein rich in metallic deposits. Yields high-grade lunar ore.",
+        "required_tags": [],
+        "yields": [
+          "ore_sample"
+        ]
       }
     },
     "actors": {},
     "placements": [
-      { "entity_id": "cage_up", "row": 0, "col": 2 },
-      { "entity_id": "ore_face", "row": 3, "col": 2 }
+      {
+        "entity_id": "cage_up",
+        "row": 0,
+        "col": 2
+      },
+      {
+        "entity_id": "ore_face",
+        "row": 3,
+        "col": 2
+      }
     ],
     "edges": {
       "to_smelter": {
@@ -1758,7 +2285,11 @@ Companions represent fellow crew members recruited across the stations. They tra
     "size": 6,
     "depth": 1,
     "environment": "low_temp",
-    "base_vitals": { "pressure_kpa": 40.0, "radiation_msv": 8.0, "temperature_c": -45 },
+    "base_vitals": {
+      "pressure_kpa": 40.0,
+      "radiation_msv": 8.0,
+      "temperature_c": -45
+    },
     "grid_floor": "·",
     "grid_wall": "░",
     "fixtures": {
@@ -1767,26 +2298,59 @@ Companions represent fellow crew members recruited across the stations. They tra
         "glyph": "⎅",
         "name": "Crater Rim Ascent",
         "state": "open",
-        "required_tag": null,
         "grants_edge": "to_crater",
         "on_use_effect": null,
-        "description": "Steel ladder ascending back up to the crater observation rim."
+        "description": "Steel ladder ascending back up to the crater observation rim.",
+        "required_tags": []
       },
       "subsurface_cache": {
         "id": "subsurface_cache",
         "glyph": "⊞",
         "name": "Sealed Survey Cache",
         "state": "active",
-        "required_tag": null,
         "grants_edge": null,
         "on_use_effect": "scavenge",
-        "description": "Canister containing historic tally slates and emergency supplies left by early prospectors."
+        "description": "Canister containing historic tally slates and emergency supplies left by early prospectors.",
+        "required_tags": [],
+        "yields": [
+          "slate_tally"
+        ]
+      },
+      "hull_breach": {
+        "id": "hull_breach",
+        "glyph": "~",
+        "name": "Split Basalt Seam",
+        "state": "disabled",
+        "required_tags": [
+          "vacuum_seal"
+        ],
+        "grants_edge": null,
+        "on_use_effect": "repair",
+        "on_repair_vitals": {
+          "pressure_kpa": 78.0,
+          "radiation_msv": 8.0,
+          "temperature_c": -20
+        },
+        "description": "A crack in the tube wall hissing air out into the crater. An elastomer patch would hold it."
       }
     },
     "actors": {},
     "placements": [
-      { "entity_id": "ascent_ladder", "row": 0, "col": 3 },
-      { "entity_id": "subsurface_cache", "row": 3, "col": 2 }
+      {
+        "entity_id": "ascent_ladder",
+        "row": 0,
+        "col": 3
+      },
+      {
+        "entity_id": "subsurface_cache",
+        "row": 3,
+        "col": 2
+      },
+      {
+        "entity_id": "hull_breach",
+        "row": 4,
+        "col": 4
+      }
     ],
     "edges": {
       "to_crater": {
@@ -1846,7 +2410,7 @@ Companions represent fellow crew members recruited across the stations. They tra
   {
     "id": "scrap_fabrication",
     "name": "Making Parts",
-    "description": "Make pipe fittings and prybars at a workbench or smelter.",
+    "description": "Forge pry-bars from ore at the smelter. Without it, ore only melts down to scrap.",
     "prerequisite": "seam_discipline",
     "unlock_condition": "use_fixture",
     "unlock_parameter": "salvage_bin",
@@ -1876,13 +2440,13 @@ Companions represent fellow crew members recruited across the stations. They tra
     "description": "Take half as much damage from freezing cold.",
     "prerequisite": null,
     "unlock_condition": "survive_depth",
-    "unlock_parameter": "1",
+    "unlock_parameter": "1:5",
     "attuned": false
   },
   {
     "id": "vacuum_walk",
     "name": "Vacuum Suit",
-    "description": "Take half as much damage from low pressure. Can walk in vacuum.",
+    "description": "Take half as much damage from low pressure.",
     "prerequisite": "cold_bypass",
     "unlock_condition": "visit_node",
     "unlock_parameter": "luna_pad",
@@ -1894,7 +2458,7 @@ Companions represent fellow crew members recruited across the stations. They tra
     "description": "Take half as much damage from radiation.",
     "prerequisite": "vacuum_walk",
     "unlock_condition": "survive_depth",
-    "unlock_parameter": "1",
+    "unlock_parameter": "1:20",
     "attuned": false
   },
   {
@@ -1997,13 +2561,14 @@ def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
 
 ### Phase 2: Preset Data Expansion (`presets/default-1.0/` & `core/presets.py`)
 - Sync `items.json`, `nodes.json`, `companions.json`, and `tree.json` with the full 14-node open-world specifications.
-- Mirror definitions in `DEFAULT_NODES`, `DEFAULT_ITEMS`, `DEFAULT_COMPANIONS`, and `DEFAULT_TREE` inside `core/presets.py` as robust runtime fallbacks.
+- Keep the JSON in `core/data/default-1.0/` as the single source of truth. Do not mirror it in Python.
 
 ### Phase 3: Pure State Reducers (`core/reducers.py`)
-- **Proximity Menu Logic:** Extend `_build_proximity_menu` to support `[S] Scavenge` on container fixtures and `[U] Use` on repair/harvest/smelt fixtures.
-- **Scavenge Reducer:** Implement `reduce_interact_scavenge` / `reduce_scavenge` to safely transfer items from fixtures to player inventory and transition fixture state to `SPENT`.
+- **Proximity Menu Logic:** `_build_proximity_menu` offers `[F] Search`, `[R] Read`, `[U] Use <source>`, `[G] Go`, `[T] Talk` and `[B] Barter` per §5.2, and is rebuilt after every action.
+- **Shared Rules:** All requirement checks go through `core/rules.resolve_requirement`; all thresholds through `exposure_thresholds`. No reducer re-implements tag matching.
+- **Scavenge Reducer:** `reduce_scavenge` transfers a fixture's `yields` to the pack and sets `SPENT`.
 - **Expanded Fixture Effects:** Update `reduce_use` to handle `"scavenge"`, `"harvest"`, `"smelt"`, `"override"`, and `"log"`.
-- **Dynamic Trade Reducer:** Update `reduce_talk` to support multi-tag matching (`trade_required_tag in item.tags` or item category match), grant companions, and emit responsive contextual dialogue.
+- **Trade Reducers:** `reduce_talk` shows dialogue and offers; `reduce_barter` executes the trade, grants companions and removes recruited actors from the grid.
 
 ### Phase 4: Tick Processor (`core/tick.py`)
 - Execute the 6-step tick processing pipeline.
@@ -2013,12 +2578,13 @@ def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
 ### Phase 5: Viewport & Presentation (`ui/render.py`, `ui/topology_view.py`)
 - Render the 6-zone layout adhering to the >= 40 column constraint.
 - Ensure all Zone 2 rows are formatted with `pad_visible` to prevent ANSI escape sequence padding errors.
-- Display contextual key hints in Zone 6 (`/: cmd  wasd: move  i: inspect  u: use  g: go  t: talk`).
+- Display contextual key hints in Zone 6 (`WASD: move  /: cmd  M: map  Q: quit`; menu keys are listed in Zone 5).
 
 ### Phase 6: Persistence Layer (`core/persistence.py`)
 - Maintain atomic JSON serialization into `saves/<character_name>/state.json`.
 - Enforce `is_running = True` on save file load.
-- Implement incapacitation revival: reset exposure to `(0.0, 0.0, 0.0)`, reposition player to `stn_a_bunkroom`, and restore terminal operation.
+- Revival happens in the tick (§4.3). Loading still revives legacy v1 saves that stopped at the moment of collapse, using the capability-aware threshold.
+- Upgrade v1 saves (`schema_version` missing) by merging authored fields from the default preset while keeping fixture state, trades and attunements.
 
 ### Phase 7: Verification & E2E Testing (`tests/`)
 - Ensure all automated unit and E2E test suites pass with 100% reliability.

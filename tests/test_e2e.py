@@ -1,13 +1,13 @@
 import unittest
 from pathlib import Path
-from core.presets import init_game_state
+from core.presets import init_game_state, DEFAULT_DATA_DIR
 from core.actions import dispatch_action
 from core.types import FixtureState
 from core.reducers import ALL_ITEMS_BY_ID
 
 class TestE2EWalkthrough(unittest.TestCase):
     def setUp(self):
-        self.preset_dir = Path("presets/default-1.0")
+        self.preset_dir = DEFAULT_DATA_DIR
         self.state = init_game_state(self.preset_dir, "Vaelen", 1, 1)
 
     def test_complete_space_rpg_campaign(self):
@@ -26,21 +26,23 @@ class TestE2EWalkthrough(unittest.TestCase):
         pack_state = dispatch_action(state, "/pack")
         self.assertTrue(any("CARRIED GEAR" in m for m in pack_state.message_buffer))
 
-        # Try leaving through to_berth
+        # Leaving walks to the hatch first: 2 tiles from the bunkroom center costs 2 cycles
         state = dispatch_action(state, "leave to_berth")
         self.assertEqual(state.current_node_id, "stn_a_berth")
-        self.assertEqual(state.cycle, 1)
+        self.assertEqual(state.cycle, 2)
 
         # 2. Berth 04 & Trade with Kael
         state = dispatch_action(state, "inspect npc_kael")
         self.assertTrue(any("Kael" in m for m in state.message_buffer))
 
-        # Talk to Kael -> should trigger trade (fitting_copper -> pass_work)
+        # Talk to Kael -> offer only; barter executes the trade (fitting_copper -> pass_work)
         state = dispatch_action(state, "talk npc_kael")
+        self.assertTrue(any("Trade offer" in m for m in state.message_buffer))
+        state = dispatch_action(state, "barter npc_kael")
         self.assertTrue(any("Exchanged Copper Pipe Fitting for Stamped Work Pass" in m for m in state.message_buffer))
         self.assertTrue(any(i.id == "pass_work" for i in state.character.inventory))
         self.assertFalse(any(i.id == "fitting_copper" for i in state.character.inventory))
-        self.assertEqual(state.cycle, 2)
+        self.assertEqual(state.cycle, 4)
 
         # Unlock cargo hoist to subdeck
         state = dispatch_action(state, "use pass_work cargo_hoist")
@@ -73,8 +75,8 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertTrue(any("Repaired" in m for m in state.message_buffer))
         self.assertEqual(state.nodes["stn_a_sub"].fixtures["jammed_valve"].state, FixtureState.ACTIVE.value)
 
-        # Talk to Radek -> Radek recruits as companion!
-        state = dispatch_action(state, "talk npc_radek")
+        # Barter with Radek -> Radek recruits as companion!
+        state = dispatch_action(state, "barter npc_radek")
         self.assertTrue(any("Radek" in m for m in state.message_buffer))
         self.assertTrue(any(c.id == "comp_radek" for c in state.companions))
 
@@ -133,7 +135,7 @@ class TestE2EWalkthrough(unittest.TestCase):
         # Mine shaft requires 'two_person_lift'
         # Radek provides this capability!
         mine_shaft = state.nodes["luna_smelter"].fixtures["mine_shaft"]
-        self.assertEqual(mine_shaft.required_tag, "two_person_lift")
+        self.assertIn("two_person_lift", mine_shaft.required_tags)
 
         # Player uses pass_work or tool to activate cage with companion support
         state = dispatch_action(state, "use pass_work mine_shaft")
@@ -205,8 +207,11 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertTrue(any("Near: Kael" in m for m in state.message_buffer))
         self.assertTrue(any("[T] Talk" in m for m in state.message_buffer))
 
-        # Talk to Kael using 't' -> executes trade
+        # 't' talks and offers; 'b' barters
         state = dispatch_action(state, "t")
+        self.assertFalse(any(i.id == "pass_work" for i in state.character.inventory))
+        self.assertTrue(any("[B] Barter" in m for m in state.message_buffer))
+        state = dispatch_action(state, "b")
         self.assertTrue(any(i.id == "pass_work" for i in state.character.inventory))
 
         # Move to cargo hoist at (5, 3)
@@ -220,9 +225,10 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertTrue(any("Near: Cargo Hoist Platform" in m for m in state.message_buffer))
         self.assertTrue(any("[U] Use Stamped Work Pass" in m for m in state.message_buffer))
 
-        # Unlock hoist using single-key 'u'
+        # Unlock hoist using single-key 'u'; the refreshed menu offers [G] immediately
         state = dispatch_action(state, "u")
         self.assertEqual(state.nodes["stn_a_berth"].fixtures["cargo_hoist"].state, FixtureState.OPEN.value)
+        self.assertTrue(any("[G] Go -> Sub-Deck" in m for m in state.message_buffer))
 
         # Move off and step back onto open cargo hoist to see [G] Go option
         state = dispatch_action(state, "w")  # (4, 3)
@@ -261,7 +267,7 @@ class TestE2EWalkthrough(unittest.TestCase):
         self.assertEqual(state.nodes["stn_a_sub"].fixtures["jammed_valve"].state, FixtureState.ACTIVE.value)
 
         # 5. Recruit Radek: trade prybar for transit chit and join party
-        state = dispatch_action(state, "/talk npc_radek")
+        state = dispatch_action(state, "/barter npc_radek")
         self.assertTrue(any(c.id == "comp_radek" for c in state.companions))
         self.assertTrue(any(i.id == "chit_transit" for i in state.character.inventory))
         self.assertIn("crew_coordination", state.character.unlocked_capabilities)
@@ -283,7 +289,7 @@ class TestE2EWalkthrough(unittest.TestCase):
         # 9. In Station Beta: recruit Tarek with steel dice
         dice = ALL_ITEMS_BY_ID["dice_steel"]
         state = state._replace(character=state.character._replace(inventory=state.character.inventory + (dice,)))
-        state = dispatch_action(state, "/talk npc_tarek")
+        state = dispatch_action(state, "/barter npc_tarek")
         self.assertTrue(any(c.id == "comp_tarek" for c in state.companions))
 
         # 10. Visit Sensor Array (stn_b_array) and access comms rack

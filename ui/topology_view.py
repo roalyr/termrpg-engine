@@ -1,7 +1,8 @@
-from typing import Dict, Set
+from typing import Dict, List, Set
 from core.types import GameState
 
 NODE_SHORT_CODES: Dict[str, str] = {
+    "stn_a_bunkroom": "bunk",
     "stn_a_hab": "hab",
     "stn_a_berth": "brt",
     "stn_a_sub": "sub",
@@ -17,36 +18,32 @@ NODE_SHORT_CODES: Dict[str, str] = {
     "luna_tube": "tube",
 }
 
-NODE_DISPLAY_NAMES: Dict[str, str] = {
-    "stn_a_hab": "Hab Ring",
-    "stn_a_berth": "Berth 04",
-    "stn_a_sub": "Sub-Deck (D:1)",
-    "stn_b_array": "Array Hub",
-    "stn_b_fuel": "Fuel Spur",
-    "stn_b_dock": "Dock Ring",
-    "shuttle_ab": "Shuttle Transit",
-    "luna_pad": "Lunar Pad",
-    "luna_dome": "Habitat Dome",
-    "luna_smelter": "Smelter Flat",
-    "luna_crater": "Crater Rim",
-    "luna_mine": "Deep Mine (D:1)",
-    "luna_tube": "Lava Tube (D:1)",
-}
+# (row, col, node_id or literal text) on a fixed 40-column canvas.
+_CANVAS_ROWS = 10
+_LAYOUT = (
+    (0, 1, "@stn_a_bunkroom"), (0, 7, "─"), (0, 8, "@stn_a_berth"), (0, 14, "─"), (0, 15, "@stn_a_hab"),
+    (0, 26, "@stn_b_array"),
+    (1, 5, "\\"), (1, 9, "/"), (1, 12, "│"), (1, 28, "│"),
+    (2, 4, "@stn_a_sub"), (2, 12, "│"), (2, 26, "@stn_b_dock"), (2, 32, "─"), (2, 33, "@stn_b_fuel"),
+    (3, 5, "D:1"), (3, 12, "└────"), (3, 17, "@shuttle_ab"), (3, 23, "─────┘"),
+    (4, 19, "│"),
+    (5, 3, "@luna_smelter"), (5, 9, "─"), (5, 10, "@luna_dome"), (5, 16, "─"), (5, 17, "@luna_pad"),
+    (5, 25, "LUNA SURFACE"),
+    (6, 5, "║"), (6, 12, "│"),
+    (7, 3, "@luna_mine"), (7, 10, "@luna_crater"),
+    (8, 4, "D:1"), (8, 12, "║"),
+    (9, 10, "@luna_tube"), (9, 17, "D:1"),
+)
 
 
 def _get_label(node_id: str, current_id: str, visited: Set[str], reachable: Set[str]) -> str:
-    """Returns formatted short label for a node in the ASCII graph."""
+    """Returns a 6-character label for a node in the ASCII graph."""
     code = NODE_SHORT_CODES.get(node_id, "???")
-    is_here = (node_id == current_id)
-    is_known = (node_id in visited or node_id in reachable)
-
-    if not is_known:
-        return "[???]"
-
-    if is_here:
-        return f"[*{code[:3]}]"
-    else:
-        return f"[{code[:4]:^4}]"
+    if node_id not in visited and node_id not in reachable:
+        return "[ ?? ]"
+    if node_id == current_id:
+        return f"[*{code[:4]:<4}]"[:5] + "]"
+    return f"[{code[:4]:^4}]"
 
 
 def render_topology(state: GameState, terminal_width: int) -> str:
@@ -55,52 +52,21 @@ def render_topology(state: GameState, terminal_width: int) -> str:
     divider = "─" * min(w, 40)
     current_node = state.nodes.get(state.current_node_id)
     visited = set(state.visited_nodes)
+    reachable = {e.target_node_id for e in current_node.edges.values()} if current_node else set()
 
-    reachable = set()
-    if current_node:
-        for edge in current_node.edges.values():
-            reachable.add(edge.target_node_id)
+    canvas: List[List[str]] = [[" "] * 40 for _ in range(_CANVAS_ROWS)]
+    for row, col, text in _LAYOUT:
+        if text.startswith("@"):
+            text = _get_label(text[1:], state.current_node_id, visited, reachable)
+        for offset, ch in enumerate(text):
+            canvas[row][col + offset] = ch
 
-    def lbl(nid: str) -> str:
-        return _get_label(nid, state.current_node_id, visited, reachable)
-
-    lines = [
-        "TOPOLOGY [SECTOR GRAPH]",
-        divider,
-        " STATION ALPHA        STATION BETA",
-        f" {lbl('stn_a_hab')} ── {lbl('stn_a_berth')}      {lbl('stn_b_array')} ── {lbl('stn_b_fuel')}",
-        f"            │            \\    /",
-        f"          (D:1)          {lbl('stn_b_dock')}",
-        f"          {lbl('stn_a_sub')}            │",
-        f"            : shuttle      : shuttle",
-        f"            :··············:",
-        f"                   :",
-        f"          ════════{lbl('luna_pad')}════════ (Surface)",
-        f"                   │",
-        f"               {lbl('luna_dome')}",
-        f"               /      \\",
-        f"          {lbl('luna_smelter')}      {lbl('luna_crater')}",
-        f"            ║            ║",
-        f"          {lbl('luna_mine')}D:1   {lbl('luna_tube')}D:1",
-        divider,
-        "SECTOR DIRECTORY:",
-    ]
-
-    # Render 2-column directory for known nodes
-    items = []
-    for nid, name in NODE_DISPLAY_NAMES.items():
+    lines = ["TOPOLOGY [SECTOR GRAPH]", divider, " STATION ALPHA            STATION BETA"]
+    lines += ["".join(row).rstrip() for row in canvas]
+    lines += [divider, "SECTOR DIRECTORY:"]
+    for nid, node in state.nodes.items():
         if nid in visited or nid in reachable:
             prefix = "[*]" if nid == state.current_node_id else "   "
-            short = NODE_SHORT_CODES.get(nid, nid)
-            items.append(f"{prefix}{short:>4}: {name}")
-
-    for i in range(0, len(items), 2):
-        col1 = items[i]
-        col2 = items[i + 1] if i + 1 < len(items) else ""
-        lines.append(f" {col1:<18} {col2}")
-
-    lines.append(divider)
-    lines.append("CMD: back / leave <exit_id>")
-    lines.append("> ")
-
+            lines.append(f"{prefix} {NODE_SHORT_CODES.get(nid, nid):>4}: {node.name}"[:w])
+    lines += [divider, "CMD: /back  /leave <exit_id>"]
     return "\n".join(lines)

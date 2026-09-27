@@ -11,7 +11,7 @@
   {
     "id": "scrap_fabrication",
     "name": "Making Parts",
-    "description": "Make pipe fittings and prybars at a workbench or smelter.",
+    "description": "Forge pry-bars from ore at the smelter. Without it, ore only melts down to scrap.",
     "prerequisite": "seam_discipline",
     "unlock_condition": "use_fixture",
     "unlock_parameter": "salvage_bin",
@@ -41,13 +41,13 @@
     "description": "Take half as much damage from freezing cold.",
     "prerequisite": null,
     "unlock_condition": "survive_depth",
-    "unlock_parameter": "1",
+    "unlock_parameter": "1:5",
     "attuned": false
   },
   {
     "id": "vacuum_walk",
     "name": "Vacuum Suit",
-    "description": "Take half as much damage from low pressure. Can walk in vacuum.",
+    "description": "Take half as much damage from low pressure.",
     "prerequisite": "cold_bypass",
     "unlock_condition": "visit_node",
     "unlock_parameter": "luna_pad",
@@ -59,7 +59,7 @@
     "description": "Take half as much damage from radiation.",
     "prerequisite": "vacuum_walk",
     "unlock_condition": "survive_depth",
-    "unlock_parameter": "1",
+    "unlock_parameter": "1:20",
     "attuned": false
   },
   {

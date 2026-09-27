@@ -1,6 +1,6 @@
 import unittest
 from pathlib import Path
-from core.presets import init_game_state
+from core.presets import init_game_state, DEFAULT_DATA_DIR
 from ui.render import render_frame, build_grid
 from ui.topology_view import render_topology
 from ui.text_tools import wrap_text, check_terminal, clear_terminal, visible_len
@@ -9,7 +9,7 @@ import sys
 
 class TestUI(unittest.TestCase):
     def setUp(self):
-        self.preset_dir = Path("presets/default-1.0")
+        self.preset_dir = DEFAULT_DATA_DIR
         self.state = init_game_state(self.preset_dir, "Vaelen", 1, 1)
 
     def test_build_grid(self):

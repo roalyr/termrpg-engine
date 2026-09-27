@@ -1,824 +1,658 @@
-from typing import Optional, Mapping, Tuple, Dict, Any, List
+from typing import Optional, Tuple, List, Dict
 
 from core.types import (
-    GameState, Node, Fixture, Actor, Edge, Item, Companion,
-    FixtureState, ItemCategory, TreeNode
+    GameState, Node, Fixture, Actor, Edge, Item, FixtureState, ItemCategory,
 )
 from core.tick import process_tick
-from core.presets import DEFAULT_ITEMS, DEFAULT_COMPANIONS
+from core.presets import DEFAULT_DATA_DIR, load_catalogs
+from core import rules
+from core.rules import Source
 
-# Index default items and companions for lookups
-ALL_ITEMS_BY_ID: Dict[str, Item] = {
-    raw["id"]: Item(
-        id=raw["id"],
-        name=raw["name"],
-        category=raw["category"],
-        tags=tuple(raw["tags"]),
-        integrity=raw["integrity"],
-        max_integrity=raw["max_integrity"],
-        description=raw["description"]
-    )
-    for raw in DEFAULT_ITEMS
-}
+# Default catalogues, for callers that build items outside a game state (tests, tools).
+ALL_ITEMS_BY_ID, ALL_COMPANIONS_BY_ID = load_catalogs(DEFAULT_DATA_DIR)
 
-ALL_COMPANIONS_BY_ID: Dict[str, Companion] = {
-    raw["id"]: Companion(
-        id=raw["id"],
-        name=raw["name"],
-        title=raw["title"],
-        status=raw["status"],
-        capability_tag=raw.get("capability_tag")
-    )
-    for raw in DEFAULT_COMPANIONS
-}
+_DONE_STATES = (FixtureState.OPEN.value, FixtureState.SPENT.value)
+_CLOSED_STATES = (FixtureState.SEALED.value, FixtureState.LOCKED.value)
+_TOOL_EFFECTS = ("unlock", "repair", "harvest", "override")
 
 
-def _is_stressed_or_critical(state: GameState) -> bool:
-    """Returns True if any exposure track is in Stressed or Critical range."""
-    caps = state.character.unlocked_capabilities
-    thresh = 10.0 if "trench_hardened" in caps else 5.0
-    exp = state.character.exposure
-    return max(exp.pressure_debt, exp.radiation_dose, exp.thermal_stress) >= thresh
-
-
-def _is_critical(state: GameState) -> bool:
-    """Returns True if any exposure track is at or above Critical threshold."""
-    caps = state.character.unlocked_capabilities
-    thresh = 15.0 if "trench_hardened" in caps else 10.0
-    exp = state.character.exposure
-    return max(exp.pressure_debt, exp.radiation_dose, exp.thermal_stress) >= thresh
-
-
-SCAVENGE_YIELDS: Dict[str, Tuple[str, str]] = {
-    "personal_locker": ("wire_spool", "Recovered an insulated copper wire spool from the personal locker."),
-    "salvage_bin": ("fitting_copper", "Salvaged a clean copper pipe fitting from the scrap bin."),
-    "freight_skid": ("scrap_metal", "Recovered basalt scrap metal from loose cargo lashings."),
-    "tool_rack": ("tool_prybar", "Took a heavy thermal pry-bar from the tool rack."),
-    "freight_crate": ("chit_transit", "Pried open the cargo crate and found an unpunched transit token."),
-    "spares_cabinet": ("seal_patch", "Retrieved a silicone seal patch from the wall cabinet."),
-    "regolith_sled": ("scrap_metal", "Salvaged structural alloy plates from the abandoned sled."),
-    "surveyor_cache": ("ration_dry", "Retrieved a compressed emergency ration block from the cache."),
-    "ore_face": ("ore_sample", "Chipped a heavy core of lunar basalt ore from the rock face."),
-    "subsurface_cache": ("slate_tally", "Found an old surveyor's chalk slate tucked inside the basalt cache."),
-}
-
-
-def _can_scavenge(state: GameState) -> bool:
-    """Returns True if the entity under the player cursor is a scavengeable fixture."""
-    node = state.nodes[state.current_node_id]
-    fixture, _ = _get_entity_at(node, state.player_row, state.player_col)
-    if fixture and fixture.on_use_effect == "scavenge" and fixture.state != FixtureState.SPENT.value:
-        return True
-    return False
-
+# --- Lookup helpers --------------------------------------------------------
 
 def _get_entity_at(node: Node, row: int, col: int) -> Tuple[Optional[Fixture], Optional[Actor]]:
     """Returns any fixture or actor placed at (row, col) on the node grid."""
     for placement in node.placements:
         if placement.row == row and placement.col == col:
-            f = node.fixtures.get(placement.entity_id)
-            a = node.actors.get(placement.entity_id)
-            return (f, a)
-    return (None, None)
+            return node.fixtures.get(placement.entity_id), node.actors.get(placement.entity_id)
+    return None, None
+
+
+def _entity_under_cursor(state: GameState) -> Tuple[Optional[Fixture], Optional[Actor]]:
+    return _get_entity_at(state.nodes[state.current_node_id], state.player_row, state.player_col)
+
+
+def _find_fixture(node: Node, ref: str) -> Optional[Fixture]:
+    ref = ref.strip()
+    if ref in node.fixtures:
+        return node.fixtures[ref]
+    for f in node.fixtures.values():
+        if f.glyph == ref or f.name.lower() == ref.lower():
+            return f
+    return None
+
+
+def _find_actor(node: Node, ref: str) -> Optional[Actor]:
+    ref = ref.strip()
+    if ref in node.actors:
+        return node.actors[ref]
+    for a in node.actors.values():
+        if a.glyph == ref or a.name.lower() == ref.lower():
+            return a
+    return None
+
+
+def _with_fixture(node: Node, fixture: Fixture) -> Node:
+    fixtures = dict(node.fixtures)
+    fixtures[fixture.id] = fixture
+    return node._replace(fixtures=fixtures)
+
+
+def _with_node(state: GameState, node: Node) -> GameState:
+    nodes = dict(state.nodes)
+    nodes[node.id] = node
+    return state._replace(nodes=nodes)
+
+
+def _say(state: GameState, *lines: str) -> GameState:
+    """Replaces Zone 5 with lines without advancing time; keeps the menu if the cursor is on an entity."""
+    return _refresh_menu(state._replace(message_buffer=tuple(lines)))
+
+
+def _gate_placement(node: Node, edge: Edge) -> Optional[Tuple[int, int]]:
+    gate_ids = {edge.gated_by_fixture} | {f.id for f in node.fixtures.values() if f.grants_edge == edge.id}
+    for p in node.placements:
+        if p.entity_id in gate_ids:
+            return p.row, p.col
+    return None
+
+
+# --- Proximity menu --------------------------------------------------------
+
+def _use_label(state: GameState, fixture: Fixture) -> Optional[str]:
+    """Label for the [U] option, or None when using the fixture is not possible right now."""
+    effect = fixture.on_use_effect
+    if effect in (None, "log", "scavenge") or fixture.state in _DONE_STATES:
+        return None
+    if effect == "repair" and fixture.state == FixtureState.ACTIVE.value:
+        return None
+    inventory = state.character.inventory
+    if effect == "refill":
+        idx = rules.first_item_with_tags(state, ("refillable",))
+        return f"Refill {inventory[idx].name}" if idx is not None else None
+    if effect == "smelt":
+        idx = rules.first_item_with_tags(state, ("mineral", "salvage"))
+        return f"Smelt {inventory[idx].name}" if idx is not None else None
+    if not fixture.required_tags:
+        return None
+    source = rules.resolve_requirement(state, fixture.required_tags)
+    return f"Use {source.label}" if source else None
 
 
 def _build_proximity_menu(state: GameState, fixture: Optional[Fixture], actor: Optional[Actor]) -> Tuple[str, ...]:
-    """Constructs proximity interaction menu options strictly according to §5.2."""
+    """Constructs proximity interaction menu options (§5.2)."""
     entity_name = fixture.name if fixture else (actor.name if actor else "Object")
     opts = ["[I] Inspect"]
     if fixture:
         if fixture.on_use_effect == "scavenge" and fixture.state != FixtureState.SPENT.value:
-            opts.append("[S] Scavenge")
-
-        # Check usable item
-        matching_item = None
-        all_tags = set(state.character.unlocked_capabilities)
-        if "wayfarer" in all_tags:
-            all_tags.add("transit_clearance")
-        for c in state.companions:
-            if c.capability_tag:
-                all_tags.add(c.capability_tag)
-
-        if fixture.required_tag and fixture.state not in (FixtureState.OPEN.value, FixtureState.SPENT.value):
-            for it in state.character.inventory:
-                if fixture.required_tag in (set(it.tags) | all_tags):
-                    matching_item = it
-                    break
-                elif fixture.on_use_effect == "smelt" and ("mineral" in it.tags or "salvage" in it.tags):
-                    matching_item = it
-                    break
-        elif fixture.on_use_effect in ("repair", "harvest", "smelt", "override", "refill", "log") and fixture.state != FixtureState.SPENT.value:
-            for it in state.character.inventory:
-                if not fixture.required_tag or fixture.required_tag in (set(it.tags) | all_tags):
-                    matching_item = it
-                    break
-                elif fixture.on_use_effect == "smelt" and ("mineral" in it.tags or "salvage" in it.tags):
-                    matching_item = it
-                    break
-
-        if matching_item:
-            opts.append(f"[U] Use {matching_item.name}")
-
-        if fixture.grants_edge:
-            cur_node = state.nodes[state.current_node_id]
-            edge = cur_node.edges.get(fixture.grants_edge)
-            if edge and fixture.state == FixtureState.OPEN.value:
+            opts.append("[F] Search")
+        if fixture.on_use_effect == "log":
+            opts.append("[R] Read")
+        label = _use_label(state, fixture)
+        if label:
+            opts.append(f"[U] {label}")
+        if fixture.grants_edge and fixture.state == FixtureState.OPEN.value:
+            edge = state.nodes[state.current_node_id].edges.get(fixture.grants_edge)
+            if edge:
                 opts.append(f"[G] Go -> {edge.label}")
-
     if actor:
         opts.append("[T] Talk")
-
+        if rules.trade_item_idx(state, actor) is not None:
+            opts.append("[B] Barter")
     opts.append("[X] Cancel")
     return (f"Near: {entity_name}", "  ".join(opts))
 
 
+def _refresh_menu(state: GameState) -> GameState:
+    """Appends a fresh proximity menu when the cursor rests on an entity; hides it otherwise."""
+    if state.active_view != "compartment":
+        return state._replace(proximity_menu_active=False)
+    fixture, actor = _entity_under_cursor(state)
+    if not (fixture or actor):
+        return state._replace(proximity_menu_active=False)
+    return state._replace(
+        message_buffer=state.message_buffer + _build_proximity_menu(state, fixture, actor),
+        proximity_menu_active=True,
+    )
+
+
+def _spend(state: GameState, source: Optional[Source], effect: str) -> Tuple[Tuple[Item, ...], str]:
+    """Applies wear for the item that satisfied a requirement. Returns (inventory, note)."""
+    inventory = state.character.inventory
+    if source is None or source.item_idx is None:
+        return inventory, f" ({source.label})" if source else ""
+    item = inventory[source.item_idx]
+    if effect == "harvest" or rules.tool_protected(state, item):
+        return inventory, f" Used {item.name}."
+    inventory, used_up = rules.wear_item(inventory, source.item_idx)
+    if used_up:
+        return inventory, f" {item.name} was used up."
+    return inventory, f" Used {item.name}."
+
+
+# --- Movement --------------------------------------------------------------
+
 def reduce_move(state: GameState, direction: str) -> GameState:
     """
     Moves player cursor one tile on the Zone 2 grid via WASD raw keys.
-    Advances simulation tick on success.
-    Triggers proximity interaction menu in Zone 5 on landing on an entity tile.
+    Advances simulation tick on success. Landing on an entity opens the proximity menu.
     """
     direction = direction.lower().strip()
     node = state.nodes[state.current_node_id]
-    r, c = state.player_row, state.player_col
-
-    delta = {
-        "w": (-1, 0),
-        "s": (1, 0),
-        "a": (0, -1),
-        "d": (0, 1),
-    }.get(direction)
-
+    delta = {"w": (-1, 0), "s": (1, 0), "a": (0, -1), "d": (0, 1)}.get(direction)
     if not delta:
         return state._replace(message_buffer=(f"Invalid direction '{direction}'. Use W/A/S/D.",))
 
-    new_r = r + delta[0]
-    new_c = c + delta[1]
-
-    # Bounds check
-    if new_r < 0 or new_r >= node.size or new_c < 0 or new_c >= node.size:
-        return state._replace(
-            message_buffer=("Bulkhead blocks movement.",),
-            proximity_menu_active=False
-        )
-
+    new_r = state.player_row + delta[0]
+    new_c = state.player_col + delta[1]
+    blocked = state._replace(message_buffer=("Bulkhead blocks movement.",), proximity_menu_active=False)
+    if not (0 <= new_r < node.size and 0 <= new_c < node.size):
+        return blocked
     fixture, actor = _get_entity_at(node, new_r, new_c)
-
-    # Wall check: border cells without any placed entity are impassable walls
-    is_border = (new_r == 0 or new_r == node.size - 1 or new_c == 0 or new_c == node.size - 1)
+    is_border = new_r in (0, node.size - 1) or new_c in (0, node.size - 1)
     if is_border and not fixture and not actor:
-        return state._replace(
-            message_buffer=("Bulkhead blocks movement.",),
-            proximity_menu_active=False
-        )
+        return blocked
 
-    if fixture or actor:
-        menu_lines = _build_proximity_menu(state, fixture, actor)
-        state_moved = state._replace(
-            player_row=new_r,
-            player_col=new_c,
-            proximity_menu_active=True,
-            message_buffer=menu_lines
-        )
-    else:
-        state_moved = state._replace(
-            player_row=new_r,
-            player_col=new_c,
-            proximity_menu_active=False,
-            message_buffer=()
-        )
+    moved = state._replace(player_row=new_r, player_col=new_c, message_buffer=())
+    return _refresh_menu(process_tick(moved, ""))
 
-    return process_tick(state_moved, f"Moved {direction.upper()}.")
+
+def _enter_node(state: GameState, edge: Edge, via_fixture: Optional[Fixture]) -> GameState:
+    """Crosses edge into its destination node. Gate checks happen in the callers."""
+    if edge.requires_capability and edge.requires_capability not in rules.party_tags(state):
+        return _say(state, f"Requires capability '{edge.requires_capability}' to traverse here.")
+    dest = state.nodes.get(edge.target_node_id)
+    if not dest:
+        return _say(state, f"Route error: destination {edge.target_node_id} unreachable.")
+
+    messages = [f"Moved to {dest.name}."]
+    if rules.is_critical(state):
+        messages.append("[!] Moving under severe physical strain.")
+
+    origin = state.nodes[state.current_node_id]
+    gate_ids = {edge.gated_by_fixture, via_fixture.id if via_fixture else None}
+    for fid in gate_ids:
+        gate = origin.fixtures.get(fid) if fid else None
+        if gate and gate.reseal_on_pass and gate.state == FixtureState.OPEN.value:
+            origin = _with_fixture(origin, gate._replace(state=FixtureState.SEALED.value))
+            messages.append(f"{gate.name} reseals behind you.")
+
+    moved = _with_node(state, origin)._replace(
+        current_node_id=dest.id,
+        player_row=dest.size // 2,
+        player_col=dest.size // 2,
+        active_view="compartment",
+        message_buffer=state.message_buffer + tuple(messages),
+    )
+    return _refresh_menu(process_tick(moved, f"Traversed to {dest.name}."))
 
 
 def reduce_interact_go(state: GameState) -> GameState:
-    """
-    Traverses the open edge granted by the fixture under player cursor.
-    Equivalent to [G] proximity action or former leave command.
-    Advances simulation tick.
-    """
+    """[G] Traverses the open edge granted by the fixture under the cursor."""
     node = state.nodes[state.current_node_id]
-    fixture, _ = _get_entity_at(node, state.player_row, state.player_col)
+    fixture, _ = _entity_under_cursor(state)
     if not fixture or not fixture.grants_edge:
-        return state._replace(
-            message_buffer=("No hatch or exit under cursor to go through.",),
-            proximity_menu_active=False
-        )
-
+        return state._replace(message_buffer=("No hatch or exit under cursor to go through.",),
+                              proximity_menu_active=False)
     edge = node.edges.get(fixture.grants_edge)
     if not edge:
-        return state._replace(
-            message_buffer=(f"Route error: edge '{fixture.grants_edge}' not found.",),
-            proximity_menu_active=False
-        )
-
+        return _say(state, f"Route error: edge '{fixture.grants_edge}' not found.")
     if fixture.state != FixtureState.OPEN.value:
-        return state._replace(
-            message_buffer=(f"Access blocked. {fixture.name} is {fixture.state.upper()}.",)
-        )
+        return _say(state, f"Access blocked. {fixture.name} is {fixture.state.upper()}.")
+    return _enter_node(state._replace(message_buffer=()), edge, fixture)
 
-    if edge.requires_capability and edge.requires_capability not in state.character.unlocked_capabilities:
-        return state._replace(
-            message_buffer=(f"Requires capability '{edge.requires_capability}' to traverse here.",)
-        )
 
-    dest_node = state.nodes.get(edge.target_node_id)
-    if not dest_node:
-        return state._replace(
-            message_buffer=(f"Route error: destination {edge.target_node_id} unreachable.",),
-            proximity_menu_active=False
-        )
+def reduce_leave(state: GameState, edge_id: str) -> GameState:
+    """
+    Walks to an exit and crosses it. Costs one cycle per tile walked (minimum one),
+    so exposure applies exactly as if the player had moved there with WASD.
+    """
+    edge_id = edge_id.strip()
+    node = state.nodes[state.current_node_id]
+    edge = node.edges.get(edge_id)
+    if not edge:
+        for e in node.edges.values():
+            if e.label.lower() == edge_id.lower() or e.target_node_id == edge_id:
+                edge = e
+                break
+    if not edge:
+        available = ", ".join(f"'{k}' ({v.label})" for k, v in node.edges.items())
+        return state._replace(message_buffer=(f"No exit '{edge_id}'. Available: {available}",))
 
-    new_r = dest_node.size // 2
-    new_c = dest_node.size // 2
-    dest_fix, dest_act = _get_entity_at(dest_node, new_r, new_c)
-    has_entity = bool(dest_fix or dest_act)
-    menu_lines = _build_proximity_menu(state, dest_fix, dest_act) if has_entity else ()
+    gate = node.fixtures.get(edge.gated_by_fixture) if edge.gated_by_fixture else None
+    if gate and gate.state != FixtureState.OPEN.value:
+        return state._replace(message_buffer=(f"Access blocked. {gate.name} is {gate.state.upper()}.",))
+    if edge.requires_capability and edge.requires_capability not in rules.party_tags(state):
+        return state._replace(message_buffer=(f"Requires capability '{edge.requires_capability}' to traverse here.",))
 
-    messages = [f"Moved to {dest_node.name}."]
-    if _is_critical(state):
-        messages.append("[!] Moving under severe physical strain.")
-    if menu_lines:
-        messages.extend(menu_lines)
+    walking = state._replace(message_buffer=())
+    target = _gate_placement(node, edge)
+    if target:
+        steps = abs(target[0] - state.player_row) + abs(target[1] - state.player_col)
+        for _ in range(max(0, steps - 1)):
+            walking = process_tick(walking, "")
+            if walking.current_node_id != node.id:  # collapsed on the way
+                return walking
+        walking = walking._replace(player_row=target[0], player_col=target[1])
+    return _enter_node(walking, edge, None)
 
-    state_moved = state._replace(
-        current_node_id=dest_node.id,
-        player_row=new_r,
-        player_col=new_c,
-        active_view="compartment",
-        proximity_menu_active=has_entity,
-        message_buffer=tuple(messages)
-    )
 
-    return process_tick(state_moved, f"Traversed to {dest_node.name}.")
-
+# --- Inspection and conversation ------------------------------------------
 
 def reduce_interact_inspect(state: GameState) -> GameState:
-    """[I] Proximity menu action: Inspects entity under cursor."""
-    node = state.nodes[state.current_node_id]
-    fixture, actor = _get_entity_at(node, state.player_row, state.player_col)
-    if fixture:
-        return reduce_inspect(state, fixture.id)
-    elif actor:
-        return reduce_inspect(state, actor.id)
+    """[I] Inspects the entity under the cursor."""
+    fixture, actor = _entity_under_cursor(state)
+    if fixture or actor:
+        return reduce_inspect(state, (fixture or actor).id)
     return state._replace(message_buffer=("Nothing here to inspect.",), proximity_menu_active=False)
 
 
-def reduce_interact_use(state: GameState) -> GameState:
-    """[U] Proximity menu action: Uses matching carried item on fixture under cursor."""
+def reduce_inspect(state: GameState, target_id: str) -> GameState:
+    """Inspects a fixture, actor, inventory item, or exit. Does not advance the tick."""
+    target_id = target_id.strip()
+    if not target_id:
+        return state._replace(message_buffer=("Inspect what? Specify target ID or item name.",))
+
     node = state.nodes[state.current_node_id]
-    fixture, _ = _get_entity_at(node, state.player_row, state.player_col)
-    if not fixture:
-        return state._replace(message_buffer=("No fixture here to use items on.",), proximity_menu_active=False)
+    suffix = " [readings unclear due to environmental stress]" if rules.is_stressed(state) else ""
 
-    all_available_tags = set(state.character.unlocked_capabilities)
-    if "wayfarer" in all_available_tags:
-        all_available_tags.add("transit_clearance")
-    for comp in state.companions:
-        if comp.capability_tag:
-            all_available_tags.add(comp.capability_tag)
+    fixture = _find_fixture(node, target_id)
+    if fixture:
+        lines = [f"{fixture.name} [{fixture.id}]: {fixture.description}{suffix} State: {fixture.state.upper()}."]
+        pending = fixture.state not in _DONE_STATES
+        if fixture.required_tags and pending:
+            needed = " or ".join(f"'{t}'" for t in fixture.required_tags)
+            if "seam_discipline" in state.character.unlocked_capabilities:
+                source = rules.resolve_requirement(state, fixture.required_tags)
+                have = f" You can do it with: {source.label}." if source else " You have nothing that fits."
+                lines.append(f"  [Fixing Leaks] Needs {needed}.{have}")
+            else:
+                lines.append(f"  Requires one of: {needed}.")
+        return _say(state, *lines)
 
-    matching_item = None
-    if fixture.required_tag:
-        for it in state.character.inventory:
-            if fixture.required_tag in (set(it.tags) | all_available_tags):
-                matching_item = it
-                break
-            elif fixture.on_use_effect == "smelt" and ("mineral" in it.tags or "salvage" in it.tags):
-                matching_item = it
-                break
-    elif state.character.inventory:
-        matching_item = state.character.inventory[0]
+    actor = _find_actor(node, target_id)
+    if actor:
+        return _say(state, f"{actor.name} ({actor.title}): {actor.status}.{suffix} \"{rules.dialogue_for(state, actor)}\"")
 
-    if not matching_item and fixture.required_tag:
-        return state._replace(message_buffer=(f"No carried tool or item matches '{fixture.required_tag}'.",))
+    idx = rules.find_item(state, target_id)
+    if idx is not None:
+        item = state.character.inventory[idx]
+        cond = f"{item.integrity}/{item.max_integrity}" if item.max_integrity > 0 else "PERMANENT"
+        return _say(state, f"{item.name} [{item.id}] ({item.category}): {item.description}{suffix} "
+                           f"Integrity: {cond}. Tags: [{', '.join(item.tags)}].")
 
-    item_id = matching_item.id if matching_item else ""
-    return reduce_use(state, item_id, fixture.id)
+    edge = node.edges.get(target_id)
+    if edge:
+        lines = [f"Exit to {edge.label} [{edge.id}].{suffix}"]
+        target_node = state.nodes.get(edge.target_node_id)
+        if "bulkhead_ear" in state.character.unlocked_capabilities and target_node:
+            v = target_node.base_vitals
+            lines.append(f"  [Hear Pressure] Sensor feed: {v.pressure_kpa} kPa, {v.temperature_c}°C, "
+                         f"{v.radiation_msv} mSv ({target_node.environment}).")
+        gate = node.fixtures.get(edge.gated_by_fixture) if edge.gated_by_fixture else None
+        if gate and gate.state != FixtureState.OPEN.value:
+            lines.append(f"  Gated by {gate.name} (currently {gate.state}).")
+        if edge.requires_capability:
+            lines.append(f"  Requires clearance/capability: '{edge.requires_capability}'.")
+        return _say(state, *lines)
+
+    return state._replace(message_buffer=(f"Nothing found matching '{target_id}' to inspect.",))
 
 
 def reduce_interact_talk(state: GameState) -> GameState:
-    """[T] Proximity menu action: Talks or trades with actor under cursor."""
-    node = state.nodes[state.current_node_id]
-    _, actor = _get_entity_at(node, state.player_row, state.player_col)
+    """[T] Talks with the actor under the cursor."""
+    _, actor = _entity_under_cursor(state)
     if not actor:
         return state._replace(message_buffer=("No one here to speak with.",), proximity_menu_active=False)
     return reduce_talk(state, actor.id)
 
 
-def reduce_interact_scavenge(state: GameState) -> GameState:
-    """[S] Proximity menu action: Scavenges or searches the fixture under cursor."""
+def reduce_talk(state: GameState, actor_id: str) -> GameState:
+    """Talks to an actor. Describes any trade on offer but never trades by itself. Advances the tick."""
+    actor = _find_actor(state.nodes[state.current_node_id], actor_id)
+    if not actor:
+        return state._replace(message_buffer=(f"No one named '{actor_id.strip()}' here.",))
+
+    lines = [f"{actor.name}: \"{rules.dialogue_for(state, actor)}\""]
+    offered = rules.catalog_item(state, actor.trade_offered_id)
+    idx = rules.trade_item_idx(state, actor)
+    if idx is not None and offered:
+        mine = state.character.inventory[idx]
+        lines.append(f"Trade offer: your {mine.name} for {offered.name}. [B] or /barter to accept.")
+    elif offered and not actor.trade_completed and actor.trade_required_tags:
+        wants = " or ".join(actor.trade_required_tags)
+        lines.append(f"{actor.name} would trade {offered.name} for anything tagged {wants}.")
+    talked = state._replace(message_buffer=tuple(lines))
+    return _refresh_menu(process_tick(talked, f"Spoke with {actor.name}."))
+
+
+def reduce_interact_barter(state: GameState) -> GameState:
+    """[B] Barters with the actor under the cursor."""
+    _, actor = _entity_under_cursor(state)
+    if not actor:
+        return state._replace(message_buffer=("No one here to barter with.",), proximity_menu_active=False)
+    return reduce_barter(state, actor.id)
+
+
+def reduce_barter(state: GameState, actor_id: str = "", item_id: str = "") -> GameState:
+    """
+    Executes an actor's trade (§5.4). Any item carrying one of the actor's tags is accepted.
+    Credentials are shown and kept; items that wear lose one integrity; others change hands.
+    """
     node = state.nodes[state.current_node_id]
-    fixture, _ = _get_entity_at(node, state.player_row, state.player_col)
+    if actor_id:
+        actor = _find_actor(node, actor_id)
+    else:
+        actor = _entity_under_cursor(state)[1]
+    if not actor:
+        return state._replace(message_buffer=("No one here to barter with.",))
+    if actor.trade_completed:
+        return _say(state, f"{actor.name} has nothing more to trade.")
+    offered = rules.catalog_item(state, actor.trade_offered_id)
+    if not offered or not actor.trade_required_tags:
+        return _say(state, f"{actor.name} isn't trading.")
+
+    preferred = None
+    if item_id:
+        preferred = rules.find_item(state, item_id)
+        if preferred is None:
+            return _say(state, f"You don't carry '{item_id}'.")
+    idx = rules.trade_item_idx(state, actor, preferred)
+    if idx is None:
+        return _say(state, f"{actor.name} wants something tagged {' or '.join(actor.trade_required_tags)}.")
+    if preferred is not None and idx != preferred:
+        return _say(state, f"{actor.name} won't take that. Wants: {' or '.join(actor.trade_required_tags)}.")
+
+    given = state.character.inventory[idx]
+    inventory = state.character.inventory
+    if rules.is_handed_over(given):
+        if given.max_integrity > 0:
+            inventory, _ = rules.wear_item(inventory, idx)
+        else:
+            inventory = rules.remove_item(inventory, idx)
+    inventory = inventory + (offered,)
+
+    updated_actor = actor._replace(trade_completed=True)
+    actors = dict(node.actors)
+    actors[actor.id] = updated_actor
+    new_node = node._replace(actors=actors)
+
+    messages = [f"Exchanged {given.name} for {offered.name}.",
+                f"{actor.name}: \"{updated_actor.dialogue_post_trade or 'Transaction confirmed.'}\""]
+    companions = state.companions
+    recruit = rules.catalog_companion(state, actor.companion_unlock)
+    if recruit and not any(c.id == recruit.id for c in companions):
+        companions = companions + (recruit,)
+        new_node = new_node._replace(placements=tuple(p for p in new_node.placements if p.entity_id != actor.id))
+        messages.append(f"[PARTY] Companion joined: {recruit.name} ({recruit.title}).")
+
+    traded = _with_node(state, new_node)._replace(
+        character=state.character._replace(inventory=inventory),
+        companions=companions,
+        message_buffer=tuple(messages),
+    )
+    return _refresh_menu(process_tick(
+        traded, f"Traded with {actor.name}.", {"traded_actor_id": actor.id}, physical=True))
+
+
+# --- Fixtures --------------------------------------------------------------
+
+def reduce_interact_use(state: GameState) -> GameState:
+    """[U] Uses the fixture under the cursor with whatever best satisfies it."""
+    fixture, _ = _entity_under_cursor(state)
     if not fixture:
-        return state._replace(message_buffer=("Nothing here to scavenge.",), proximity_menu_active=False)
+        return state._replace(message_buffer=("No fixture here to use items on.",), proximity_menu_active=False)
+    return reduce_use(state, "", fixture.id)
+
+
+def reduce_interact_read(state: GameState) -> GameState:
+    """[R] Reads the log fixture under the cursor."""
+    fixture, _ = _entity_under_cursor(state)
+    if not fixture:
+        return state._replace(message_buffer=("Nothing here to read.",), proximity_menu_active=False)
+    return reduce_read(state, fixture.id)
+
+
+def reduce_interact_scavenge(state: GameState) -> GameState:
+    """[F] Searches the fixture under the cursor."""
+    fixture, _ = _entity_under_cursor(state)
+    if not fixture:
+        return state._replace(message_buffer=("Nothing here to search.",), proximity_menu_active=False)
     return reduce_scavenge(state, fixture.id)
 
 
-def reduce_scavenge(state: GameState, fixture_id: Optional[str] = None) -> GameState:
-    """
-    Searches or scavenges a container/cache fixture in the current node.
-    Advances simulation tick on success.
-    """
-    current_node = state.nodes[state.current_node_id]
-    fixture: Optional[Fixture] = None
-
-    if fixture_id:
-        fixture = current_node.fixtures.get(fixture_id)
-        if not fixture:
-            for f in current_node.fixtures.values():
-                if f.glyph == fixture_id or f.name.lower() == fixture_id.lower():
-                    fixture = f
-                    break
-    else:
-        fixture, _ = _get_entity_at(current_node, state.player_row, state.player_col)
-
-    if not fixture:
-        return state._replace(
-            message_buffer=("Specify a container or scrap cache to search.",),
-            proximity_menu_active=False
-        )
-
-    if fixture.state == FixtureState.SPENT.value:
-        return state._replace(
-            message_buffer=(f"{fixture.name} is picked clean. Nothing left to salvage.",),
-            proximity_menu_active=False
-        )
-
-    # Check if sealed and requires tool
-    new_inv: List[Item] = list(state.character.inventory)
-    tool_msg = ""
-    if fixture.state in (FixtureState.SEALED.value, FixtureState.LOCKED.value) and fixture.required_tag:
-        all_tags = set(state.character.unlocked_capabilities)
-        for c in state.companions:
-            if c.capability_tag:
-                all_tags.add(c.capability_tag)
-
-        has_tool = False
-        tool_idx = None
-        for idx, it in enumerate(state.character.inventory):
-            if fixture.required_tag in (set(it.tags) | all_tags):
-                has_tool = True
-                tool_idx = idx
-                break
-
-        if not has_tool and fixture.required_tag not in all_tags:
-            return state._replace(
-                message_buffer=(f"{fixture.name} is sealed tight. Requires a tool with '{fixture.required_tag}' to open.",),
-                proximity_menu_active=False
-            )
-        if tool_idx is not None:
-            tool_item = state.character.inventory[tool_idx]
-            if tool_item.max_integrity > 0 and "conduit_mastery" not in state.character.unlocked_capabilities:
-                rem = tool_item.integrity - 1
-                if rem <= 0:
-                    new_inv.pop(tool_idx)
-                    tool_msg = f" Used {tool_item.name} (wore out)."
-                else:
-                    new_inv[tool_idx] = tool_item._replace(integrity=rem)
-                    tool_msg = f" Used {tool_item.name}."
-
-    # Look up item yield
-    yield_info = SCAVENGE_YIELDS.get(fixture.id, ("scrap_metal", f"Recovered salvage from {fixture.name}."))
-    item_id, item_msg = yield_info
-    gained_item = ALL_ITEMS_BY_ID.get(item_id)
-    if gained_item:
-        new_inv.append(gained_item)
-
-    # Scavenger's Eye perk bonus
-    bonus_msg = ""
-    if "scavenger_instinct" in state.character.unlocked_capabilities:
-        bonus_scrap = ALL_ITEMS_BY_ID.get("scrap_metal")
-        if bonus_scrap:
-            new_inv.append(bonus_scrap)
-            bonus_msg = " [Sharp Eye: Found bonus scrap metal!]"
-
-    # Update fixture state to SPENT
-    updated_fixture = fixture._replace(state=FixtureState.SPENT.value)
-    new_fixtures = dict(current_node.fixtures)
-    new_fixtures[fixture.id] = updated_fixture
-    updated_node = current_node._replace(fixtures=new_fixtures)
-    updated_nodes = dict(state.nodes)
-    updated_nodes[current_node.id] = updated_node
-
-    full_msg = f"{item_msg}{tool_msg}{bonus_msg}"
-    state_after = state._replace(
-        character=state.character._replace(inventory=tuple(new_inv)),
-        nodes=updated_nodes,
-        proximity_menu_active=False,
-        message_buffer=(full_msg,)
-    )
-
-    return process_tick(
-        state_after,
-        f"Scavenged {fixture.name}.",
-        action_context={"used_fixture_id": fixture.id}
-    )
-
-
 def reduce_interact_cancel(state: GameState) -> GameState:
-    """[X] Proximity menu action: Dismisses proximity menu."""
+    """[X] Dismisses the proximity menu."""
     return state._replace(proximity_menu_active=False, message_buffer=())
 
 
-def reduce_inspect(state: GameState, target_id: str) -> GameState:
-    """
-    Inspects a fixture, actor, inventory item, or edge in the current compartment.
-    Does not advance the tick.
-    """
-    target_id = target_id.strip()
-    if not target_id:
-        return state._replace(message_buffer=("Inspect what? Specify target ID or item name.",))
-
-    current_node = state.nodes[state.current_node_id]
-    stressed = _is_stressed_or_critical(state)
-    suffix = " [readings unclear due to environmental stress]" if stressed else ""
-
-    # 1. Check fixtures
-    fixture: Optional[Fixture] = current_node.fixtures.get(target_id)
+def reduce_read(state: GameState, fixture_id: str) -> GameState:
+    """Reads a log fixture. Locked sections need signal_analysis, signal_boost or lore. Advances the tick."""
+    fixture = _find_fixture(state.nodes[state.current_node_id], fixture_id)
     if not fixture:
-        # Check by glyph
-        for f in current_node.fixtures.values():
-            if f.glyph == target_id:
-                fixture = f
-                break
+        return state._replace(message_buffer=(f"No fixture '{fixture_id.strip()}' here.",))
+    if fixture.on_use_effect != "log":
+        return _say(state, f"There is nothing to read on {fixture.name}.")
 
-    if fixture:
-        lines = [f"{fixture.name} [{fixture.id}]: {fixture.description}{suffix} State: {fixture.state.upper()}."]
-        if "seam_discipline" in state.character.unlocked_capabilities and fixture.state == FixtureState.SEALED.value:
-            lines.append(f"  [Seam Discipline] Seal integrity nominal. Required key tag: '{fixture.required_tag}'.")
-        elif fixture.required_tag and fixture.state != FixtureState.OPEN.value:
-            lines.append(f"  Requires tag: '{fixture.required_tag}'.")
-        return state._replace(message_buffer=tuple(lines))
-
-    # 2. Check actors
-    actor: Optional[Actor] = current_node.actors.get(target_id)
-    if not actor:
-        for a in current_node.actors.values():
-            if a.glyph == target_id:
-                actor = a
-                break
-
-    if actor:
-        dialogue = actor.dialogue_post_trade if actor.trade_completed and actor.dialogue_post_trade else actor.dialogue_idle
-        msg = f"{actor.name} ({actor.title}): {actor.status}.{suffix} \"{dialogue}\""
-        return state._replace(message_buffer=(msg,))
-
-    # 3. Check inventory items
-    for item in state.character.inventory:
-        if item.id == target_id or item.name.lower() == target_id.lower():
-            cond = f"{item.integrity}/{item.max_integrity}" if item.max_integrity > 0 else "PERMANENT"
-            msg = (
-                f"{item.name} [{item.id}] ({item.category}): {item.description}{suffix} "
-                f"Integrity: {cond}. Tags: [{', '.join(item.tags)}]."
-            )
-            return state._replace(message_buffer=(msg,))
-
-    # 4. Check edges
-    edge: Optional[Edge] = current_node.edges.get(target_id)
-    if edge:
-        lines = [f"Exit to {edge.label} [{edge.id}].{suffix}"]
-        if "bulkhead_ear" in state.character.unlocked_capabilities:
-            target_node = state.nodes.get(edge.target_node_id)
-            if target_node:
-                lines.append(
-                    f"  [Bulkhead Ear] Sensor feed: {target_node.base_vitals.pressure_kpa} kPa, "
-                    f"{target_node.base_vitals.temperature_c}°C ({target_node.environment})."
-                )
-        if edge.gated_by_fixture:
-            gf = current_node.fixtures.get(edge.gated_by_fixture)
-            if gf and gf.state != FixtureState.OPEN.value:
-                lines.append(f"  Gated by {gf.name} (currently {gf.state}).")
-        if edge.requires_capability:
-            lines.append(f"  Requires clearance/capability: '{edge.requires_capability}'.")
-        return state._replace(message_buffer=tuple(lines))
-
-    return state._replace(message_buffer=(f"Nothing found matching '{target_id}' to inspect.",))
+    lines = [f"{fixture.name}: {fixture.log_text or fixture.description}"]
+    if fixture.log_text_locked:
+        if rules.can_read_locked_logs(state):
+            lines.append(f"[Decoded] {fixture.log_text_locked}")
+        else:
+            lines.append("Part of the feed is encrypted. Radio Ears, a signal specialist, "
+                         "or an old tally slate could make sense of it.")
+    read = state._replace(message_buffer=tuple(lines))
+    return _refresh_menu(process_tick(read, f"Read {fixture.name}.", {"used_fixture_id": fixture.id}))
 
 
-def reduce_talk(state: GameState, actor_id: str) -> GameState:
-    """
-    Talks to an actor in the current compartment.
-    Executes trade protocol if requirements are met.
-    Advances simulation tick.
-    """
-    actor_id = actor_id.strip()
-    current_node = state.nodes[state.current_node_id]
+def reduce_scavenge(state: GameState, fixture_id: Optional[str] = None,
+                    preferred_item_idx: Optional[int] = None) -> GameState:
+    """Searches a container fixture, prying it open first if it is sealed. Advances the tick."""
+    node = state.nodes[state.current_node_id]
+    fixture = _find_fixture(node, fixture_id) if fixture_id else _entity_under_cursor(state)[0]
+    if not fixture:
+        return state._replace(message_buffer=("Specify a container or scrap cache to search.",),
+                              proximity_menu_active=False)
+    if fixture.on_use_effect != "scavenge":
+        return _say(state, f"Nothing to search in {fixture.name}.")
+    if fixture.state == FixtureState.SPENT.value:
+        return _say(state, f"{fixture.name} is picked clean. Nothing left to salvage.")
 
-    actor: Optional[Actor] = current_node.actors.get(actor_id)
-    if not actor:
-        for a in current_node.actors.values():
-            if a.glyph == actor_id or a.name.lower() == actor_id.lower():
-                actor = a
-                break
+    inventory = state.character.inventory
+    tool_note = ""
+    if fixture.state in _CLOSED_STATES and fixture.required_tags:
+        source = rules.resolve_requirement(state, fixture.required_tags, preferred_item_idx)
+        if not source:
+            needed = " or ".join(f"'{t}'" for t in fixture.required_tags)
+            return _say(state, f"{fixture.name} is sealed tight. Requires {needed} to open.")
+        inventory, tool_note = _spend(state, source, "unlock")
 
-    if not actor:
-        return state._replace(message_buffer=(f"No one named '{actor_id}' here.",))
+    found: List[Item] = [it for it in (rules.catalog_item(state, i) for i in fixture.yields or ("scrap_metal",)) if it]
+    bonus_note = ""
+    if "scavenger_instinct" in state.character.unlocked_capabilities:
+        scrap = rules.catalog_item(state, "scrap_metal")
+        if scrap:
+            found.append(scrap)
+            bonus_note = " [Sharp Eye: Found bonus scrap metal!]"
+    found_names = ", ".join(it.name for it in found) or "nothing useful"
 
-    # Check trade eligibility
-    can_trade = (
-        not actor.trade_completed
-        and actor.trade_required_tag is not None
-        and actor.trade_offered_id is not None
+    new_node = _with_fixture(node, fixture._replace(state=FixtureState.SPENT.value))
+    searched = _with_node(state, new_node)._replace(
+        character=state.character._replace(inventory=inventory + tuple(found)),
+        message_buffer=(f"Searched {fixture.name}: found {found_names}.{tool_note}{bonus_note}",),
     )
-
-    matching_item_idx: Optional[int] = None
-    if can_trade:
-        for idx, item in enumerate(state.character.inventory):
-            if actor.trade_required_tag in item.tags:
-                matching_item_idx = idx
-                break
-
-    if can_trade and matching_item_idx is not None:
-        # Execute Trade Protocol (§5.4)
-        item_to_trade = state.character.inventory[matching_item_idx]
-        new_inv: List[Item] = list(state.character.inventory)
-
-        # 2a. Consume 1 integrity of player's item
-        if item_to_trade.max_integrity > 0:
-            new_integrity = item_to_trade.integrity - 1
-            if new_integrity <= 0:
-                new_inv.pop(matching_item_idx)
-            else:
-                new_inv[matching_item_idx] = item_to_trade._replace(integrity=new_integrity)
-        # (Permanent items with max_integrity=0 are not consumed or can be consumed if integrity=0)
-
-        # 2b. Add offered item
-        offered_item = ALL_ITEMS_BY_ID.get(actor.trade_offered_id)
-        if offered_item:
-            new_inv.append(offered_item)
-
-        # 2c. Update actor state
-        updated_actor = actor._replace(trade_completed=True)
-        updated_actors = dict(current_node.actors)
-        updated_actors[actor.id] = updated_actor
-        updated_node = current_node._replace(actors=updated_actors)
-        updated_nodes = dict(state.nodes)
-        updated_nodes[current_node.id] = updated_node
-
-        # 2d. Unlock companion if applicable
-        new_companions = list(state.companions)
-        if actor.companion_unlock and actor.companion_unlock in ALL_COMPANIONS_BY_ID:
-            comp = ALL_COMPANIONS_BY_ID[actor.companion_unlock]
-            if not any(c.id == comp.id for c in new_companions):
-                new_companions.append(comp)
-
-        trade_dialogue = actor.dialogue_post_trade or "Transaction confirmed."
-        messages = [
-            f"Exchanged {item_to_trade.name} for {offered_item.name if offered_item else actor.trade_offered_id}.",
-            f"{actor.name}: \"{trade_dialogue}\""
-        ]
-        if actor.companion_unlock:
-            messages.append(f"[PARTY] Companion joined: {actor.companion_unlock}!")
-
-        temp_char = state.character._replace(inventory=tuple(new_inv))
-        state_after_trade = state._replace(
-            character=temp_char,
-            nodes=updated_nodes,
-            companions=tuple(new_companions),
-            message_buffer=tuple(messages)
-        )
-        return process_tick(
-            state_after_trade,
-            f"Traded with {actor.name}.",
-            action_context={"traded_actor_id": actor.id}
-        )
-
-    # Standard conversation without trade
-    dialogue = actor.dialogue_post_trade if actor.trade_completed and actor.dialogue_post_trade else actor.dialogue_idle
-    msg = f"{actor.name}: \"{dialogue}\""
-    state_with_msg = state._replace(message_buffer=(msg,))
-    return process_tick(state_with_msg, f"Spoke with {actor.name}.")
+    return _refresh_menu(process_tick(
+        searched, f"Scavenged {fixture.name}.", {"used_fixture_id": fixture.id}, physical=True))
 
 
 def reduce_use(state: GameState, item_id: str, fixture_id: str) -> GameState:
     """
-    Uses an item from inventory on a fixture in the compartment.
-    Advances simulation tick on success.
+    Uses a fixture in the compartment. item_id is optional: when given, that item is
+    preferred, but a skill, clearance or companion that fits always goes first so
+    nothing wears needlessly. Advances the tick on success.
     """
-    item_id = item_id.strip()
-    fixture_id = fixture_id.strip()
+    item_idx = None
+    if item_id.strip():
+        item_idx = rules.find_item(state, item_id)
+        if item_idx is None:
+            return state._replace(message_buffer=(f"You don't carry '{item_id.strip()}'.",))
 
-    # 1. Validate item in inventory
-    item: Optional[Item] = None
-    item_idx: Optional[int] = None
-    for idx, it in enumerate(state.character.inventory):
-        if it.id == item_id or it.name.lower() == item_id.lower():
-            item = it
-            item_idx = idx
-            break
-
-    if item is None or item_idx is None:
-        return state._replace(message_buffer=(f"You don't carry '{item_id}'.",))
-
-    # 2. Validate fixture in current compartment
-    current_node = state.nodes[state.current_node_id]
-    fixture: Optional[Fixture] = current_node.fixtures.get(fixture_id)
+    node = state.nodes[state.current_node_id]
+    fixture = _find_fixture(node, fixture_id)
     if not fixture:
-        for f in current_node.fixtures.values():
-            if f.glyph == fixture_id or f.name.lower() == fixture_id.lower():
-                fixture = f
-                break
+        return state._replace(message_buffer=(f"No fixture '{fixture_id.strip()}' here.",))
 
-    if not fixture:
-        return state._replace(message_buffer=(f"No fixture '{fixture_id}' here.",))
-
-    # 3. Check fixture already open or spent
-    if fixture.state in (FixtureState.OPEN.value, FixtureState.SPENT.value):
-        return state._replace(message_buffer=("Already done.",))
-
-    # 4. Check tag match (item tags + companion tags + player capabilities)
-    all_available_tags = set(item.tags) | set(state.character.unlocked_capabilities)
-    if "wayfarer" in state.character.unlocked_capabilities:
-        all_available_tags.add("transit_clearance")
-    for companion in state.companions:
-        if companion.capability_tag:
-            all_available_tags.add(companion.capability_tag)
-
-    if fixture.on_use_effect == "scavenge" and not fixture.required_tag:
-        return state._replace(message_buffer=("That doesn't work here.",))
-
-    tag_ok = (not fixture.required_tag and fixture.on_use_effect is not None) or (fixture.required_tag and fixture.required_tag in all_available_tags)
-    if not tag_ok and fixture.on_use_effect == "smelt" and ("mineral" in item.tags or "salvage" in item.tags):
-        tag_ok = True
-
-    if not tag_ok:
-        return state._replace(message_buffer=("That doesn't work here.",))
-
-    # 5. Execute On-Use Effect (§5.5)
     effect = fixture.on_use_effect
-    new_inv: List[Item] = list(state.character.inventory)
-    new_fixtures = dict(current_node.fixtures)
-    msg = ""
+    if effect == "log":
+        return reduce_read(state, fixture.id)
+    if fixture.state in _DONE_STATES:
+        return _say(state, "Already done.")
+    if effect == "repair" and fixture.state == FixtureState.ACTIVE.value:
+        return _say(state, f"{fixture.name} is already running.")
+    if effect == "scavenge":
+        if fixture.state in _CLOSED_STATES:
+            return reduce_scavenge(state, fixture.id, item_idx)
+        return _say(state, "That doesn't work here. Search it with [F] instead.")
 
-    if effect == "unlock":
-        new_fixture = fixture._replace(state=FixtureState.OPEN.value)
-        new_fixtures[fixture.id] = new_fixture
-        # Consume item integrity if destructible
-        if item.max_integrity > 0:
-            rem = item.integrity - 1
-            if rem <= 0:
-                new_inv.pop(item_idx)
-                msg = f"Unlocked {fixture.name}. {item.name} broke from strain."
-            else:
-                new_inv[item_idx] = item._replace(integrity=rem)
-                msg = f"Unlocked {fixture.name}."
-        else:
-            msg = f"Unlocked {fixture.name}."
+    inventory = state.character.inventory
+    new_node = node
+    context = {"used_fixture_id": fixture.id}
 
-    elif effect == "refill":
-        new_inv[item_idx] = item._replace(integrity=item.max_integrity)
+    if effect == "refill":
+        idx = rules.first_item_with_tags(state, ("refillable",), item_idx)
+        if idx is None:
+            return _say(state, "Nothing to refill. You need a refillable container.")
+        item = inventory[idx]
+        inventory = inventory[:idx] + (item._replace(integrity=item.max_integrity),) + inventory[idx + 1:]
         msg = f"Refilled {item.name} at {fixture.name}."
 
-    elif effect == "repair":
-        new_fixture = fixture._replace(state=FixtureState.ACTIVE.value)
-        new_fixtures[fixture.id] = new_fixture
-        if item.max_integrity > 0 and "conduit_mastery" not in state.character.unlocked_capabilities:
-            rem = item.integrity - 1
-            if rem <= 0:
-                new_inv.pop(item_idx)
-                msg = f"Repaired {fixture.name}. {item.name} was spent."
-            else:
-                new_inv[item_idx] = item._replace(integrity=rem)
-                msg = f"Repaired and engaged {fixture.name}."
-        else:
-            msg = f"Repaired and engaged {fixture.name}."
-
-    elif effect == "harvest":
-        paste_item = ALL_ITEMS_BY_ID.get("algae_paste")
-        if paste_item:
-            new_inv.append(paste_item)
-        if item.max_integrity > 0:
-            rem = item.integrity - 1
-            if rem <= 0:
-                new_inv.pop(item_idx)
-            else:
-                new_inv[item_idx] = item._replace(integrity=rem)
-        msg = f"Harvested fresh algae paste from {fixture.name} using {item.name}."
-
     elif effect == "smelt":
-        crafted_item = None
-        if "mineral" in item.tags:
-            crafted_item = ALL_ITEMS_BY_ID.get("tool_prybar")
+        idx = rules.first_item_with_tags(state, ("mineral", "salvage"), item_idx)
+        if idx is None:
+            return _say(state, f"{fixture.name} needs ore or scrap metal.")
+        item = inventory[idx]
+        inventory = rules.remove_item(inventory, idx)
+        if "mineral" in item.tags and "scrap_fabrication" in state.character.unlocked_capabilities:
+            product = rules.catalog_item(state, "tool_prybar")
             msg = f"Refined {item.name} in {fixture.name} into a heavy Thermal Pry-Bar."
+        elif "mineral" in item.tags:
+            product = rules.catalog_item(state, "scrap_metal")
+            msg = f"Melted {item.name} down to scrap. Forging tools takes Making Parts."
         else:
-            crafted_item = ALL_ITEMS_BY_ID.get("fitting_copper")
+            product = rules.catalog_item(state, "fitting_copper")
             msg = f"Melted {item.name} in {fixture.name} and cast a clean Copper Pipe Fitting."
-        new_inv.pop(item_idx)
-        if crafted_item:
-            new_inv.append(crafted_item)
+        if product:
+            inventory = inventory + (product,)
 
-    elif effect == "override":
-        if item.max_integrity > 0 and "conduit_mastery" not in state.character.unlocked_capabilities:
-            rem = item.integrity - 1
-            if rem <= 0:
-                new_inv.pop(item_idx)
-            else:
-                new_inv[item_idx] = item._replace(integrity=rem)
-        msg = f"Bypassed {fixture.name} circuits using {item.name}. Decoded surveyor telemetry."
+    elif effect in _TOOL_EFFECTS and fixture.required_tags:
+        source = rules.resolve_requirement(state, fixture.required_tags, item_idx)
+        if not source:
+            if item_idx is not None:
+                return _say(state, "That doesn't work here.")
+            return _say(state, f"Requires one of: {', '.join(fixture.required_tags)}.")
+        inventory, note = _spend(state, source, effect)
 
-    elif effect == "scavenge":
-        # Using a tool directly on a sealed scavengeable container (e.g. prybar on crate)
-        return reduce_scavenge(state, fixture.id)
-
-    elif effect == "log":
-        msg = f"Accessed telemetry logs on {fixture.name}: Communications array active across Lunar orbit."
-
+        if effect == "unlock":
+            new_node = _with_fixture(node, fixture._replace(state=FixtureState.OPEN.value))
+            msg = f"Unlocked {fixture.name}.{note}"
+        elif effect == "repair":
+            new_node = _with_fixture(node, fixture._replace(state=FixtureState.ACTIVE.value))
+            msg = f"Repaired and engaged {fixture.name}.{note}"
+            if fixture.on_repair_vitals:
+                v = fixture.on_repair_vitals
+                new_node = new_node._replace(base_vitals=v)
+                msg += f" Compartment now reads {v.pressure_kpa} kPa, {v.temperature_c}°C."
+        elif effect == "harvest":
+            yields = [rules.catalog_item(state, i) for i in fixture.yields or ("algae_paste",)]
+            inventory = inventory + tuple(it for it in yields if it)
+            msg = f"Harvested {', '.join(it.name.lower() for it in yields if it)} from {fixture.name}.{note}"
+        else:  # override
+            new_node = _with_fixture(node, fixture._replace(state=FixtureState.SPENT.value))
+            msg = f"Bypassed {fixture.name}.{note}"
+            target = new_node.fixtures.get(fixture.opens_fixture) if fixture.opens_fixture else None
+            if target:
+                new_node = _with_fixture(new_node, target._replace(state=FixtureState.OPEN.value))
+                msg += f" {target.name} cycles open."
+            if fixture.grants_capability:
+                caps = state.character.unlocked_capabilities | {fixture.grants_capability}
+                state = state._replace(character=state.character._replace(unlocked_capabilities=caps))
+                msg += f" New clearance on file: {fixture.grants_capability}."
     else:
-        # Generic effect: consume item integrity
-        if item.max_integrity > 0:
-            rem = item.integrity - 1
-            if rem <= 0:
-                new_inv.pop(item_idx)
-                msg = f"Used {item.name} on {fixture.name}. {item.name} was consumed."
-            else:
-                new_inv[item_idx] = item._replace(integrity=rem)
-                msg = f"Used {item.name} on {fixture.name}."
-        else:
-            msg = f"Used {item.name} on {fixture.name}."
+        return _say(state, "That doesn't work here.")
 
-    updated_node = current_node._replace(fixtures=new_fixtures)
-    updated_nodes = dict(state.nodes)
-    updated_nodes[current_node.id] = updated_node
-    updated_char = state.character._replace(inventory=tuple(new_inv))
-
-    state_before_tick = state._replace(
-        character=updated_char,
-        nodes=updated_nodes,
-        message_buffer=(msg,)
+    used = _with_node(state, new_node)._replace(
+        character=state.character._replace(inventory=inventory),
+        message_buffer=(msg,),
     )
+    return _refresh_menu(process_tick(used, f"Used {fixture.name}.", context, physical=True))
 
-    return process_tick(
-        state_before_tick,
-        f"Used {item.name} on {fixture.name}.",
-        action_context={"used_fixture_id": fixture.id}
+
+# --- Self and time ---------------------------------------------------------
+
+CONSUME_EFFECTS: Dict[str, Tuple[float, float, float]] = {
+    # tag: (pressure, radiation, thermal) reduction
+    "hydration": (0.0, 0.0, 1.5),
+    "nutrition": (1.0, 1.0, 1.0),
+}
+
+
+def reduce_consume(state: GameState, item_id: str = "") -> GameState:
+    """Eats or drinks a sustenance item to shed exposure, then advances the tick."""
+    inventory = state.character.inventory
+    if item_id.strip():
+        idx = rules.find_item(state, item_id)
+        if idx is None:
+            return state._replace(message_buffer=(f"You don't carry '{item_id.strip()}'.",))
+    else:
+        idx = next((i for i, it in enumerate(inventory) if it.category == ItemCategory.SUSTENANCE.value), None)
+        if idx is None:
+            return state._replace(message_buffer=("You carry nothing to eat or drink.",))
+    item = inventory[idx]
+    if item.category != ItemCategory.SUSTENANCE.value:
+        return state._replace(message_buffer=(f"{item.name} is not something you can eat or drink.",))
+
+    p, r, t = 0.0, 0.0, 0.0
+    for tag in item.tags:
+        dp, dr, dt = CONSUME_EFFECTS.get(tag, (0.0, 0.0, 0.0))
+        p, r, t = p + dp, r + dr, t + dt
+    if "biomass" in item.tags and "bio_filter" in rules.party_tags(state):
+        r += 2.0
+    exp = state.character.exposure
+    new_exp = exp._replace(
+        pressure_debt=round(max(0.0, exp.pressure_debt - p), 2),
+        radiation_dose=round(max(0.0, exp.radiation_dose - r), 2),
+        thermal_stress=round(max(0.0, exp.thermal_stress - t), 2),
     )
+    inventory, _ = rules.wear_item(inventory, idx)
+    relief = ", ".join(f"{name} -{v:g}" for name, v in (("P", p), ("R", r), ("T", t)) if v)
+    consumed = state._replace(
+        character=state.character._replace(inventory=inventory, exposure=new_exp),
+        message_buffer=(f"Consumed {item.name}. Exposure relief: {relief or 'none'}.",),
+    )
+    return _refresh_menu(process_tick(consumed, f"Consumed {item.name}."))
 
 
 def reduce_wait(state: GameState) -> GameState:
     """Advances simulation clock by 1 cycle."""
-    state_msg = state._replace(message_buffer=("Waiting. Time passes...",))
-    return process_tick(state_msg, "Waited one cycle.")
-
-
-def reduce_leave(state: GameState, edge_id: str) -> GameState:
-    """
-    Traverses an open edge from the active compartment to a destination node.
-    Advances simulation tick.
-    """
-    edge_id = edge_id.strip()
-    current_node = state.nodes[state.current_node_id]
-
-    edge: Optional[Edge] = current_node.edges.get(edge_id)
-    if not edge:
-        # Check by label matching
-        for e in current_node.edges.values():
-            if e.label.lower() == edge_id.lower() or e.target_node_id == edge_id:
-                edge = e
-                break
-
-    if not edge:
-        available = ", ".join(f"'{k}' ({v.label})" for k, v in current_node.edges.items())
-        return state._replace(message_buffer=(f"No exit '{edge_id}'. Available: {available}",))
-
-    # Check fixture gate
-    if edge.gated_by_fixture:
-        gate = current_node.fixtures.get(edge.gated_by_fixture)
-        if gate and gate.state != FixtureState.OPEN.value:
-            return state._replace(message_buffer=(f"Access blocked. {gate.name} is {gate.state.upper()}.",))
-
-    # Check required capability
-    if edge.requires_capability:
-        if edge.requires_capability not in state.character.unlocked_capabilities:
-            return state._replace(
-                message_buffer=(f"Requires capability '{edge.requires_capability}' to traverse here.",)
-            )
-
-    dest_node = state.nodes.get(edge.target_node_id)
-    if not dest_node:
-        return state._replace(message_buffer=(f"Route error: destination {edge.target_node_id} unreachable.",))
-
-    # If critical exposure, player struggles
-    messages = [f"Moved to {dest_node.name}."]
-    if _is_critical(state):
-        messages.append("[!] Moving under severe physical strain.")
-
-    new_r = dest_node.size // 2
-    new_c = dest_node.size // 2
-    dest_fix, dest_act = _get_entity_at(dest_node, new_r, new_c)
-    has_entity = bool(dest_fix or dest_act)
-    menu_lines = _build_proximity_menu(state, dest_fix, dest_act) if has_entity else ()
-
-    state_moved = state._replace(
-        current_node_id=dest_node.id,
-        player_row=new_r,
-        player_col=new_c,
-        active_view="compartment",
-        proximity_menu_active=has_entity,
-        message_buffer=tuple(messages + list(menu_lines))
-    )
-
-    return process_tick(state_moved, f"Traversed to {dest_node.name}.")
+    return _refresh_menu(process_tick(state._replace(message_buffer=("Waiting. Time passes...",)), "Waited one cycle."))
 
 
 def reduce_map(state: GameState) -> GameState:
@@ -836,10 +670,10 @@ def reduce_pack(state: GameState) -> GameState:
     lines = ["CARRIED GEAR (PACK):"]
     if not state.character.inventory:
         lines.append("  (empty)")
-    else:
-        for it in state.character.inventory:
-            cond = f"{it.integrity}/{it.max_integrity}" if it.max_integrity > 0 else "PERM"
-            lines.append(f"  - {it.name} [{it.id}]: condition {cond} | tags: {', '.join(it.tags)}")
+    for it, count in rules.stack_items(state.character.inventory):
+        cond = f"{it.integrity}/{it.max_integrity}" if it.max_integrity > 0 else "PERM"
+        qty = f" x{count}" if count > 1 else ""
+        lines.append(f"  - {it.name}{qty} [{it.id}]: condition {cond} | tags: {', '.join(it.tags)}")
     return state._replace(message_buffer=tuple(lines))
 
 
@@ -848,7 +682,7 @@ def reduce_character(state: GameState) -> GameState:
     lines = [
         f"CHARACTER PROFILE: {state.character.name}",
         f"Routine: {state.character.past_work} | Personal Anchor: {state.character.personal_anchor.name}",
-        "PROGRESSION TREE ATTUNEMENTS:"
+        "PROGRESSION TREE ATTUNEMENTS:",
     ]
     for node in state.tree:
         status = "[ATTUNED]" if node.attuned else "[LOCKED]"
@@ -864,18 +698,16 @@ def reduce_party(state: GameState) -> GameState:
     lines = ["ACTIVE COMPANIONS (PARTY):"]
     if not state.companions:
         lines.append("  No companions travelling with you. Operating solo.")
-    else:
-        for c in state.companions:
-            cap = f" | Contributes: '{c.capability_tag}'" if c.capability_tag else ""
-            lines.append(f"  - {c.name} ({c.title}): {c.status}{cap}")
+    for c in state.companions:
+        cap = f" | Contributes: '{c.capability_tag}'" if c.capability_tag else ""
+        lines.append(f"  - {c.name} ({c.title}): {c.status}{cap}")
     return state._replace(message_buffer=tuple(lines))
 
 
 def reduce_log(state: GameState) -> GameState:
     """Displays recent action log."""
     lines = ["RECENT LOG HISTORY:"]
-    recent = state.action_log[-10:] if len(state.action_log) > 10 else state.action_log
-    for idx, entry in enumerate(recent, 1):
+    for idx, entry in enumerate(state.action_log[-10:], 1):
         lines.append(f"  {idx}. {entry}")
     return state._replace(message_buffer=tuple(lines))
 
@@ -883,12 +715,9 @@ def reduce_log(state: GameState) -> GameState:
 def reduce_flavor(state: GameState, toggle: str) -> GameState:
     """Toggles atmospheric flavor text."""
     arg = toggle.strip().lower()
-    if arg == "off":
-        new_val = False
-        msg = "Flavor text disabled."
-    elif arg == "on":
-        new_val = True
-        msg = "Flavor text enabled."
+    if arg in ("on", "off"):
+        new_val = arg == "on"
+        msg = f"Flavor text {'enabled' if new_val else 'disabled'}."
     else:
         new_val = not state.flavor_enabled
         msg = f"Flavor text toggled {'ON' if new_val else 'OFF'}."
@@ -899,19 +728,20 @@ def reduce_help(state: GameState) -> GameState:
     """Displays command syntax and verb descriptions."""
     lines = [
         "COMMAND REFERENCE:",
-        "  w / a / s / d           - Move player cursor on compartment grid",
-        "  [I]/[U]/[G]/[T]/[S]     - Proximity interaction options when near an entity",
-        "  inspect <target>        - Inspect fixture, actor, item, or exit",
-        "  talk <actor_id>         - Speak or trade with an actor",
-        "  use <item_id> <target>  - Use carried tool/item on fixture",
-        "  scavenge <target>       - Search container, scrap bin, or tool rack",
-        "  wait                    - Advance clock by 1 cycle",
-        "  map / back              - Toggle between compartment and sector map",
-        "  pack                    - View inventory and item charges",
-        "  character               - View qualitative progression tree",
-        "  party                   - View companions and assigned assistance",
-        "  log                     - Show recent activity log",
-        "  flavor [on|off]         - Toggle descriptive environment text",
-        "  quit                    - Save game and exit"
+        "  w / a / s / d           - Move on the compartment grid",
+        "  I U F R T B G X         - Menu keys: inspect, use, search, read, talk, barter, go, close",
+        "  /inspect <target>       - Inspect fixture, actor, item, or exit",
+        "  /talk <actor>           - Speak with an actor",
+        "  /barter [actor] [item]  - Accept an actor's trade",
+        "  /use [item] <fixture>   - Operate a fixture, optionally with a chosen item",
+        "  /search <fixture>       - Search a container, bin, or rack",
+        "  /read <fixture>         - Read a terminal or notice board",
+        "  /consume [item]         - Eat or drink to shed exposure",
+        "  /leave <exit>           - Walk to an exit and cross it",
+        "  /wait                   - Advance clock by 1 cycle",
+        "  /map  /back             - Toggle sector map",
+        "  /pack /character /party /log",
+        "  /flavor [on|off]        - Toggle descriptive text",
+        "  /quit                   - Save and exit",
     ]
     return state._replace(message_buffer=tuple(lines))

@@ -27,7 +27,7 @@ class TestPresets(unittest.TestCase):
         comps = load_companions(self.preset_dir / "companions.json")
         tree = load_tree(self.preset_dir / "tree.json")
 
-        self.assertEqual(len(items), 14)
+        self.assertEqual(len(items), 15)
         self.assertEqual(len(nodes), 14)
         self.assertEqual(len(comps), 3)
         self.assertEqual(len(tree), 12)

@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
+import re
 import sys
 from pathlib import Path
 from typing import Optional, List
 
 from core.presets import init_game_state, ensure_presets
 from core.persistence import save_state, load_state
-from core.actions import dispatch_action
+from core.actions import dispatch_action, MENU_KEYS
 from ui.render import render_frame
 from ui.text_tools import check_terminal, read_raw_key, clear_terminal
 
-DEFAULT_PRESET_DIR = Path("presets/default-1.0")
-DEFAULT_SAVES_DIR = Path("saves")
+ROOT_DIR = Path(__file__).resolve().parent
+DEFAULT_PRESET_DIR = ROOT_DIR / "presets" / "default-1.0"
+DEFAULT_SAVES_DIR = ROOT_DIR / "saves"
+
+
+def save_folder_name(callsign: str) -> str:
+    """Filesystem-safe folder name for a callsign; the callsign itself is kept as typed."""
+    return re.sub(r"[^A-Za-z0-9_-]", "_", callsign.strip())[:32] or "pilot"
 
 
 def run_character_creation(preset_dir: Path) -> Path:
@@ -37,6 +44,7 @@ def run_character_creation(preset_dir: Path) -> Path:
     print("  1. A copper pipe fitting (clean threads).")
     print("  2. A stamped paper work-pass (expired).")
     print("  3. A pair of steel dice (pips worn flat).")
+    print("  4. A chalk slate (scratched tally marks).")
     anchor_choice = 1
     while True:
         try:
@@ -44,10 +52,10 @@ def run_character_creation(preset_dir: Path) -> Path:
         except (KeyboardInterrupt, EOFError):
             print("\nAborted.")
             sys.exit(0)
-        if choice in ("1", "2", "3"):
+        if choice in ("1", "2", "3", "4"):
             anchor_choice = int(choice)
             break
-        print("Select option 1, 2, or 3.")
+        print("Select option 1, 2, 3, or 4.")
 
     # Step 3: The Routine
     print("\n[STEP 3: THE ROUTINE]")
@@ -68,7 +76,7 @@ def run_character_creation(preset_dir: Path) -> Path:
         print("Select option 1, 2, or 3.")
 
     # Step 4: Confirmation
-    anchor_names = {1: "copper fitting", 2: "stamped work-pass", 3: "steel dice"}
+    anchor_names = {1: "copper fitting", 2: "stamped work-pass", 3: "steel dice", 4: "chalk slate"}
     routine_names = {1: "former scraper", 2: "former algae tender", 3: "former cargo handler"}
     print(f"\n[STEP 4: CONFIRMATION]")
     print(f"{name_input}. {routine_names[routine_choice]}, {anchor_names[anchor_choice]} in pocket.")
@@ -91,7 +99,7 @@ def run_character_creation(preset_dir: Path) -> Path:
         anchor_choice,
         routine_choice
     )
-    save_dir = DEFAULT_SAVES_DIR / name_input
+    save_dir = DEFAULT_SAVES_DIR / save_folder_name(name_input)
     save_state(initial_state, save_dir)
     return save_dir
 
@@ -136,7 +144,7 @@ def main() -> None:
     # Check for CLI flags
     save_dir: Optional[Path] = None
     if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
-        candidate = DEFAULT_SAVES_DIR / sys.argv[1]
+        candidate = DEFAULT_SAVES_DIR / save_folder_name(sys.argv[1])
         if (candidate / "state.json").exists():
             save_dir = candidate
 
@@ -175,7 +183,7 @@ def main() -> None:
                     k_lower = key.lower()
                     if k_lower in ('w', 'a', 's', 'd'):
                         action_input = k_lower
-                    elif state.proximity_menu_active and k_lower in ('i', 'u', 'g', 't', 's', 'x'):
+                    elif state.proximity_menu_active and k_lower in MENU_KEYS:
                         action_input = k_lower
                     elif k_lower in ('m', 'b', 'e'):
                         action_input = k_lower
