@@ -63,15 +63,27 @@ class Report(NamedTuple):
         return not self.errors
 
 
+class PackIndex(NamedTuple):
+    """Everything the validator learned about a pack: its report, declared ids and references."""
+    report: Report
+    ids: Dict[str, Dict[Any, str]]            # namespace -> id -> where it is declared
+    refs: Tuple[Tuple[str, schema.Ref], ...]  # (file, reference) for every reference found
+
+
 def validate_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Report:
     """Validates a content pack folder. Errors make the pack unusable; warnings don't."""
+    return index_pack(pack_dir, schema_dir).report
+
+
+def index_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> PackIndex:
+    """Validates a pack and returns the report together with its ids and references."""
     errors: List[str] = []
     warnings: List[str] = []
     schemas = schema.load_schemas(schema_dir)
 
     manifest = _read_json(pack_dir / "pack.json", "pack.json", errors)
     if manifest is None:
-        return Report(tuple(errors), tuple(warnings))
+        return PackIndex(Report(tuple(errors), tuple(warnings)), {}, ())
     refs: List[Tuple[str, schema.Ref]] = []
     _collect(schema.validate(manifest, "pack.schema.json", schemas), "pack.json", errors, warnings, refs)
 
@@ -128,7 +140,7 @@ def validate_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Report:
     _check_loot_rules(entries, where, errors)
     _check_event_roles(loaded, errors)
     _check_strings(loaded, schemas, ids, "strings" in files, errors, warnings)
-    return Report(tuple(errors), tuple(warnings))
+    return PackIndex(Report(tuple(errors), tuple(warnings)), ids, tuple(refs))
 
 
 # --- Loading and bookkeeping ------------------------------------------------------
