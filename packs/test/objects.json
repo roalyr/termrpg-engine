@@ -115,6 +115,10 @@
               },
               "then": [
                 {
+                  "op": "roll_loot",
+                  "table": "loot_crate"
+                },
+                {
                   "op": "set_flag",
                   "flag": "flag_a",
                   "add": 1

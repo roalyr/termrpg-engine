@@ -1,0 +1,331 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "character.schema.json",
+  "title": "Characters (characters.json)",
+  "description": "Everyone: the player's character, NPCs, companions and enemies share one record. The suit is their stats, their skills are their own.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/characters_file",
+  "$defs": {
+    "characters_file": {
+      "type": "object",
+      "description": "A file of characters.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/character"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "character": {
+      "type": "object",
+      "description": "Any character: the player's, NPCs, companions, enemies. Player-NPC parity: every character follows the same rules and can be controlled by the player or the AI.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "title": {
+          "$ref": "common.schema.json#/$defs/label",
+          "description": "What they do, e.g. 'Dock rigger'."
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "glyph": {
+          "$ref": "common.schema.json#/$defs/glyph",
+          "description": "Map glyph. Defaults to the first letter of the name."
+        },
+        "art": {
+          "type": "array",
+          "description": "A picture drawn with characters, shown in the map area during encounters. At most 10 lines of 21 characters.",
+          "items": {
+            "type": "string",
+            "maxLength": 21
+          },
+          "maxItems": 10
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags"
+        },
+        "faction": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "faction"
+        },
+        "rank": {
+          "type": "integer",
+          "default": 0
+        },
+        "template": {
+          "type": "boolean",
+          "default": false,
+          "description": "A generic character that encounters and zones spawn copies of, e.g. a drone. Templates are not placed in the world."
+        },
+        "location": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "location",
+          "description": "Where a unique character starts."
+        },
+        "at": {
+          "type": "array",
+          "description": "Grid position as [row, column].",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "leader": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "character",
+          "description": "Starts in this character's party."
+        },
+        "body": {
+          "type": "object",
+          "description": "The character without a suit.",
+          "properties": {
+            "size": {
+              "$ref": "common.schema.json#/$defs/size"
+            },
+            "stats": {
+              "type": "object",
+              "description": "Base stats: health, cargo and so on.",
+              "propertyNames": {
+                "$ref": "common.schema.json#/$defs/id"
+              },
+              "additionalProperties": {
+                "type": "number"
+              },
+              "x-ref-keys": "stat"
+            },
+            "slots": {
+              "type": "array",
+              "description": "Implant slots unlocked at the start.",
+              "items": {
+                "type": "object",
+                "description": "Unlocked implant slots of one type.",
+                "properties": {
+                  "slot_type": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "slot_type",
+                    "description": "Must be a body slot type."
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "slot_type"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "size",
+            "stats"
+          ]
+        },
+        "frame": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "item",
+          "description": "Worn frame (a suit). Without one the character acts with its body alone."
+        },
+        "fitted": {
+          "type": "array",
+          "description": "Modules fitted into the frame's slots.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "item"
+          }
+        },
+        "implants": {
+          "type": "array",
+          "description": "Implants in the body's slots.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "item"
+          }
+        },
+        "inventory": {
+          "type": "array",
+          "description": "What they carry. Each entry takes cargo space per stack.",
+          "items": {
+            "type": "object",
+            "description": "Carried items.",
+            "properties": {
+              "item": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "item"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "item"
+            ]
+          }
+        },
+        "skills": {
+          "type": "object",
+          "description": "Skill id to starting level.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "x-ref-keys": "skill"
+        },
+        "actions": {
+          "type": "array",
+          "description": "Actions of their own, e.g. a drone's claws. Items, skills and innate actions add more.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "action"
+          },
+          "uniqueItems": true
+        },
+        "views": {
+          "type": "array",
+          "description": "Starting relations. Anyone not listed gets the pack's relation_default.",
+          "items": {
+            "type": "object",
+            "description": "How they regard someone at the start.",
+            "properties": {
+              "toward": {
+                "$ref": "common.schema.json#/$defs/agent"
+              },
+              "value": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "toward",
+              "value"
+            ]
+          }
+        },
+        "wants": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "Tags of things they value, for trades and the world simulation."
+        },
+        "talk": {
+          "type": "array",
+          "description": "Dialogue lines, most specific first.",
+          "items": {
+            "type": "object",
+            "description": "Something the character says. The first line whose condition holds is used.",
+            "properties": {
+              "when": {
+                "$ref": "common.schema.json#/$defs/condition",
+                "description": "'self' is the speaker, 'target' whoever they talk to."
+              },
+              "text": {
+                "$ref": "common.schema.json#/$defs/text"
+              },
+              "effects": {
+                "$ref": "common.schema.json#/$defs/effects",
+                "description": "Run when the line is shown, e.g. set a flag so it's said only once."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "text"
+            ]
+          }
+        },
+        "interactions": {
+          "type": "array",
+          "description": "What others can do with them: trade, recruit, ask. 'self' is whoever interacts, 'target' this character.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/interaction"
+          }
+        },
+        "ai": {
+          "type": "object",
+          "description": "How the AI plays them when it controls them.",
+          "properties": {
+            "flee_below": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Try to escape below this share of maximum health."
+            }
+          },
+          "additionalProperties": false
+        },
+        "loot": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "loot_table",
+          "description": "Rolled for whoever defeats them."
+        },
+        "on_defeat": {
+          "$ref": "common.schema.json#/$defs/effects",
+          "description": "Run when they go down. For the player's character this decides what losing means."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "body"
+      ]
+    },
+    "line": {
+      "type": "object",
+      "description": "Something the character says. The first line whose condition holds is used.",
+      "properties": {
+        "when": {
+          "$ref": "common.schema.json#/$defs/condition",
+          "description": "'self' is the speaker, 'target' whoever they talk to."
+        },
+        "text": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "effects": {
+          "$ref": "common.schema.json#/$defs/effects",
+          "description": "Run when the line is shown, e.g. set a flag so it's said only once."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ]
+    },
+    "art": {
+      "type": "array",
+      "description": "A picture drawn with characters, shown in the map area during encounters. At most 10 lines of 21 characters.",
+      "items": {
+        "type": "string",
+        "maxLength": 21
+      },
+      "maxItems": 10
+    }
+  }
+}

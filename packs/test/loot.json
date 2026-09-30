@@ -1,0 +1,59 @@
+{
+  "$schema": "../../schemas/loot.schema.json",
+  "entries": [
+    {
+      "id": "loot_crate",
+      "rolls": {
+        "min": 1,
+        "max": 2
+      },
+      "nothing": 1,
+      "entries": [
+        {
+          "item": "material_a",
+          "count": {
+            "min": 1,
+            "max": 3
+          },
+          "weight": 3
+        },
+        {
+          "item": "consumable_a"
+        },
+        {
+          "table": "loot_rare",
+          "weight": 0.5
+        }
+      ]
+    },
+    {
+      "id": "loot_rare",
+      "entries": [
+        {
+          "item": "module_tool",
+          "when": {
+            "check": "rank",
+            "minimum": 1
+          }
+        },
+        {
+          "item": "implant_a"
+        }
+      ]
+    },
+    {
+      "id": "loot_drone",
+      "always": [
+        {
+          "item": "material_a",
+          "count": 1
+        }
+      ],
+      "entries": [
+        {
+          "table": "loot_crate"
+        }
+      ]
+    }
+  ]
+}

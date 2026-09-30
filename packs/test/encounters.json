@@ -1,0 +1,38 @@
+{
+  "$schema": "../../schemas/encounter.schema.json",
+  "entries": [
+    {
+      "id": "enc_drones",
+      "name": "Drones",
+      "intro": "Drones close in.",
+      "enemies": [
+        {
+          "character": "char_drone",
+          "count": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ],
+      "allies": [
+        {
+          "character": "char_npc"
+        }
+      ],
+      "loot": "loot_crate",
+      "on_win": [
+        {
+          "op": "set_flag",
+          "flag": "flag_a",
+          "add": 1
+        }
+      ],
+      "on_escape": [
+        {
+          "op": "message",
+          "text": "You got away."
+        }
+      ]
+    }
+  ]
+}

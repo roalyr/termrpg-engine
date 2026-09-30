@@ -315,6 +315,101 @@ class TestPackErrors(unittest.TestCase):
         self.skill("skill_a", lambda k: k["levels"][0].__setitem__("xp", 5))
         self.assertIn("level 1 needs 0 xp", self.errors())
 
+    # --- Characters, encounters, loot ---
+
+    def character(self, char_id, change):
+        def apply(data):
+            change(next(e for e in data["entries"] if e["id"] == char_id))
+        self.edit("characters.json", apply)
+
+    def test_everything_referenced_is_checked(self):
+        report = validate_pack(TEST_PACK)
+        self.assertFalse(any("not checked" in w for w in report.warnings), report.warnings)
+
+    def test_template_has_no_location(self):
+        self.character("char_drone", lambda ch: ch.__setitem__("location", "room_a"))
+        self.assertIn("templates are spawned by encounters and zones", self.errors())
+
+    def test_character_on_a_placement(self):
+        self.character("char_npc", lambda ch: ch.__setitem__("at", [1, 4]))
+        self.assertIn("position [1, 4] is already taken by placement 'pl_a_crate'", self.errors())
+
+    def test_character_on_wall(self):
+        self.character("char_npc", lambda ch: ch.__setitem__("at", [0, 0]))
+        self.assertIn("is not a floor tile of 'room_a'", self.errors())
+
+    def test_character_on_taken_tile(self):
+        self.character("char_npc", lambda ch: ch.__setitem__("at", [4, 1]))
+        self.assertIn("already taken by placement 'pl_a_locker'", self.errors())
+
+    def test_at_needs_location(self):
+        self.character("char_npc", lambda ch: ch.pop("location"))
+        self.assertIn("'at' needs a location", self.errors())
+
+    def test_frame_must_be_a_frame(self):
+        self.character("char_player", lambda ch: ch.__setitem__("frame", "module_tool"))
+        self.assertIn("'module_tool' is worn as a frame but is a module", self.errors())
+
+    def test_fitted_must_be_modules(self):
+        self.character("char_player", lambda ch: ch["fitted"].append("implant_a"))
+        self.assertIn("fitted lists 'implant_a', which is an implant, not a module", self.errors())
+
+    def test_too_many_modules_for_slots(self):
+        self.character("char_player", lambda ch: ch["fitted"].extend(["module_tool", "module_tool"]))
+        self.assertIn("no free 'slot_frame_hand' slot in the frame for 'module_tool'", self.errors())
+
+    def test_fitted_without_frame(self):
+        self.character("char_player", lambda ch: ch.pop("frame"))
+        self.assertIn("has fitted modules but wears no frame", self.errors())
+
+    def test_power_budget(self):
+        self.item("module_system", lambda i: i["uses"].__setitem__("power", 9))
+        self.assertIn("fitted gear needs 10 power, the loadout provides 6", self.errors())
+
+    def test_heat_load(self):
+        self.item("module_system", lambda i: i["uses"].__setitem__("heat", 8))
+        self.assertIn("constant heat 8 leaves no room below maximum heat 8", self.errors())
+
+    def test_cargo_capacity(self):
+        self.character("char_player", lambda ch: ch["inventory"].append({"item": "misc_key", "count": 4}))
+        self.assertIn("inventory needs 7 cargo stacks, the loadout carries 6", self.errors())
+
+    def test_implant_needs_body_slot_on_character(self):
+        self.character("char_npc", lambda ch: ch["body"].pop("slots"))
+        self.assertIn("no free 'slot_body_a' slot in the body for 'implant_a'", self.errors())
+
+    def test_skill_level_above_max(self):
+        self.character("char_player", lambda ch: ch["skills"].__setitem__("skill_a", 6))
+        self.assertIn("skill 'skill_a' at level 6 is above skill_max_level (5)", self.errors())
+
+    def test_player_is_not_a_template(self):
+        self.edit("pack.json", lambda m: m["start"].__setitem__("player", "char_drone"))
+        self.assertIn("start.player 'char_drone' is a template", self.errors())
+
+    def test_player_placed_elsewhere(self):
+        self.character("char_player", lambda ch: ch.__setitem__("location", "room_b"))
+        self.assertIn("start.player 'char_player' is placed in 'room_b'", self.errors())
+
+    def test_leader_loop(self):
+        self.character("char_npc", lambda ch: ch.__setitem__("leader", "char_npc"))
+        self.assertIn("ends up leading itself", self.errors())
+
+    def test_unique_character_takes_no_count(self):
+        self.edit("encounters.json", lambda d: d["entries"][0]["allies"][0].__setitem__("count", 2))
+        self.assertIn("'char_npc' is unique; only templates take a count", self.errors())
+
+    def test_loot_table_rolls_itself(self):
+        self.edit("loot.json", lambda d: d["entries"][1]["entries"].append({"table": "loot_crate"}))
+        self.assertIn("loot table 'loot_crate' rolls itself", self.errors())
+
+    def test_unknown_loot_table(self):
+        self.character("char_drone", lambda ch: ch.__setitem__("loot", "loot_missing"))
+        self.assertIn("unknown loot table 'loot_missing'", self.errors())
+
+    def test_art_width(self):
+        self.character("char_drone", lambda ch: ch["art"].append("x" * 22))
+        self.assertIn("must be at most 21 characters", self.errors())
+
     def test_reserved_feature_warns(self):
         self.edit("pack.json", lambda m: m.__setitem__("extends", ["base"]))
         report = validate_pack(self.pack)

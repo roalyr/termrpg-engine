@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "encounter.schema.json",
+  "title": "Encounters (encounters.json)",
+  "description": "Encounters started by the start_encounter effect or drawn by zones.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/encounters_file",
+  "$defs": {
+    "encounters_file": {
+      "type": "object",
+      "description": "A file of encounters.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/encounter"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "encounter": {
+      "type": "object",
+      "description": "A fight or confrontation. It happens where it starts; the player's party is always on the player's side.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "intro": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Shown when it starts."
+        },
+        "enemies": {
+          "type": "array",
+          "description": "The opposing side.",
+          "items": {
+            "type": "object",
+            "description": "Who takes part on one side.",
+            "properties": {
+              "character": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "character",
+                "description": "A template spawns 'count' copies; a unique character joins as itself."
+              },
+              "count": {
+                "$ref": "common.schema.json#/$defs/amount",
+                "description": "How many copies of a template. Unique characters always count once."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "character"
+            ]
+          },
+          "minItems": 1
+        },
+        "allies": {
+          "type": "array",
+          "description": "Extra characters fighting with the player's party.",
+          "items": {
+            "type": "object",
+            "description": "Who takes part on one side.",
+            "properties": {
+              "character": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "character",
+                "description": "A template spawns 'count' copies; a unique character joins as itself."
+              },
+              "count": {
+                "$ref": "common.schema.json#/$defs/amount",
+                "description": "How many copies of a template. Unique characters always count once."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "character"
+            ]
+          }
+        },
+        "escape": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether retreat actions can end it."
+        },
+        "loot": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "loot_table",
+          "description": "Rolled for the winners, besides each defeated character's own loot."
+        },
+        "on_start": {
+          "$ref": "common.schema.json#/$defs/effects"
+        },
+        "on_win": {
+          "$ref": "common.schema.json#/$defs/effects",
+          "description": "The player's side won."
+        },
+        "on_lose": {
+          "$ref": "common.schema.json#/$defs/effects",
+          "description": "The player's side lost. The player character's on_defeat runs too."
+        },
+        "on_escape": {
+          "$ref": "common.schema.json#/$defs/effects"
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "enemies"
+      ]
+    },
+    "side_entry": {
+      "type": "object",
+      "description": "Who takes part on one side.",
+      "properties": {
+        "character": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "character",
+          "description": "A template spawns 'count' copies; a unique character joins as itself."
+        },
+        "count": {
+          "$ref": "common.schema.json#/$defs/amount",
+          "description": "How many copies of a template. Unique characters always count once."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "character"
+      ]
+    }
+  }
+}

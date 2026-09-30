@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "loot.schema.json",
+  "title": "Loot tables (loot.json)",
+  "description": "Weighted tables rolled by roll_loot, defeated characters, encounters and containers. Tables may roll other tables.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/loot_tables_file",
+  "$defs": {
+    "loot_tables_file": {
+      "type": "object",
+      "description": "A file of loot tables.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/loot_table"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "loot_table": {
+      "type": "object",
+      "description": "A weighted loot table.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "rolls": {
+          "$ref": "common.schema.json#/$defs/amount",
+          "description": "How many times to draw from 'entries'."
+        },
+        "nothing": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0,
+          "description": "Weight of drawing nothing."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Possible results.",
+          "items": {
+            "type": "object",
+            "description": "One possible result.",
+            "properties": {
+              "item": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "item"
+              },
+              "table": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "loot_table",
+                "description": "Roll another table instead."
+              },
+              "count": {
+                "$ref": "common.schema.json#/$defs/amount",
+                "description": "How many of the item."
+              },
+              "weight": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "default": 1,
+                "description": "Relative likelihood."
+              },
+              "when": {
+                "$ref": "common.schema.json#/$defs/condition",
+                "description": "Only possible when this holds. 'self' is who receives the loot."
+              }
+            },
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "item"
+                ]
+              },
+              {
+                "required": [
+                  "table"
+                ]
+              }
+            ]
+          },
+          "minItems": 1
+        },
+        "always": {
+          "type": "array",
+          "description": "Guaranteed items.",
+          "items": {
+            "type": "object",
+            "description": "Given every time, before the rolls.",
+            "properties": {
+              "item": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "item"
+              },
+              "count": {
+                "$ref": "common.schema.json#/$defs/amount"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "item"
+            ]
+          }
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "entries"
+      ]
+    },
+    "loot_entry": {
+      "type": "object",
+      "description": "One possible result.",
+      "properties": {
+        "item": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "item"
+        },
+        "table": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "loot_table",
+          "description": "Roll another table instead."
+        },
+        "count": {
+          "$ref": "common.schema.json#/$defs/amount",
+          "description": "How many of the item."
+        },
+        "weight": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 1,
+          "description": "Relative likelihood."
+        },
+        "when": {
+          "$ref": "common.schema.json#/$defs/condition",
+          "description": "Only possible when this holds. 'self' is who receives the loot."
+        }
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "item"
+          ]
+        },
+        {
+          "required": [
+            "table"
+          ]
+        }
+      ]
+    }
+  }
+}

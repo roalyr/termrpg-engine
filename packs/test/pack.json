@@ -35,6 +35,15 @@
     ],
     "skills": [
       "skills.json"
+    ],
+    "characters": [
+      "characters.json"
+    ],
+    "encounters": [
+      "encounters.json"
+    ],
+    "loot_tables": [
+      "loot.json"
     ]
   }
 }

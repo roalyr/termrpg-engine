@@ -1,0 +1,202 @@
+{
+  "$schema": "../../schemas/character.schema.json",
+  "entries": [
+    {
+      "id": "char_player",
+      "name": "Player",
+      "body": {
+        "size": 3,
+        "stats": {
+          "stat_health": 10,
+          "stat_cargo": 2
+        },
+        "slots": [
+          {
+            "slot_type": "slot_body_a"
+          }
+        ]
+      },
+      "frame": "frame_a",
+      "fitted": [
+        "module_tool",
+        "module_system"
+      ],
+      "inventory": [
+        {
+          "item": "consumable_a",
+          "count": 3
+        },
+        {
+          "item": "material_a",
+          "count": 12
+        }
+      ],
+      "skills": {
+        "skill_a": 1
+      },
+      "on_defeat": [
+        {
+          "op": "message",
+          "text": "You go down.",
+          "kind": "danger"
+        },
+        {
+          "op": "move_to",
+          "location": "room_a",
+          "entry": "pl_a_crate"
+        },
+        {
+          "op": "restore",
+          "stat": "stat_health",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "id": "char_npc",
+      "name": "Npc",
+      "title": "Test NPC",
+      "faction": "faction_a",
+      "location": "room_a",
+      "at": [
+        3,
+        3
+      ],
+      "body": {
+        "size": 3,
+        "stats": {
+          "stat_health": 10,
+          "stat_cargo": 2
+        },
+        "slots": [
+          {
+            "slot_type": "slot_body_a"
+          }
+        ]
+      },
+      "implants": [
+        "implant_a"
+      ],
+      "wants": [
+        "tag_a"
+      ],
+      "views": [
+        {
+          "toward": "player",
+          "value": 10
+        },
+        {
+          "toward": {
+            "faction": "faction_a"
+          },
+          "value": 50
+        }
+      ],
+      "talk": [
+        {
+          "when": {
+            "check": "in_party",
+            "subject": "target",
+            "leader": "player"
+          },
+          "text": "Lead on."
+        },
+        {
+          "when": {
+            "check": "relation",
+            "of": "self",
+            "toward": "target",
+            "minimum": 50
+          },
+          "text": "Good to see you."
+        },
+        {
+          "text": "Hello."
+        }
+      ],
+      "interactions": [
+        {
+          "id": "trade",
+          "label": "Trade",
+          "key": "b",
+          "repeat": "once",
+          "requires": {
+            "check": "has_item",
+            "item": "misc_key"
+          },
+          "hint": "Wants a key.",
+          "effects": [
+            {
+              "op": "take_item",
+              "item": "misc_key"
+            },
+            {
+              "op": "give_item",
+              "item": "consumable_a",
+              "count": 2
+            },
+            {
+              "op": "change_relation",
+              "of": "target",
+              "toward": "self",
+              "amount": 20
+            }
+          ]
+        },
+        {
+          "id": "recruit",
+          "label": "Recruit",
+          "key": "t",
+          "shown_if": {
+            "not": {
+              "check": "in_party",
+              "subject": "target"
+            }
+          },
+          "requires": {
+            "check": "relation",
+            "of": "target",
+            "toward": "self",
+            "minimum": 25
+          },
+          "hint": "Doesn't trust you enough.",
+          "effects": [
+            {
+              "op": "join_party",
+              "subject": "target",
+              "leader": "self"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "char_drone",
+      "name": "Drone",
+      "template": true,
+      "glyph": "d",
+      "tags": [
+        "tag_hazard"
+      ],
+      "art": [
+        "  ┌─┬─┐  ",
+        "══╡▓▓▓╞══",
+        "  └┬─┬┘  "
+      ],
+      "body": {
+        "size": 2,
+        "stats": {
+          "stat_health": 8,
+          "stat_initiative": 2
+        }
+      },
+      "actions": [
+        "action_strike"
+      ],
+      "ai": {
+        "flee_below": 0.25
+      },
+      "loot": "loot_drone"
+    }
+  ]
+}

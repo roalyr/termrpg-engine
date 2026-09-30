@@ -120,6 +120,8 @@ def validate_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Report:
     _check_world_rules(manifest, entries, where, errors)
     _check_item_rules(entries, vocab, where, errors)
     _check_skill_rules(manifest, entries, where, errors)
+    _check_character_rules(manifest, entries, vocab, where, errors)
+    _check_loot_rules(entries, where, errors)
     return Report(tuple(errors), tuple(warnings))
 
 
@@ -140,6 +142,12 @@ def _collect(result: schema.Result, label: str, errors: List[str], warnings: Lis
     errors.extend(_fmt(label, e.path, e.message) for e in result.errors)
     warnings.extend(_fmt(label, r.path, r.message) for r in result.reserved)
     refs.extend((label, r) for r in result.refs)
+
+
+def _a(word: Any) -> str:
+    """'a module', 'an implant'."""
+    word = str(word)
+    return f"{'an' if word[:1] in 'aeiou' else 'a'} {word}"
 
 
 def _fmt(label: str, path: str, message: str) -> str:
@@ -299,10 +307,8 @@ def _check_item_rules(entries: Entries, vocab: Dict[str, Any], where: Dict[Tuple
                                                  if isinstance(s, dict)]
         for slot_type in slot_types:
             if slot_type in hosts and hosts[slot_type] != wanted:
-                kind = str(item.get("kind"))
-                article = "an" if kind[:1] in "aeiou" else "a"
                 errors.append(f"{label}: slot type '{slot_type}' is a {hosts[slot_type]} slot; "
-                              f"{article} {kind} needs a {wanted} slot")
+                              f"{_a(item.get('kind'))} needs a {wanted} slot")
         if item.get("stack", 1) > 1 and "condition" in item:
             errors.append(f"{label}: items that stack can't have a condition (worn items don't stack)")
 
@@ -325,6 +331,156 @@ def _check_skill_rules(manifest: dict, entries: Entries, where: Dict[Tuple[str, 
                 errors.append(f"{label}.levels[{i}]: level {lv['level']} is above skill_max_level ({max_level})")
             if lv.get("level") == 1 and lv.get("xp", 0) != 0:
                 errors.append(f"{label}.levels[{i}]: level 1 needs 0 xp")
+
+
+def _check_character_rules(manifest: dict, entries: Entries, vocab: Dict[str, Any],
+                           where: Dict[Tuple[str, str], str], errors: List[str]) -> None:
+    items = entries.get("items", {})
+    locations = entries.get("locations", {})
+    characters = entries.get("characters", {})
+    role_stat = {s.get("role"): s["id"] for s in vocab.get("stats", []) if s.get("role")}
+    hosts = {s["id"]: s.get("host") for s in vocab.get("slot_types", [])}
+    settings = manifest.get("settings", {}) if isinstance(manifest.get("settings"), dict) else {}
+    max_level = settings.get("skill_max_level", 5)
+    occupied: Dict[Tuple[str, int, int], str] = {}
+    for loc_id, loc in locations.items():
+        for p in _placements(loc):
+            at = p.get("at")
+            if isinstance(at, list) and len(at) == 2:
+                occupied[(loc_id, at[0], at[1])] = f"placement '{p.get('id')}'"
+
+    for char_id, char in characters.items():
+        label = where[("characters", char_id)]
+        if char.get("template") and ("location" in char or "at" in char):
+            errors.append(f"{label}: templates are spawned by encounters and zones, so they have no location")
+        if "at" in char:
+            _check_standing(char, char_id, label, locations, occupied, errors)
+        _check_leader_chain(char_id, characters, label, errors)
+
+        body = char.get("body", {}) if isinstance(char.get("body"), dict) else {}
+        body_slots: Dict[str, int] = {}
+        for slot in body.get("slots", []) or []:
+            if isinstance(slot, dict) and slot.get("slot_type"):
+                if hosts.get(slot["slot_type"], "body") != "body":
+                    errors.append(f"{label}: body slot '{slot['slot_type']}' is not a body slot type")
+                body_slots[slot["slot_type"]] = body_slots.get(slot["slot_type"], 0) + slot.get("count", 1)
+
+        worn: List[dict] = [body]
+        frame = items.get(char.get("frame"))
+        if frame is not None and frame.get("kind") != "frame":
+            errors.append(f"{label}: '{char['frame']}' is worn as a frame but is {_a(frame.get('kind'))}")
+            frame = None
+        if frame is not None:
+            worn.append(frame)
+        frame_slots: Dict[str, int] = {}
+        for slot in (frame or {}).get("slots", []) or []:
+            if isinstance(slot, dict) and slot.get("slot_type"):
+                frame_slots[slot["slot_type"]] = frame_slots.get(slot["slot_type"], 0) + slot.get("count", 1)
+        if char.get("fitted") and "frame" not in char:
+            errors.append(f"{label}: has fitted modules but wears no frame")
+
+        used_slots: Dict[str, int] = {}
+        used = {"power": 0.0, "mass": 0.0, "heat": 0.0}
+        for group, kind, capacity in (("fitted", "module", frame_slots), ("implants", "implant", body_slots)):
+            for item_id in char.get(group, []) or []:
+                item = items.get(item_id)
+                if item is None:
+                    continue  # unknown ids are reported as bad references
+                if item.get("kind") != kind:
+                    errors.append(f"{label}: {group} lists '{item_id}', which is {_a(item.get('kind'))}, not {_a(kind)}")
+                    continue
+                worn.append(item)
+                slot_type = item.get("slot_type")
+                used_slots[slot_type] = used_slots.get(slot_type, 0) + 1
+                if used_slots[slot_type] > capacity.get(slot_type, 0):
+                    host = "frame" if kind == "module" else "body"
+                    errors.append(f"{label}: no free '{slot_type}' slot in the {host} for '{item_id}'")
+                for budget, amount in (item.get("uses", {}) or {}).items():
+                    used[budget] = used.get(budget, 0.0) + amount
+
+        provided = {role: sum(w.get("stats", {}).get(role_stat[role], 0) for w in worn if isinstance(w.get("stats"), dict))
+                    for role in ("power", "mass", "heat", "cargo") if role in role_stat}
+        for budget in ("power", "mass"):
+            if budget in provided and used[budget] > provided[budget]:
+                errors.append(f"{label}: fitted gear needs {used[budget]:g} {budget}, the loadout provides {provided[budget]:g}")
+        if "heat" in provided and used["heat"] and used["heat"] >= provided["heat"]:
+            errors.append(f"{label}: constant heat {used['heat']:g} leaves no room below maximum heat {provided['heat']:g}")
+        if "cargo" in provided:
+            stacks = 0
+            for entry in char.get("inventory", []) or []:
+                item = items.get(entry.get("item")) if isinstance(entry, dict) else None
+                if item is not None:
+                    stacks += -(-entry.get("count", 1) // item.get("stack", 1))
+            if stacks > provided["cargo"]:
+                errors.append(f"{label}: inventory needs {stacks} cargo stacks, the loadout carries {provided['cargo']:g}")
+
+        for skill_id, level in (char.get("skills", {}) or {}).items():
+            if isinstance(level, int) and isinstance(max_level, int) and level > max_level:
+                errors.append(f"{label}: skill '{skill_id}' at level {level} is above skill_max_level ({max_level})")
+
+    start = manifest.get("start", {}) if isinstance(manifest.get("start"), dict) else {}
+    player = characters.get(start.get("player"))
+    if player is not None:
+        if player.get("template"):
+            errors.append(f"pack.json: start.player '{start['player']}' is a template")
+        elif player.get("location") not in (None, start.get("location")):
+            errors.append(f"pack.json: start.player '{start['player']}' is placed in '{player['location']}', "
+                          f"not the start location '{start.get('location')}'")
+
+    for enc_id, enc in entries.get("encounters", {}).items():
+        for side in ("enemies", "allies"):
+            for i, entry in enumerate(enc.get(side, []) or []):
+                char = characters.get(entry.get("character")) if isinstance(entry, dict) else None
+                if char is not None and not char.get("template") and "count" in entry:
+                    errors.append(f"{where[('encounters', enc_id)]}.{side}[{i}]: '{entry['character']}' is unique; "
+                                  f"only templates take a count")
+
+
+def _check_standing(char: dict, char_id: str, label: str, locations: Dict[str, dict],
+                    occupied: Dict[Tuple[str, int, int], str], errors: List[str]) -> None:
+    loc = locations.get(char.get("location"))
+    at = char.get("at")
+    if "location" not in char:
+        errors.append(f"{label}: 'at' needs a location")
+        return
+    if loc is None or not (isinstance(at, list) and len(at) == 2):
+        return
+    grid = loc.get("grid", {}) if isinstance(loc.get("grid"), dict) else {}
+    tiles = _tiles(grid, label, [])
+    key = (char["location"], at[0], at[1])
+    if tiles is not None and tiles.get((at[0], at[1])) != ".":
+        errors.append(f"{label}: position {at} is not a floor tile of '{char['location']}'")
+    elif key in occupied:
+        errors.append(f"{label}: position {at} is already taken by {occupied[key]}")
+    occupied.setdefault(key, f"character '{char_id}'")
+
+
+def _check_leader_chain(char_id: str, characters: Dict[str, dict], label: str, errors: List[str]) -> None:
+    seen, current = set(), char_id
+    while current in characters and current not in seen:
+        seen.add(current)
+        current = characters[current].get("leader")
+    if current in seen:
+        errors.append(f"{label}: '{char_id}' ends up leading itself through 'leader'")
+
+
+def _check_loot_rules(entries: Entries, where: Dict[Tuple[str, str], str], errors: List[str]) -> None:
+    tables = entries.get("loot_tables", {})
+
+    def nested(table_id: str) -> List[str]:
+        return [e["table"] for e in tables.get(table_id, {}).get("entries", []) or []
+                if isinstance(e, dict) and isinstance(e.get("table"), str)]
+
+    for table_id in tables:
+        stack, seen = list(nested(table_id)), set()
+        while stack:
+            current = stack.pop()
+            if current == table_id:
+                errors.append(f"{where[('loot_tables', table_id)]}: loot table '{table_id}' rolls itself")
+                break
+            if current not in seen:
+                seen.add(current)
+                stack.extend(nested(current))
 
 
 def _tiles(grid: dict, label: str, errors: List[str]) -> Optional[Dict[Tuple[int, int], str]]:
