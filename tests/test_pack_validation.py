@@ -26,7 +26,7 @@ class TestTestPack(unittest.TestCase):
         report = validate_pack(TEST_PACK)
         self.assertEqual(report.errors, ())
         for warning in report.warnings:
-            self.assertIn("not checked", warning)
+            self.assertTrue("not checked" in warning or "reserved feature" in warning, warning)
 
 
 class TestPackErrors(unittest.TestCase):
@@ -113,8 +113,8 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("unknown status 'status_missing'", self.errors())
 
     def test_unnamed_size(self):
-        self.status_effects({"op": "if", "if": {"check": "size", "max": 4}, "then": []})
-        self.assertIn("unknown size class '4'", self.errors())
+        self.status_effects({"op": "if", "if": {"check": "size", "max": 7}, "then": []})
+        self.assertIn("unknown size class '7'", self.errors())
 
     def test_seeded_range_and_bounds(self):
         self.status_effects({"op": "damage", "amount": {"min": 1}, "damage_type": "dmg_a"})
@@ -133,6 +133,84 @@ class TestPackErrors(unittest.TestCase):
     def test_relation_settings(self):
         self.edit("pack.json", lambda m: m.__setitem__("settings", {"relation_min": 10, "relation_max": 5}))
         self.assertIn("relation_min must be below relation_max", self.errors())
+
+    # --- World and objects ---
+
+    def location(self, loc_id, change):
+        def apply(data):
+            change(next(e for e in data["entries"] if e["id"] == loc_id))
+        self.edit("locations.json", apply)
+
+    def placement(self, loc_id, pl_id, change):
+        self.location(loc_id, lambda loc: change(next(p for p in loc["placements"] if p["id"] == pl_id)))
+
+    def test_placement_outside_grid(self):
+        self.placement("room_a", "pl_a_crate", lambda p: p.__setitem__("at", [9, 9]))
+        self.assertIn("position [9, 9] is outside the grid", self.errors())
+
+    def test_placement_on_empty_tile_of_shaped_room(self):
+        self.placement("room_b", "pl_b_terminal", lambda p: p.__setitem__("at", [4, 0]))
+        self.assertIn("position [4, 0] is outside the grid", self.errors())
+
+    def test_placement_position_taken(self):
+        self.placement("room_a", "pl_a_crate", lambda p: p.__setitem__("at", [0, 2]))
+        self.assertIn("position [0, 2] is already taken by 'pl_a_door_b'", self.errors())
+
+    def test_rows_must_match_size(self):
+        self.location("room_b", lambda loc: loc["grid"]["rows"].pop())
+        self.assertIn("rows must be 5 strings of 7 characters", self.errors())
+
+    def test_placement_ids_unique_across_locations(self):
+        self.placement("room_b", "pl_b_terminal", lambda p: p.__setitem__("id", "pl_a_crate"))
+        self.assertIn("duplicate placement 'pl_a_crate'", self.errors())
+
+    def test_unknown_placement_reference(self):
+        self.placement("room_a", "pl_a_door_b", lambda p: p["exit"].__setitem__("entry", "pl_missing"))
+        self.assertIn("unknown placement 'pl_missing'", self.errors())
+
+    def test_exit_arrival_must_be_in_destination(self):
+        self.placement("room_a", "pl_a_door_b", lambda p: p["exit"].__setitem__("entry", "pl_a_crate"))
+        self.assertIn("exit arrives at 'pl_a_crate', which is not in 'room_b'", self.errors())
+
+    def test_exit_into_template(self):
+        self.placement("room_a", "pl_a_door_b", lambda p: p["exit"].update(location="room_template_a", entry=None) or p["exit"].pop("entry"))
+        self.assertIn("exit leads to 'room_template_a', which is a template", self.errors())
+
+    def test_exit_needs_one_destination(self):
+        self.placement("room_a", "pl_a_door_b", lambda p: p["exit"].__setitem__("zone", "zone_a"))
+        self.assertIn("exit: use only one of: location, zone", self.errors())
+
+    def test_location_entry_elsewhere(self):
+        self.location("room_b", lambda loc: loc.__setitem__("entry", "pl_a_crate"))
+        self.assertIn("entry 'pl_a_crate' is placed in another location", self.errors())
+
+    def test_start_entry_elsewhere(self):
+        self.edit("pack.json", lambda m: m["start"].__setitem__("entry", "pl_b_terminal"))
+        self.assertIn("start.entry 'pl_b_terminal' is not in 'room_a'", self.errors())
+
+    def test_start_in_template(self):
+        self.edit("pack.json", lambda m: m["start"].update(location="room_template_a") or m["start"].pop("entry"))
+        self.assertIn("start.location 'room_template_a' is a template", self.errors())
+
+    def test_placement_state_must_belong_to_object(self):
+        self.placement("room_a", "pl_a_crate", lambda p: p.__setitem__("state", "state_open"))
+        self.assertIn("state 'state_open' is not one of the object's states", self.errors())
+
+    def test_state_glyph_must_belong_to_object(self):
+        self.edit("objects.json", lambda d: d["entries"][2].__setitem__("state_glyphs", {"state_open": "x"}))
+        self.assertIn("state_glyphs names 'state_open'", self.errors())
+
+    def test_region_loop(self):
+        self.edit("regions.json", lambda d: d["entries"][0].__setitem__("parent", "region_a_1"))
+        self.assertIn("is its own ancestor", self.errors())
+
+    def test_zone_pool_needs_templates(self):
+        self.edit("zones.json", lambda d: d["entries"][0]["room_pool"][0].__setitem__("location", "room_a"))
+        self.assertIn("'room_a' is not a template", self.errors())
+
+    def test_this_is_not_a_placement_reference(self):
+        report = validate_pack(self.pack)
+        self.assertFalse(any("'this'" in e for e in report.errors))
 
     def test_reserved_feature_warns(self):
         self.edit("pack.json", lambda m: m.__setitem__("extends", ["base"]))

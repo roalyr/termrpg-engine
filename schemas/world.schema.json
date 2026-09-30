@@ -1,0 +1,630 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "world.schema.json",
+  "title": "World (regions, locations, zones)",
+  "description": "The shape of the world. Regions group locations and can nest; locations are grids with placed objects, exits and per-turn effects; zones are procedural areas built from template locations. The pack lists regions, locations and zones as separate file kinds; each file is validated against the matching *_file definition.",
+  "x-schema-version": 1,
+  "$defs": {
+    "regions_file": {
+      "type": "object",
+      "description": "A file of regions.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/region"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "locations_file": {
+      "type": "object",
+      "description": "A file of locations.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/location"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "zones_file": {
+      "type": "object",
+      "description": "A file of procedural zones.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/zone"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "region": {
+      "type": "object",
+      "description": "A named area that groups locations: a station, a base, a ship. Regions can nest.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "parent": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "region",
+          "description": "The region this one is part of."
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags"
+        },
+        "map": {
+          "type": "object",
+          "description": "Position on the parent region's map.",
+          "properties": {
+            "x": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "y"
+          ]
+        },
+        "mobile": {
+          "type": "object",
+          "description": "The region moves: a ship or shuttle. It docks at dock ports with one of its own placements.",
+          "properties": {
+            "airlock": {
+              "$ref": "common.schema.json#/$defs/id",
+              "x-ref": "placement",
+              "description": "The region's own placement that connects to a dock port."
+            },
+            "docked_at": {
+              "$ref": "common.schema.json#/$defs/id",
+              "x-ref": "placement",
+              "description": "The dock port it starts at."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "airlock"
+          ],
+          "x-status": "reserved"
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "location": {
+      "type": "object",
+      "description": "A room or open area the player can walk around in.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "region": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "region"
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "Tags marked as hazards in the vocabulary are shown as dangers."
+        },
+        "size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "How big the space is."
+        },
+        "holds_size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "Largest size class that can be inside, e.g. living quarters keep heavy suits out."
+        },
+        "grid": {
+          "type": "object",
+          "description": "The room's walkable grid. Rectangular by default; 'rows' draws other shapes.",
+          "properties": {
+            "width": {
+              "type": "integer",
+              "minimum": 3,
+              "maximum": 10
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 3,
+              "maximum": 10
+            },
+            "floor": {
+              "$ref": "common.schema.json#/$defs/glyph",
+              "description": "Glyph for floor tiles."
+            },
+            "wall": {
+              "$ref": "common.schema.json#/$defs/glyph",
+              "description": "Glyph for wall tiles."
+            },
+            "rows": {
+              "type": "array",
+              "description": "Optional shape, one string per row: '#' wall, '.' floor, ' ' nothing. Must match width and height. Without it the edge is wall and the inside floor.",
+              "items": {
+                "type": "string",
+                "pattern": "^[#. ]+$"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "width",
+            "height",
+            "floor",
+            "wall"
+          ]
+        },
+        "entry": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "placement",
+          "description": "Where arrivals appear when no other point is given. Defaults to the grid centre."
+        },
+        "placements": {
+          "type": "array",
+          "description": "Objects in this location.",
+          "items": {
+            "type": "object",
+            "description": "One object placed in a location.",
+            "properties": {
+              "id": {
+                "$ref": "common.schema.json#/$defs/id",
+                "description": "Placement id, unique across the whole pack, e.g. 'bunkroom_hatch'. Checks and effects refer to it."
+              },
+              "object": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "object",
+                "description": "The template."
+              },
+              "at": {
+                "type": "array",
+                "description": "Grid position as [row, column], counted from the top-left corner (0, 0).",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "name": {
+                "$ref": "common.schema.json#/$defs/label",
+                "description": "Overrides the template's name."
+              },
+              "description": {
+                "$ref": "common.schema.json#/$defs/text"
+              },
+              "glyph": {
+                "$ref": "common.schema.json#/$defs/glyph"
+              },
+              "state": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "object_state",
+                "description": "Overrides the template's initial state."
+              },
+              "tags": {
+                "$ref": "common.schema.json#/$defs/tags",
+                "description": "Added to the template's tags."
+              },
+              "interactions": {
+                "type": "array",
+                "description": "Merged with the template's by id: the same id replaces the template's interaction, a new id adds one.",
+                "items": {
+                  "$ref": "common.schema.json#/$defs/interaction"
+                }
+              },
+              "exit": {
+                "$ref": "#/$defs/exit"
+              },
+              "dock_port": {
+                "type": "boolean",
+                "default": false,
+                "x-status": "reserved",
+                "description": "Ships (mobile regions) can dock here."
+              },
+              "notes": {
+                "$ref": "common.schema.json#/$defs/notes"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "object",
+              "at"
+            ]
+          }
+        },
+        "on_enter": {
+          "$ref": "common.schema.json#/$defs/effects",
+          "description": "Run when a character arrives. 'self' is that character."
+        },
+        "on_turn": {
+          "$ref": "common.schema.json#/$defs/effects",
+          "description": "Run every turn for each character here. 'self' is that character. Hazards live here, e.g. damage unless a sealed suit is fitted."
+        },
+        "map": {
+          "type": "object",
+          "description": "Position on its region's map.",
+          "properties": {
+            "x": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "x",
+            "y"
+          ]
+        },
+        "template": {
+          "type": "boolean",
+          "default": false,
+          "description": "Not part of the fixed world: a room shape that procedural zones copy. Templates can't be the start or an exit's destination."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "region",
+        "grid"
+      ]
+    },
+    "zone": {
+      "type": "object",
+      "description": "A procedural area generated from template rooms. Regenerates on its own schedule.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "region": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "region"
+        },
+        "rooms": {
+          "$ref": "common.schema.json#/$defs/amount",
+          "description": "How many rooms to generate."
+        },
+        "room_pool": {
+          "type": "array",
+          "description": "Rooms to draw from.",
+          "items": {
+            "type": "object",
+            "description": "A template room and how likely it is.",
+            "properties": {
+              "location": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "location",
+                "description": "Must be a template."
+              },
+              "weight": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "default": 1
+              },
+              "max": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "At most this many copies."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "location"
+            ]
+          },
+          "minItems": 1
+        },
+        "object_pool": {
+          "type": "array",
+          "description": "Objects to scatter.",
+          "items": {
+            "type": "object",
+            "description": "An object template scattered into generated rooms.",
+            "properties": {
+              "object": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "object"
+              },
+              "weight": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "default": 1
+              },
+              "per_room": {
+                "$ref": "common.schema.json#/$defs/amount",
+                "description": "How many per room."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "object"
+            ]
+          }
+        },
+        "encounters": {
+          "type": "array",
+          "description": "Encounters to draw from.",
+          "items": {
+            "type": "object",
+            "description": "An encounter that may start in a generated room.",
+            "properties": {
+              "encounter": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "encounter"
+              },
+              "weight": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "default": 1
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "encounter"
+            ]
+          }
+        },
+        "encounter_chance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0,
+          "description": "Chance per generated room of drawing an encounter."
+        },
+        "regenerate": {
+          "enum": [
+            "never",
+            "daily",
+            "on_leave"
+          ],
+          "default": "daily",
+          "description": "When the zone is rebuilt with a new seed."
+        },
+        "exit": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "placement",
+          "description": "The fixed placement the zone leads back to."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "region",
+        "rooms",
+        "room_pool",
+        "exit"
+      ],
+      "x-status": "reserved"
+    },
+    "placement": {
+      "type": "object",
+      "description": "One object placed in a location.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id",
+          "description": "Placement id, unique across the whole pack, e.g. 'bunkroom_hatch'. Checks and effects refer to it."
+        },
+        "object": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "object",
+          "description": "The template."
+        },
+        "at": {
+          "type": "array",
+          "description": "Grid position as [row, column], counted from the top-left corner (0, 0).",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label",
+          "description": "Overrides the template's name."
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "glyph": {
+          "$ref": "common.schema.json#/$defs/glyph"
+        },
+        "state": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "object_state",
+          "description": "Overrides the template's initial state."
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "Added to the template's tags."
+        },
+        "interactions": {
+          "type": "array",
+          "description": "Merged with the template's by id: the same id replaces the template's interaction, a new id adds one.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/interaction"
+          }
+        },
+        "exit": {
+          "$ref": "#/$defs/exit"
+        },
+        "dock_port": {
+          "type": "boolean",
+          "default": false,
+          "x-status": "reserved",
+          "description": "Ships (mobile regions) can dock here."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "object",
+        "at"
+      ]
+    },
+    "exit": {
+      "type": "object",
+      "description": "Makes a placed object a way to another place. The engine offers a 'go' interaction for it.",
+      "properties": {
+        "location": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "location"
+        },
+        "zone": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "zone",
+          "description": "Leads into a procedural zone instead of a fixed location.",
+          "x-status": "reserved"
+        },
+        "entry": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "placement",
+          "description": "Where the traveller arrives. Defaults to the destination's entry point."
+        },
+        "label": {
+          "$ref": "common.schema.json#/$defs/label",
+          "description": "Overrides the default 'Go to <destination>'."
+        },
+        "requires": {
+          "$ref": "common.schema.json#/$defs/condition",
+          "description": "Usable only when this holds, e.g. the hatch is open or the traveller fits through."
+        },
+        "hint": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Shown when 'requires' fails."
+        },
+        "time": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1,
+          "description": "Turns the crossing takes."
+        }
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "location"
+          ]
+        },
+        {
+          "required": [
+            "zone"
+          ]
+        }
+      ]
+    },
+    "grid": {
+      "type": "object",
+      "description": "The room's walkable grid. Rectangular by default; 'rows' draws other shapes.",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 10
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 10
+        },
+        "floor": {
+          "$ref": "common.schema.json#/$defs/glyph",
+          "description": "Glyph for floor tiles."
+        },
+        "wall": {
+          "$ref": "common.schema.json#/$defs/glyph",
+          "description": "Glyph for wall tiles."
+        },
+        "rows": {
+          "type": "array",
+          "description": "Optional shape, one string per row: '#' wall, '.' floor, ' ' nothing. Must match width and height. Without it the edge is wall and the inside floor.",
+          "items": {
+            "type": "string",
+            "pattern": "^[#. ]+$"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "height",
+        "floor",
+        "wall"
+      ]
+    }
+  }
+}

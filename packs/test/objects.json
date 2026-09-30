@@ -1,0 +1,189 @@
+{
+  "$schema": "../../schemas/object.schema.json",
+  "entries": [
+    {
+      "id": "obj_door",
+      "name": "Door",
+      "glyph": "◆",
+      "size": 3,
+      "holds_size": 3,
+      "states": [
+        "state_closed",
+        "state_open"
+      ],
+      "state_glyphs": {
+        "state_open": "◇"
+      },
+      "interactions": [
+        {
+          "id": "open",
+          "label": "Open",
+          "key": "u",
+          "shown_if": {
+            "check": "object_state",
+            "object": "this",
+            "state": "state_closed"
+          },
+          "requires": {
+            "any": [
+              {
+                "check": "has_tag",
+                "tag": "tag_a"
+              },
+              {
+                "check": "size",
+                "min": 5
+              }
+            ]
+          },
+          "hint": "Needs a tag A item or a large frame.",
+          "effects": [
+            {
+              "op": "set_state",
+              "object": "this",
+              "state": "state_open"
+            },
+            {
+              "op": "wear",
+              "pick": {
+                "used": true
+              },
+              "amount": 1
+            }
+          ]
+        },
+        {
+          "id": "close",
+          "label": "Close",
+          "key": "u",
+          "shown_if": {
+            "check": "object_state",
+            "object": "this",
+            "state": "state_open"
+          },
+          "effects": [
+            {
+              "op": "set_state",
+              "object": "this",
+              "state": "state_closed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "obj_passage",
+      "name": "Passage",
+      "glyph": "◆",
+      "holds_size": 5
+    },
+    {
+      "id": "obj_crate",
+      "name": "Crate",
+      "glyph": "⊞",
+      "size": 2,
+      "holds_size": 1,
+      "solid": true,
+      "states": [
+        "state_closed",
+        "state_used"
+      ],
+      "interactions": [
+        {
+          "id": "search",
+          "label": "Search",
+          "key": "f",
+          "repeat": "daily",
+          "time": 2,
+          "requires": {
+            "check": "object_state",
+            "object": "this",
+            "state": "state_closed"
+          },
+          "hint": "Already searched.",
+          "effects": [
+            {
+              "op": "set_state",
+              "object": "this",
+              "state": "state_used"
+            },
+            {
+              "op": "if",
+              "if": {
+                "check": "chance",
+                "p": 0.5
+              },
+              "then": [
+                {
+                  "op": "set_flag",
+                  "flag": "flag_a",
+                  "add": 1
+                },
+                {
+                  "op": "message",
+                  "text": "You find something.",
+                  "kind": "gain"
+                }
+              ],
+              "else": [
+                {
+                  "op": "message",
+                  "text": "Empty."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "obj_terminal",
+      "name": "Terminal",
+      "glyph": "⌸",
+      "solid": true,
+      "interactions": [
+        {
+          "id": "use",
+          "label": "Use",
+          "key": "r",
+          "effects": [
+            {
+              "op": "choose",
+              "prompt": "Pick one.",
+              "options": [
+                {
+                  "label": "Option A",
+                  "effects": [
+                    {
+                      "op": "change_relation",
+                      "of": {
+                        "faction": "faction_a"
+                      },
+                      "amount": 5
+                    }
+                  ]
+                },
+                {
+                  "label": "Option B",
+                  "condition": {
+                    "check": "flag",
+                    "flag": "flag_a",
+                    "minimum": 1
+                  },
+                  "hint": "Needs flag A.",
+                  "effects": [
+                    {
+                      "op": "set_flag",
+                      "flag": "flag_a",
+                      "value": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

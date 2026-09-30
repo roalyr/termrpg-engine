@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schemas/world.schema.json",
+  "entries": [
+    {
+      "id": "zone_a",
+      "name": "Zone A",
+      "region": "region_a",
+      "rooms": {
+        "min": 2,
+        "max": 4
+      },
+      "room_pool": [
+        {
+          "location": "room_template_a"
+        }
+      ],
+      "object_pool": [
+        {
+          "object": "obj_crate",
+          "per_room": {
+            "min": 0,
+            "max": 2
+          }
+        }
+      ],
+      "regenerate": "daily",
+      "exit": "pl_a_zone"
+    }
+  ]
+}

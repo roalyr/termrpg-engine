@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "object.schema.json",
+  "title": "Objects (objects.json)",
+  "description": "Templates for things that sit in locations: doors, crates, terminals, machines, bunks. Locations place them; each placement may override the name, state or single interactions.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/objects_file",
+  "$defs": {
+    "objects_file": {
+      "type": "object",
+      "description": "A file of object templates.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/object"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "object": {
+      "type": "object",
+      "description": "A kind of object.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "glyph": {
+          "$ref": "common.schema.json#/$defs/glyph"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags"
+        },
+        "size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "How big the object is."
+        },
+        "holds_size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "Largest size class that fits in, through or onto it (a crate's contents, a hatch's opening)."
+        },
+        "solid": {
+          "type": "boolean",
+          "default": false,
+          "description": "Blocks walking onto its tile. Solid objects are used from a neighbouring tile."
+        },
+        "states": {
+          "type": "array",
+          "description": "States the object can be in. The first is the initial state unless 'state' says otherwise.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "object_state"
+          },
+          "uniqueItems": true
+        },
+        "state": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "object_state",
+          "description": "Initial state."
+        },
+        "state_glyphs": {
+          "type": "object",
+          "description": "Glyph to draw in a given state, e.g. an open hatch.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "$ref": "common.schema.json#/$defs/glyph"
+          },
+          "x-ref-keys": "object_state"
+        },
+        "interactions": {
+          "type": "array",
+          "description": "What characters can do with it. 'this' in effects and checks means the placed object.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/interaction"
+          }
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "glyph"
+      ]
+    }
+  }
+}

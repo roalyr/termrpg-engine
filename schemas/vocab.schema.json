@@ -35,6 +35,11 @@
           },
           "description": {
             "$ref": "common.schema.json#/$defs/text"
+          },
+          "hazard": {
+            "type": "boolean",
+            "default": false,
+            "description": "On a location, show this tag as a danger in the header (warning colour)."
           }
         },
         "additionalProperties": false,

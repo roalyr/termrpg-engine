@@ -62,11 +62,19 @@ def load_schemas(schema_dir: Path) -> Schemas:
     return {p.name: json.loads(p.read_text(encoding="utf-8")) for p in sorted(schema_dir.glob("*.schema.json"))}
 
 
-def validate(instance: Any, schema_file: str, schemas: Schemas) -> Result:
-    """Checks an instance against the root of one schema file."""
+def validate(instance: Any, target: str, schemas: Schemas) -> Result:
+    """Checks an instance against a schema file's root, or a definition in it ('file#/$defs/name')."""
     acc = _Acc()
-    _check(instance, schemas[schema_file], schema_file, "", schemas, acc)
+    hit = _resolve(target, target.partition("#")[0], schemas)
+    if hit is None:
+        raise KeyError(f"no schema at '{target}'")
+    _check(instance, hit[0], hit[1], "", schemas, acc)
     return Result(tuple(acc.errors), tuple(acc.refs), tuple(acc.reserved))
+
+
+def resolves(target: str, schemas: Schemas) -> bool:
+    """Whether 'file' or 'file#/pointer' names a schema node."""
+    return _resolve(target, target.partition("#")[0], schemas) is not None
 
 
 def schema_problems(schemas: Schemas) -> List[str]:

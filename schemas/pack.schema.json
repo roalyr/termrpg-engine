@@ -63,8 +63,8 @@
         },
         "entry": {
           "$ref": "common.schema.json#/$defs/id",
-          "x-ref": "object",
-          "description": "Object to start at. Defaults to the location's entry point."
+          "x-ref": "placement",
+          "description": "Placed object to start at. Defaults to the location's entry point."
         },
         "player": {
           "$ref": "common.schema.json#/$defs/id",
@@ -143,6 +143,17 @@
         "locations": {
           "type": "array",
           "description": "Files holding locations.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "zones": {
+          "type": "array",
+          "description": "Files holding zones.",
           "items": {
             "type": "string",
             "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",

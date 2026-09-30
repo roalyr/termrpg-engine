@@ -107,6 +107,18 @@
         }
       ]
     },
+    "object_ref": {
+      "description": "A placed object: 'this' (the object whose interaction or template is running) or a placement id. Placement ids are unique across the pack; 'this' is never read as one.",
+      "anyOf": [
+        {
+          "const": "this"
+        },
+        {
+          "$ref": "#/$defs/id",
+          "x-ref": "placement"
+        }
+      ]
+    },
     "item_pick": {
       "description": "Which of the subject's items an effect or check means: a specific item, any item with a tag, whatever is fitted in a slot type, or the item that satisfied the current interaction's requirement ('used').",
       "oneOf": [
@@ -757,17 +769,11 @@
           "const": "object_state"
         },
         "object": {
-          "$ref": "#/$defs/id",
-          "x-ref": "object"
+          "$ref": "#/$defs/object_ref"
         },
         "state": {
           "$ref": "#/$defs/id",
           "x-ref": "object_state"
-        },
-        "location": {
-          "$ref": "#/$defs/id",
-          "x-ref": "location",
-          "description": "Where the object is. Defaults to the current location."
         }
       },
       "additionalProperties": false,
@@ -827,8 +833,7 @@
           "description": "Check this item instead of the subject."
         },
         "into_object": {
-          "$ref": "#/$defs/id",
-          "x-ref": "object"
+          "$ref": "#/$defs/object_ref"
         },
         "into_item": {
           "$ref": "#/$defs/id",
@@ -1367,17 +1372,11 @@
           "const": "set_state"
         },
         "object": {
-          "$ref": "#/$defs/id",
-          "x-ref": "object"
+          "$ref": "#/$defs/object_ref"
         },
         "state": {
           "$ref": "#/$defs/id",
           "x-ref": "object_state"
-        },
-        "location": {
-          "$ref": "#/$defs/id",
-          "x-ref": "location",
-          "description": "Where the object is. Defaults to the current location."
         }
       },
       "additionalProperties": false,
@@ -1403,8 +1402,8 @@
         },
         "entry": {
           "$ref": "#/$defs/id",
-          "x-ref": "object",
-          "description": "Object to arrive at, usually an exit. Defaults to the location's entry point."
+          "x-ref": "placement",
+          "description": "Placed object to arrive at, usually an exit. Defaults to the location's entry point."
         }
       },
       "additionalProperties": false,

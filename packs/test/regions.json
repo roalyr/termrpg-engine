@@ -1,0 +1,22 @@
+{
+  "$schema": "../../schemas/world.schema.json",
+  "entries": [
+    {
+      "id": "region_a",
+      "name": "Region A",
+      "map": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "region_a_1",
+      "name": "Region A1",
+      "parent": "region_a",
+      "map": {
+        "x": 1,
+        "y": 0
+      }
+    }
+  ]
+}

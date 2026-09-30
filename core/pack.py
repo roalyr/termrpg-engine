@@ -14,11 +14,12 @@ from core import schema
 ROOT_DIR = Path(__file__).resolve().parent.parent
 SCHEMA_DIR = ROOT_DIR / "schemas"
 
-# Data file kind -> schema file. Kinds whose schema doesn't exist yet can't be loaded.
+# Data file kind -> schema (a file, or a definition inside one). Kinds whose schema doesn't exist yet can't be loaded.
 KIND_SCHEMAS = {
     "vocab": "vocab.schema.json",
-    "regions": "world.schema.json",
-    "locations": "world.schema.json",
+    "regions": "world.schema.json#/$defs/regions_file",
+    "locations": "world.schema.json#/$defs/locations_file",
+    "zones": "world.schema.json#/$defs/zones_file",
     "objects": "object.schema.json",
     "items": "item.schema.json",
     "actions": "action.schema.json",
@@ -33,7 +34,7 @@ KIND_SCHEMAS = {
 
 # Entity kind -> reference namespace. Entity files hold {"entries": [{"id": ...}, ...]}.
 KIND_NAMESPACES = {
-    "regions": "region", "locations": "location", "objects": "object", "items": "item",
+    "regions": "region", "locations": "location", "zones": "zone", "objects": "object", "items": "item",
     "actions": "action", "skills": "skill", "characters": "character", "encounters": "encounter",
     "loot_tables": "loot_table", "events": "event", "strings": "string", "recipes": "recipe",
 }
@@ -47,6 +48,8 @@ VOCAB_NAMESPACES = {
 
 STAT_ROLES = ("health", "power", "mass", "heat", "initiative")
 POOL_ROLES = ("health", "heat")
+
+Entries = Dict[str, Dict[str, dict]]  # kind -> id -> entry
 
 
 class Report(NamedTuple):
@@ -73,39 +76,52 @@ def validate_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Report:
     ids: Dict[str, Dict[Any, str]] = {}      # namespace -> id -> where it was declared
     checkable: Set[str] = {"size"}           # namespaces whose ids are known
     vocab: Dict[str, Any] = {}
+    entries: Entries = {}
+    where: Dict[Tuple[str, str], str] = {}   # (kind, id) -> "file: entries[i]"
 
     files = manifest.get("files") if isinstance(manifest.get("files"), dict) else {}
     for kind, paths in files.items():
         if kind not in KIND_SCHEMAS or not isinstance(paths, list):
             continue  # already reported by the manifest schema
-        schema_file = KIND_SCHEMAS[kind]
-        if schema_file not in schemas:
+        target = KIND_SCHEMAS[kind]
+        if not schema.resolves(target, schemas):
             errors.append(f"pack.json: files.{kind}: there is no schema for '{kind}' yet")
             continue
         if kind in KIND_NAMESPACES:
             checkable.add(KIND_NAMESPACES[kind])
+        if kind == "locations":
+            checkable.add("placement")
         for rel in paths:
             if not isinstance(rel, str):
                 continue
             data = _read_json(pack_dir / rel, rel, errors)
             if data is None:
                 continue
-            _collect(schema.validate(data, schema_file, schemas), rel, errors, warnings, refs)
+            _collect(schema.validate(data, target, schemas), rel, errors, warnings, refs)
             if kind == "vocab" and isinstance(data, dict):
                 _declare_vocab(data, rel, ids, vocab, errors)
             elif kind in KIND_NAMESPACES and isinstance(data, dict):
                 for i, entry in enumerate(data.get("entries", [])):
-                    if isinstance(entry, dict) and isinstance(entry.get("id"), str):
-                        _declare(ids, KIND_NAMESPACES[kind], entry["id"], f"{rel}: entries[{i}]", errors)
+                    if not (isinstance(entry, dict) and isinstance(entry.get("id"), str)):
+                        continue
+                    label = f"{rel}: entries[{i}]"
+                    _declare(ids, KIND_NAMESPACES[kind], entry["id"], label, errors)
+                    entries.setdefault(kind, {}).setdefault(entry["id"], entry)
+                    where.setdefault((kind, entry["id"]), label)
+                    if kind == "locations":
+                        for j, p in enumerate(_placements(entry)):
+                            if isinstance(p.get("id"), str):
+                                _declare(ids, "placement", p["id"], f"{label}.placements[{j}]", errors)
     if "vocab" in files:
         checkable.update(VOCAB_NAMESPACES.values())
 
     _check_refs(refs, ids, checkable, errors, warnings)
-    _check_rules(manifest, vocab, errors, warnings)
+    _check_vocab_rules(manifest, vocab, errors, warnings)
+    _check_world_rules(manifest, entries, where, errors)
     return Report(tuple(errors), tuple(warnings))
 
 
-# --- Steps ---------------------------------------------------------------------
+# --- Loading and bookkeeping ------------------------------------------------------
 
 def _read_json(path: Path, label: str, errors: List[str]) -> Optional[Any]:
     try:
@@ -150,6 +166,12 @@ def _declare_vocab(data: dict, label: str, ids: Dict[str, Dict[Any, str]], vocab
         vocab.setdefault(section, []).extend(e for e in data.get(section, []) or [] if isinstance(e, dict))
 
 
+def _placements(location: dict) -> List[dict]:
+    return [p for p in location.get("placements", []) or [] if isinstance(p, dict)]
+
+
+# --- Checks -----------------------------------------------------------------------
+
 def _check_refs(refs: List[Tuple[str, schema.Ref]], ids: Dict[str, Dict[Any, str]], checkable: Set[str],
                 errors: List[str], warnings: List[str]) -> None:
     unchecked: Dict[str, int] = {}
@@ -168,7 +190,7 @@ def _check_refs(refs: List[Tuple[str, schema.Ref]], ids: Dict[str, Dict[Any, str
                         f"the pack loads no {kind.replace('_', ' ')}s (or they have no schema yet)")
 
 
-def _check_rules(manifest: dict, vocab: Dict[str, Any], errors: List[str], warnings: List[str]) -> None:
+def _check_vocab_rules(manifest: dict, vocab: Dict[str, Any], errors: List[str], warnings: List[str]) -> None:
     stats = vocab.get("stats", [])
     for role in STAT_ROLES:
         holders = [s["id"] for s in stats if s.get("role") == role]
@@ -195,6 +217,89 @@ def _check_rules(manifest: dict, vocab: Dict[str, Any], errors: List[str], warni
             errors.append("pack.json: settings: relation_min must be below relation_max")
         elif not low <= default <= high:
             errors.append("pack.json: settings: relation_default must lie between relation_min and relation_max")
+
+
+def _check_world_rules(manifest: dict, entries: Entries, where: Dict[Tuple[str, str], str],
+                       errors: List[str]) -> None:
+    locations = entries.get("locations", {})
+    objects = entries.get("objects", {})
+    regions = entries.get("regions", {})
+    placement_home = {p["id"]: loc_id for loc_id, loc in locations.items()
+                      for p in _placements(loc) if isinstance(p.get("id"), str)}
+
+    # Regions: nesting must not loop.
+    for region_id in regions:
+        seen, current = set(), region_id
+        while current in regions and current not in seen:
+            seen.add(current)
+            current = regions[current].get("parent")
+        if current in seen:
+            errors.append(f"{where[('regions', region_id)]}: region '{region_id}' is its own ancestor")
+
+    # Objects: the initial state and state glyphs must use the object's states.
+    for obj_id, obj in objects.items():
+        states = obj.get("states", [])
+        label = where[("objects", obj_id)]
+        if "state" in obj and obj["state"] not in states:
+            errors.append(f"{label}: state '{obj['state']}' is not one of its states")
+        for state in obj.get("state_glyphs", {}) or {}:
+            if state not in states:
+                errors.append(f"{label}: state_glyphs names '{state}', which is not one of its states")
+
+    for loc_id, loc in locations.items():
+        label = where[("locations", loc_id)]
+        grid = loc.get("grid", {}) if isinstance(loc.get("grid"), dict) else {}
+        tiles = _tiles(grid, label, errors)
+        if loc.get("entry") and placement_home.get(loc["entry"], loc_id) != loc_id:
+            errors.append(f"{label}: entry '{loc['entry']}' is placed in another location")
+        taken: Dict[Tuple[int, int], str] = {}
+        for j, p in enumerate(_placements(loc)):
+            p_label = f"{label}.placements[{j}]"
+            at = p.get("at")
+            if isinstance(at, list) and len(at) == 2 and all(isinstance(n, int) for n in at):
+                pos = (at[0], at[1])
+                if tiles is not None and tiles.get(pos, " ") == " ":
+                    errors.append(f"{p_label}: position {list(pos)} is outside the grid")
+                if pos in taken:
+                    errors.append(f"{p_label}: position {list(pos)} is already taken by '{taken[pos]}'")
+                taken.setdefault(pos, p.get("id", "?"))
+            template = objects.get(p.get("object"))
+            if template and "state" in p and p["state"] not in template.get("states", []):
+                errors.append(f"{p_label}: state '{p['state']}' is not one of the object's states")
+            exit_ = p.get("exit") if isinstance(p.get("exit"), dict) else {}
+            dest = exit_.get("location")
+            if dest in locations and locations[dest].get("template"):
+                errors.append(f"{p_label}: exit leads to '{dest}', which is a template")
+            if dest and exit_.get("entry") and placement_home.get(exit_["entry"], dest) != dest:
+                errors.append(f"{p_label}: exit arrives at '{exit_['entry']}', which is not in '{dest}'")
+
+    for zone_id, zone in entries.get("zones", {}).items():
+        for k, room in enumerate(zone.get("room_pool", []) or []):
+            loc = locations.get(room.get("location")) if isinstance(room, dict) else None
+            if loc is not None and not loc.get("template"):
+                errors.append(f"{where[('zones', zone_id)]}.room_pool[{k}]: '{room['location']}' is not a template")
+
+    start = manifest.get("start", {}) if isinstance(manifest.get("start"), dict) else {}
+    start_loc = start.get("location")
+    if start_loc in locations and locations[start_loc].get("template"):
+        errors.append(f"pack.json: start.location '{start_loc}' is a template")
+    if start_loc and start.get("entry") and placement_home.get(start["entry"], start_loc) != start_loc:
+        errors.append(f"pack.json: start.entry '{start['entry']}' is not in '{start_loc}'")
+
+
+def _tiles(grid: dict, label: str, errors: List[str]) -> Optional[Dict[Tuple[int, int], str]]:
+    """Tile map ('#' wall, '.' floor) for a grid, or None if the grid itself is unusable."""
+    width, height = grid.get("width"), grid.get("height")
+    if not (isinstance(width, int) and isinstance(height, int)):
+        return None
+    rows = grid.get("rows")
+    if rows is None:
+        return {(r, c): "#" if r in (0, height - 1) or c in (0, width - 1) else "."
+                for r in range(height) for c in range(width)}
+    if len(rows) != height or any(len(row) != width for row in rows if isinstance(row, str)):
+        errors.append(f"{label}.grid: rows must be {height} strings of {width} characters")
+        return None
+    return {(r, c): ch for r, row in enumerate(rows) for c, ch in enumerate(row)}
 
 
 def main(argv: List[str]) -> int:

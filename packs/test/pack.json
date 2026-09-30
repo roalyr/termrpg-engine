@@ -8,9 +8,24 @@
   "description": "Small generic content for engine development and automated tests. Names are placeholders on purpose.",
   "start": {
     "location": "room_a",
+    "entry": "pl_a_crate",
     "player": "char_player"
   },
   "files": {
-    "vocab": ["vocab.json"]
+    "vocab": [
+      "vocab.json"
+    ],
+    "regions": [
+      "regions.json"
+    ],
+    "locations": [
+      "locations.json"
+    ],
+    "zones": [
+      "zones.json"
+    ],
+    "objects": [
+      "objects.json"
+    ]
   }
 }
