@@ -22,8 +22,15 @@ always sense that the world is bigger than where you are now. The game is open-e
    and combine. This is where most of the player's thinking goes.
 2. **Challenge.** Dangerous places, encounters and fights test the build.
 3. **Craft and salvage.** What you win becomes material, and material becomes new
-   pieces for the build. The world starts seeded with predefined items; modding and
-   reinforcing them come later.
+   pieces for the build. The world is seeded with predefined items, and crafting is
+   mostly about improving them:
+   - **Modify:** apply a material to an item; the material decides what it adds,
+     always the same way. Items have a few mod slots, and modifications are permanent.
+     Rare materials from dangerous places give rare properties.
+   - **Dismantle:** break an item down into materials and, with enough skill, learn
+     its design. Salvage is where designs come from.
+   - **Fabricate** copies of known designs, and **repair** worn items, at workshops.
+   - Results are predictable: no random rolls in crafting.
 4. **Frontier.** A hand-made world with some areas that regenerate. Stranger
    materials lie farther out, which pulls the player outward.
 5. **A living world.** People, factions, rivals and events follow their own rules and

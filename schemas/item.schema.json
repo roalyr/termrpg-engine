@@ -139,6 +139,132 @@
           "minimum": 1,
           "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
         },
+        "salvage": {
+          "type": "object",
+          "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
+          "properties": {
+            "yields": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "learn": {
+              "type": "boolean",
+              "default": true,
+              "description": "Dismantling can teach its design."
+            },
+            "learn_requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed to learn the design, e.g. a skill level. Without it you still get the materials."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "yields"
+          ]
+        },
+        "fabricate": {
+          "type": "object",
+          "description": "What making a copy costs at a workshop. Needs the design.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed besides knowing the design, e.g. a skill level."
+            },
+            "time": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 1,
+              "description": "Turns it takes."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
+        },
+        "repair": {
+          "type": "object",
+          "description": "What restoring its condition costs at a workshop. Only for items with a condition.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Condition restored per repair. Fully repaired if left out."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
+        },
         "notes": {
           "$ref": "common.schema.json#/$defs/notes"
         },
@@ -169,6 +295,13 @@
             ]
           },
           "minItems": 1
+        },
+        "mod_slots": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 0,
+          "description": "How many modifications it can take. Modifications are permanent."
         },
         "fit_requires": {
           "$ref": "common.schema.json#/$defs/condition",
@@ -253,6 +386,132 @@
           "minimum": 1,
           "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
         },
+        "salvage": {
+          "type": "object",
+          "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
+          "properties": {
+            "yields": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "learn": {
+              "type": "boolean",
+              "default": true,
+              "description": "Dismantling can teach its design."
+            },
+            "learn_requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed to learn the design, e.g. a skill level. Without it you still get the materials."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "yields"
+          ]
+        },
+        "fabricate": {
+          "type": "object",
+          "description": "What making a copy costs at a workshop. Needs the design.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed besides knowing the design, e.g. a skill level."
+            },
+            "time": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 1,
+              "description": "Turns it takes."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
+        },
+        "repair": {
+          "type": "object",
+          "description": "What restoring its condition costs at a workshop. Only for items with a condition.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Condition restored per repair. Fully repaired if left out."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
+        },
         "notes": {
           "$ref": "common.schema.json#/$defs/notes"
         },
@@ -282,6 +541,13 @@
             }
           },
           "additionalProperties": false
+        },
+        "mod_slots": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 0,
+          "description": "How many modifications it can take. Modifications are permanent."
         },
         "fit_requires": {
           "$ref": "common.schema.json#/$defs/condition",
@@ -366,6 +632,132 @@
           "minimum": 1,
           "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
         },
+        "salvage": {
+          "type": "object",
+          "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
+          "properties": {
+            "yields": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "learn": {
+              "type": "boolean",
+              "default": true,
+              "description": "Dismantling can teach its design."
+            },
+            "learn_requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed to learn the design, e.g. a skill level. Without it you still get the materials."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "yields"
+          ]
+        },
+        "fabricate": {
+          "type": "object",
+          "description": "What making a copy costs at a workshop. Needs the design.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed besides knowing the design, e.g. a skill level."
+            },
+            "time": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 1,
+              "description": "Turns it takes."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
+        },
+        "repair": {
+          "type": "object",
+          "description": "What restoring its condition costs at a workshop. Only for items with a condition.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Condition restored per repair. Fully repaired if left out."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
+        },
         "notes": {
           "$ref": "common.schema.json#/$defs/notes"
         },
@@ -376,6 +768,13 @@
           "$ref": "common.schema.json#/$defs/id",
           "x-ref": "slot_type",
           "description": "Must be a body slot type."
+        },
+        "mod_slots": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 0,
+          "description": "How many modifications it can take. Modifications are permanent."
         },
         "fit_requires": {
           "$ref": "common.schema.json#/$defs/condition",
@@ -459,6 +858,132 @@
           "type": "integer",
           "minimum": 1,
           "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
+        },
+        "salvage": {
+          "type": "object",
+          "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
+          "properties": {
+            "yields": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "learn": {
+              "type": "boolean",
+              "default": true,
+              "description": "Dismantling can teach its design."
+            },
+            "learn_requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed to learn the design, e.g. a skill level. Without it you still get the materials."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "yields"
+          ]
+        },
+        "fabricate": {
+          "type": "object",
+          "description": "What making a copy costs at a workshop. Needs the design.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed besides knowing the design, e.g. a skill level."
+            },
+            "time": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 1,
+              "description": "Turns it takes."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
+        },
+        "repair": {
+          "type": "object",
+          "description": "What restoring its condition costs at a workshop. Only for items with a condition.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Condition restored per repair. Fully repaired if left out."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
         },
         "notes": {
           "$ref": "common.schema.json#/$defs/notes"
@@ -544,6 +1069,132 @@
           "minimum": 1,
           "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
         },
+        "salvage": {
+          "type": "object",
+          "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
+          "properties": {
+            "yields": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "learn": {
+              "type": "boolean",
+              "default": true,
+              "description": "Dismantling can teach its design."
+            },
+            "learn_requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed to learn the design, e.g. a skill level. Without it you still get the materials."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "yields"
+          ]
+        },
+        "fabricate": {
+          "type": "object",
+          "description": "What making a copy costs at a workshop. Needs the design.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed besides knowing the design, e.g. a skill level."
+            },
+            "time": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 1,
+              "description": "Turns it takes."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
+        },
+        "repair": {
+          "type": "object",
+          "description": "What restoring its condition costs at a workshop. Only for items with a condition.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Condition restored per repair. Fully repaired if left out."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
+        },
         "notes": {
           "$ref": "common.schema.json#/$defs/notes"
         },
@@ -627,6 +1278,132 @@
           "type": "integer",
           "minimum": 1,
           "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
+        },
+        "salvage": {
+          "type": "object",
+          "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
+          "properties": {
+            "yields": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "learn": {
+              "type": "boolean",
+              "default": true,
+              "description": "Dismantling can teach its design."
+            },
+            "learn_requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed to learn the design, e.g. a skill level. Without it you still get the materials."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "yields"
+          ]
+        },
+        "fabricate": {
+          "type": "object",
+          "description": "What making a copy costs at a workshop. Needs the design.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "requires": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Needed besides knowing the design, e.g. a skill level."
+            },
+            "time": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 1,
+              "description": "Turns it takes."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
+        },
+        "repair": {
+          "type": "object",
+          "description": "What restoring its condition costs at a workshop. Only for items with a condition.",
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "description": "A list of items with counts. Results are always the same: no rolls.",
+              "items": {
+                "type": "object",
+                "description": "Items and how many.",
+                "properties": {
+                  "item": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "item"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "item"
+                ]
+              },
+              "minItems": 1
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Condition restored per repair. Fully repaired if left out."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "inputs"
+          ]
         },
         "notes": {
           "$ref": "common.schema.json#/$defs/notes"

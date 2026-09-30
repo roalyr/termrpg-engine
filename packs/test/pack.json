@@ -50,6 +50,9 @@
     ],
     "strings": [
       "strings.json"
+    ],
+    "modifications": [
+      "modifications.json"
     ]
   }
 }

@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "modification.schema.json",
+  "title": "Modifications (modifications.json)",
+  "description": "Crafting's main path: improving found items. The material decides the result, always the same way; rare materials give rare properties. Fabricating, dismantling and repairing are described on the items themselves.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/modifications_file",
+  "$defs": {
+    "modifications_file": {
+      "type": "object",
+      "description": "A file of modifications.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/modification"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "modification": {
+      "type": "object",
+      "description": "A modification: applying this material to a matching item always adds the same thing. It takes one of the item's mod slots, permanently.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label",
+          "description": "Added to the item's name, e.g. 'Reinforced'."
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "material": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "item",
+          "description": "The material used. Must be a material."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "How many of the material it takes."
+        },
+        "applies_to": {
+          "type": "object",
+          "description": "Which items it can be applied to. An item must match every field given.",
+          "properties": {
+            "kinds": {
+              "type": "array",
+              "description": "Item kinds.",
+              "items": {
+                "enum": [
+                  "frame",
+                  "module",
+                  "implant"
+                ]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "tags": {
+              "$ref": "common.schema.json#/$defs/tags",
+              "description": "The item has at least one of these."
+            },
+            "slot_types": {
+              "type": "array",
+              "description": "The item fits one of these slot types.",
+              "items": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "slot_type"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kinds"
+          ]
+        },
+        "requires": {
+          "$ref": "common.schema.json#/$defs/condition",
+          "description": "Needed to apply it, e.g. a skill level. 'self' is who applies it."
+        },
+        "adds": {
+          "type": "object",
+          "description": "What the item gains.",
+          "properties": {
+            "stats": {
+              "type": "object",
+              "description": "Stat id to amount added to the item's stats.",
+              "propertyNames": {
+                "$ref": "common.schema.json#/$defs/id"
+              },
+              "additionalProperties": {
+                "type": "number"
+              },
+              "x-ref-keys": "stat"
+            },
+            "tags": {
+              "$ref": "common.schema.json#/$defs/tags"
+            },
+            "actions": {
+              "type": "array",
+              "description": "Actions the item grants from now on.",
+              "items": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "action"
+              },
+              "uniqueItems": true
+            },
+            "max_condition": {
+              "type": "integer",
+              "description": "Added to the item's maximum condition."
+            },
+            "uses": {
+              "type": "object",
+              "description": "Change to what a module uses from the frame's budgets. Negative lowers it.",
+              "properties": {
+                "power": {
+                  "type": "number"
+                },
+                "mass": {
+                  "type": "number"
+                },
+                "heat": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "anyOf": [
+            {
+              "required": [
+                "stats"
+              ]
+            },
+            {
+              "required": [
+                "tags"
+              ]
+            },
+            {
+              "required": [
+                "actions"
+              ]
+            },
+            {
+              "required": [
+                "max_condition"
+              ]
+            },
+            {
+              "required": [
+                "uses"
+              ]
+            }
+          ]
+        },
+        "once": {
+          "type": "boolean",
+          "default": true,
+          "description": "Can be applied to the same item only once."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "material",
+        "applies_to",
+        "adds"
+      ]
+    }
+  }
+}

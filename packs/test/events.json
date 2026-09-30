@@ -136,6 +136,33 @@
           "kind": "danger"
         }
       ]
+    },
+    {
+      "id": "event_insight",
+      "name": "Insight",
+      "trigger": "manual",
+      "when": {
+        "not": {
+          "check": "knows_design",
+          "item": "module_system"
+        }
+      },
+      "effects": [
+        {
+          "op": "learn_design",
+          "item": "module_system"
+        },
+        {
+          "op": "modify_item",
+          "pick": {
+            "slot_type": "slot_frame_a"
+          },
+          "stats": {
+            "stat_armor": 1
+          },
+          "name_suffix": "Tuned"
+        }
+      ]
     }
   ]
 }

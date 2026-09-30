@@ -186,6 +186,15 @@
             ]
           }
         },
+        "designs": {
+          "type": "array",
+          "description": "Item designs they know at the start and can fabricate.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "item"
+          },
+          "uniqueItems": true
+        },
         "skills": {
           "type": "object",
           "description": "Skill id to starting level.",

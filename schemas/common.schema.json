@@ -361,6 +361,9 @@
           "$ref": "#/$defs/check_item_condition"
         },
         {
+          "$ref": "#/$defs/check_knows_design"
+        },
+        {
           "$ref": "#/$defs/check_status"
         },
         {
@@ -419,6 +422,9 @@
         },
         {
           "$ref": "#/$defs/op_modify_item"
+        },
+        {
+          "$ref": "#/$defs/op_learn_design"
         },
         {
           "$ref": "#/$defs/op_roll_loot"
@@ -707,6 +713,27 @@
             "maximum"
           ]
         }
+      ]
+    },
+    "check_knows_design": {
+      "type": "object",
+      "description": "The subject knows how to fabricate this item.",
+      "properties": {
+        "check": {
+          "const": "knows_design"
+        },
+        "item": {
+          "$ref": "#/$defs/id",
+          "x-ref": "item"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "item"
       ]
     },
     "check_status": {
@@ -1197,7 +1224,7 @@
     },
     "op_modify_item": {
       "type": "object",
-      "description": "Permanently change one picked item (modding, reinforcing). The item becomes a unique variant of its base.",
+      "description": "Permanently change one picked item. The item becomes a unique variant of its base. Workshops apply modifications this way; effects may too.",
       "properties": {
         "op": {
           "const": "modify_item"
@@ -1237,8 +1264,28 @@
       "required": [
         "op",
         "pick"
-      ],
-      "x-status": "reserved"
+      ]
+    },
+    "op_learn_design": {
+      "type": "object",
+      "description": "The subject learns how to fabricate an item. Dismantling does this by itself when the skill requirement is met.",
+      "properties": {
+        "op": {
+          "const": "learn_design"
+        },
+        "item": {
+          "$ref": "#/$defs/id",
+          "x-ref": "item"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "item"
+      ]
     },
     "op_roll_loot": {
       "type": "object",

@@ -1,0 +1,55 @@
+{
+  "$schema": "../../schemas/modification.schema.json",
+  "entries": [
+    {
+      "id": "mod_reinforced",
+      "name": "Reinforced",
+      "material": "material_a",
+      "count": 2,
+      "applies_to": {
+        "kinds": [
+          "frame",
+          "module"
+        ]
+      },
+      "adds": {
+        "stats": {
+          "stat_armor": 1
+        },
+        "max_condition": 2
+      }
+    },
+    {
+      "id": "mod_exotic",
+      "name": "Strange",
+      "material": "material_exotic",
+      "applies_to": {
+        "kinds": [
+          "module"
+        ],
+        "tags": [
+          "tag_a"
+        ],
+        "slot_types": [
+          "slot_frame_hand"
+        ]
+      },
+      "requires": {
+        "check": "skill",
+        "skill": "skill_a",
+        "min": 3
+      },
+      "adds": {
+        "actions": [
+          "action_burst"
+        ],
+        "tags": [
+          "tag_b"
+        ],
+        "uses": {
+          "heat": 1
+        }
+      }
+    }
+  ]
+}

@@ -54,6 +54,35 @@
           "$ref": "common.schema.json#/$defs/size",
           "description": "Largest size class that fits in, through or onto it (a crate's contents, a hatch's opening)."
         },
+        "workshop": {
+          "type": "object",
+          "description": "It is a workshop: characters can craft here.",
+          "properties": {
+            "services": {
+              "type": "array",
+              "description": "What can be done here.",
+              "items": {
+                "enum": [
+                  "dismantle",
+                  "fabricate",
+                  "modify",
+                  "repair"
+                ]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "max_grade": {
+              "$ref": "common.schema.json#/$defs/id",
+              "x-ref": "grade",
+              "description": "Highest item grade it can work on. No limit if left out."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "services"
+          ]
+        },
         "storage": {
           "type": "integer",
           "minimum": 1,

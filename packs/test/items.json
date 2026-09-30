@@ -22,7 +22,8 @@
         {
           "slot_type": "slot_frame_a"
         }
-      ]
+      ],
+      "mod_slots": 2
     },
     {
       "id": "frame_b",
@@ -73,7 +74,38 @@
       },
       "actions": [
         "action_strike"
-      ]
+      ],
+      "mod_slots": 1,
+      "salvage": {
+        "yields": [
+          {
+            "item": "material_a",
+            "count": 2
+          }
+        ],
+        "learn_requires": {
+          "check": "skill",
+          "skill": "skill_a",
+          "min": 2
+        }
+      },
+      "fabricate": {
+        "inputs": [
+          {
+            "item": "material_a",
+            "count": 3
+          }
+        ],
+        "time": 2
+      },
+      "repair": {
+        "inputs": [
+          {
+            "item": "material_a"
+          }
+        ],
+        "amount": 2
+      }
     },
     {
       "id": "module_system",
@@ -92,7 +124,8 @@
       },
       "actions": [
         "action_guard"
-      ]
+      ],
+      "mod_slots": 2
     },
     {
       "id": "implant_a",
@@ -144,6 +177,14 @@
       "tags": [
         "tag_a"
       ]
+    },
+    {
+      "id": "material_exotic",
+      "kind": "material",
+      "name": "Exotic A",
+      "size": 0,
+      "stack": 5,
+      "grade": "grade_b"
     }
   ]
 }

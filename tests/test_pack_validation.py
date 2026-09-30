@@ -65,8 +65,11 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("schema_version: must be 1", self.errors())
 
     def test_kind_without_schema(self):
-        self.edit("pack.json", lambda m: m["files"].__setitem__("recipes", ["recipes.json"]))
-        self.assertIn("there is no schema for 'recipes' yet", self.errors())
+        schemas = Path(self.temp.name) / "schemas"
+        shutil.copytree(SCHEMA_DIR, schemas)
+        (schemas / "loot.schema.json").unlink()
+        errors = "\n".join(validate_pack(self.pack, schemas).errors)
+        self.assertIn("there is no schema for 'loot_tables' yet", errors)
 
     def test_path_outside_pack_rejected(self):
         self.edit("pack.json", lambda m: m["files"].__setitem__("vocab", ["../vocab.json"]))
@@ -466,6 +469,54 @@ class TestPackErrors(unittest.TestCase):
     def test_string_reference_needs_strings_file(self):
         self.edit("pack.json", lambda m: m["files"].pop("strings"))
         self.assertIn("unknown string '@greeting' (the pack loads no strings)", self.errors())
+
+    # --- Crafting ---
+
+    def modification(self, mod_id, change):
+        def apply(data):
+            change(next(e for e in data["entries"] if e["id"] == mod_id))
+        self.edit("modifications.json", apply)
+
+    def test_modification_needs_a_material(self):
+        self.modification("mod_reinforced", lambda m: m.__setitem__("material", "module_tool"))
+        self.assertIn("'module_tool' is a module, not a material", self.errors())
+
+    def test_modification_only_for_fittable_kinds(self):
+        self.modification("mod_reinforced", lambda m: m["applies_to"].__setitem__("kinds", ["material"]))
+        self.assertIn("applies_to.kinds[0]: must be one of", self.errors())
+
+    def test_modification_must_add_something(self):
+        self.modification("mod_reinforced", lambda m: m.__setitem__("adds", {}))
+        self.assertIn("adds: needs at least one of: actions, max_condition, stats, tags, uses", self.errors())
+
+    def test_materials_have_no_mod_slots(self):
+        self.item("material_a", lambda i: i.__setitem__("mod_slots", 1))
+        self.assertIn("unknown field 'mod_slots'", self.errors())
+
+    def test_too_many_mod_slots(self):
+        self.item("frame_a", lambda i: i.__setitem__("mod_slots", 9))
+        self.assertIn("mod_slots: must be at most 5", self.errors())
+
+    def test_repair_needs_condition(self):
+        self.item("module_system", lambda i: i.__setitem__("repair", {"inputs": [{"item": "material_a"}]}))
+        self.assertIn("has repair costs but no condition", self.errors())
+
+    def test_dismantling_cannot_return_itself(self):
+        self.item("module_tool", lambda i: i["salvage"]["yields"].append({"item": "module_tool"}))
+        self.assertIn("dismantling it can't give back the item itself", self.errors())
+
+    def test_fabricate_needs_inputs(self):
+        self.item("module_tool", lambda i: i["fabricate"].__setitem__("inputs", []))
+        self.assertIn("fabricate.inputs: needs at least 1 item(s)", self.errors())
+
+    def test_workshop_services(self):
+        self.edit("objects.json", lambda d: next(e for e in d["entries"] if e["id"] == "obj_bench")
+                  ["workshop"]["services"].append("refine"))
+        self.assertIn("workshop.services[4]: must be one of", self.errors())
+
+    def test_unknown_design(self):
+        self.character("char_player", lambda ch: ch["designs"].append("item_missing"))
+        self.assertIn("unknown item 'item_missing'", self.errors())
 
     def test_reserved_feature_warns(self):
         self.edit("pack.json", lambda m: m.__setitem__("extends", ["base"]))

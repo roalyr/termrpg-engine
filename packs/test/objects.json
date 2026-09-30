@@ -197,6 +197,21 @@
       "holds_size": 2,
       "storage": 6,
       "solid": true
+    },
+    {
+      "id": "obj_bench",
+      "name": "Bench",
+      "glyph": "■",
+      "solid": true,
+      "workshop": {
+        "services": [
+          "dismantle",
+          "fabricate",
+          "modify",
+          "repair"
+        ],
+        "max_grade": "grade_a"
+      }
     }
   ]
 }

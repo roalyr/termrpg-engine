@@ -31,14 +31,14 @@ KIND_SCHEMAS = {
     "loot_tables": "loot.schema.json",
     "events": "event.schema.json",
     "strings": "strings.schema.json",
-    "recipes": "recipe.schema.json",
+    "modifications": "modification.schema.json",
 }
 
 # Entity kind -> reference namespace. Entity files hold {"entries": [{"id": ...}, ...]}.
 KIND_NAMESPACES = {
     "regions": "region", "locations": "location", "zones": "zone", "objects": "object", "items": "item",
     "actions": "action", "skills": "skill", "characters": "character", "encounters": "encounter",
-    "loot_tables": "loot_table", "events": "event", "strings": "string", "recipes": "recipe",
+    "loot_tables": "loot_table", "events": "event", "strings": "string", "modifications": "modification",
 }
 
 # Vocabulary section -> reference namespace.
@@ -317,6 +317,18 @@ def _check_item_rules(entries: Entries, vocab: Dict[str, Any], where: Dict[Tuple
                               f"{_a(item.get('kind'))} needs a {wanted} slot")
         if item.get("stack", 1) > 1 and "condition" in item:
             errors.append(f"{label}: items that stack can't have a condition (worn items don't stack)")
+        if "repair" in item and "condition" not in item:
+            errors.append(f"{label}: has repair costs but no condition, so it never wears")
+        yields = (item.get("salvage", {}) or {}).get("yields", []) if isinstance(item.get("salvage"), dict) else []
+        if any(isinstance(y, dict) and y.get("item") == item_id for y in yields):
+            errors.append(f"{label}: dismantling it can't give back the item itself")
+
+    items = entries.get("items", {})
+    for mod_id, mod in entries.get("modifications", {}).items():
+        material = items.get(mod.get("material"))
+        if material is not None and material.get("kind") != "material":
+            errors.append(f"{where[('modifications', mod_id)]}: '{mod['material']}' is {_a(material.get('kind'))}, "
+                          f"not a material")
 
 
 def _check_skill_rules(manifest: dict, entries: Entries, where: Dict[Tuple[str, str], str],

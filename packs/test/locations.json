@@ -63,6 +63,14 @@
             4,
             1
           ]
+        },
+        {
+          "id": "pl_a_bench",
+          "object": "obj_bench",
+          "at": [
+            4,
+            4
+          ]
         }
       ]
     },

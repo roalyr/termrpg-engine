@@ -261,9 +261,9 @@
           "minItems": 1,
           "uniqueItems": true
         },
-        "recipes": {
+        "modifications": {
           "type": "array",
-          "description": "Files holding recipes.",
+          "description": "Files holding modifications.",
           "items": {
             "type": "string",
             "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
