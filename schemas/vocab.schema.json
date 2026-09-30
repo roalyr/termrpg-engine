@@ -1,0 +1,423 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vocab.schema.json",
+  "title": "Vocabulary",
+  "description": "Everything a pack declares for the rest of its data to refer to: tags, stats, damage types, statuses, slot types, size and rank names, object states, day phases, factions and flags. The schemas fix the structure; the vocabulary fixes the words.",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stats",
+    "sizes",
+    "phases"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Path to this file's schema, for editors. Ignored by the engine."
+    },
+    "tags": {
+      "type": "array",
+      "description": "Tags.",
+      "items": {
+        "type": "object",
+        "description": "A tag things can carry. Its name is how the game refers to it in hints, as a noun phrase.",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label",
+            "description": "Noun phrase used in hints, e.g. 'a pry-bar' in 'Needs a pry-bar or a heavier frame.'"
+          },
+          "notes": {
+            "$ref": "common.schema.json#/$defs/notes"
+          },
+          "description": {
+            "$ref": "common.schema.json#/$defs/text"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "stats": {
+      "type": "array",
+      "description": "Stats.",
+      "items": {
+        "type": "object",
+        "description": "A number characters, frames, items or objects can have.",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          },
+          "notes": {
+            "$ref": "common.schema.json#/$defs/notes"
+          },
+          "short": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4,
+            "description": "Abbreviation for tight UI, e.g. 'HP'."
+          },
+          "description": {
+            "$ref": "common.schema.json#/$defs/text"
+          },
+          "kind": {
+            "enum": [
+              "value",
+              "pool"
+            ],
+            "default": "value",
+            "description": "'value' is a plain number. 'pool' has a current value and a maximum, like health or heat."
+          },
+          "role": {
+            "enum": [
+              "health",
+              "power",
+              "mass",
+              "heat",
+              "initiative"
+            ],
+            "description": "Tells the engine this stat has a built-in meaning. health: a character is down at 0. power, mass: fitting budgets a frame provides and gear uses. heat: builds up with actions; at its maximum the frame overheats. initiative: who acts first in an encounter. Each role must be given to exactly one stat."
+          },
+          "min": {
+            "type": "number",
+            "default": 0
+          },
+          "max": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "damage_types": {
+      "type": "array",
+      "description": "Damage types.",
+      "items": {
+        "type": "object",
+        "description": "A kind of harm.",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          },
+          "notes": {
+            "$ref": "common.schema.json#/$defs/notes"
+          },
+          "description": {
+            "$ref": "common.schema.json#/$defs/text"
+          },
+          "resisted_by": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "stat",
+            "description": "Stat that reduces damage of this type, point for point."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "statuses": {
+      "type": "array",
+      "description": "Statuses.",
+      "items": {
+        "type": "object",
+        "description": "A temporary condition on a character, such as burning or stunned.",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          },
+          "notes": {
+            "$ref": "common.schema.json#/$defs/notes"
+          },
+          "description": {
+            "$ref": "common.schema.json#/$defs/text"
+          },
+          "glyph": {
+            "$ref": "common.schema.json#/$defs/glyph"
+          },
+          "harmful": {
+            "type": "boolean",
+            "default": true,
+            "description": "Shown in the warning colour and targeted by cleansing effects."
+          },
+          "stacking": {
+            "enum": [
+              "refresh",
+              "stack",
+              "ignore"
+            ],
+            "default": "refresh",
+            "description": "What happens when applied again: restart the duration, add a stack, or do nothing."
+          },
+          "max_stacks": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "blocks_actions": {
+            "type": "boolean",
+            "default": false,
+            "description": "The character can't act while it lasts (stunned)."
+          },
+          "on_apply": {
+            "$ref": "common.schema.json#/$defs/effects",
+            "description": "Run once when applied. 'self' is the character with the status."
+          },
+          "on_turn": {
+            "$ref": "common.schema.json#/$defs/effects",
+            "description": "Run at the start of each of the character's turns, once per stack."
+          },
+          "on_expire": {
+            "$ref": "common.schema.json#/$defs/effects",
+            "description": "Run when it ends."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "slot_types": {
+      "type": "array",
+      "description": "Slot types.",
+      "items": {
+        "type": "object",
+        "description": "A kind of slot gear can be fitted into.",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          },
+          "notes": {
+            "$ref": "common.schema.json#/$defs/notes"
+          },
+          "host": {
+            "enum": [
+              "frame",
+              "body"
+            ],
+            "description": "'frame' slots belong to suits; 'body' slots are implant slots in a character."
+          },
+          "description": {
+            "$ref": "common.schema.json#/$defs/text"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "host"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "sizes": {
+      "type": "array",
+      "description": "Names for the size classes in use, e.g. 0 'pocket', 3 'person', 5 'exoskeleton'. Every size used in the pack must be named here.",
+      "items": {
+        "type": "object",
+        "description": "The name of one size class.",
+        "properties": {
+          "size": {
+            "$ref": "common.schema.json#/$defs/size"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          },
+          "description": {
+            "$ref": "common.schema.json#/$defs/text"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "size",
+          "name"
+        ]
+      },
+      "minItems": 1
+    },
+    "ranks": {
+      "type": "array",
+      "description": "Rank names, lowest first, e.g. 0 'F' to 6 'S'.",
+      "items": {
+        "type": "object",
+        "description": "The name of one Registry rank.",
+        "properties": {
+          "rank": {
+            "type": "integer"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "rank",
+          "name"
+        ]
+      }
+    },
+    "relation_levels": {
+      "type": "array",
+      "description": "How relation values read to the player, e.g. -50 'hostile', 0 'neutral', 50 'trusted'. A value takes the band with the highest min not above it.",
+      "items": {
+        "type": "object",
+        "description": "A named band of relation values.",
+        "properties": {
+          "min": {
+            "type": "integer"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "min",
+          "name"
+        ]
+      }
+    },
+    "object_states": {
+      "type": "array",
+      "description": "Object states.",
+      "items": {
+        "type": "object",
+        "description": "A state objects can be in. Its name is the word shown, e.g. 'locked'.",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          },
+          "notes": {
+            "$ref": "common.schema.json#/$defs/notes"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "phases": {
+      "type": "array",
+      "description": "Day phases in order, e.g. morning, evening, night. A day is the sum of their turns.",
+      "items": {
+        "type": "object",
+        "description": "One part of the day, in order.",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          },
+          "notes": {
+            "$ref": "common.schema.json#/$defs/notes"
+          },
+          "turns": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "How many turns the phase lasts."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "turns"
+        ]
+      },
+      "minItems": 1
+    },
+    "factions": {
+      "type": "array",
+      "description": "Factions.",
+      "items": {
+        "type": "object",
+        "description": "A group characters can belong to and hold views of.",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          },
+          "notes": {
+            "$ref": "common.schema.json#/$defs/notes"
+          },
+          "description": {
+            "$ref": "common.schema.json#/$defs/text"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "flags": {
+      "type": "array",
+      "description": "Flags.",
+      "items": {
+        "type": "object",
+        "description": "A world flag: a named integer (0 = unset) that checks can read and effects can change.",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "description": {
+            "$ref": "common.schema.json#/$defs/text"
+          },
+          "default": {
+            "type": "integer",
+            "default": 0
+          },
+          "notes": {
+            "$ref": "common.schema.json#/$defs/notes"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "uniqueItems": true
+    }
+  }
+}

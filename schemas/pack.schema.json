@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pack.schema.json",
+  "title": "Pack manifest (pack.json)",
+  "description": "The entry point of a content pack: what it is, which schema it was written for, where the game starts, and which data files to load. The engine loads only the files listed here.",
+  "x-schema-version": 1,
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "version",
+    "schema_version",
+    "start",
+    "files"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Path to this file's schema, for editors. Ignored by the engine."
+    },
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "name": {
+      "$ref": "common.schema.json#/$defs/label"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "The pack's own version (major.minor.patch)."
+    },
+    "schema_version": {
+      "const": 1,
+      "description": "Schema version the pack was written for. The engine refuses packs written for another version."
+    },
+    "purpose": {
+      "enum": [
+        "game",
+        "test"
+      ],
+      "default": "game",
+      "description": "'test' packs hold small generic content for engine development and automated tests."
+    },
+    "description": {
+      "$ref": "common.schema.json#/$defs/text"
+    },
+    "authors": {
+      "type": "array",
+      "description": "Credits.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "start": {
+      "type": "object",
+      "description": "Where and how a new game begins.",
+      "properties": {
+        "location": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "location"
+        },
+        "entry": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "object",
+          "description": "Object to start at. Defaults to the location's entry point."
+        },
+        "player": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "character",
+          "description": "The character the player controls at the start. Character creation, once designed, adjusts this template."
+        },
+        "day": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "phase": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "phase",
+          "description": "Defaults to the first phase in the vocabulary."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "location",
+        "player"
+      ]
+    },
+    "settings": {
+      "type": "object",
+      "description": "Engine rules the pack may tune. Every field has a default.",
+      "properties": {
+        "skill_max_level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5
+        },
+        "relation_min": {
+          "type": "integer",
+          "default": -100
+        },
+        "relation_max": {
+          "type": "integer",
+          "default": 100
+        },
+        "relation_default": {
+          "type": "integer",
+          "default": 0,
+          "description": "How characters regard each other before anything has happened."
+        }
+      },
+      "additionalProperties": false
+    },
+    "files": {
+      "type": "object",
+      "description": "Data files to load, grouped by kind. Files of one kind are merged; ids must be unique across them.",
+      "properties": {
+        "vocab": {
+          "type": "array",
+          "description": "Files holding vocab.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "regions": {
+          "type": "array",
+          "description": "Files holding regions.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "locations": {
+          "type": "array",
+          "description": "Files holding locations.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "objects": {
+          "type": "array",
+          "description": "Files holding objects.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "items": {
+          "type": "array",
+          "description": "Files holding items.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "actions": {
+          "type": "array",
+          "description": "Files holding actions.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "skills": {
+          "type": "array",
+          "description": "Files holding skills.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "characters": {
+          "type": "array",
+          "description": "Files holding characters.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "encounters": {
+          "type": "array",
+          "description": "Files holding encounters.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "loot_tables": {
+          "type": "array",
+          "description": "Files holding loot tables.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "events": {
+          "type": "array",
+          "description": "Files holding events.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "strings": {
+          "type": "array",
+          "description": "Files holding strings.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "recipes": {
+          "type": "array",
+          "description": "Files holding recipes.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "vocab"
+      ]
+    },
+    "extends": {
+      "type": "array",
+      "description": "Packs this one adds to or overrides (mods).",
+      "items": {
+        "$ref": "common.schema.json#/$defs/id",
+        "x-ref": "pack"
+      },
+      "x-status": "reserved"
+    },
+    "notes": {
+      "$ref": "common.schema.json#/$defs/notes"
+    }
+  }
+}
