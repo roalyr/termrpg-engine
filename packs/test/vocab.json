@@ -52,6 +52,12 @@
       "id": "stat_armor",
       "name": "Armor",
       "short": "ARM"
+    },
+    {
+      "id": "stat_cargo",
+      "name": "Cargo",
+      "short": "CRG",
+      "role": "cargo"
     }
   ],
   "damage_types": [
@@ -100,6 +106,11 @@
       "id": "slot_body_a",
       "name": "Body slot A",
       "host": "body"
+    },
+    {
+      "id": "slot_frame_hand",
+      "name": "Hand",
+      "host": "frame"
     }
   ],
   "sizes": [
@@ -188,6 +199,20 @@
     {
       "id": "flag_a",
       "description": "A test flag."
+    }
+  ],
+  "grades": [
+    {
+      "id": "grade_a",
+      "name": "Grade A",
+      "colour": "grey",
+      "order": 0
+    },
+    {
+      "id": "grade_b",
+      "name": "Grade B",
+      "colour": "cyan",
+      "order": 1
     }
   ]
 }

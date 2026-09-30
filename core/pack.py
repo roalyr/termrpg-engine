@@ -43,10 +43,10 @@ KIND_NAMESPACES = {
 VOCAB_NAMESPACES = {
     "tags": "tag", "stats": "stat", "damage_types": "damage_type", "statuses": "status",
     "slot_types": "slot_type", "object_states": "object_state", "phases": "phase",
-    "factions": "faction", "flags": "flag",
+    "factions": "faction", "flags": "flag", "grades": "grade",
 }
 
-STAT_ROLES = ("health", "power", "mass", "heat", "initiative")
+STAT_ROLES = ("health", "power", "mass", "heat", "initiative", "cargo")
 POOL_ROLES = ("health", "heat")
 
 Entries = Dict[str, Dict[str, dict]]  # kind -> id -> entry
@@ -118,6 +118,7 @@ def validate_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Report:
     _check_refs(refs, ids, checkable, errors, warnings)
     _check_vocab_rules(manifest, vocab, errors, warnings)
     _check_world_rules(manifest, entries, where, errors)
+    _check_item_rules(entries, vocab, where, errors)
     return Report(tuple(errors), tuple(warnings))
 
 
@@ -285,6 +286,24 @@ def _check_world_rules(manifest: dict, entries: Entries, where: Dict[Tuple[str, 
         errors.append(f"pack.json: start.location '{start_loc}' is a template")
     if start_loc and start.get("entry") and placement_home.get(start["entry"], start_loc) != start_loc:
         errors.append(f"pack.json: start.entry '{start['entry']}' is not in '{start_loc}'")
+
+
+def _check_item_rules(entries: Entries, vocab: Dict[str, Any], where: Dict[Tuple[str, str], str],
+                      errors: List[str]) -> None:
+    hosts = {s["id"]: s.get("host") for s in vocab.get("slot_types", [])}
+    for item_id, item in entries.get("items", {}).items():
+        label = where[("items", item_id)]
+        wanted = "body" if item.get("kind") == "implant" else "frame"
+        slot_types = [item.get("slot_type")] + [s.get("slot_type") for s in item.get("slots", []) or []
+                                                 if isinstance(s, dict)]
+        for slot_type in slot_types:
+            if slot_type in hosts and hosts[slot_type] != wanted:
+                kind = str(item.get("kind"))
+                article = "an" if kind[:1] in "aeiou" else "a"
+                errors.append(f"{label}: slot type '{slot_type}' is a {hosts[slot_type]} slot; "
+                              f"{article} {kind} needs a {wanted} slot")
+        if item.get("stack", 1) > 1 and "condition" in item:
+            errors.append(f"{label}: items that stack can't have a condition (worn items don't stack)")
 
 
 def _tiles(grid: dict, label: str, errors: List[str]) -> Optional[Dict[Tuple[int, int], str]]:

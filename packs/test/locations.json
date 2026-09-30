@@ -55,6 +55,14 @@
           "exit": {
             "zone": "zone_a"
           }
+        },
+        {
+          "id": "pl_a_locker",
+          "object": "obj_locker",
+          "at": [
+            4,
+            1
+          ]
         }
       ]
     },

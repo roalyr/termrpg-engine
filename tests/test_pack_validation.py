@@ -65,8 +65,8 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("schema_version: must be 1", self.errors())
 
     def test_kind_without_schema(self):
-        self.edit("pack.json", lambda m: m["files"].__setitem__("items", ["items.json"]))
-        self.assertIn("there is no schema for 'items' yet", self.errors())
+        self.edit("pack.json", lambda m: m["files"].__setitem__("recipes", ["recipes.json"]))
+        self.assertIn("there is no schema for 'recipes' yet", self.errors())
 
     def test_path_outside_pack_rejected(self):
         self.edit("pack.json", lambda m: m["files"].__setitem__("vocab", ["../vocab.json"]))
@@ -211,6 +211,53 @@ class TestPackErrors(unittest.TestCase):
     def test_this_is_not_a_placement_reference(self):
         report = validate_pack(self.pack)
         self.assertFalse(any("'this'" in e for e in report.errors))
+
+    # --- Items ---
+
+    def item(self, item_id, change):
+        def apply(data):
+            change(next(e for e in data["entries"] if e["id"] == item_id))
+        self.edit("items.json", apply)
+
+    def test_unknown_item_kind(self):
+        self.item("misc_key", lambda i: i.__setitem__("kind", "weapon"))
+        self.assertIn("kind: unknown kind 'weapon'", self.errors())
+
+    def test_frame_needs_slots(self):
+        self.item("frame_a", lambda i: i.pop("slots"))
+        self.assertIn("missing required field 'slots'", self.errors())
+
+    def test_fields_belong_to_their_kind(self):
+        self.item("material_a", lambda i: i.__setitem__("slot_type", "slot_frame_a"))
+        self.assertIn("unknown field 'slot_type'", self.errors())
+
+    def test_implant_needs_body_slot(self):
+        self.item("implant_a", lambda i: i.__setitem__("slot_type", "slot_frame_a"))
+        self.assertIn("slot type 'slot_frame_a' is a frame slot; an implant needs a body slot", self.errors())
+
+    def test_module_needs_frame_slot(self):
+        self.item("module_tool", lambda i: i.__setitem__("slot_type", "slot_body_a"))
+        self.assertIn("slot type 'slot_body_a' is a body slot; a module needs a frame slot", self.errors())
+
+    def test_stacked_items_cannot_wear(self):
+        self.item("material_a", lambda i: i.__setitem__("condition", 3))
+        self.assertIn("items that stack can't have a condition", self.errors())
+
+    def test_unknown_stat_key(self):
+        self.item("frame_a", lambda i: i["stats"].__setitem__("stat_missing", 1))
+        self.assertIn("stats.stat_missing: unknown stat 'stat_missing'", self.errors())
+
+    def test_unknown_grade(self):
+        self.item("frame_a", lambda i: i.__setitem__("grade", "grade_missing"))
+        self.assertIn("unknown grade 'grade_missing'", self.errors())
+
+    def test_budget_keys_are_fixed(self):
+        self.item("module_tool", lambda i: i["uses"].__setitem__("fuel", 1))
+        self.assertIn("uses: unknown field 'fuel'", self.errors())
+
+    def test_grade_colour_from_palette(self):
+        self.edit("vocab.json", lambda v: v["grades"][0].__setitem__("colour", "pink"))
+        self.assertIn("grades[0].colour: must be one of", self.errors())
 
     def test_reserved_feature_warns(self):
         self.edit("pack.json", lambda m: m.__setitem__("extends", ["base"]))

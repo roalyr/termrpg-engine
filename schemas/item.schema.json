@@ -1,0 +1,647 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "item.schema.json",
+  "title": "Items (items.json)",
+  "description": "Everything that can be carried, fitted or implanted. Every item has a 'kind' that decides its extra fields: frame (a suit), module (fitted into frame slots; gear is a module in a limb or hand slot), implant, material, consumable, misc.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/items_file",
+  "$defs": {
+    "items_file": {
+      "type": "object",
+      "description": "A file of items.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "item": {
+      "description": "One item. 'kind' picks the fields.",
+      "x-discriminator": "kind",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/frame"
+        },
+        {
+          "$ref": "#/$defs/module"
+        },
+        {
+          "$ref": "#/$defs/implant"
+        },
+        {
+          "$ref": "#/$defs/material"
+        },
+        {
+          "$ref": "#/$defs/consumable"
+        },
+        {
+          "$ref": "#/$defs/misc"
+        }
+      ]
+    },
+    "budget": {
+      "type": "object",
+      "description": "How much of the frame's budgets this uses while fitted. Power and mass must fit within what the frame and other gear provide; heat is a constant load that lowers how much heat can build up before overheating.",
+      "properties": {
+        "power": {
+          "type": "number",
+          "minimum": 0
+        },
+        "mass": {
+          "type": "number",
+          "minimum": 0
+        },
+        "heat": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "frame": {
+      "type": "object",
+      "description": "A suit or piloted machine: the body a character works in. Its stats set the budgets modules draw on.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+        },
+        "grade": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "grade",
+          "description": "Quality or strangeness tier, shown as the item's colour."
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
+        },
+        "stats": {
+          "type": "object",
+          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "number"
+          },
+          "x-ref-keys": "stat"
+        },
+        "actions": {
+          "type": "array",
+          "description": "Actions it gives its holder in encounters while active.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "action"
+          },
+          "uniqueItems": true
+        },
+        "interactions": {
+          "type": "array",
+          "description": "What its holder can do with it from the pack. 'self' is the holder; the item pick {'used': true} is this item.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/interaction"
+          }
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rough trade value."
+        },
+        "stack": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "How many fit in one cargo stack."
+        },
+        "condition": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        },
+        "kind": {
+          "const": "frame"
+        },
+        "slots": {
+          "type": "array",
+          "description": "The slots modules are fitted into.",
+          "items": {
+            "type": "object",
+            "description": "Slots of one type.",
+            "properties": {
+              "slot_type": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "slot_type",
+                "description": "Must be a frame slot type."
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "slot_type"
+            ]
+          },
+          "minItems": 1
+        },
+        "fit_requires": {
+          "$ref": "common.schema.json#/$defs/condition",
+          "description": "Who can fit, wear or implant it, e.g. a skill level. Checked with 'self' as the character."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "size",
+        "slots"
+      ]
+    },
+    "module": {
+      "type": "object",
+      "description": "Anything fitted into a frame slot: tools and weapons in limb or hand slots, systems in others.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+        },
+        "grade": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "grade",
+          "description": "Quality or strangeness tier, shown as the item's colour."
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
+        },
+        "stats": {
+          "type": "object",
+          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "number"
+          },
+          "x-ref-keys": "stat"
+        },
+        "actions": {
+          "type": "array",
+          "description": "Actions it gives its holder in encounters while active.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "action"
+          },
+          "uniqueItems": true
+        },
+        "interactions": {
+          "type": "array",
+          "description": "What its holder can do with it from the pack. 'self' is the holder; the item pick {'used': true} is this item.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/interaction"
+          }
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rough trade value."
+        },
+        "stack": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "How many fit in one cargo stack."
+        },
+        "condition": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        },
+        "kind": {
+          "const": "module"
+        },
+        "slot_type": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "slot_type",
+          "description": "Must be a frame slot type."
+        },
+        "uses": {
+          "type": "object",
+          "description": "How much of the frame's budgets this uses while fitted. Power and mass must fit within what the frame and other gear provide; heat is a constant load that lowers how much heat can build up before overheating.",
+          "properties": {
+            "power": {
+              "type": "number",
+              "minimum": 0
+            },
+            "mass": {
+              "type": "number",
+              "minimum": 0
+            },
+            "heat": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "fit_requires": {
+          "$ref": "common.schema.json#/$defs/condition",
+          "description": "Who can fit, wear or implant it, e.g. a skill level. Checked with 'self' as the character."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "size",
+        "slot_type"
+      ]
+    },
+    "implant": {
+      "type": "object",
+      "description": "Fitted into a character's body. Stays when the character changes suits.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+        },
+        "grade": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "grade",
+          "description": "Quality or strangeness tier, shown as the item's colour."
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
+        },
+        "stats": {
+          "type": "object",
+          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "number"
+          },
+          "x-ref-keys": "stat"
+        },
+        "actions": {
+          "type": "array",
+          "description": "Actions it gives its holder in encounters while active.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "action"
+          },
+          "uniqueItems": true
+        },
+        "interactions": {
+          "type": "array",
+          "description": "What its holder can do with it from the pack. 'self' is the holder; the item pick {'used': true} is this item.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/interaction"
+          }
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rough trade value."
+        },
+        "stack": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "How many fit in one cargo stack."
+        },
+        "condition": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        },
+        "kind": {
+          "const": "implant"
+        },
+        "slot_type": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "slot_type",
+          "description": "Must be a body slot type."
+        },
+        "fit_requires": {
+          "$ref": "common.schema.json#/$defs/condition",
+          "description": "Who can fit, wear or implant it, e.g. a skill level. Checked with 'self' as the character."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "size",
+        "slot_type"
+      ]
+    },
+    "material": {
+      "type": "object",
+      "description": "Raw or salvaged stuff: scrap, ore, exotic matter. Used for trade and, later, crafting.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+        },
+        "grade": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "grade",
+          "description": "Quality or strangeness tier, shown as the item's colour."
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
+        },
+        "stats": {
+          "type": "object",
+          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "number"
+          },
+          "x-ref-keys": "stat"
+        },
+        "actions": {
+          "type": "array",
+          "description": "Actions it gives its holder in encounters while active.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "action"
+          },
+          "uniqueItems": true
+        },
+        "interactions": {
+          "type": "array",
+          "description": "What its holder can do with it from the pack. 'self' is the holder; the item pick {'used': true} is this item.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/interaction"
+          }
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rough trade value."
+        },
+        "stack": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "How many fit in one cargo stack."
+        },
+        "condition": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        },
+        "kind": {
+          "const": "material"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "size"
+      ]
+    },
+    "consumable": {
+      "type": "object",
+      "description": "Used up: each use of one of its interactions spends one from the stack.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+        },
+        "grade": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "grade",
+          "description": "Quality or strangeness tier, shown as the item's colour."
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
+        },
+        "stats": {
+          "type": "object",
+          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "number"
+          },
+          "x-ref-keys": "stat"
+        },
+        "actions": {
+          "type": "array",
+          "description": "Actions it gives its holder in encounters while active.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "action"
+          },
+          "uniqueItems": true
+        },
+        "interactions": {
+          "type": "array",
+          "description": "What its holder can do with it from the pack. 'self' is the holder; the item pick {'used': true} is this item.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/interaction"
+          }
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rough trade value."
+        },
+        "stack": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "How many fit in one cargo stack."
+        },
+        "condition": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        },
+        "kind": {
+          "const": "consumable"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "size"
+      ]
+    },
+    "misc": {
+      "type": "object",
+      "description": "Everything else: keys, passes, data, keepsakes, trade goods.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+        },
+        "grade": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "grade",
+          "description": "Quality or strangeness tier, shown as the item's colour."
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
+        },
+        "stats": {
+          "type": "object",
+          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "number"
+          },
+          "x-ref-keys": "stat"
+        },
+        "actions": {
+          "type": "array",
+          "description": "Actions it gives its holder in encounters while active.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "action"
+          },
+          "uniqueItems": true
+        },
+        "interactions": {
+          "type": "array",
+          "description": "What its holder can do with it from the pack. 'self' is the holder; the item pick {'used': true} is this item.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/interaction"
+          }
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rough trade value."
+        },
+        "stack": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "How many fit in one cargo stack."
+        },
+        "condition": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        },
+        "kind": {
+          "const": "misc"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "size"
+      ]
+    }
+  }
+}

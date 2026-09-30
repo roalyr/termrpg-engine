@@ -89,9 +89,10 @@
               "power",
               "mass",
               "heat",
-              "initiative"
+              "initiative",
+              "cargo"
             ],
-            "description": "Tells the engine this stat has a built-in meaning. health: a character is down at 0. power, mass: fitting budgets a frame provides and gear uses. heat: builds up with actions; at its maximum the frame overheats. initiative: who acts first in an encounter. Each role must be given to exactly one stat."
+            "description": "Tells the engine this stat has a built-in meaning. health: a character is down at 0. power, mass: fitting budgets a frame provides and gear uses. heat: builds up with actions; at its maximum the frame overheats. initiative: who acts first in an encounter. cargo: how many item stacks a character can carry, provided by the body, frames and cargo modules. Each role must be given to exactly one stat."
           },
           "min": {
             "type": "number",
@@ -241,6 +242,53 @@
           "id",
           "name",
           "host"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "grades": {
+      "type": "array",
+      "description": "Item grades.",
+      "items": {
+        "type": "object",
+        "description": "A quality or strangeness tier for items, e.g. common, frontier, exotic.",
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/label"
+          },
+          "notes": {
+            "$ref": "common.schema.json#/$defs/notes"
+          },
+          "colour": {
+            "enum": [
+              "grey",
+              "white",
+              "green",
+              "cyan",
+              "blue",
+              "violet",
+              "yellow",
+              "orange",
+              "red"
+            ],
+            "description": "Colour items of this grade are drawn in. The engine owns the palette."
+          },
+          "order": {
+            "type": "integer",
+            "description": "Sort order, lowest first."
+          },
+          "description": {
+            "$ref": "common.schema.json#/$defs/text"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "colour"
         ]
       },
       "uniqueItems": true

@@ -54,6 +54,11 @@
           "$ref": "common.schema.json#/$defs/size",
           "description": "Largest size class that fits in, through or onto it (a crate's contents, a hatch's opening)."
         },
+        "storage": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "It can hold this many item stacks (a locker, a cargo rack). Items must also fit its holds_size."
+        },
         "solid": {
           "type": "boolean",
           "default": false,

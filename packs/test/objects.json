@@ -184,6 +184,15 @@
           ]
         }
       ]
+    },
+    {
+      "id": "obj_locker",
+      "name": "Locker",
+      "glyph": "▯",
+      "size": 3,
+      "holds_size": 2,
+      "storage": 6,
+      "solid": true
     }
   ]
 }

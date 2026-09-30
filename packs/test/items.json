@@ -1,0 +1,143 @@
+{
+  "$schema": "../../schemas/item.schema.json",
+  "entries": [
+    {
+      "id": "frame_a",
+      "kind": "frame",
+      "name": "Frame A",
+      "size": 3,
+      "grade": "grade_a",
+      "stats": {
+        "stat_health": 20,
+        "stat_power": 6,
+        "stat_mass": 10,
+        "stat_heat": 8,
+        "stat_cargo": 4
+      },
+      "slots": [
+        {
+          "slot_type": "slot_frame_hand",
+          "count": 2
+        },
+        {
+          "slot_type": "slot_frame_a"
+        }
+      ]
+    },
+    {
+      "id": "frame_b",
+      "kind": "frame",
+      "name": "Frame B",
+      "size": 5,
+      "grade": "grade_b",
+      "tags": [
+        "tag_b"
+      ],
+      "stats": {
+        "stat_health": 45,
+        "stat_power": 12,
+        "stat_mass": 25,
+        "stat_heat": 14,
+        "stat_cargo": 8,
+        "stat_armor": 3
+      },
+      "slots": [
+        {
+          "slot_type": "slot_frame_hand",
+          "count": 2
+        },
+        {
+          "slot_type": "slot_frame_a",
+          "count": 3
+        }
+      ],
+      "fit_requires": {
+        "check": "skill",
+        "skill": "skill_a",
+        "min": 2
+      }
+    },
+    {
+      "id": "module_tool",
+      "kind": "module",
+      "name": "Tool A",
+      "size": 1,
+      "tags": [
+        "tag_a"
+      ],
+      "condition": 4,
+      "slot_type": "slot_frame_hand",
+      "uses": {
+        "power": 1,
+        "mass": 2
+      }
+    },
+    {
+      "id": "module_system",
+      "kind": "module",
+      "name": "System A",
+      "size": 2,
+      "grade": "grade_b",
+      "slot_type": "slot_frame_a",
+      "uses": {
+        "power": 3,
+        "mass": 3,
+        "heat": 2
+      },
+      "stats": {
+        "stat_armor": 2
+      }
+    },
+    {
+      "id": "implant_a",
+      "kind": "implant",
+      "name": "Implant A",
+      "size": 0,
+      "slot_type": "slot_body_a",
+      "stats": {
+        "stat_initiative": 1
+      }
+    },
+    {
+      "id": "material_a",
+      "kind": "material",
+      "name": "Material A",
+      "size": 1,
+      "stack": 10,
+      "value": 2,
+      "grade": "grade_a"
+    },
+    {
+      "id": "consumable_a",
+      "kind": "consumable",
+      "name": "Consumable A",
+      "size": 0,
+      "stack": 5,
+      "interactions": [
+        {
+          "id": "use",
+          "label": "Use",
+          "effects": [
+            {
+              "op": "restore",
+              "stat": "stat_health",
+              "amount": {
+                "min": 3,
+                "max": 5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "misc_key",
+      "kind": "misc",
+      "name": "Key A",
+      "size": 0,
+      "tags": [
+        "tag_a"
+      ]
+    }
+  ]
+}
