@@ -1,0 +1,141 @@
+{
+  "$schema": "../../schemas/event.schema.json",
+  "entries": [
+    {
+      "id": "event_grudge",
+      "name": "Grudge",
+      "trigger": "day_start",
+      "chance": 0.3,
+      "cooldown": 3,
+      "cast": [
+        {
+          "role": "sore",
+          "from": "anyone",
+          "when": {
+            "check": "relation",
+            "of": "self",
+            "toward": "player",
+            "maximum": -20
+          }
+        },
+        {
+          "role": "friend",
+          "from": "here",
+          "optional": true,
+          "when": {
+            "check": "relation",
+            "of": "self",
+            "toward": {
+              "role": "sore"
+            },
+            "minimum": 30
+          }
+        }
+      ],
+      "text": "Someone holds a grudge.",
+      "effects": [
+        {
+          "op": "change_relation",
+          "of": {
+            "role": "friend"
+          },
+          "toward": "player",
+          "amount": -5
+        },
+        {
+          "op": "choose",
+          "prompt": "What do you do?",
+          "options": [
+            {
+              "label": "Apologise",
+              "effects": [
+                {
+                  "op": "change_relation",
+                  "of": {
+                    "role": "sore"
+                  },
+                  "amount": 10
+                }
+              ]
+            },
+            {
+              "label": "Ignore it",
+              "effects": [
+                {
+                  "op": "message",
+                  "text": "@shrug"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event_offscreen",
+      "name": "Off-screen rivalry",
+      "trigger": "day_start",
+      "notify": false,
+      "cast": [
+        {
+          "role": "a",
+          "when": {
+            "check": "rank",
+            "minimum": 1
+          }
+        },
+        {
+          "role": "b",
+          "when": {
+            "all": [
+              {
+                "check": "rank",
+                "minimum": 1
+              },
+              {
+                "check": "relation",
+                "of": "self",
+                "toward": {
+                  "role": "a"
+                },
+                "maximum": 0
+              }
+            ]
+          }
+        }
+      ],
+      "effects": [
+        {
+          "op": "change_relation",
+          "of": {
+            "role": "a"
+          },
+          "toward": {
+            "role": "b"
+          },
+          "amount": -10,
+          "mutual": true
+        },
+        {
+          "op": "change_rank",
+          "amount": 1,
+          "subject": {
+            "role": "a"
+          }
+        }
+      ]
+    },
+    {
+      "id": "event_rescue",
+      "name": "Rescue",
+      "trigger": "manual",
+      "effects": [
+        {
+          "op": "message",
+          "text": "Someone drags you out.",
+          "kind": "danger"
+        }
+      ]
+    }
+  ]
+}

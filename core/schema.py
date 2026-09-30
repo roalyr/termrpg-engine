@@ -20,7 +20,7 @@ SUPPORTED_KEYWORDS = frozenset({
     "items", "minItems", "maxItems", "uniqueItems",
     "properties", "required", "additionalProperties", "propertyNames",
     "oneOf", "anyOf", "allOf",
-    "x-ref", "x-ref-keys", "x-discriminator", "x-status", "x-schema-version",
+    "x-ref", "x-ref-keys", "x-discriminator", "x-status", "x-schema-version", "x-placeholders",
 })
 
 Schemas = Dict[str, dict]  # file name -> parsed schema

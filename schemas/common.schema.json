@@ -21,7 +21,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 600,
-      "description": "Player-facing text. Reserved: text starting with '@' will refer to an entry in the pack's strings file."
+      "description": "Player-facing text. Text that is exactly '@' plus an id uses that entry from the pack's strings file."
     },
     "glyph": {
       "type": "string",
@@ -120,7 +120,7 @@
     },
     "subject": {
       "default": "self",
-      "description": "Who or what a check or effect applies to. 'self' is whoever acts (the player when the player interacts, an NPC when an NPC acts), 'target' is what the action is aimed at, 'party' is the acting character and everyone travelling with them. Any specific character can be named. Player-NPC parity: every check and effect works the same for any character, whether the player or the AI controls it.",
+      "description": "Who or what a check or effect applies to. 'self' is whoever acts (the player when the player interacts, an NPC when an NPC acts), 'target' is what the action is aimed at, 'party' is the acting character and everyone travelling with them. Any specific character can be named, and inside events a cast role. Player-NPC parity: every check and effect works the same for any character, whether the player or the AI controls it.",
       "oneOf": [
         {
           "enum": [
@@ -142,6 +142,19 @@
           "additionalProperties": false,
           "required": [
             "character"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "A role from the running event's cast.",
+          "properties": {
+            "role": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role"
           ]
         }
       ]
@@ -254,6 +267,19 @@
           "additionalProperties": false,
           "required": [
             "faction"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "A role from the running event's cast.",
+          "properties": {
+            "role": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "role"
           ]
         }
       ]

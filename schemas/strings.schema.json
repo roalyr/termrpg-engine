@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "strings.schema.json",
+  "title": "Strings (strings.json)",
+  "description": "All text the engine prints comes from here, so the engine names no content and writes no prose. Also holds reusable texts referred to as '@id'.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/strings_file",
+  "$defs": {
+    "strings_file": {
+      "type": "object",
+      "description": "A strings file.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "engine": {
+          "$ref": "#/$defs/engine"
+        },
+        "entries": {
+          "type": "array",
+          "description": "Reusable texts.",
+          "items": {
+            "$ref": "#/$defs/string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "engine": {
+      "type": "object",
+      "description": "The engine's messages in the pack's words. Placeholders in braces, e.g. 'You enter {location}.', are filled in by the engine; each message may use only its listed placeholders. A missing message is shown as its key.",
+      "properties": {
+        "enter_location": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Arriving somewhere. Placeholders: {location}, {character}.",
+          "x-placeholders": [
+            "location",
+            "character"
+          ]
+        },
+        "exit_blocked": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An exit can't be used and gives no hint of its own. Placeholders: {object}, {state}.",
+          "x-placeholders": [
+            "object",
+            "state"
+          ]
+        },
+        "needs": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default hint for an unmet requirement; 'needs' is a list of tag names joined with list_or. Placeholders: {needs}.",
+          "x-placeholders": [
+            "needs"
+          ]
+        },
+        "list_or": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Joins the last two entries of a list of alternatives, e.g. ' or '. No placeholders.",
+          "x-placeholders": []
+        },
+        "list_and": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Joins the last two entries of a list, e.g. ' and '. No placeholders.",
+          "x-placeholders": []
+        },
+        "nothing_here": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Acting on an empty tile. No placeholders.",
+          "x-placeholders": []
+        },
+        "unknown_command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A typed command isn't recognised. No placeholders.",
+          "x-placeholders": []
+        },
+        "items_found": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Items from searching or loot. Placeholders: {items}.",
+          "x-placeholders": [
+            "items"
+          ]
+        },
+        "items_gained": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Items received. Placeholders: {items}.",
+          "x-placeholders": [
+            "items"
+          ]
+        },
+        "items_lost": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Items taken or used up. Placeholders: {items}.",
+          "x-placeholders": [
+            "items"
+          ]
+        },
+        "item_broken": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An item's condition reaches 0. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "cargo_full": {
+          "type": "string",
+          "minLength": 1,
+          "description": "No cargo space left for an item. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "cannot_fit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A thing doesn't fit in, through or onto something. Placeholders: {thing}, {container}.",
+          "x-placeholders": [
+            "thing",
+            "container"
+          ]
+        },
+        "skill_up": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A skill level is reached. Placeholders: {skill}, {level}, {text}.",
+          "x-placeholders": [
+            "skill",
+            "level",
+            "text"
+          ]
+        },
+        "party_join": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Someone joins a party. Placeholders: {character}, {leader}.",
+          "x-placeholders": [
+            "character",
+            "leader"
+          ]
+        },
+        "party_leave": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Someone leaves a party. Placeholders: {character}.",
+          "x-placeholders": [
+            "character"
+          ]
+        },
+        "encounter_start": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An encounter begins. Placeholders: {encounter}.",
+          "x-placeholders": [
+            "encounter"
+          ]
+        },
+        "encounter_won": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The player's side wins. Placeholders: {encounter}.",
+          "x-placeholders": [
+            "encounter"
+          ]
+        },
+        "encounter_lost": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The player's side loses. Placeholders: {encounter}.",
+          "x-placeholders": [
+            "encounter"
+          ]
+        },
+        "encounter_escaped": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The player's side gets away. Placeholders: {encounter}.",
+          "x-placeholders": [
+            "encounter"
+          ]
+        },
+        "character_down": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A character is defeated. Placeholders: {character}.",
+          "x-placeholders": [
+            "character"
+          ]
+        },
+        "overheated": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A character reaches maximum heat. Placeholders: {character}.",
+          "x-placeholders": [
+            "character"
+          ]
+        },
+        "status_applied": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A status takes hold. Placeholders: {character}, {status}.",
+          "x-placeholders": [
+            "character",
+            "status"
+          ]
+        },
+        "status_ended": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A status wears off. Placeholders: {character}, {status}.",
+          "x-placeholders": [
+            "character",
+            "status"
+          ]
+        },
+        "day_start": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A new day begins. Placeholders: {day}.",
+          "x-placeholders": [
+            "day"
+          ]
+        },
+        "phase_start": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A new part of the day begins. Placeholders: {phase}, {day}.",
+          "x-placeholders": [
+            "phase",
+            "day"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "string": {
+      "type": "object",
+      "description": "Reusable text. Any text field that is exactly '@' plus this id shows it.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "text": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text"
+      ]
+    }
+  }
+}

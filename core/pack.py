@@ -5,6 +5,8 @@ unique ids, cross-references between files, and rules a schema alone can't expre
 Run from the project root:  python3 -m core.pack packs/test
 """
 import json
+import re
+import string
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
@@ -78,6 +80,7 @@ def validate_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Report:
     vocab: Dict[str, Any] = {}
     entries: Entries = {}
     where: Dict[Tuple[str, str], str] = {}   # (kind, id) -> "file: entries[i]"
+    loaded: List[Tuple[str, str, Any]] = []  # (kind, file, data)
 
     files = manifest.get("files") if isinstance(manifest.get("files"), dict) else {}
     for kind, paths in files.items():
@@ -98,6 +101,7 @@ def validate_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Report:
             if data is None:
                 continue
             _collect(schema.validate(data, target, schemas), rel, errors, warnings, refs)
+            loaded.append((kind, rel, data))
             if kind == "vocab" and isinstance(data, dict):
                 _declare_vocab(data, rel, ids, vocab, errors)
             elif kind in KIND_NAMESPACES and isinstance(data, dict):
@@ -122,6 +126,8 @@ def validate_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Report:
     _check_skill_rules(manifest, entries, where, errors)
     _check_character_rules(manifest, entries, vocab, where, errors)
     _check_loot_rules(entries, where, errors)
+    _check_event_roles(loaded, errors)
+    _check_strings(loaded, schemas, ids, "strings" in files, errors, warnings)
     return Report(tuple(errors), tuple(warnings))
 
 
@@ -481,6 +487,93 @@ def _check_loot_rules(entries: Entries, where: Dict[Tuple[str, str], str], error
             if current not in seen:
                 seen.add(current)
                 stack.extend(nested(current))
+
+
+STRING_REF = re.compile(r"^@[a-z][a-z0-9_]*$")  # text that is a strings-file id
+
+
+def _role_uses(node: Any, path: str) -> List[Tuple[str, str]]:
+    """(path, role) for every {"role": name} reference inside a value."""
+    found: List[Tuple[str, str]] = []
+    if isinstance(node, dict):
+        if set(node) == {"role"} and isinstance(node["role"], str):
+            return [(path, node["role"])]
+        for key, value in node.items():
+            found += _role_uses(value, f"{path}.{key}" if path else key)
+    elif isinstance(node, list):
+        for i, value in enumerate(node):
+            found += _role_uses(value, f"{path}[{i}]")
+    return found
+
+
+def _check_event_roles(loaded: List[Tuple[str, str, Any]], errors: List[str]) -> None:
+    for kind, rel, data in loaded:
+        if kind != "events":
+            for path, role in _role_uses(data, ""):
+                errors.append(f"{rel}: {path}: role '{role}' used outside an event")
+            continue
+        for i, entry in enumerate(data.get("entries", []) if isinstance(data, dict) else []):
+            if not isinstance(entry, dict):
+                continue
+            label = f"{rel}: entries[{i}]"
+            filled: List[str] = []
+            for j, member in enumerate(entry.get("cast", []) or []):
+                if not isinstance(member, dict):
+                    continue
+                for path, role in _role_uses(member.get("when"), f"cast[{j}].when"):
+                    if role not in filled:
+                        errors.append(f"{label}.{path}: role '{role}' is not filled yet at this point of the cast")
+                name = member.get("role")
+                if name in filled:
+                    errors.append(f"{label}.cast[{j}]: role '{name}' is cast twice")
+                filled.append(name)
+            rest = {k: v for k, v in entry.items() if k != "cast"}
+            for path, role in _role_uses(rest, ""):
+                if role not in filled:
+                    errors.append(f"{label}.{path}: role '{role}' is not in the event's cast")
+
+
+def _check_strings(loaded: List[Tuple[str, str, Any]], schemas: schema.Schemas, ids: Dict[str, Dict[Any, str]],
+                   has_strings: bool, errors: List[str], warnings: List[str]) -> None:
+    engine_defs = schemas.get("strings.schema.json", {}).get("$defs", {}).get("engine", {}).get("properties", {})
+    covered: Set[str] = set()
+    for kind, rel, data in loaded:
+        if kind != "strings" or not isinstance(data, dict):
+            continue
+        for key, template in (data.get("engine", {}) or {}).items():
+            if key not in engine_defs or not isinstance(template, str):
+                continue  # reported by the schema
+            covered.add(key)
+            allowed = engine_defs[key].get("x-placeholders", [])
+            try:
+                fields = [f for _, f, _, _ in string.Formatter().parse(template) if f is not None]
+            except ValueError as e:
+                errors.append(f"{rel}: engine.{key}: broken braces ({e})")
+                continue
+            for field in fields:
+                if field not in allowed:
+                    known = ", ".join("{" + a + "}" for a in allowed) or "none"
+                    errors.append(f"{rel}: engine.{key}: unknown placeholder {{{field}}} (allowed: {known})")
+    if has_strings and engine_defs:
+        missing = sorted(set(engine_defs) - covered)
+        if missing:
+            warnings.append(f"strings: {len(missing)} engine message(s) not written yet, shown as their keys: "
+                            f"{', '.join(missing)}")
+
+    def texts(node: Any, path: str) -> List[Tuple[str, str]]:
+        if isinstance(node, str):
+            return [(path, node)] if STRING_REF.match(node) else []
+        if isinstance(node, dict):
+            return [t for k, v in node.items() for t in texts(v, f"{path}.{k}" if path else k)]
+        if isinstance(node, list):
+            return [t for i, v in enumerate(node) for t in texts(v, f"{path}[{i}]")]
+        return []
+
+    for kind, rel, data in loaded:
+        for path, text in texts(data, ""):
+            if text[1:] not in ids.get("string", {}):
+                where = "" if has_strings else " (the pack loads no strings)"
+                errors.append(f"{rel}: {path}: unknown string '{text}'{where}")
 
 
 def _tiles(grid: dict, label: str, errors: List[str]) -> Optional[Dict[Tuple[int, int], str]]:

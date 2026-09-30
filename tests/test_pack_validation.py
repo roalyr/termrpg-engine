@@ -410,6 +410,63 @@ class TestPackErrors(unittest.TestCase):
         self.character("char_drone", lambda ch: ch["art"].append("x" * 22))
         self.assertIn("must be at most 21 characters", self.errors())
 
+    # --- Events and strings ---
+
+    def event(self, event_id, change):
+        def apply(data):
+            change(next(e for e in data["entries"] if e["id"] == event_id))
+        self.edit("events.json", apply)
+
+    def test_role_not_in_cast(self):
+        self.event("event_grudge", lambda e: e["effects"].append(
+            {"op": "change_relation", "of": {"role": "stranger"}, "amount": 1}))
+        self.assertIn("role 'stranger' is not in the event's cast", self.errors())
+
+    def test_cast_uses_only_earlier_roles(self):
+        self.event("event_grudge", lambda e: e["cast"].reverse())
+        self.assertIn("role 'sore' is not filled yet at this point of the cast", self.errors())
+
+    def test_role_cast_twice(self):
+        self.event("event_offscreen", lambda e: e["cast"][1].__setitem__("role", "a"))
+        self.assertIn("role 'a' is cast twice", self.errors())
+
+    def test_role_outside_event(self):
+        self.action("action_strike", lambda a: a["effects"][0].__setitem__("subject", {"role": "sore"}))
+        self.assertIn("role 'sore' used outside an event", self.errors())
+
+    def test_unknown_trigger(self):
+        self.event("event_rescue", lambda e: e.__setitem__("trigger", "hourly"))
+        self.assertIn("trigger: must be one of", self.errors())
+
+    def strings(self, change):
+        self.edit("strings.json", change)
+
+    def test_unknown_placeholder(self):
+        self.strings(lambda d: d["engine"].__setitem__("enter_location", "You enter {room}."))
+        self.assertIn("engine.enter_location: unknown placeholder {room} (allowed: {location}, {character})", self.errors())
+
+    def test_broken_braces(self):
+        self.strings(lambda d: d["engine"].__setitem__("day_start", "Day {day."))
+        self.assertIn("engine.day_start: broken braces", self.errors())
+
+    def test_unknown_engine_key(self):
+        self.strings(lambda d: d["engine"].__setitem__("hello_world", "Hi."))
+        self.assertIn("engine: unknown field 'hello_world'", self.errors())
+
+    def test_missing_engine_message_warns(self):
+        self.strings(lambda d: d["engine"].pop("overheated"))
+        report = validate_pack(self.pack)
+        self.assertEqual(report.errors, ())
+        self.assertTrue(any("not written yet" in w and "overheated" in w for w in report.warnings))
+
+    def test_unknown_string_reference(self):
+        self.character("char_npc", lambda ch: ch["talk"][-1].__setitem__("text", "@missing"))
+        self.assertIn("unknown string '@missing'", self.errors())
+
+    def test_string_reference_needs_strings_file(self):
+        self.edit("pack.json", lambda m: m["files"].pop("strings"))
+        self.assertIn("unknown string '@greeting' (the pack loads no strings)", self.errors())
+
     def test_reserved_feature_warns(self):
         self.edit("pack.json", lambda m: m.__setitem__("extends", ["base"]))
         report = validate_pack(self.pack)

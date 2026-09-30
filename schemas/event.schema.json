@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "event.schema.json",
+  "title": "Events (events.json)",
+  "description": "Living-world events: rules that find their own cast and change the world. Stories come from these meeting each other, not from scripts.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/events_file",
+  "$defs": {
+    "events_file": {
+      "type": "object",
+      "description": "A file of events.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/event"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "event": {
+      "type": "object",
+      "description": "A living-world event. Its cast is found by conditions, so the same event can play out between different people each time.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "trigger": {
+          "enum": [
+            "day_start",
+            "turn",
+            "enter_location",
+            "manual"
+          ],
+          "default": "day_start",
+          "description": "When the engine considers it. 'manual' events run only through trigger_event."
+        },
+        "cast": {
+          "type": "array",
+          "description": "Roles filled in order, each from the first qualifying candidate chosen by the game seed. The event doesn't fire when a required role stays empty.",
+          "items": {
+            "type": "object",
+            "description": "One part in the event, filled when it fires.",
+            "properties": {
+              "role": {
+                "$ref": "common.schema.json#/$defs/id",
+                "description": "Name used in the event's checks and effects as {\"role\": name}."
+              },
+              "character": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "character",
+                "description": "Always this character."
+              },
+              "from": {
+                "enum": [
+                  "anyone",
+                  "here",
+                  "party"
+                ],
+                "default": "anyone",
+                "description": "Where to look: every living character, those in the player's location, or the player's party."
+              },
+              "when": {
+                "$ref": "common.schema.json#/$defs/condition",
+                "description": "A candidate qualifies when this holds, with 'self' as the candidate. Earlier roles can be used."
+              },
+              "optional": {
+                "type": "boolean",
+                "default": false,
+                "description": "The event can fire without this role."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "role"
+            ]
+          }
+        },
+        "when": {
+          "$ref": "common.schema.json#/$defs/condition",
+          "description": "Must hold, after the cast is filled."
+        },
+        "chance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 1,
+          "description": "Chance to fire each time it is considered."
+        },
+        "weight": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 1,
+          "description": "When several events could fire at once, the relative likelihood of this one."
+        },
+        "cooldown": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Days before it can fire again."
+        },
+        "repeat": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether it can fire more than once."
+        },
+        "notify": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show its messages to the player. Off-screen events between NPCs usually don't."
+        },
+        "text": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Shown when it fires, if notify is on."
+        },
+        "effects": {
+          "$ref": "common.schema.json#/$defs/effects",
+          "description": "What happens. Use the choose effect to give the player a decision."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "effects"
+      ]
+    },
+    "role": {
+      "type": "object",
+      "description": "One part in the event, filled when it fires.",
+      "properties": {
+        "role": {
+          "$ref": "common.schema.json#/$defs/id",
+          "description": "Name used in the event's checks and effects as {\"role\": name}."
+        },
+        "character": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "character",
+          "description": "Always this character."
+        },
+        "from": {
+          "enum": [
+            "anyone",
+            "here",
+            "party"
+          ],
+          "default": "anyone",
+          "description": "Where to look: every living character, those in the player's location, or the player's party."
+        },
+        "when": {
+          "$ref": "common.schema.json#/$defs/condition",
+          "description": "A candidate qualifies when this holds, with 'self' as the candidate. Earlier roles can be used."
+        },
+        "optional": {
+          "type": "boolean",
+          "default": false,
+          "description": "The event can fire without this role."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "role"
+      ]
+    }
+  }
+}

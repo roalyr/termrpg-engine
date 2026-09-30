@@ -1,0 +1,41 @@
+{
+  "$schema": "../../schemas/strings.schema.json",
+  "engine": {
+    "enter_location": "You enter {location}.",
+    "exit_blocked": "The {object} is {state}.",
+    "needs": "Needs {needs}.",
+    "list_or": " or ",
+    "list_and": " and ",
+    "nothing_here": "Nothing here.",
+    "unknown_command": "Unknown command.",
+    "items_found": "Found: {items}.",
+    "items_gained": "Got: {items}.",
+    "items_lost": "Lost: {items}.",
+    "item_broken": "{item} breaks.",
+    "cargo_full": "No room for {item}.",
+    "cannot_fit": "{thing} doesn't fit {container}.",
+    "skill_up": "{skill} {level}! {text}",
+    "party_join": "{character} joins {leader}.",
+    "party_leave": "{character} leaves.",
+    "encounter_start": "{encounter}!",
+    "encounter_won": "Won.",
+    "encounter_lost": "Lost.",
+    "encounter_escaped": "Escaped.",
+    "character_down": "{character} goes down.",
+    "overheated": "{character} overheats.",
+    "status_applied": "{character}: {status}.",
+    "status_ended": "{character}: {status} ends.",
+    "day_start": "Day {day}.",
+    "phase_start": "{phase}."
+  },
+  "entries": [
+    {
+      "id": "greeting",
+      "text": "Hello."
+    },
+    {
+      "id": "shrug",
+      "text": "You let it go."
+    }
+  ]
+}

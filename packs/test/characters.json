@@ -49,6 +49,10 @@
           "op": "restore",
           "stat": "stat_health",
           "amount": 5
+        },
+        {
+          "op": "trigger_event",
+          "event": "event_rescue"
         }
       ]
     },
@@ -111,7 +115,7 @@
           "text": "Good to see you."
         },
         {
-          "text": "Hello."
+          "text": "@greeting"
         }
       ],
       "interactions": [
