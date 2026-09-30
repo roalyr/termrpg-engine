@@ -70,7 +70,10 @@
       "uses": {
         "power": 1,
         "mass": 2
-      }
+      },
+      "actions": [
+        "action_strike"
+      ]
     },
     {
       "id": "module_system",
@@ -86,7 +89,10 @@
       },
       "stats": {
         "stat_armor": 2
-      }
+      },
+      "actions": [
+        "action_guard"
+      ]
     },
     {
       "id": "implant_a",

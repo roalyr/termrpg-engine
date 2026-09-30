@@ -259,6 +259,62 @@ class TestPackErrors(unittest.TestCase):
         self.edit("vocab.json", lambda v: v["grades"][0].__setitem__("colour", "pink"))
         self.assertIn("grades[0].colour: must be one of", self.errors())
 
+    # --- Actions and skills ---
+
+    def action(self, action_id, change):
+        def apply(data):
+            change(next(e for e in data["entries"] if e["id"] == action_id))
+        self.edit("actions.json", apply)
+
+    def skill(self, skill_id, change):
+        def apply(data):
+            change(next(e for e in data["entries"] if e["id"] == skill_id))
+        self.edit("skills.json", apply)
+
+    def test_unknown_target(self):
+        self.action("action_strike", lambda a: a.__setitem__("target", "everyone"))
+        self.assertIn("target: must be one of", self.errors())
+
+    def test_tile_name_length(self):
+        self.action("action_burst", lambda a: a.__setitem__("short", "Much too long"))
+        self.assertIn("short: must be at most 8 characters", self.errors())
+
+    def test_consumes_item_or_tag(self):
+        self.action("action_burst", lambda a: a["cost"]["consumes"].__setitem__("tag", "tag_a"))
+        self.assertIn("consumes: use only one of: item, tag", self.errors())
+
+    def test_scaled_amount_needs_one_source(self):
+        self.action("action_strike", lambda a: a["effects"][0]["amount"].__setitem__("skill", "skill_a"))
+        self.assertIn("amount: use only one of: stat, skill", self.errors())
+
+    def test_trains_unknown_skill(self):
+        self.action("action_strike", lambda a: a.__setitem__("trains", {"skill_missing": 1}))
+        self.assertIn("unknown skill 'skill_missing'", self.errors())
+
+    def test_end_encounter_result(self):
+        self.action("action_retreat", lambda a: a["effects"][0]["then"][0].__setitem__("result", "draw"))
+        self.assertIn("result: must be one of", self.errors())
+
+    def test_item_grants_unknown_action(self):
+        self.item("module_tool", lambda i: i.__setitem__("actions", ["action_missing"]))
+        self.assertIn("unknown action 'action_missing'", self.errors())
+
+    def test_levels_in_order(self):
+        self.skill("skill_a", lambda k: k["levels"].reverse())
+        self.assertIn("levels must be listed once each, lowest first", self.errors())
+
+    def test_xp_must_rise(self):
+        self.skill("skill_a", lambda k: k["levels"][2].__setitem__("xp", 30))
+        self.assertIn("each level must need more xp than the one before", self.errors())
+
+    def test_level_above_max(self):
+        self.edit("pack.json", lambda m: m.__setitem__("settings", {"skill_max_level": 3}))
+        self.assertIn("level 5 is above skill_max_level (3)", self.errors())
+
+    def test_level_one_starts_at_zero(self):
+        self.skill("skill_a", lambda k: k["levels"][0].__setitem__("xp", 5))
+        self.assertIn("level 1 needs 0 xp", self.errors())
+
     def test_reserved_feature_warns(self):
         self.edit("pack.json", lambda m: m.__setitem__("extends", ["base"]))
         report = validate_pack(self.pack)

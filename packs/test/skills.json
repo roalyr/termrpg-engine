@@ -1,0 +1,56 @@
+{
+  "$schema": "../../schemas/skill.schema.json",
+  "entries": [
+    {
+      "id": "skill_a",
+      "name": "Skill A",
+      "short": "SKA",
+      "earned_by": "Using tag A actions.",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "text": "The basics."
+        },
+        {
+          "level": 2,
+          "xp": 30,
+          "text": "Unlocks Burst.",
+          "actions": [
+            "action_burst"
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 90,
+          "text": "Tougher.",
+          "stats": {
+            "stat_health": 5
+          }
+        },
+        {
+          "level": 5,
+          "xp": 300,
+          "text": "Mastery.",
+          "tags": [
+            "tag_b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skill_b",
+      "name": "Skill B",
+      "levels": [
+        {
+          "level": 2,
+          "xp": 30,
+          "text": "Frame B allowed.",
+          "tags": [
+            "tag_a"
+          ]
+        }
+      ]
+    }
+  ]
+}

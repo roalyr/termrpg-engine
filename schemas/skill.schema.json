@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "skill.schema.json",
+  "title": "Skills (skills.json)",
+  "description": "Skills: one short list, levels 1 to the pack's skill_max_level. The suit is your stats; you are your skills.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/skills_file",
+  "$defs": {
+    "skills_file": {
+      "type": "object",
+      "description": "A file of skills.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/skill"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "skill": {
+      "type": "object",
+      "description": "A skill. Using it raises it; each level adds one clear thing.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "short": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4,
+          "description": "Abbreviation for tight UI."
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "earned_by": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "How it grows, in plain words, e.g. 'Cutting through hulls and hatches.'"
+        },
+        "levels": {
+          "type": "array",
+          "description": "Levels in ascending order. Levels without an entry give nothing new.",
+          "items": {
+            "type": "object",
+            "description": "What reaching one level gives. Everything a level grants is kept at higher levels.",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20
+              },
+              "xp": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Total experience needed. Level 1 needs 0."
+              },
+              "text": {
+                "$ref": "common.schema.json#/$defs/text",
+                "description": "What this level adds, in plain words, e.g. 'You can pilot exoskeletons.'"
+              },
+              "actions": {
+                "type": "array",
+                "description": "Actions it grants.",
+                "items": {
+                  "$ref": "common.schema.json#/$defs/id",
+                  "x-ref": "action"
+                },
+                "uniqueItems": true
+              },
+              "tags": {
+                "$ref": "common.schema.json#/$defs/tags",
+                "description": "Tags it grants (count as 'body' for has_tag)."
+              },
+              "stats": {
+                "type": "object",
+                "description": "Stat id to amount it adds.",
+                "propertyNames": {
+                  "$ref": "common.schema.json#/$defs/id"
+                },
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "x-ref-keys": "stat"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "level",
+              "xp",
+              "text"
+            ]
+          },
+          "minItems": 1
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "levels"
+      ]
+    },
+    "level": {
+      "type": "object",
+      "description": "What reaching one level gives. Everything a level grants is kept at higher levels.",
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "xp": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total experience needed. Level 1 needs 0."
+        },
+        "text": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "What this level adds, in plain words, e.g. 'You can pilot exoskeletons.'"
+        },
+        "actions": {
+          "type": "array",
+          "description": "Actions it grants.",
+          "items": {
+            "$ref": "common.schema.json#/$defs/id",
+            "x-ref": "action"
+          },
+          "uniqueItems": true
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "Tags it grants (count as 'body' for has_tag)."
+        },
+        "stats": {
+          "type": "object",
+          "description": "Stat id to amount it adds.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "number"
+          },
+          "x-ref-keys": "stat"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "xp",
+        "text"
+      ]
+    }
+  }
+}

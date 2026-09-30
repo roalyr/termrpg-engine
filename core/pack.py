@@ -119,6 +119,7 @@ def validate_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Report:
     _check_vocab_rules(manifest, vocab, errors, warnings)
     _check_world_rules(manifest, entries, where, errors)
     _check_item_rules(entries, vocab, where, errors)
+    _check_skill_rules(manifest, entries, where, errors)
     return Report(tuple(errors), tuple(warnings))
 
 
@@ -304,6 +305,26 @@ def _check_item_rules(entries: Entries, vocab: Dict[str, Any], where: Dict[Tuple
                               f"{article} {kind} needs a {wanted} slot")
         if item.get("stack", 1) > 1 and "condition" in item:
             errors.append(f"{label}: items that stack can't have a condition (worn items don't stack)")
+
+
+def _check_skill_rules(manifest: dict, entries: Entries, where: Dict[Tuple[str, str], str],
+                       errors: List[str]) -> None:
+    settings = manifest.get("settings", {}) if isinstance(manifest.get("settings"), dict) else {}
+    max_level = settings.get("skill_max_level", 5)
+    for skill_id, skill in entries.get("skills", {}).items():
+        label = where[("skills", skill_id)]
+        levels = [lv for lv in skill.get("levels", []) or [] if isinstance(lv, dict)]
+        numbers = [lv.get("level") for lv in levels]
+        xps = [lv.get("xp") for lv in levels]
+        if numbers != sorted(set(numbers), key=lambda n: (n is None, n)):
+            errors.append(f"{label}: levels must be listed once each, lowest first")
+        elif any(isinstance(a, int) and isinstance(b, int) and a >= b for a, b in zip(xps, xps[1:])):
+            errors.append(f"{label}: each level must need more xp than the one before")
+        for i, lv in enumerate(levels):
+            if isinstance(lv.get("level"), int) and isinstance(max_level, int) and lv["level"] > max_level:
+                errors.append(f"{label}.levels[{i}]: level {lv['level']} is above skill_max_level ({max_level})")
+            if lv.get("level") == 1 and lv.get("xp", 0) != 0:
+                errors.append(f"{label}.levels[{i}]: level 1 needs 0 xp")
 
 
 def _tiles(grid: dict, label: str, errors: List[str]) -> Optional[Dict[Tuple[int, int], str]]:

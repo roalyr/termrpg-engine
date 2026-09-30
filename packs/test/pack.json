@@ -29,6 +29,12 @@
     ],
     "items": [
       "items.json"
+    ],
+    "actions": [
+      "actions.json"
+    ],
+    "skills": [
+      "skills.json"
     ]
   }
 }

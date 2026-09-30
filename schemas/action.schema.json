@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "action.schema.json",
+  "title": "Actions (actions.json)",
+  "description": "Encounter actions. Characters get them from fitted items, skill levels and innate actions; the encounter screen shows them as tiles. Not a deck: nothing is drawn or shuffled.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/actions_file",
+  "$defs": {
+    "actions_file": {
+      "type": "object",
+      "description": "A file of actions.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "action": {
+      "type": "object",
+      "description": "Something a character can do in an encounter, shown as a tile. The same actions serve players and AI-controlled characters.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "short": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "description": "Name on the action tile. Defaults to the name, cut to fit."
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "glyph": {
+          "$ref": "common.schema.json#/$defs/glyph",
+          "description": "Icon on the tile."
+        },
+        "tags": {
+          "$ref": "common.schema.json#/$defs/tags",
+          "description": "What kind of action it is (attack, defence, repair…). Checks and the AI can read them."
+        },
+        "target": {
+          "enum": [
+            "self",
+            "enemy",
+            "ally",
+            "all_enemies",
+            "all_allies"
+          ],
+          "default": "enemy",
+          "description": "What the user picks. Effects with subject 'target' apply to each target."
+        },
+        "cost": {
+          "type": "object",
+          "description": "What using it costs.",
+          "properties": {
+            "heat": {
+              "$ref": "common.schema.json#/$defs/amount",
+              "description": "Heat added to the user. At maximum heat the frame overheats."
+            },
+            "cooldown": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Rounds before it can be used again."
+            },
+            "charges": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Uses per encounter."
+            },
+            "consumes": {
+              "type": "object",
+              "description": "Items used up per use, e.g. ammunition.",
+              "properties": {
+                "item": {
+                  "$ref": "common.schema.json#/$defs/id",
+                  "x-ref": "item"
+                },
+                "tag": {
+                  "$ref": "common.schema.json#/$defs/id",
+                  "x-ref": "tag"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "default": 1
+                }
+              },
+              "additionalProperties": false,
+              "oneOf": [
+                {
+                  "required": [
+                    "item"
+                  ]
+                },
+                {
+                  "required": [
+                    "tag"
+                  ]
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "requires": {
+          "$ref": "common.schema.json#/$defs/condition",
+          "description": "Usable only when this holds; otherwise the tile is shown greyed out. 'self' is the user."
+        },
+        "hint": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "Shown when 'requires' fails."
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": -3,
+          "maximum": 3,
+          "default": 0,
+          "description": "Acts earlier (positive) or later (negative) in the round than initiative alone would put it."
+        },
+        "effects": {
+          "$ref": "common.schema.json#/$defs/effects",
+          "description": "In order. 'self' is the user, 'target' each chosen target. Damage defaults to the target."
+        },
+        "trains": {
+          "type": "object",
+          "description": "Skill id to experience gained by the user each time it is used.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "number"
+          },
+          "x-ref-keys": "skill"
+        },
+        "innate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Every character has it, e.g. retreat or wait."
+        },
+        "intent": {
+          "$ref": "common.schema.json#/$defs/label",
+          "description": "Word shown over an AI-controlled character about to use it, e.g. 'CRUSH'. Defaults to the name."
+        },
+        "ai": {
+          "type": "object",
+          "description": "How AI-controlled characters choose it.",
+          "properties": {
+            "when": {
+              "$ref": "common.schema.json#/$defs/condition",
+              "description": "Only considered when this holds (e.g. health below half)."
+            },
+            "weight": {
+              "type": "number",
+              "minimum": 0,
+              "default": 1,
+              "description": "Relative likelihood among usable actions."
+            }
+          },
+          "additionalProperties": false
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "effects"
+      ]
+    }
+  }
+}

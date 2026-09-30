@@ -55,7 +55,7 @@
       "description": "Length in turns (in encounters: rounds)."
     },
     "amount": {
-      "description": "A fixed number, or a range rolled from the game seed. Integer bounds roll integers.",
+      "description": "A fixed number, a range rolled from the game seed (integer bounds roll integers), or a value scaled from a stat or skill.",
       "oneOf": [
         {
           "type": "number"
@@ -75,6 +75,45 @@
           "required": [
             "min",
             "max"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "stat (or skill level) of the subject, times 'times', plus 'plus', rounded down. E.g. damage that grows with a module's cutting stat.",
+          "properties": {
+            "stat": {
+              "$ref": "#/$defs/id",
+              "x-ref": "stat"
+            },
+            "skill": {
+              "$ref": "#/$defs/id",
+              "x-ref": "skill"
+            },
+            "subject": {
+              "$ref": "#/$defs/subject",
+              "default": "self"
+            },
+            "times": {
+              "type": "number",
+              "default": 1
+            },
+            "plus": {
+              "type": "number",
+              "default": 0
+            }
+          },
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": [
+                "stat"
+              ]
+            },
+            {
+              "required": [
+                "skill"
+              ]
+            }
           ]
         }
       ]
@@ -381,6 +420,9 @@
         },
         {
           "$ref": "#/$defs/op_move_to"
+        },
+        {
+          "$ref": "#/$defs/op_end_encounter"
         },
         {
           "$ref": "#/$defs/op_start_encounter"
@@ -1410,6 +1452,28 @@
       "required": [
         "op",
         "location"
+      ]
+    },
+    "op_end_encounter": {
+      "type": "object",
+      "description": "End the current encounter.",
+      "properties": {
+        "op": {
+          "const": "end_encounter"
+        },
+        "result": {
+          "enum": [
+            "escaped",
+            "won",
+            "lost"
+          ],
+          "description": "How it ended for the side of whoever acts."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "result"
       ]
     },
     "op_start_encounter": {

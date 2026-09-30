@@ -1,0 +1,126 @@
+{
+  "$schema": "../../schemas/action.schema.json",
+  "entries": [
+    {
+      "id": "action_strike",
+      "name": "Strike",
+      "glyph": "/",
+      "tags": [
+        "tag_a"
+      ],
+      "target": "enemy",
+      "cost": {
+        "heat": 1
+      },
+      "intent": "STRIKE",
+      "trains": {
+        "skill_a": 3
+      },
+      "effects": [
+        {
+          "op": "damage",
+          "damage_type": "dmg_a",
+          "amount": {
+            "stat": "stat_power",
+            "times": 0.5,
+            "plus": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "action_guard",
+      "name": "Guard",
+      "glyph": "#",
+      "target": "self",
+      "priority": 1,
+      "cost": {
+        "heat": 1,
+        "cooldown": 2
+      },
+      "effects": [
+        {
+          "op": "modify_stat",
+          "stat": "stat_armor",
+          "amount": 4,
+          "subject": "self",
+          "duration": 1
+        }
+      ],
+      "ai": {
+        "when": {
+          "check": "stat",
+          "stat": "stat_health",
+          "maximum": 10
+        },
+        "weight": 3
+      }
+    },
+    {
+      "id": "action_burst",
+      "name": "Burst of damage",
+      "short": "Burst",
+      "target": "all_enemies",
+      "cost": {
+        "heat": {
+          "min": 3,
+          "max": 4
+        },
+        "charges": 1,
+        "consumes": {
+          "item": "material_a",
+          "count": 2
+        }
+      },
+      "requires": {
+        "check": "skill",
+        "skill": "skill_a",
+        "min": 2
+      },
+      "hint": "Needs skill A level 2.",
+      "effects": [
+        {
+          "op": "damage",
+          "damage_type": "dmg_b",
+          "amount": {
+            "skill": "skill_a",
+            "times": 2
+          }
+        },
+        {
+          "op": "apply_status",
+          "status": "status_dot",
+          "duration": 3
+        }
+      ]
+    },
+    {
+      "id": "action_retreat",
+      "name": "Retreat",
+      "target": "self",
+      "innate": true,
+      "priority": -1,
+      "effects": [
+        {
+          "op": "if",
+          "if": {
+            "check": "chance",
+            "p": 0.6
+          },
+          "then": [
+            {
+              "op": "end_encounter",
+              "result": "escaped"
+            }
+          ],
+          "else": [
+            {
+              "op": "message",
+              "text": "You can't get away."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
