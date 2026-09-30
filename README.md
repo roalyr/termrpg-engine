@@ -8,8 +8,10 @@ around you.
 
 - **What the game is meant to be:** [VISION.md](VISION.md). It takes precedence over
   every other document.
-- **How the current engine works:** `System Architecture & Game Design Document.md`.
-  It describes the old engine and is being replaced system by system.
+- **How to work on the project** (for people and AI agents): [AGENTS.md](AGENTS.md).
+- **The rebuild plan:** [ROADMAP.md](ROADMAP.md).
+- **How the old engine works:** `System Architecture & Game Design Document.md`. It is
+  being pruned as the new engine replaces it.
 
 ## Contents
 
@@ -34,9 +36,12 @@ The project is between two engines.
 ## Quick start
 
 ```sh
-python3 main.py                    # play the old engine
-python3 -m core.pack packs/test    # validate a content pack
-python3 -B -m unittest discover -s tests   # run all tests
+python3 main.py                                # play the old engine
+python3 -m core.packtool check packs/test      # validate a content pack
+python3 -m core.packtool ids packs/test item   # list the ids of a kind
+python3 -m core.packtool refs packs/test pl_a_door_b   # where an id is declared and used
+python3 -m core.packtool explain op damage     # document any part of the schemas
+python3 -B -m unittest discover -s tests       # run all tests
 ```
 
 Use `-B` when running tests on shared phone storage: the file system's coarse
@@ -51,6 +56,9 @@ timestamps can make Python run stale cached bytecode.
 | `packs/test/` | Generic test pack for engine development and tests |
 | `core/schema.py` | Checker for the JSON Schema subset the schemas use |
 | `core/pack.py` | Pack validator: files, references and game rules |
+| `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
+| `AGENTS.md`, `GEMINI.md` | Instructions for AI agents |
+| `ROADMAP.md` | The engine rebuild plan |
 | `core/`, `ui/`, `main.py` | The old engine (being replaced) |
 | `core/data/default-1.0/` | The old engine's content (to be rewritten as a game pack) |
 | `tests/` | Unit tests; `tests/test_pack_validation.py` covers the validator |
@@ -664,7 +672,7 @@ storing it in an object whose `holds_size` fits it. The four crafting services:
 ### The validator
 
 ```sh
-python3 -m core.pack packs/test
+python3 -m core.packtool check packs/test     # or: python3 -m core.pack packs/test
 ```
 
 It prints every error and warning with the file and the path inside it, and exits

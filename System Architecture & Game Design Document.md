@@ -1,5 +1,10 @@
 # SYSTEM BOOTSTRAP GDD: HARD SCI-FI FUNCTIONAL CLI RPG
 
+> **Obsolete: kept only as a description of the old engine.** The game's direction is
+> in [VISION.md](VISION.md), the content format in [README.md](README.md), and the
+> rebuild plan in [ROADMAP.md](ROADMAP.md). Parts of this document are removed as the
+> new engine replaces them; it is deleted at version 1.0. Don't use it for new work.
+
 ---
 
 ## 1. Executive Summary & Core Design Tenets
