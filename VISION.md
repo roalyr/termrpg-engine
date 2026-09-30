@@ -89,6 +89,11 @@ add to it, setbacks change it.
 
 ## Design rules
 
+- **Player-NPC parity.** The player is a character like any other. Every rule, stat,
+  check and effect works the same for every character, and any character can be
+  controlled by the player or by the AI. There are no player-only mechanics: NPCs
+  fit suits, gain skills, travel in parties, hold views of each other and rank up by
+  the same rules.
 - Few, simple systems. Merge layers instead of adding them.
 - Settle the big picture before designing any system in detail.
 - Stories come from mechanics and how they interact, not from hand-written plots.

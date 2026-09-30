@@ -1,0 +1,1675 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common.schema.json",
+  "title": "Common grammar",
+  "description": "Shared building blocks for every pack file: ids and references, text, amounts, conditions, effects and interactions. The lists of checks (check_*) and operations (op_*) are the engine's feature list. Parity rule: nothing here is player-only; any character may be controlled by the player or by the AI. Definitions marked x-status 'reserved' are planned but not implemented by the engine yet.",
+  "x-schema-version": 1,
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 48,
+      "description": "Identifier: lower_snake_case, unique within its kind. Properties carrying 'x-ref' must name an existing id of that kind; the pack validator checks this."
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32,
+      "description": "A short name shown in lists and menus. Must fit a 40-column screen."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600,
+      "description": "Player-facing text. Reserved: text starting with '@' will refer to an entry in the pack's strings file."
+    },
+    "glyph": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2,
+      "description": "One character drawn on the map. No emoji."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Author notes. Ignored by the engine."
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id",
+        "x-ref": "tag"
+      },
+      "description": "Tags declared in the pack's vocabulary."
+    },
+    "size": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9,
+      "description": "Size class of anything (item, object, character, suit frame, vessel), smallest 0. A shorthand for volume. Things that hold or let others through also have 'holds_size': the largest class that fits in, through or onto them. The pack names each class."
+    },
+    "duration": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Length in turns (in encounters: rounds)."
+    },
+    "amount": {
+      "description": "A fixed number, or a range rolled from the game seed. Integer bounds roll integers.",
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "description": "Seeded roll between min and max, inclusive.",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "min",
+            "max"
+          ]
+        }
+      ]
+    },
+    "subject": {
+      "default": "self",
+      "description": "Who or what a check or effect applies to. 'self' is whoever acts (the player when the player interacts, an NPC when an NPC acts), 'target' is what the action is aimed at, 'party' is the acting character and everyone travelling with them. Any specific character can be named. Player-NPC parity: every check and effect works the same for any character, whether the player or the AI controls it.",
+      "oneOf": [
+        {
+          "enum": [
+            "self",
+            "target",
+            "player",
+            "party"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "A specific character.",
+          "properties": {
+            "character": {
+              "$ref": "#/$defs/id",
+              "x-ref": "character"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "character"
+          ]
+        }
+      ]
+    },
+    "item_pick": {
+      "description": "Which of the subject's items an effect or check means: a specific item, any item with a tag, whatever is fitted in a slot type, or the item that satisfied the current interaction's requirement ('used').",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "A specific item.",
+          "properties": {
+            "item": {
+              "$ref": "#/$defs/id",
+              "x-ref": "item"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "item"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "The first carried or fitted item with this tag.",
+          "properties": {
+            "tag": {
+              "$ref": "#/$defs/id",
+              "x-ref": "tag"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tag"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "The item fitted in a slot of this type.",
+          "properties": {
+            "slot_type": {
+              "$ref": "#/$defs/id",
+              "x-ref": "slot_type"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "slot_type"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "The item that satisfied the requirement of the interaction or action being performed.",
+          "properties": {
+            "used": {
+              "const": true
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "used"
+          ]
+        }
+      ]
+    },
+    "agent": {
+      "description": "A character or a faction that can hold a view of others: a subject word, a named character, or a faction.",
+      "oneOf": [
+        {
+          "enum": [
+            "self",
+            "target",
+            "player"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "A specific character.",
+          "properties": {
+            "character": {
+              "$ref": "#/$defs/id",
+              "x-ref": "character"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "character"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "A faction.",
+          "properties": {
+            "faction": {
+              "$ref": "#/$defs/id",
+              "x-ref": "faction"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "faction"
+          ]
+        }
+      ]
+    },
+    "message_kind": {
+      "enum": [
+        "plain",
+        "gain",
+        "danger",
+        "quiet"
+      ],
+      "default": "plain",
+      "description": "How the message is styled and sorted: gains in bold, danger in the warning colour, quiet dimmed."
+    },
+    "condition": {
+      "description": "Something that can be true or false. Combine with all / any / not; leaves use 'check'.",
+      "x-discriminator": "check",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "True when every condition is true.",
+          "properties": {
+            "all": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/condition"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "all"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "True when at least one condition is true.",
+          "properties": {
+            "any": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/condition"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "any"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "True when the condition is false.",
+          "properties": {
+            "not": {
+              "$ref": "#/$defs/condition"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "not"
+          ]
+        },
+        {
+          "$ref": "#/$defs/check_has_tag"
+        },
+        {
+          "$ref": "#/$defs/check_has_item"
+        },
+        {
+          "$ref": "#/$defs/check_skill"
+        },
+        {
+          "$ref": "#/$defs/check_stat"
+        },
+        {
+          "$ref": "#/$defs/check_item_condition"
+        },
+        {
+          "$ref": "#/$defs/check_status"
+        },
+        {
+          "$ref": "#/$defs/check_flag"
+        },
+        {
+          "$ref": "#/$defs/check_location"
+        },
+        {
+          "$ref": "#/$defs/check_region"
+        },
+        {
+          "$ref": "#/$defs/check_visited"
+        },
+        {
+          "$ref": "#/$defs/check_object_state"
+        },
+        {
+          "$ref": "#/$defs/check_size"
+        },
+        {
+          "$ref": "#/$defs/check_fits"
+        },
+        {
+          "$ref": "#/$defs/check_in_party"
+        },
+        {
+          "$ref": "#/$defs/check_relation"
+        },
+        {
+          "$ref": "#/$defs/check_rank"
+        },
+        {
+          "$ref": "#/$defs/check_time"
+        },
+        {
+          "$ref": "#/$defs/check_chance"
+        }
+      ]
+    },
+    "effect": {
+      "description": "One thing that happens. The 'op' decides which.",
+      "x-discriminator": "op",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/op_message"
+        },
+        {
+          "$ref": "#/$defs/op_give_item"
+        },
+        {
+          "$ref": "#/$defs/op_take_item"
+        },
+        {
+          "$ref": "#/$defs/op_wear"
+        },
+        {
+          "$ref": "#/$defs/op_modify_item"
+        },
+        {
+          "$ref": "#/$defs/op_roll_loot"
+        },
+        {
+          "$ref": "#/$defs/op_damage"
+        },
+        {
+          "$ref": "#/$defs/op_restore"
+        },
+        {
+          "$ref": "#/$defs/op_modify_stat"
+        },
+        {
+          "$ref": "#/$defs/op_apply_status"
+        },
+        {
+          "$ref": "#/$defs/op_remove_status"
+        },
+        {
+          "$ref": "#/$defs/op_set_flag"
+        },
+        {
+          "$ref": "#/$defs/op_set_state"
+        },
+        {
+          "$ref": "#/$defs/op_move_to"
+        },
+        {
+          "$ref": "#/$defs/op_start_encounter"
+        },
+        {
+          "$ref": "#/$defs/op_grant_xp"
+        },
+        {
+          "$ref": "#/$defs/op_join_party"
+        },
+        {
+          "$ref": "#/$defs/op_leave_party"
+        },
+        {
+          "$ref": "#/$defs/op_change_relation"
+        },
+        {
+          "$ref": "#/$defs/op_change_rank"
+        },
+        {
+          "$ref": "#/$defs/op_unlock_slot"
+        },
+        {
+          "$ref": "#/$defs/op_spend_time"
+        },
+        {
+          "$ref": "#/$defs/op_trigger_event"
+        },
+        {
+          "$ref": "#/$defs/op_if"
+        },
+        {
+          "$ref": "#/$defs/op_choose"
+        }
+      ]
+    },
+    "effects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/effect"
+      },
+      "description": "Effects applied in order."
+    },
+    "interaction": {
+      "type": "object",
+      "description": "Something the player can do with an object or a character. Replaces fixed fixture effects: anything is 'when this holds, doing this has these effects'.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "$ref": "#/$defs/label"
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z]$",
+          "description": "Suggested single key in the proximity menu. The engine may reassign it on conflict."
+        },
+        "shown_if": {
+          "$ref": "#/$defs/condition",
+          "description": "Hide the interaction entirely unless this holds."
+        },
+        "requires": {
+          "$ref": "#/$defs/condition",
+          "description": "Shown but unavailable unless this holds."
+        },
+        "hint": {
+          "$ref": "#/$defs/text",
+          "description": "Shown when 'requires' fails, e.g. 'Needs a cutter or a strong frame.'"
+        },
+        "time": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1,
+          "description": "Turns it takes."
+        },
+        "repeat": {
+          "enum": [
+            "always",
+            "once",
+            "daily"
+          ],
+          "default": "always",
+          "description": "'once' disables it after use; 'daily' re-enables it each new day."
+        },
+        "effects": {
+          "$ref": "#/$defs/effects"
+        },
+        "notes": {
+          "$ref": "#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "effects"
+      ]
+    },
+    "check_has_tag": {
+      "type": "object",
+      "description": "The subject has this tag from any of its sources (fitted gear, carried items, skills, implants, party members).",
+      "properties": {
+        "check": {
+          "const": "has_tag"
+        },
+        "tag": {
+          "$ref": "#/$defs/id",
+          "x-ref": "tag"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "source": {
+          "enum": [
+            "any",
+            "fitted",
+            "carried",
+            "body",
+            "party"
+          ],
+          "default": "any",
+          "description": "Limit where the tag may come from. 'fitted' = suit gear and modules, 'body' = implants and skills, 'party' = companions."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "tag"
+      ]
+    },
+    "check_has_item": {
+      "type": "object",
+      "description": "The subject carries at least this many of the item.",
+      "properties": {
+        "check": {
+          "const": "has_item"
+        },
+        "item": {
+          "$ref": "#/$defs/id",
+          "x-ref": "item"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "item"
+      ]
+    },
+    "check_skill": {
+      "type": "object",
+      "description": "The subject's skill is at least this level.",
+      "properties": {
+        "check": {
+          "const": "skill"
+        },
+        "skill": {
+          "$ref": "#/$defs/id",
+          "x-ref": "skill"
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "skill",
+        "min"
+      ]
+    },
+    "check_stat": {
+      "type": "object",
+      "description": "The subject's current stat value is within bounds (inclusive).",
+      "properties": {
+        "check": {
+          "const": "stat"
+        },
+        "stat": {
+          "$ref": "#/$defs/id",
+          "x-ref": "stat"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "stat"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "minimum"
+          ]
+        },
+        {
+          "required": [
+            "maximum"
+          ]
+        }
+      ]
+    },
+    "check_item_condition": {
+      "type": "object",
+      "description": "A picked item's condition is within bounds. Items without a condition always pass.",
+      "properties": {
+        "check": {
+          "const": "item_condition"
+        },
+        "pick": {
+          "$ref": "#/$defs/item_pick"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "pick"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "minimum"
+          ]
+        },
+        {
+          "required": [
+            "maximum"
+          ]
+        }
+      ]
+    },
+    "check_status": {
+      "type": "object",
+      "description": "The subject currently has this status.",
+      "properties": {
+        "check": {
+          "const": "status"
+        },
+        "status": {
+          "$ref": "#/$defs/id",
+          "x-ref": "status"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "status"
+      ]
+    },
+    "check_flag": {
+      "type": "object",
+      "description": "A world flag's value is within bounds. Unset flags read as 0.",
+      "properties": {
+        "check": {
+          "const": "flag"
+        },
+        "flag": {
+          "$ref": "#/$defs/id",
+          "x-ref": "flag"
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "flag"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "minimum"
+          ]
+        },
+        {
+          "required": [
+            "maximum"
+          ]
+        }
+      ]
+    },
+    "check_location": {
+      "type": "object",
+      "description": "The subject is in this location.",
+      "properties": {
+        "check": {
+          "const": "location"
+        },
+        "location": {
+          "$ref": "#/$defs/id",
+          "x-ref": "location"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "location"
+      ]
+    },
+    "check_region": {
+      "type": "object",
+      "description": "The subject is in this region.",
+      "properties": {
+        "check": {
+          "const": "region"
+        },
+        "region": {
+          "$ref": "#/$defs/id",
+          "x-ref": "region"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "region"
+      ]
+    },
+    "check_visited": {
+      "type": "object",
+      "description": "The subject has been to this location at least once.",
+      "properties": {
+        "check": {
+          "const": "visited"
+        },
+        "location": {
+          "$ref": "#/$defs/id",
+          "x-ref": "location"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "location"
+      ]
+    },
+    "check_object_state": {
+      "type": "object",
+      "description": "An object is in the given state.",
+      "properties": {
+        "check": {
+          "const": "object_state"
+        },
+        "object": {
+          "$ref": "#/$defs/id",
+          "x-ref": "object"
+        },
+        "state": {
+          "$ref": "#/$defs/id",
+          "x-ref": "object_state"
+        },
+        "location": {
+          "$ref": "#/$defs/id",
+          "x-ref": "location",
+          "description": "Where the object is. Defaults to the current location."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "object",
+        "state"
+      ]
+    },
+    "check_size": {
+      "type": "object",
+      "description": "The subject's size class is within bounds (inclusive). A character's size is that of their current suit frame, or their body without one.",
+      "properties": {
+        "check": {
+          "const": "size"
+        },
+        "min": {
+          "$ref": "#/$defs/size"
+        },
+        "max": {
+          "$ref": "#/$defs/size"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "min"
+          ]
+        },
+        {
+          "required": [
+            "max"
+          ]
+        }
+      ]
+    },
+    "check_fits": {
+      "type": "object",
+      "description": "A thing fits into, through or onto a container: its size is at most the container's 'holds_size'. The thing is the subject, or an item; the container is an object, an item or a location.",
+      "properties": {
+        "check": {
+          "const": "fits"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "item": {
+          "$ref": "#/$defs/id",
+          "x-ref": "item",
+          "description": "Check this item instead of the subject."
+        },
+        "into_object": {
+          "$ref": "#/$defs/id",
+          "x-ref": "object"
+        },
+        "into_item": {
+          "$ref": "#/$defs/id",
+          "x-ref": "item"
+        },
+        "into_location": {
+          "$ref": "#/$defs/id",
+          "x-ref": "location"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "into_object"
+          ]
+        },
+        {
+          "required": [
+            "into_item"
+          ]
+        },
+        {
+          "required": [
+            "into_location"
+          ]
+        }
+      ]
+    },
+    "check_in_party": {
+      "type": "object",
+      "description": "The subject travels in the leader's party.",
+      "properties": {
+        "check": {
+          "const": "in_party"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "leader": {
+          "$ref": "#/$defs/subject",
+          "default": "player"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check"
+      ]
+    },
+    "check_relation": {
+      "type": "object",
+      "description": "How one character or faction regards another is within bounds. Relations are one-way: A's view of B may differ from B's view of A.",
+      "properties": {
+        "check": {
+          "const": "relation"
+        },
+        "of": {
+          "$ref": "#/$defs/agent"
+        },
+        "toward": {
+          "$ref": "#/$defs/agent",
+          "default": "player"
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "of"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "minimum"
+          ]
+        },
+        {
+          "required": [
+            "maximum"
+          ]
+        }
+      ]
+    },
+    "check_rank": {
+      "type": "object",
+      "description": "The subject's Registry rank is within bounds.",
+      "properties": {
+        "check": {
+          "const": "rank"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "minimum"
+          ]
+        },
+        {
+          "required": [
+            "maximum"
+          ]
+        }
+      ]
+    },
+    "check_time": {
+      "type": "object",
+      "description": "The in-game day and phase.",
+      "properties": {
+        "check": {
+          "const": "time"
+        },
+        "phase": {
+          "$ref": "#/$defs/id",
+          "x-ref": "phase"
+        },
+        "day_min": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "day_max": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "phase"
+          ]
+        },
+        {
+          "required": [
+            "day_min"
+          ]
+        },
+        {
+          "required": [
+            "day_max"
+          ]
+        }
+      ]
+    },
+    "check_chance": {
+      "type": "object",
+      "description": "Passes with probability p, rolled from the game seed.",
+      "properties": {
+        "check": {
+          "const": "chance"
+        },
+        "p": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "p"
+      ]
+    },
+    "op_message": {
+      "type": "object",
+      "description": "Show a line to the player.",
+      "properties": {
+        "op": {
+          "const": "message"
+        },
+        "text": {
+          "$ref": "#/$defs/text"
+        },
+        "kind": {
+          "$ref": "#/$defs/message_kind"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "text"
+      ]
+    },
+    "op_give_item": {
+      "type": "object",
+      "description": "Add items to the subject's inventory.",
+      "properties": {
+        "op": {
+          "const": "give_item"
+        },
+        "item": {
+          "$ref": "#/$defs/id",
+          "x-ref": "item"
+        },
+        "count": {
+          "$ref": "#/$defs/amount"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "item"
+      ]
+    },
+    "op_take_item": {
+      "type": "object",
+      "description": "Remove items from the subject's inventory, by item or by any item with a tag.",
+      "properties": {
+        "op": {
+          "const": "take_item"
+        },
+        "item": {
+          "$ref": "#/$defs/id",
+          "x-ref": "item"
+        },
+        "tag": {
+          "$ref": "#/$defs/id",
+          "x-ref": "tag"
+        },
+        "count": {
+          "$ref": "#/$defs/amount"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "item"
+          ]
+        },
+        {
+          "required": [
+            "tag"
+          ]
+        }
+      ]
+    },
+    "op_wear": {
+      "type": "object",
+      "description": "Lower a picked item's condition; negative amounts repair it. At 0 the item is broken until repaired.",
+      "properties": {
+        "op": {
+          "const": "wear"
+        },
+        "pick": {
+          "$ref": "#/$defs/item_pick"
+        },
+        "amount": {
+          "$ref": "#/$defs/amount"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "pick",
+        "amount"
+      ]
+    },
+    "op_modify_item": {
+      "type": "object",
+      "description": "Permanently change one picked item (modding, reinforcing). The item becomes a unique variant of its base.",
+      "properties": {
+        "op": {
+          "const": "modify_item"
+        },
+        "pick": {
+          "$ref": "#/$defs/item_pick"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "add_tags": {
+          "$ref": "#/$defs/tags"
+        },
+        "remove_tags": {
+          "$ref": "#/$defs/tags"
+        },
+        "stats": {
+          "type": "object",
+          "description": "Stat id to amount added to the item's own stats.",
+          "propertyNames": {
+            "$ref": "#/$defs/id"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/amount"
+          },
+          "x-ref-keys": "stat"
+        },
+        "max_condition": {
+          "type": "integer",
+          "description": "Added to the item's maximum condition."
+        },
+        "name_suffix": {
+          "$ref": "#/$defs/label"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "pick"
+      ],
+      "x-status": "reserved"
+    },
+    "op_roll_loot": {
+      "type": "object",
+      "description": "Roll a loot table and give the result to the subject.",
+      "properties": {
+        "op": {
+          "const": "roll_loot"
+        },
+        "table": {
+          "$ref": "#/$defs/id",
+          "x-ref": "loot_table"
+        },
+        "rolls": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "table"
+      ]
+    },
+    "op_damage": {
+      "type": "object",
+      "description": "Deal damage of a type. Armour and resistances apply.",
+      "properties": {
+        "op": {
+          "const": "damage"
+        },
+        "amount": {
+          "$ref": "#/$defs/amount"
+        },
+        "damage_type": {
+          "$ref": "#/$defs/id",
+          "x-ref": "damage_type"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject",
+          "default": "target"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "amount",
+        "damage_type"
+      ]
+    },
+    "op_restore": {
+      "type": "object",
+      "description": "Raise a depletable stat toward its maximum (heal, repair, cool down, recharge).",
+      "properties": {
+        "op": {
+          "const": "restore"
+        },
+        "stat": {
+          "$ref": "#/$defs/id",
+          "x-ref": "stat"
+        },
+        "amount": {
+          "$ref": "#/$defs/amount"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "stat",
+        "amount"
+      ]
+    },
+    "op_modify_stat": {
+      "type": "object",
+      "description": "Add to a stat (negative to lower it). Temporary if a duration is given, otherwise permanent.",
+      "properties": {
+        "op": {
+          "const": "modify_stat"
+        },
+        "stat": {
+          "$ref": "#/$defs/id",
+          "x-ref": "stat"
+        },
+        "amount": {
+          "$ref": "#/$defs/amount"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "duration": {
+          "$ref": "#/$defs/duration"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "stat",
+        "amount"
+      ]
+    },
+    "op_apply_status": {
+      "type": "object",
+      "description": "Put a status on the subject.",
+      "properties": {
+        "op": {
+          "const": "apply_status"
+        },
+        "status": {
+          "$ref": "#/$defs/id",
+          "x-ref": "status"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject",
+          "default": "target"
+        },
+        "duration": {
+          "$ref": "#/$defs/duration"
+        },
+        "stacks": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "status"
+      ]
+    },
+    "op_remove_status": {
+      "type": "object",
+      "description": "Remove a status from the subject.",
+      "properties": {
+        "op": {
+          "const": "remove_status"
+        },
+        "status": {
+          "$ref": "#/$defs/id",
+          "x-ref": "status"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "status"
+      ]
+    },
+    "op_set_flag": {
+      "type": "object",
+      "description": "Set a world flag to a value, or add to it.",
+      "properties": {
+        "op": {
+          "const": "set_flag"
+        },
+        "flag": {
+          "$ref": "#/$defs/id",
+          "x-ref": "flag"
+        },
+        "value": {
+          "type": "integer"
+        },
+        "add": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "flag"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "required": [
+            "add"
+          ]
+        }
+      ]
+    },
+    "op_set_state": {
+      "type": "object",
+      "description": "Change an object's state (open a door, break a machine, empty a crate).",
+      "properties": {
+        "op": {
+          "const": "set_state"
+        },
+        "object": {
+          "$ref": "#/$defs/id",
+          "x-ref": "object"
+        },
+        "state": {
+          "$ref": "#/$defs/id",
+          "x-ref": "object_state"
+        },
+        "location": {
+          "$ref": "#/$defs/id",
+          "x-ref": "location",
+          "description": "Where the object is. Defaults to the current location."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "object",
+        "state"
+      ]
+    },
+    "op_move_to": {
+      "type": "object",
+      "description": "Move the subject, and their party, to a location.",
+      "properties": {
+        "op": {
+          "const": "move_to"
+        },
+        "location": {
+          "$ref": "#/$defs/id",
+          "x-ref": "location"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "entry": {
+          "$ref": "#/$defs/id",
+          "x-ref": "object",
+          "description": "Object to arrive at, usually an exit. Defaults to the location's entry point."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "location"
+      ]
+    },
+    "op_start_encounter": {
+      "type": "object",
+      "description": "Begin an encounter.",
+      "properties": {
+        "op": {
+          "const": "start_encounter"
+        },
+        "encounter": {
+          "$ref": "#/$defs/id",
+          "x-ref": "encounter"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "encounter"
+      ]
+    },
+    "op_grant_xp": {
+      "type": "object",
+      "description": "Give experience in a skill.",
+      "properties": {
+        "op": {
+          "const": "grant_xp"
+        },
+        "skill": {
+          "$ref": "#/$defs/id",
+          "x-ref": "skill"
+        },
+        "amount": {
+          "$ref": "#/$defs/amount"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "skill",
+        "amount"
+      ]
+    },
+    "op_join_party": {
+      "type": "object",
+      "description": "The subject joins the leader's party.",
+      "properties": {
+        "op": {
+          "const": "join_party"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        },
+        "leader": {
+          "$ref": "#/$defs/subject",
+          "default": "player"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op"
+      ]
+    },
+    "op_leave_party": {
+      "type": "object",
+      "description": "The subject leaves whatever party it is in.",
+      "properties": {
+        "op": {
+          "const": "leave_party"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op"
+      ]
+    },
+    "op_change_relation": {
+      "type": "object",
+      "description": "Change how one character or faction regards another. With 'mutual', both views change.",
+      "properties": {
+        "op": {
+          "const": "change_relation"
+        },
+        "of": {
+          "$ref": "#/$defs/agent"
+        },
+        "toward": {
+          "$ref": "#/$defs/agent",
+          "default": "player"
+        },
+        "amount": {
+          "$ref": "#/$defs/amount"
+        },
+        "mutual": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "of",
+        "amount"
+      ]
+    },
+    "op_change_rank": {
+      "type": "object",
+      "description": "Raise or lower the subject's Registry rank.",
+      "properties": {
+        "op": {
+          "const": "change_rank"
+        },
+        "amount": {
+          "type": "integer"
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "amount"
+      ]
+    },
+    "op_unlock_slot": {
+      "type": "object",
+      "description": "Open new implant slots in the subject's body.",
+      "properties": {
+        "op": {
+          "const": "unlock_slot"
+        },
+        "slot_type": {
+          "$ref": "#/$defs/id",
+          "x-ref": "slot_type"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "subject": {
+          "$ref": "#/$defs/subject"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "slot_type"
+      ]
+    },
+    "op_spend_time": {
+      "type": "object",
+      "description": "Let turns pass.",
+      "properties": {
+        "op": {
+          "const": "spend_time"
+        },
+        "turns": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "turns"
+      ]
+    },
+    "op_trigger_event": {
+      "type": "object",
+      "description": "Start a living-world event now.",
+      "properties": {
+        "op": {
+          "const": "trigger_event"
+        },
+        "event": {
+          "$ref": "#/$defs/id",
+          "x-ref": "event"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "event"
+      ]
+    },
+    "op_if": {
+      "type": "object",
+      "description": "Run 'then' when the condition holds, otherwise 'else'.",
+      "properties": {
+        "op": {
+          "const": "if"
+        },
+        "if": {
+          "$ref": "#/$defs/condition"
+        },
+        "then": {
+          "$ref": "#/$defs/effects"
+        },
+        "else": {
+          "$ref": "#/$defs/effects"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "if",
+        "then"
+      ]
+    },
+    "op_choose": {
+      "type": "object",
+      "description": "Let the player pick one option. Options whose condition fails are shown but unavailable.",
+      "properties": {
+        "op": {
+          "const": "choose"
+        },
+        "prompt": {
+          "$ref": "#/$defs/text"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "description": "One option.",
+            "properties": {
+              "label": {
+                "$ref": "#/$defs/label"
+              },
+              "condition": {
+                "$ref": "#/$defs/condition"
+              },
+              "hint": {
+                "$ref": "#/$defs/text"
+              },
+              "effects": {
+                "$ref": "#/$defs/effects"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "effects"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "options"
+      ]
+    }
+  }
+}
