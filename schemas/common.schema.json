@@ -46,6 +46,7 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 9,
+      "x-ref": "size",
       "description": "Size class of anything (item, object, character, suit frame, vessel), smallest 0. A shorthand for volume. Things that hold or let others through also have 'holds_size': the largest class that fits in, through or onto them. The pack names each class."
     },
     "duration": {

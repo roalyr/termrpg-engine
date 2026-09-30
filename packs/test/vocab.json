@@ -1,0 +1,42 @@
+{
+  "$schema": "../../schemas/vocab.schema.json",
+  "tags": [
+    { "id": "tag_a", "name": "a tag A item" },
+    { "id": "tag_b", "name": "a tag B item" }
+  ],
+  "stats": [
+    { "id": "stat_health", "name": "Health", "short": "HP", "kind": "pool", "role": "health" },
+    { "id": "stat_power", "name": "Power", "short": "PWR", "role": "power" },
+    { "id": "stat_mass", "name": "Mass", "short": "MAS", "role": "mass" },
+    { "id": "stat_heat", "name": "Heat", "short": "HT", "kind": "pool", "role": "heat" },
+    { "id": "stat_initiative", "name": "Initiative", "short": "INI", "role": "initiative" },
+    { "id": "stat_armor", "name": "Armor", "short": "ARM" }
+  ],
+  "damage_types": [
+    { "id": "dmg_a", "name": "Damage A", "resisted_by": "stat_armor" },
+    { "id": "dmg_b", "name": "Damage B" }
+  ],
+  "statuses": [
+    {
+      "id": "status_dot", "name": "Damage over time", "glyph": "*",
+      "stacking": "stack", "max_stacks": 3,
+      "on_turn": [ { "op": "damage", "amount": { "min": 1, "max": 2 }, "damage_type": "dmg_b", "subject": "self" } ]
+    },
+    { "id": "status_stun", "name": "Stunned", "blocks_actions": true }
+  ],
+  "slot_types": [
+    { "id": "slot_frame_a", "name": "Frame slot A", "host": "frame" },
+    { "id": "slot_body_a", "name": "Body slot A", "host": "body" }
+  ],
+  "sizes": [
+    { "size": 0, "name": "tiny" },
+    { "size": 3, "name": "person" },
+    { "size": 5, "name": "large" }
+  ],
+  "ranks": [ { "rank": 0, "name": "R0" }, { "rank": 1, "name": "R1" } ],
+  "relation_levels": [ { "min": -50, "name": "hostile" }, { "min": 0, "name": "neutral" }, { "min": 50, "name": "friendly" } ],
+  "object_states": [ { "id": "state_open", "name": "open" }, { "id": "state_closed", "name": "closed" } ],
+  "phases": [ { "id": "phase_a", "name": "Phase A", "turns": 30 }, { "id": "phase_b", "name": "Phase B", "turns": 30 } ],
+  "factions": [ { "id": "faction_a", "name": "Faction A" } ],
+  "flags": [ { "id": "flag_a", "description": "A test flag." } ]
+}
