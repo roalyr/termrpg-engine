@@ -56,13 +56,14 @@
         },
         "workshop": {
           "type": "object",
-          "description": "It is a workshop: characters can craft here.",
+          "description": "It is a workshop: characters can refit and craft here.",
           "properties": {
             "services": {
               "type": "array",
-              "description": "What can be done here.",
+              "description": "What can be done here. 'refit' allows changing frames, modules and implants; refitting is possible only at workshops that offer it.",
               "items": {
                 "enum": [
+                  "refit",
                   "dismantle",
                   "fabricate",
                   "modify",

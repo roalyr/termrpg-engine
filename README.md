@@ -230,11 +230,11 @@ other conditions; the leaves are checks, picked by the `check` field.
 | `has_tag` | `tag`, `subject`, `source` | The subject has the tag. `source` narrows where it may come from: `any` (default), `fitted` (suit gear), `carried`, `body` (implants and skills), `party` (companions) |
 | `has_item` | `item`, `count` (1), `subject` | The subject carries at least `count` of the item |
 | `skill` | `skill`, `min`, `subject` | The skill is at least level `min` |
-| `stat` | `stat`, `minimum`, `maximum`, `subject` | The stat's current value is within bounds |
-| `item_condition` | `pick`, `minimum`, `maximum`, `subject` | A picked item's condition is within bounds (items that don't wear always pass) |
+| `stat` | `stat`, `min`, `max`, `subject` | The stat's current value is within bounds |
+| `item_condition` | `pick`, `min`, `max`, `subject` | A picked item's condition is within bounds (items that don't wear always pass) |
 | `knows_design` | `item`, `subject` | The subject can fabricate the item |
 | `status` | `status`, `subject` | The subject has the status |
-| `flag` | `flag`, `minimum`, `maximum` | A world flag is within bounds (unset flags are 0) |
+| `flag` | `flag`, `min`, `max` | A world flag is within bounds (unset flags are 0) |
 | `location` | `location`, `subject` | The subject is in the location |
 | `region` | `region`, `subject` | The subject is in the region |
 | `visited` | `location`, `subject` | The subject has been there |
@@ -242,12 +242,12 @@ other conditions; the leaves are checks, picked by the `check` field.
 | `size` | `min`, `max`, `subject` | The subject's size class is within bounds |
 | `fits` | `subject` or `item`; `into_object`, `into_item` or `into_location` | The thing's size is at most the container's `holds_size` |
 | `in_party` | `subject`, `leader` (default `player`) | The subject travels in the leader's party |
-| `relation` | `of`, `toward` (default `player`), `minimum`, `maximum` | How `of` regards `toward` is within bounds |
-| `rank` | `minimum`, `maximum`, `subject` | The subject's rank is within bounds |
+| `relation` | `of`, `toward` (default `player`), `min`, `max` | How `of` regards `toward` is within bounds |
+| `rank` | `min`, `max`, `subject` | The subject's rank is within bounds |
 | `time` | `phase`, `day_min`, `day_max` | The day and part of the day match |
 | `chance` | `p` (between 0 and 1) | A seeded roll passes |
 
-Bounds are inclusive, and at least one bound must be given.
+Bounds (`min`, `max`) are inclusive, and at least one must be given.
 
 Example: "has a pry-bar, or wears a frame of size 5 or more".
 
@@ -445,7 +445,7 @@ machines, bunks.
 | `states` | The states it can be in; the first is the initial one unless `state` says otherwise |
 | `state_glyphs` | A different glyph per state, e.g. an open hatch |
 | `storage` | It holds this many item stacks (a locker) |
-| `workshop` | It is a workshop: `services` (`dismantle`, `fabricate`, `modify`, `repair`) and an optional `max_grade` |
+| `workshop` | It is a workshop: `services` (`refit`, `dismantle`, `fabricate`, `modify`, `repair`) and an optional `max_grade`. Frames, modules and implants can only be changed where `refit` is offered |
 | `interactions` | What characters can do with it; `this` is the placed object |
 
 ### Items (`item.schema.json`)
@@ -598,7 +598,7 @@ condition may only use roles filled before it, and roles exist only inside event
 
 ```json
 { "id": "event_grudge", "trigger": "day_start", "chance": 0.3, "cooldown": 3,
-  "cast": [ { "role": "sore", "when": { "check": "relation", "of": "self", "toward": "player", "maximum": -20 } } ],
+  "cast": [ { "role": "sore", "when": { "check": "relation", "of": "self", "toward": "player", "max": -20 } } ],
   "effects": [ { "op": "choose", "prompt": "What do you do?", "options": [
       { "label": "Apologise", "effects": [ { "op": "change_relation", "of": { "role": "sore" }, "amount": 10 } ] },
       { "label": "Ignore it", "effects": [] } ] } ] }
@@ -651,8 +651,9 @@ thing. It takes one of the item's mod slots, permanently.
 | `adds` | At least one of `stats`, `tags`, `actions`, `max_condition`, `uses` (a change to a module's power, mass or heat use; negative lowers it) |
 | `once` | Can be applied to the same item only once (default yes) |
 
-Crafting happens at **workshops** (objects with a `workshop` block). The four
-services:
+Refitting and crafting happen at **workshops** (objects with a `workshop` block).
+**Refit** lets characters change frames, modules and implants; parking a suit is
+storing it in an object whose `holds_size` fits it. The four crafting services:
 
 - **Dismantle** destroys an item, gives its `salvage.yields`, and teaches its design
   if `salvage.learn_requires` holds.

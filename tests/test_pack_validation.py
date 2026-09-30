@@ -512,7 +512,7 @@ class TestPackErrors(unittest.TestCase):
     def test_workshop_services(self):
         self.edit("objects.json", lambda d: next(e for e in d["entries"] if e["id"] == "obj_bench")
                   ["workshop"]["services"].append("refine"))
-        self.assertIn("workshop.services[4]: must be one of", self.errors())
+        self.assertIn("workshop.services[5]: must be one of", self.errors())
 
     def test_unknown_design(self):
         self.character("char_player", lambda ch: ch["designs"].append("item_missing"))

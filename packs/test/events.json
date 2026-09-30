@@ -15,7 +15,7 @@
             "check": "relation",
             "of": "self",
             "toward": "player",
-            "maximum": -20
+            "max": -20
           }
         },
         {
@@ -28,7 +28,7 @@
             "toward": {
               "role": "sore"
             },
-            "minimum": 30
+            "min": 30
           }
         }
       ],
@@ -81,7 +81,7 @@
           "role": "a",
           "when": {
             "check": "rank",
-            "minimum": 1
+            "min": 1
           }
         },
         {
@@ -90,7 +90,7 @@
             "all": [
               {
                 "check": "rank",
-                "minimum": 1
+                "min": 1
               },
               {
                 "check": "relation",
@@ -98,7 +98,7 @@
                 "toward": {
                   "role": "a"
                 },
-                "maximum": 0
+                "max": 0
               }
             ]
           }

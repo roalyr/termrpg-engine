@@ -33,7 +33,7 @@
           "item": "module_tool",
           "when": {
             "check": "rank",
-            "minimum": 1
+            "min": 1
           }
         },
         {

@@ -652,10 +652,10 @@
         "subject": {
           "$ref": "#/$defs/subject"
         },
-        "minimum": {
+        "min": {
           "type": "number"
         },
-        "maximum": {
+        "max": {
           "type": "number"
         }
       },
@@ -667,12 +667,12 @@
       "anyOf": [
         {
           "required": [
-            "minimum"
+            "min"
           ]
         },
         {
           "required": [
-            "maximum"
+            "max"
           ]
         }
       ]
@@ -690,10 +690,10 @@
         "subject": {
           "$ref": "#/$defs/subject"
         },
-        "minimum": {
+        "min": {
           "type": "number"
         },
-        "maximum": {
+        "max": {
           "type": "number"
         }
       },
@@ -705,12 +705,12 @@
       "anyOf": [
         {
           "required": [
-            "minimum"
+            "min"
           ]
         },
         {
           "required": [
-            "maximum"
+            "max"
           ]
         }
       ]
@@ -768,10 +768,10 @@
           "$ref": "#/$defs/id",
           "x-ref": "flag"
         },
-        "minimum": {
+        "min": {
           "type": "number"
         },
-        "maximum": {
+        "max": {
           "type": "number"
         }
       },
@@ -783,12 +783,12 @@
       "anyOf": [
         {
           "required": [
-            "minimum"
+            "min"
           ]
         },
         {
           "required": [
-            "maximum"
+            "max"
           ]
         }
       ]
@@ -995,10 +995,10 @@
           "$ref": "#/$defs/agent",
           "default": "player"
         },
-        "minimum": {
+        "min": {
           "type": "number"
         },
-        "maximum": {
+        "max": {
           "type": "number"
         }
       },
@@ -1010,12 +1010,12 @@
       "anyOf": [
         {
           "required": [
-            "minimum"
+            "min"
           ]
         },
         {
           "required": [
-            "maximum"
+            "max"
           ]
         }
       ]
@@ -1030,10 +1030,10 @@
         "subject": {
           "$ref": "#/$defs/subject"
         },
-        "minimum": {
+        "min": {
           "type": "number"
         },
-        "maximum": {
+        "max": {
           "type": "number"
         }
       },
@@ -1044,12 +1044,12 @@
       "anyOf": [
         {
           "required": [
-            "minimum"
+            "min"
           ]
         },
         {
           "required": [
-            "maximum"
+            "max"
           ]
         }
       ]

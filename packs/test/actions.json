@@ -51,7 +51,7 @@
         "when": {
           "check": "stat",
           "stat": "stat_health",
-          "maximum": 10
+          "max": 10
         },
         "weight": 3
       }

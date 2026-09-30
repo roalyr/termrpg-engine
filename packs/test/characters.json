@@ -113,7 +113,7 @@
             "check": "relation",
             "of": "self",
             "toward": "target",
-            "minimum": 50
+            "min": 50
           },
           "text": "Good to see you."
         },
@@ -164,7 +164,7 @@
             "check": "relation",
             "of": "target",
             "toward": "self",
-            "minimum": 25
+            "min": 25
           },
           "hint": "Doesn't trust you enough.",
           "effects": [
