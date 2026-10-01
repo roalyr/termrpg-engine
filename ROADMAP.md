@@ -9,7 +9,8 @@ says how to work on the project.
 - [x] Vision agreed and recorded
 - [x] Complete schema set, validator (`core/pack.py`) and tools (`core/packtool.py`)
 - [x] Generic test pack (`packs/test`) that uses every part of the schemas
-- [ ] Engine rebuild: milestones 0–7 below
+- [x] Milestone 0: foundations
+- [ ] Engine rebuild: milestones 1–7 below
 - [ ] **Version 1.0**: the first clean version of the game, after milestone 7
 
 ## Principles
@@ -38,13 +39,17 @@ Every milestone ends with something that runs and is tested, and with two chores
   Keep what still describes the running old engine. Its section 9 is checked by
   `tests/test_gdd_sync.py`; remove the matching test when a section is removed.
 
-### 0. Foundations
+### 0. Foundations ✓
 
 - `engine/` package layout.
 - Read a validated pack into typed, read-only `Content`; id lookups.
 - Seeded randomness.
 - Done when: the test pack loads into `Content`, and an invalid pack is refused
   with the validator's messages.
+- Delivered: `engine/content.py` (`load_pack`, `Content`, `PackError`; every schema
+  default filled in at load by `core.schema.apply_defaults`; placements merged with
+  their templates), `engine/rng.py`, `engine/frozen.py`. A test keeps any pack id out
+  of engine code.
 
 ### 1. State and grammar
 

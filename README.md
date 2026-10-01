@@ -31,7 +31,8 @@ The project is between two engines.
 - **The new data layer is complete.** The schemas in `schemas/` describe all game
   content; a validator checks packs against them; a generic test pack in
   `packs/test/` uses every part of them.
-- **The new engine hasn't been written yet.** It will read packs and nothing else.
+- **The new engine** (`engine/`) reads packs and nothing else. Milestone 0 is done:
+  it loads a validated pack as read-only content. See [ROADMAP.md](ROADMAP.md).
 
 ## Quick start
 
@@ -59,6 +60,7 @@ timestamps can make Python run stale cached bytecode.
 | `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
 | `AGENTS.md`, `GEMINI.md` | Instructions for AI agents |
 | `ROADMAP.md` | The engine rebuild plan |
+| `engine/` | The new engine: `content.py` loads packs, `rng.py` seeded randomness |
 | `core/`, `ui/`, `main.py` | The old engine (being replaced) |
 | `core/data/default-1.0/` | The old engine's content (to be rewritten as a game pack) |
 | `tests/` | Unit tests; `tests/test_pack_validation.py` covers the validator |
@@ -132,7 +134,9 @@ file as you type. The engine ignores it.
   `"@greeting"`) shows that entry from the strings file.
 - **Glyphs** are one or two characters drawn on the map. No emoji.
 - **`notes`** fields are for authors; the engine ignores them.
-- **Defaults.** Fields with a default can be left out.
+- **Defaults.** Fields with a default can be left out. The engine fills in every
+  default the schemas declare when it loads a pack (`explain` shows them), so the
+  engine itself never assumes a value.
 - **Reserved** fields and definitions are designed but not supported by the engine
   yet. Using them produces a warning, not an error.
 - **Versioning.** Every schema carries `x-schema-version`, and a pack states the

@@ -105,6 +105,8 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 - JSON only: no comments, no trailing commas. 2-space indentation, UTF-8, no emoji.
   Use `notes` fields for comments.
 - Unknown fields are errors. Every field you write must appear in `explain`.
+- Leave out fields whose default you want: `explain` shows each default, and the
+  engine fills it in. Write a field only to change it.
 - Ids are `lower_snake_case`. They must be unique within their namespace across the
   whole pack. **Placement ids are unique across all locations.**
 - Every referenced id must exist: tags, stats, statuses, slot types, grades,

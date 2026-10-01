@@ -2873,46 +2873,6 @@ def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
 
 ---
 
-## 11. Agent Bootstrapping Directives
-
-### Phase 1: Domain Typing & Contracts (`core/types.py`)
-- Ensure all enumerations (`ItemCategory`, `FixtureState`, `Environment`, `ExposureType`) match the specification.
-- Retain immutable `NamedTuple` definitions for `GameState`, `PlayerCharacter`, `Fixture`, `Actor`, `Edge`, `Node`, `Skill`, `Perk` and `Job`.
-
-### Phase 2: Preset Data Expansion (`presets/default-1.0/` & `core/presets.py`)
-- Sync `items.json`, `nodes.json`, `companions.json`, `skills.json` and `jobs.json` with the full 14-node open-world specifications.
-- Keep the JSON in `core/data/default-1.0/` as the single source of truth. Do not mirror it in Python.
-
-### Phase 3: Pure State Reducers (`core/reducers.py`)
-- **Proximity Menu Logic:** `_build_proximity_menu` offers `[F] Search`, `[R] Read`, `[U] Use <source>`, `[G] Go`, `[T] Talk` and `[B] Barter` per §5.2, and is rebuilt after every action.
-- **Shared Rules:** All requirement checks go through `core/rules.resolve_requirement`; all thresholds through `exposure_thresholds`. No reducer re-implements tag matching.
-- **Scavenge Reducer:** `reduce_scavenge` transfers a fixture's `yields` to the pack and sets `SPENT`.
-- **Expanded Fixture Effects:** Update `reduce_use` to handle `"scavenge"`, `"harvest"`, `"smelt"`, `"override"`, and `"log"`.
-- **Trade Reducers:** `reduce_talk` shows dialogue and offers; `reduce_barter` executes the trade, grants companions and removes recruited actors from the grid.
-
-### Phase 4: Tick Processor (`core/tick.py`)
-- Execute the 7-step tick processing pipeline (§5.6).
-- Reducers pass action experience in the tick context (`{"xp": {skill: amount}}`); `core/routine.py` applies it, grants perks, advances jobs and handles fatigue and new days.
-- Enforce sustenance integrity decay every 10 cycles and record chronological events in `action_log`.
-
-### Phase 5: Viewport & Presentation (`ui/render.py`, `ui/topology_view.py`)
-- Render the 6-zone layout adhering to the >= 40 column constraint.
-- Ensure all Zone 2 rows are formatted with `pad_visible` to prevent ANSI escape sequence padding errors.
-- Display contextual key hints in Zone 6 (`WASD move  / cmd  M map  Q quit`; `I inspect  X close  WASD move` while the menu is open).
-- Keep all player wording in `core/text.py` conventions (§6.3); never print raw IDs or tags.
-
-### Phase 6: Persistence Layer (`core/persistence.py`)
-- Maintain atomic JSON serialization into `saves/<character_name>/state.json`.
-- Enforce `is_running = True` on save file load.
-- Revival happens in the tick (§4.3). Loading still revives legacy v1 saves that stopped at the moment of collapse, using the capability-aware threshold.
-- Upgrade v1 saves (`schema_version` missing) by merging authored fields from the default preset while keeping fixture state and trades. Schema 5 rebuilds skill experience from the perk capabilities an older save already earned.
-
-### Phase 7: Verification & E2E Testing (`tests/`)
-- Ensure all automated unit and E2E test suites pass with 100% reliability.
-- Verify non-linear traversal across all 4 clusters (Station Alpha, Transit, Station Beta, Lunar Base).
-
----
-
 ## 12. Scope Boundaries & Deferred Features
 
 1. **Deterministic Functional Purity:** No runtime randomness (`random.random()`) in core logic. All resolution is deterministic based on item tags, player capabilities, and world vitals.
