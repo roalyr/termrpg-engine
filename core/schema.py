@@ -77,6 +77,18 @@ def resolves(target: str, schemas: Schemas) -> bool:
     return _resolve(target, target.partition("#")[0], schemas) is not None
 
 
+def apply_defaults(instance: Any, target: str, schemas: Schemas) -> Any:
+    """
+    A copy of a valid instance with every missing field that has a default filled in.
+    Defaults come from the field itself or from the definition it refers to, so the
+    engine never needs to know them. Run it only on data that passed validate().
+    """
+    hit = _resolve(target, target.partition("#")[0], schemas)
+    if hit is None:
+        raise KeyError(f"no schema at '{target}'")
+    return _fill(instance, hit[0], hit[1], schemas)
+
+
 def schema_problems(schemas: Schemas) -> List[str]:
     """Unresolvable $refs and keywords this checker does not implement."""
     problems: List[str] = []
@@ -255,6 +267,74 @@ def _check(inst: Any, node: dict, file: str, path: str, schemas: Schemas, acc: _
             acc.refs.append(Ref(node["x-ref"], inst, path))
         if node.get("x-status") == "reserved":
             acc.reserved.append(Issue(path, "uses a reserved feature the engine does not support yet"))
+
+
+def _default_of(node: dict, file: str, schemas: Schemas) -> Tuple[bool, Any]:
+    """(has a default, the default) for a property, looking through $refs."""
+    seen = 0
+    while isinstance(node, dict) and seen < 10:
+        if "default" in node:
+            return True, node["default"]
+        if "$ref" not in node:
+            break
+        hit = _resolve(node["$ref"], file, schemas)
+        if hit is None:
+            break
+        node, file = hit
+        seen += 1
+    return False, None
+
+
+def _fill(inst: Any, node: dict, file: str, schemas: Schemas) -> Any:
+    if "$ref" in node:
+        hit = _resolve(node["$ref"], file, schemas)
+        if hit is not None:
+            inst = _fill(inst, hit[0], hit[1], schemas)
+    for combo in ("oneOf", "anyOf"):
+        if combo in node:
+            branch = _matching_branch(inst, node, node[combo], file, schemas)
+            if branch is not None:
+                inst = _fill(inst, branch[0], branch[1], schemas)
+    for branch in node.get("allOf", []):
+        inst = _fill(inst, branch, file, schemas)
+
+    if isinstance(inst, list) and isinstance(node.get("items"), dict):
+        return [_fill(v, node["items"], file, schemas) for v in inst]
+    if isinstance(inst, dict) and ("properties" in node or isinstance(node.get("additionalProperties"), dict)):
+        props = node.get("properties", {})
+        extra = node.get("additionalProperties")
+        out = {}
+        for key, value in inst.items():
+            if key in props:
+                out[key] = _fill(value, props[key], file, schemas)
+            elif isinstance(extra, dict):
+                out[key] = _fill(value, extra, file, schemas)
+            else:
+                out[key] = value
+        for key, prop in props.items():
+            if key not in out:
+                has, default = _default_of(prop, file, schemas)
+                if has:
+                    out[key] = json.loads(json.dumps(default))  # a fresh copy
+        return out
+    return inst
+
+
+def _matching_branch(inst: Any, node: dict, branches: List[dict], file: str,
+                     schemas: Schemas) -> Optional[Tuple[dict, str]]:
+    """The oneOf/anyOf branch a valid instance took, resolved."""
+    disc = node.get("x-discriminator")
+    if disc and isinstance(inst, dict) and disc in inst:
+        for b in branches:
+            const, resolved, bfile = _branch_const(b, file, disc, schemas)
+            if const == inst[disc]:
+                return resolved, bfile
+        return None
+    for b in branches:
+        if not _try(inst, b, file, "", schemas).errors:
+            hit = _resolve(b["$ref"], file, schemas) if "$ref" in b else (b, file)
+            return hit
+    return None
 
 
 def _try(inst: Any, branch: dict, file: str, path: str, schemas: Schemas) -> _Acc:

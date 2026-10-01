@@ -39,6 +39,7 @@
         },
         "rolls": {
           "$ref": "common.schema.json#/$defs/amount",
+          "default": 1,
           "description": "How many times to draw from 'entries'."
         },
         "nothing": {
@@ -65,6 +66,7 @@
               },
               "count": {
                 "$ref": "common.schema.json#/$defs/amount",
+                "default": 1,
                 "description": "How many of the item."
               },
               "weight": {
@@ -106,7 +108,8 @@
                 "x-ref": "item"
               },
               "count": {
-                "$ref": "common.schema.json#/$defs/amount"
+                "$ref": "common.schema.json#/$defs/amount",
+                "default": 1
               }
             },
             "additionalProperties": false,
@@ -140,6 +143,7 @@
         },
         "count": {
           "$ref": "common.schema.json#/$defs/amount",
+          "default": 1,
           "description": "How many of the item."
         },
         "weight": {

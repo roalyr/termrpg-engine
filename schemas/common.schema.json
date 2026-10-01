@@ -1147,7 +1147,8 @@
           "x-ref": "item"
         },
         "count": {
-          "$ref": "#/$defs/amount"
+          "$ref": "#/$defs/amount",
+          "default": 1
         },
         "subject": {
           "$ref": "#/$defs/subject"
@@ -1175,7 +1176,8 @@
           "x-ref": "tag"
         },
         "count": {
-          "$ref": "#/$defs/amount"
+          "$ref": "#/$defs/amount",
+          "default": 1
         },
         "subject": {
           "$ref": "#/$defs/subject"

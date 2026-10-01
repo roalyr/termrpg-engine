@@ -58,6 +58,7 @@
               },
               "count": {
                 "$ref": "common.schema.json#/$defs/amount",
+                "default": 1,
                 "description": "How many copies of a template. Unique characters always count once."
               }
             },
@@ -82,6 +83,7 @@
               },
               "count": {
                 "$ref": "common.schema.json#/$defs/amount",
+                "default": 1,
                 "description": "How many copies of a template. Unique characters always count once."
               }
             },
@@ -137,6 +139,7 @@
         },
         "count": {
           "$ref": "common.schema.json#/$defs/amount",
+          "default": 1,
           "description": "How many copies of a template. Unique characters always count once."
         }
       },

@@ -57,15 +57,18 @@
       "properties": {
         "power": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": 0
         },
         "mass": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": 0
         },
         "heat": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": 0
         }
       },
       "additionalProperties": false
@@ -529,15 +532,18 @@
           "properties": {
             "power": {
               "type": "number",
-              "minimum": 0
+              "minimum": 0,
+              "default": 0
             },
             "mass": {
               "type": "number",
-              "minimum": 0
+              "minimum": 0,
+              "default": 0
             },
             "heat": {
               "type": "number",
-              "minimum": 0
+              "minimum": 0,
+              "default": 0
             }
           },
           "additionalProperties": false
