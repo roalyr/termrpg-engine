@@ -90,6 +90,10 @@
           "$ref": "common.schema.json#/$defs/size",
           "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
         },
+        "holds_size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
+        },
         "grade": {
           "$ref": "common.schema.json#/$defs/id",
           "x-ref": "grade",
@@ -336,6 +340,10 @@
         "size": {
           "$ref": "common.schema.json#/$defs/size",
           "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+        },
+        "holds_size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
         },
         "grade": {
           "$ref": "common.schema.json#/$defs/id",
@@ -586,6 +594,10 @@
           "$ref": "common.schema.json#/$defs/size",
           "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
         },
+        "holds_size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
+        },
         "grade": {
           "$ref": "common.schema.json#/$defs/id",
           "x-ref": "grade",
@@ -813,6 +825,10 @@
           "$ref": "common.schema.json#/$defs/size",
           "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
         },
+        "holds_size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
+        },
         "grade": {
           "$ref": "common.schema.json#/$defs/id",
           "x-ref": "grade",
@@ -1023,6 +1039,10 @@
           "$ref": "common.schema.json#/$defs/size",
           "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
         },
+        "holds_size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
+        },
         "grade": {
           "$ref": "common.schema.json#/$defs/id",
           "x-ref": "grade",
@@ -1232,6 +1252,10 @@
         "size": {
           "$ref": "common.schema.json#/$defs/size",
           "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+        },
+        "holds_size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
         },
         "grade": {
           "$ref": "common.schema.json#/$defs/id",
