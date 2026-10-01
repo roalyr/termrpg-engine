@@ -31,8 +31,9 @@ The project is between two engines.
 - **The new data layer is complete.** The schemas in `schemas/` describe all game
   content; a validator checks packs against them; a generic test pack in
   `packs/test/` uses every part of them.
-- **The new engine** (`engine/`) reads packs and nothing else. Milestone 0 is done:
-  it loads a validated pack as read-only content. See [ROADMAP.md](ROADMAP.md).
+- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0 and 1
+  are done: it loads packs, holds the game state, and applies every check and
+  effect. See [ROADMAP.md](ROADMAP.md).
 
 ## Quick start
 
@@ -60,7 +61,7 @@ timestamps can make Python run stale cached bytecode.
 | `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
 | `AGENTS.md`, `GEMINI.md` | Instructions for AI agents |
 | `ROADMAP.md` | The engine rebuild plan |
-| `engine/` | The new engine: `content.py` loads packs, `rng.py` seeded randomness |
+| `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `rng.py` seeded randomness |
 | `core/`, `ui/`, `main.py` | The old engine (being replaced) |
 | `core/data/default-1.0/` | The old engine's content (to be rewritten as a game pack) |
 | `tests/` | Unit tests; `tests/test_pack_validation.py` covers the validator |
@@ -312,6 +313,47 @@ Example: search a crate once, with an even chance of finding something.
     "else": [ { "op": "message", "text": "Empty." } ] } ]
 ```
 
+#### How the engine applies the grammar
+
+Rules the engine follows that the schemas alone don't spell out:
+
+- **Groups.** A check on several characters (subject `party`) passes when **any** of
+  them passes: the party can open a door if anyone has the tool. An effect on a group
+  applies to **each** member. A subject that names nobody (no target, a role not
+  cast, a character not in play) makes a check fail and an effect do nothing.
+- **Derived stats.** A character's stat is the sum of their body, worn frame, fitted
+  modules, implants, reached skill levels and active stat changes, kept within the
+  stat's `min` and `max`. For a pool this sum is the maximum.
+- **Pools** start full, except the heat pool, which starts at the loadout's constant
+  heat load. Lowering a maximum lowers the current value with it; raising it doesn't.
+- **Broken items** (condition 0) count for nothing: no stats, tags or actions until
+  repaired.
+- **Size.** A character's size is their frame's, or their body's without one.
+  `holds_size` left out means *no limit* on locations and objects, and *holds
+  nothing* on items.
+- **Items.** Plain items stack up to their `stack`; items with a condition,
+  modifications or changes are unique. Carrying is limited to the `cargo` stat in
+  stacks; what doesn't fit isn't given. `modify_item` on a stack takes one item off
+  it. `take_item` takes from the inventory only.
+- **Relations** are one-way. Without a direct view, factions stand in, in this order:
+  the viewer's faction toward the other, the viewer toward the other's faction,
+  faction toward faction; then the pack's `relation_default`.
+- **Defeat.** When health reaches 0 the character is down and their `on_defeat` runs
+  next, with `self` the defeated character and `target` whoever caused it. Restoring
+  health above 0 brings them back.
+- **Skills.** `grant_xp` raises a skill to every level whose `xp` is reached, up to
+  `skill_max_level`, and each new level is announced.
+- **Order.** Effects run in order. `if` runs its branch before the effects after it;
+  `on_defeat`, `on_enter` and a status's `on_apply` run right after the effect that
+  caused them. `choose` stops and waits for the player; the remaining effects run
+  after the choice.
+- **Messages** are shown for the player's own character and for characters in the
+  player's location.
+- **Not yet active** (later milestones): `start_encounter` and `trigger_event` are
+  recorded and handled by encounters (milestone 4) and the event engine
+  (milestone 6); `end_encounter` does nothing outside an encounter; `spend_time` moves
+  the clock without per-turn processing until milestone 2.
+
 #### Interactions
 
 An **interaction** is something a character can do with an object, another
@@ -470,6 +512,7 @@ Every item has a `kind` that decides which extra fields it takes.
 |---|---|
 | `id`, `kind`, `name`, `size` | Required |
 | `description`, `grade`, `tags` | Tags count for `has_tag` while carried, fitted or implanted |
+| `holds_size` | For items that hold things (a bag, a cargo module): the largest size that fits. Without it nothing fits |
 | `stats` | Added to the holder while the item is active (worn, fitted, implanted) |
 | `actions` | Encounter actions it gives while active |
 | `interactions` | What the holder can do with it from the pack |

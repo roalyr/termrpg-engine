@@ -2872,10 +2872,3 @@ def build_grid(node: Node, player_row: int, player_col: int) -> Tuple[str, ...]:
 ```
 
 ---
-
-## 12. Scope Boundaries & Deferred Features
-
-1. **Deterministic Functional Purity:** No runtime randomness (`random.random()`) in core logic. All resolution is deterministic based on item tags, player capabilities, and world vitals.
-2. **Standard Library Only:** Zero external pip packages (`curses`, `urwid`, `rich`, `requests`, `numpy` are prohibited).
-3. **Postponed Mechanics:** Combat is postponed, not banned; the world is small and the environment is the threat for now.
-4. **Excluded Mechanics (v1.0):** Combat loops, tactical grid weapons, real-time animation loops, inventory grid weight math, audio synthesis, and deep planetary gravity wells.

@@ -10,7 +10,8 @@ says how to work on the project.
 - [x] Complete schema set, validator (`core/pack.py`) and tools (`core/packtool.py`)
 - [x] Generic test pack (`packs/test`) that uses every part of the schemas
 - [x] Milestone 0: foundations
-- [ ] Engine rebuild: milestones 1–7 below
+- [x] Milestone 1: state and grammar
+- [ ] Engine rebuild: milestones 2–7 below
 - [ ] **Version 1.0**: the first clean version of the game, after milestone 7
 
 ## Principles
@@ -51,7 +52,7 @@ Every milestone ends with something that runs and is tested, and with two chores
   their templates), `engine/rng.py`, `engine/frozen.py`. A test keeps any pack id out
   of engine code.
 
-### 1. State and grammar
+### 1. State and grammar ✓
 
 - `GameState`: characters (the player is one), placement states, flags, relations,
   parties, time, randomness, messages.
@@ -61,6 +62,16 @@ Every milestone ends with something that runs and is tested, and with two chores
 - Messages through the pack's strings.
 - Done when: every check and every non-encounter effect has a test against the test
   pack.
+- Delivered: `engine/state.py` (`GameState`, `CharState`, `ItemInst`, `new_game`,
+  time), `engine/stats.py` (derived stats, tags, size, budgets, cargo, item views
+  with modifications), `engine/context.py` (subjects, agents, relations with faction
+  fallback, item picks, amounts), `engine/conditions.py` (all 19 checks),
+  `engine/effects.py` (all effects; `choose` pauses and resumes; `start_encounter`
+  and `trigger_event` leave requests for milestones 4 and 6). The rules decided here
+  are in README.md, "How the engine applies the grammar".
+- Carried into milestone 2: an arrival on a solid object's tile (the test pack starts
+  the player on the crate) should be placed next to it; `spend_time` should run the
+  per-turn processing.
 
 ### 2. Walkable world
 

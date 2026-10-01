@@ -127,7 +127,10 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 - `chance` checks and `{min, max}` amounts are rolled from the game's seed. Don't
   expect them to vary within one replay.
 - The README table "what self, target and this mean" tells you who `self` is in each
-  place.
+  place, and "How the engine applies the grammar" explains groups, pools, broken
+  items, relations and defeat.
+- A check on `party` passes if anyone in the party passes; an effect on `party` hits
+  everyone.
 
 **World**
 
@@ -139,6 +142,8 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   its own `exit` pointing at the other door's placement id.
 - A door's state belongs to its placement. Two door placements don't share a state.
 - Every `size` and `holds_size` value must be named in the vocabulary's `sizes`.
+- `holds_size` left out means no limit on locations and objects, but holds nothing
+  on items.
 - A tag marked `hazard` only shows a warning. The harm itself must be written in the
   location's `on_turn`.
 

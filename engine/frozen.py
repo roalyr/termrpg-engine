@@ -9,6 +9,8 @@ def freeze(value: Any) -> Any:
     """A deep read-only copy of a JSON value."""
     if isinstance(value, dict):
         return MappingProxyType({k: freeze(v) for k, v in value.items()})
+    if isinstance(value, tuple) and hasattr(value, "_fields"):
+        return value  # a NamedTuple is already immutable; keep its type
     if isinstance(value, (list, tuple)):
         return tuple(freeze(v) for v in value)
     return value
