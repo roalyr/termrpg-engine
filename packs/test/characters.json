@@ -59,9 +59,7 @@
           "event": "event_rescue"
         }
       ],
-      "designs": [
-        "module_tool"
-      ]
+      "designs": []
     },
     {
       "id": "char_npc",

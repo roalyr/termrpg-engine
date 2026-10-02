@@ -548,6 +548,144 @@
           "minLength": 1,
           "description": "Key hints while picking a target. No placeholders.",
           "x-placeholders": []
+        },
+        "dismantle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Item menu: dismantle an item at a workshop. No placeholders.",
+          "x-placeholders": []
+        },
+        "repair": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Item menu: repair a worn item at a workshop. No placeholders.",
+          "x-placeholders": []
+        },
+        "fabricate": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Item menu: make a copy of a known design. No placeholders.",
+          "x-placeholders": []
+        },
+        "modify": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Item menu: apply a modification. Placeholders: {modification}.",
+          "x-placeholders": [
+            "modification"
+          ]
+        },
+        "pack_designs": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Heading for known designs in the pack panel, near a fabricating workshop. No placeholders.",
+          "x-placeholders": []
+        },
+        "needs_service": {
+          "type": "string",
+          "minLength": 1,
+          "description": "No workshop within reach offers this. No placeholders.",
+          "x-placeholders": []
+        },
+        "too_advanced": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The workshops within reach can't work on an item of this grade. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "needs_materials": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Materials are missing; 'items' lists them with counts. Placeholders: {items}.",
+          "x-placeholders": [
+            "items"
+          ]
+        },
+        "no_mod_slot": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The item has no free mod slot. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "already_modified": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The item already has this modification. Placeholders: {item}, {modification}.",
+          "x-placeholders": [
+            "item",
+            "modification"
+          ]
+        },
+        "not_damaged": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The item doesn't need repair. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "item_dismantled": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An item was taken apart; 'items' lists what it gave. Placeholders: {item}, {items}.",
+          "x-placeholders": [
+            "item",
+            "items"
+          ]
+        },
+        "design_learned": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Dismantling taught a design. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "design_not_learned": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Dismantling didn't teach the design (not skilled enough). Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "item_fabricated": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An item was made. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "item_modified": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A modification was applied. Placeholders: {item}, {modification}.",
+          "x-placeholders": [
+            "item",
+            "modification"
+          ]
+        },
+        "item_repaired": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An item was repaired. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "pack_more": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The pack panel has more pages. Placeholders: {page}, {pages}.",
+          "x-placeholders": [
+            "page",
+            "pages"
+          ]
         }
       },
       "additionalProperties": false
