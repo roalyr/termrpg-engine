@@ -201,6 +201,8 @@ def menu(content: Content, state: GameState) -> Optional[Menu]:
         label = content.text(exit_["label"]) if exit_.get("label") else \
             content.message("go_to", destination=_destination_name(content, exit_))
         hint = content.text(exit_["hint"]) if not ok and exit_.get("hint") else None
+        if not exit_.get("location"):            # procedural zones are reserved
+            ok, hint = False, content.message("unavailable")
         options.append(Option("g", label, ok, hint, "go", None))
     if kind == "character" and content.get("character", state.characters[ref].source).get("talk"):
         options.append(Option("t", content.message("talk"), True, None, "talk", None))
@@ -284,6 +286,13 @@ def _interact(content: Content, state: GameState, interaction: Record) -> GameSt
 def _go(content: Content, state: GameState) -> GameState:
     placed = content.get("placement", state.focus[1])
     exit_ = placed["exit"]
+    size = stats.size(content, state.characters[state.player])
+    for container in (placed, content.get("location", exit_["location"])):
+        if container.get("holds_size") is not None and size > container["holds_size"]:
+            frame = state.characters[state.player].frame
+            thing = stats.item_view(content, frame)["name"] if frame else \
+                content.get("character", state.characters[state.player].source)["name"]
+            return _say(state, "plain", content.message("cannot_fit", thing=thing, container=container["name"]))
     state = state._replace(focus=None)
     state = run(content, state, Ctx(self_id=state.player, this=placed["id"]),
                 [freeze({"op": "move_to", "location": exit_["location"], "subject": "self",

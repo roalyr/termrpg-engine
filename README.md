@@ -31,9 +31,9 @@ The project is between two engines.
 - **The new data layer is complete.** The schemas in `schemas/` describe all game
   content; a validator checks packs against them; a generic test pack in
   `packs/test/` uses every part of them.
-- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0–2 are
-  done: the test pack is playable in the terminal with `python3 play.py`. See
-  [ROADMAP.md](ROADMAP.md).
+- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0–3 are
+  done: the test pack is playable in the terminal with `python3 play.py`, including
+  refitting suits. See [ROADMAP.md](ROADMAP.md).
 
 ## Quick start
 
@@ -374,6 +374,21 @@ Rules the engine follows that the schemas alone don't spell out:
   (milestone 6); `end_encounter` does nothing outside an encounter.
 - **Saves** go to `saves/<pack folder>/<slot>.json` and hold only the state. A save
   only loads with the same pack and the same major pack version.
+- **Refitting.** Frames, modules and implants are fitted or removed only within reach
+  (the player's tile or next to it) of a workshop offering `refit`. A fit needs a free
+  slot, the item's `fit_requires`, power and mass within what the loadout provides,
+  constant heat below maximum heat, and for a frame, a size that fits the current
+  location. A frame comes off only after its modules. Removed items go to the
+  inventory, which must still fit in cargo afterwards (a frame often provides cargo).
+  When a pool's maximum changes, its current value moves with it, never below 1, so
+  putting on a suit adds its health.
+- **Size at exits.** Going through an exit needs the traveller's size to fit the exit
+  placement's `holds_size` and the destination's.
+- **Storage.** Objects with `storage` within reach take and give items one at a time;
+  items must fit their `holds_size`. That's where suits are parked.
+- **Using items.** An item's interactions are used from the pack; for a consumable,
+  each use spends one before the effects run. In item interactions the item pick
+  `{"used": true}` is the item itself.
 
 #### Interactions
 
@@ -484,7 +499,7 @@ A **placement** puts an object template at a grid position:
 | `id` | Unique across the pack; checks and effects refer to it |
 | `object` | The template |
 | `at` | `[row, column]` on a wall or floor tile, one placement per tile |
-| `name`, `description`, `glyph`, `state` | Override the template's |
+| `name`, `description`, `glyph`, `state`, `contents` | Override the template's |
 | `tags` | Added to the template's |
 | `interactions` | Merged with the template's by id: the same id replaces, a new id adds |
 | `exit` | Makes it a way to somewhere else |
@@ -519,7 +534,8 @@ machines, bunks.
 | `solid` | Blocks walking onto its tile; used from a neighbouring tile |
 | `states` | The states it can be in; the first is the initial one unless `state` says otherwise |
 | `state_glyphs` | A different glyph per state, e.g. an open hatch |
-| `storage` | It holds this many item stacks (a locker) |
+| `storage` | It holds this many item stacks (a locker, a suit bay) |
+| `contents` | What it holds at the start: items with counts. A placement's `contents` replace the template's |
 | `workshop` | It is a workshop: `services` (`refit`, `dismantle`, `fabricate`, `modify`, `repair`) and an optional `max_grade`. Frames, modules and implants can only be changed where `refit` is offered |
 | `interactions` | What characters can do with it; `this` is the placed object |
 
@@ -716,6 +732,12 @@ All text the engine prints comes from the pack.
 | `pack_fitted`, `pack_carried`, `game_saved` | none |
 | `character_title` | `{name}` |
 | `terminal_too_small` | `{columns}`, `{rows}` |
+| `fit`, `remove`, `store`, `take` | none (pack panel labels) |
+| `refit_needed`, `frame_worn`, `frame_needed`, `remove_modules_first`, `keys_pack` | none |
+| `no_free_slot`, `cannot_use`, `item_fitted`, `item_removed` | `{item}` |
+| `over_budget` | `{stat}`, `{need}`, `{have}` |
+| `storage_full`, `pack_stored` | `{container}` |
+| `item_stored`, `item_taken` | `{item}`, `{container}` |
 
 ### Modifications (`modification.schema.json`)
 

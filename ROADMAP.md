@@ -12,7 +12,8 @@ says how to work on the project.
 - [x] Milestone 0: foundations
 - [x] Milestone 1: state and grammar
 - [x] Milestone 2: walkable world (`python3 play.py`)
-- [ ] Engine rebuild: milestones 3–7 below
+- [x] Milestone 3: build
+- [ ] Engine rebuild: milestones 4–7 below
 - [ ] **Version 1.0**: the first clean version of the game, after milestone 7
 
 ## Principles
@@ -90,13 +91,21 @@ Every milestone ends with something that runs and is tested, and with two chores
   board in milestone 3; the crate never restocks until day-start events exist
   (milestone 6); `start_encounter` requests wait for milestone 4.
 
-### 3. Build
+### 3. Build ✓
 
 - Inventory and cargo, the fitting board, fitting and removing within budgets,
   refitting only at `refit` workshops, frame size against `holds_size`.
 - Skills and experience.
 - Done when: modules and frames can be swapped, and the budget and size rules behave
   as the validator predicts.
+- Delivered: `engine/build.py` (fit and remove within slots, `fit_requires` and
+  budgets, only at `refit` workshops; pools follow the loadout; storage with
+  starting `contents`; using items, a consumable spending one), size checks at exits,
+  the pack panel as the fitting board, experience progress in the character panel.
+  Schema: object and placement `contents`, new UI message keys.
+  `tests/test_engine_build.py` swaps a full suit at the test pack's bay.
+- Carried forward: skills gain experience from actions' `trains` in milestone 4; a
+  workshop's `max_grade` applies to crafting (milestone 5), not to refitting.
 
 ### 4. Encounters
 

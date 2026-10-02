@@ -103,6 +103,7 @@ class GameState(NamedTuple):
     focus: Optional[Tuple[str, str]] = None           # ('placement'|'character', id) the menu is about
     used: Mapping[str, int] = freeze({})              # 'owner:interaction' -> day it was last used
     turns_owed: int = 0                               # time spent by effects, processed after the action
+    storage: Mapping[str, Tuple[ItemInst, ...]] = freeze({})   # placement -> items stored in it
 
 
 # --- Time ---------------------------------------------------------------------
@@ -180,6 +181,13 @@ def new_game(content: Content, seed: int) -> GameState:
                     relations.setdefault(char_key(char_id), {})[key] = view["value"]
 
     object_states = {pid: p["state"] for pid, p in content.all("placement").items() if p.get("state")}
+    storage = {}
+    for pid, p in content.all("placement").items():
+        items: Tuple[ItemInst, ...] = ()
+        for entry in p.get("contents", ()):
+            items = add_items(content, items, entry["item"], entry["count"])
+        if items:
+            storage[pid] = items
     flags = {fid: f.get("default", 0) for fid, f in content.all("flag").items()}
     state = GameState(
         player=player.id,
@@ -189,6 +197,7 @@ def new_game(content: Content, seed: int) -> GameState:
         object_states=freeze(object_states),
         flags=freeze(flags),
         relations=freeze(relations),
+        storage=freeze(storage),
     )
     return state._replace(characters=freeze({cid: stats.fill_pools(content, cs) for cid, cs in characters.items()}))
 

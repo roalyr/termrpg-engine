@@ -8,7 +8,7 @@ always draws the same frame. Every word on screen comes from the pack.
 """
 from typing import List, Optional
 
-from engine import context, stats, world
+from engine import build, context, stats, world
 from engine.content import Content
 from engine.state import GameState, day_of, phase_of
 from tui.text import ANSI, Style, pad, visible_len, wrap
@@ -17,7 +17,7 @@ MIN_COLUMNS, MIN_ROWS = 40, 20
 
 
 def render(content: Content, state: GameState, columns: int, rows: int = 60,
-           panel: Optional[str] = None, colour: bool = True) -> str:
+           panel: Optional[str] = None, colour: bool = True, selected: Optional[int] = None) -> str:
     style = Style(colour)
     if columns < MIN_COLUMNS or rows < MIN_ROWS:
         return content.message("terminal_too_small", columns=MIN_COLUMNS, rows=MIN_ROWS) + "\n"
@@ -39,9 +39,9 @@ def render(content: Content, state: GameState, columns: int, rows: int = 60,
     out.append(_rule("├", "┤", inner))
     out += _box(_legend(content, state, location, inner, style), inner)
     out.append(_rule("├", "┤", inner))
-    out += _box(_messages(content, state, inner, panel, style), inner)
+    out += _box(_messages(content, state, inner, panel, style, selected), inner)
     out.append(_rule("├", "┤", inner))
-    out += _box(_hints(content, state, inner, style), inner)
+    out += _box(_hints(content, state, inner, style, panel), inner)
     out.append(_rule("└", "┘", inner))
     return "\n".join(out) + "\n"
 
@@ -160,7 +160,8 @@ KIND_MARK = {"danger": "! ", "gain": "+ ", "plain": "", "quiet": ""}
 KIND_ORDER = {"danger": 0, "gain": 1, "plain": 2, "quiet": 3}
 
 
-def _messages(content: Content, state: GameState, inner: int, panel: Optional[str], style: Style) -> List[str]:
+def _messages(content: Content, state: GameState, inner: int, panel: Optional[str], style: Style,
+              selected: Optional[int] = None) -> List[str]:
     width = inner - 2
     lines: List[str] = []
     for message in sorted(state.messages, key=lambda m: KIND_ORDER.get(m.kind, 2)):
@@ -179,7 +180,7 @@ def _messages(content: Content, state: GameState, inner: int, panel: Optional[st
             lines += wrap(f"{i} {content.text(option['label'])}", width)
         return lines
     if panel == "pack":
-        return lines + _pack(content, state, width)
+        return lines + _pack(content, state, width, style, selected)
     if panel == "character":
         return lines + _character(content, state, width, style)
     current = world.menu(content, state)
@@ -200,17 +201,38 @@ def _wrap_styled(text: str, width: int) -> List[str]:
     return [text] if visible_len(text) <= width else wrap(ANSI.sub("", text), width)
 
 
-def _pack(content: Content, state: GameState, width: int) -> List[str]:
+def _pack(content: Content, state: GameState, width: int, style: Style, selected: Optional[int]) -> List[str]:
+    """The fitting board: budgets, numbered items by where they are, and the picked item's options."""
     player = state.characters[state.player]
-    lines = [content.message("pack_fitted")]
-    for (where, _), inst in stats.held(player):
-        if where != "inventory":
-            lines.append("  " + _item_line(content, inst))
-    lines.append(content.message("pack_carried"))
-    for (where, _), inst in stats.held(player):
-        if where == "inventory":
-            lines.append("  " + _item_line(content, inst))
-    return [line[:width] for line in lines]
+    budgets = []
+    for role, used in (("power", stats.budget_used(content, player, "power")),
+                       ("mass", stats.budget_used(content, player, "mass")),
+                       ("cargo", len(player.inventory))):
+        stat_id = content.stat_roles.get(role)
+        if stat_id:
+            short = content.get("stat", stat_id).get("short") or content.get("stat", stat_id)["name"]
+            budgets.append(f"{short} {used:g}/{stats.budget_provided(content, player, role):g}")
+    lines = [style.dim("  ".join(budgets))]
+    slots = build.pack_slots(content, state)
+    heading = {"fitted": content.message("pack_fitted"), "inventory": content.message("pack_carried")}
+    shown = set()
+    where_store = build.storage_here(content, state)
+    for number, slot in enumerate(slots, 1):
+        group = "inventory" if slot[0] == "inventory" else "storage" if slot[0] == "storage" else "fitted"
+        if group not in shown:
+            shown.add(group)
+            lines.append(content.message("pack_stored", container=content.get("placement", where_store)["name"])
+                         if group == "storage" else heading[group])
+        inst = build.stored(state, where_store)[slot[1]] if slot[0] == "storage" else stats.item_at(player, slot)
+        entry = f"{number if number <= 9 else ' '} {_item_line(content, inst)}"
+        lines.append(style.key(entry) if selected == number - 1 else entry)
+    if selected is not None and selected < len(slots):
+        for option in build.item_options(content, state, slots[selected]):
+            if option.available:
+                lines += _wrap_styled(f"{style.key(option.key.upper())} {option.label}", width)
+            else:
+                lines += wrap(f"{option.key.upper()} {option.label}" + (f" - {option.hint}" if option.hint else ""), width)
+    return [line if visible_len(line) <= width else line[:width] for line in lines]
 
 
 def _item_line(content: Content, inst) -> str:
@@ -225,8 +247,12 @@ def _character(content: Content, state: GameState, width: int, style: Style) -> 
     player = state.characters[state.player]
     record = content.get("character", player.source)
     lines = [style.bold(content.message("character_title", name=record["name"]))]
+    top = content.settings["skill_max_level"]
     for skill_id, level in player.skills.items():
-        lines.append(f"  {content.get('skill', skill_id)['name']} {level}")
+        skill = content.get("skill", skill_id)
+        following = [lv["xp"] for lv in skill["levels"] if lv["level"] > level and lv["level"] <= top]
+        progress = f" ({player.xp.get(skill_id, 0)}/{min(following)})" if following else ""
+        lines.append(f"  {skill['name']} {level}{progress}")
     for stat_id, stat in content.all("stat").items():
         if stat.get("kind") != "pool":
             lines.append(f"  {stat.get('short') or stat['name']} {stats.stat(content, player, stat_id):g}")
@@ -235,9 +261,11 @@ def _character(content: Content, state: GameState, width: int, style: Style) -> 
 
 # --- Zone 6 -------------------------------------------------------------------------------
 
-def _hints(content: Content, state: GameState, inner: int, style: Style) -> List[str]:
+def _hints(content: Content, state: GameState, inner: int, style: Style, panel: Optional[str] = None) -> List[str]:
     if state.pending is not None:
         key = "keys_choice"
+    elif panel == "pack":
+        key = "keys_pack"
     elif world.menu(content, state) is not None:
         key = "keys_menu"
     else:

@@ -152,6 +152,13 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   arrivals on the nearest free floor tile.
 - Interaction keys `w a s d i x q p c g t` and `1`–`4` are taken by the game; pick
   another letter for `key`, or the engine picks one.
+- Players can change frames, modules and implants only next to a workshop offering
+  `refit`. Put one where players should be able to refit, and make sure the room's
+  `holds_size` fits the frames meant to be worn there.
+- A frame's size is its wearer's size: a size-5 suit can't pass a door or enter a
+  room whose `holds_size` is smaller. Plan where heavy suits can go.
+- Starting items in lockers and bays go in `contents`; they must fit the object's
+  `storage` (stacks) and `holds_size`.
 
 **Items and characters**
 

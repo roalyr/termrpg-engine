@@ -232,21 +232,21 @@ class TestScreen(unittest.TestCase):
 class TestApp(unittest.TestCase):
     def test_handle_keys(self):
         s = new_game(CONTENT, 1)
-        s, panel, quit_now = app.handle(CONTENT, s, "p", None)
-        self.assertEqual((panel, quit_now), ("pack", False))
-        s, panel, _ = app.handle(CONTENT, s, "a", panel)
-        self.assertIsNone(panel)
-        s, _, _ = app.handle(CONTENT, s, ".", None)
+        s, view, quit_now = app.handle(CONTENT, s, "p")
+        self.assertEqual((view.panel, quit_now), ("pack", False))
+        s, view, _ = app.handle(CONTENT, s, "a", view)
+        self.assertIsNone(view.panel)
+        s, _, _ = app.handle(CONTENT, s, ".")
         self.assertEqual(s.turn, 2)
-        _, _, quit_now = app.handle(CONTENT, s, "q", None)
+        _, _, quit_now = app.handle(CONTENT, s, "q")
         self.assertTrue(quit_now)
 
     def test_choice_keys(self):
         s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id=PLAYER),
                 CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"])
-        s, _, _ = app.handle(CONTENT, s, "w", None)          # ignored while a choice waits
+        s, _, _ = app.handle(CONTENT, s, "w")                # ignored while a choice waits
         self.assertIsNotNone(s.pending)
-        s, _, _ = app.handle(CONTENT, s, "1", None)
+        s, _, _ = app.handle(CONTENT, s, "1")
         self.assertIsNone(s.pending)
 
     def test_scripted_game_saves(self):
