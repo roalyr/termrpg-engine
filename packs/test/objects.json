@@ -227,6 +227,25 @@
           "refit"
         ]
       }
+    },
+    {
+      "id": "obj_hatch",
+      "name": "Hatch",
+      "glyph": "⊙",
+      "solid": true,
+      "interactions": [
+        {
+          "id": "open",
+          "label": "Open",
+          "key": "u",
+          "effects": [
+            {
+              "op": "start_encounter",
+              "encounter": "enc_drones"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

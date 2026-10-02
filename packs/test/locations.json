@@ -143,6 +143,14 @@
               "item": "implant_a"
             }
           ]
+        },
+        {
+          "id": "pl_b_hatch",
+          "object": "obj_hatch",
+          "at": [
+            3,
+            3
+          ]
         }
       ],
       "on_turn": [

@@ -196,7 +196,8 @@
         "size": 2,
         "stats": {
           "stat_health": 8,
-          "stat_initiative": 2
+          "stat_initiative": 2,
+          "stat_power": 6
         }
       },
       "actions": [

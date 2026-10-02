@@ -471,6 +471,83 @@
           "minLength": 1,
           "description": "Key hints in the pack panel. No placeholders.",
           "x-placeholders": []
+        },
+        "encounter_round": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Encounter header: its name and the round. Placeholders: {encounter}, {round}.",
+          "x-placeholders": [
+            "encounter",
+            "round"
+          ]
+        },
+        "uses_action": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Someone uses an action in an encounter. Placeholders: {character}, {action}.",
+          "x-placeholders": [
+            "character",
+            "action"
+          ]
+        },
+        "intent": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What an enemy is about to do, shown next to it. Placeholders: {action}, {target}.",
+          "x-placeholders": [
+            "action",
+            "target"
+          ]
+        },
+        "on_cooldown": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why an action can't be used: still cooling down. Placeholders: {rounds}.",
+          "x-placeholders": [
+            "rounds"
+          ]
+        },
+        "no_charges": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why an action can't be used: no uses left this encounter. No placeholders.",
+          "x-placeholders": []
+        },
+        "needs_item": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why an action can't be used: an item it uses up is missing. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "skips_turn": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Someone loses their action (overheated, stunned). Placeholders: {character}.",
+          "x-placeholders": [
+            "character"
+          ]
+        },
+        "fled": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Someone flees the encounter. Placeholders: {character}.",
+          "x-placeholders": [
+            "character"
+          ]
+        },
+        "keys_encounter": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Key hints in an encounter. No placeholders.",
+          "x-placeholders": []
+        },
+        "keys_target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Key hints while picking a target. No placeholders.",
+          "x-placeholders": []
         }
       },
       "additionalProperties": false

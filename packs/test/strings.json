@@ -59,7 +59,17 @@
     "item_stored": "Stored {item} in {container}.",
     "item_taken": "Took {item} from {container}.",
     "pack_stored": "In {container}:",
-    "keys_pack": "1-9 pick  Keys above act  P close"
+    "keys_pack": "1-9 pick  Keys above act  P close",
+    "encounter_round": "{encounter} · round {round}",
+    "uses_action": "{character} uses {action}.",
+    "intent": "{action} {target}",
+    "on_cooldown": "Ready in {rounds}.",
+    "no_charges": "Used up.",
+    "needs_item": "Needs {item}.",
+    "skips_turn": "{character} loses a turn.",
+    "fled": "{character} flees.",
+    "keys_encounter": "1-9 act  Q quit",
+    "keys_target": "1-9 target  X back"
   },
   "entries": [
     {
