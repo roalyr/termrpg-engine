@@ -29,6 +29,10 @@
         {
           "item": "material_a",
           "count": 12
+        },
+        {
+          "item": "misc_key",
+          "count": 1
         }
       ],
       "skills": {
@@ -102,9 +106,7 @@
       "talk": [
         {
           "when": {
-            "check": "in_party",
-            "subject": "target",
-            "leader": "player"
+            "check": "in_party"
           },
           "text": "Lead on."
         },

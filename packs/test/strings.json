@@ -26,7 +26,22 @@
     "status_applied": "{character}: {status}.",
     "status_ended": "{character}: {status} ends.",
     "day_start": "Day {day}.",
-    "phase_start": "{phase}."
+    "phase_start": "{phase}.",
+    "go_to": "Go to {destination}",
+    "talk": "Talk",
+    "inspect": "Inspect",
+    "already_used": "Already done.",
+    "unavailable": "Not now.",
+    "keys_walk": "WASD move  . wait  P pack  C char  Q quit",
+    "keys_menu": "Keys shown above  X close  WASD move",
+    "keys_choice": "1-4 choose",
+    "day_phase": "Day {day} · {phase}",
+    "party": "With: {names}",
+    "pack_fitted": "Fitted:",
+    "pack_carried": "Carried:",
+    "character_title": "{name}",
+    "game_saved": "Saved.",
+    "terminal_too_small": "Make the terminal at least {columns}x{rows}."
   },
   "entries": [
     {
