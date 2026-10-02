@@ -206,6 +206,22 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   it further.
 - What crafting produces must fit in the player's cargo, or the action is refused.
 
+**Events**
+
+- Routine upkeep is an event too: a crate that refills each morning is a `day_start`
+  event with `notify: false` that sets its state back.
+- A cast drawn `from` `anyone` can include the player and characters with no
+  location. Write conditions that rule out who shouldn't play the role.
+- Relations in cast conditions fall back through factions: a character with no view
+  of someone uses their faction's view. Test with `play.py` that the right people get
+  cast.
+- `notify: false` events shouldn't use `choose`: the player would get a question about
+  something they can't see.
+- Requested events (`trigger_event`) ignore `chance` and `cooldown` but still need a
+  cast and `when`. `on_defeat` usually requests a rescue event this way.
+- Off-screen characters never act on their own. Only events move them or change
+  their views and ranks, so rivals need events to have lives.
+
 **Text**
 
 - Labels (`name`, `label`) are at most 32 characters. An action's `short` is at

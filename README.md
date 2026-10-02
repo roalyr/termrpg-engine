@@ -31,9 +31,10 @@ The project is between two engines.
 - **The new data layer is complete.** The schemas in `schemas/` describe all game
   content; a validator checks packs against them; a generic test pack in
   `packs/test/` uses every part of them.
-- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0–5 are
+- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0–6 are
   done: the test pack is playable in the terminal with `python3 play.py`, including
-  refitting suits, fighting and crafting. See [ROADMAP.md](ROADMAP.md).
+  refitting suits, fighting, crafting and living-world events. See
+  [ROADMAP.md](ROADMAP.md).
 
 ## Quick start
 
@@ -63,7 +64,7 @@ timestamps can make Python run stale cached bytecode.
 | `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
 | `AGENTS.md`, `GEMINI.md` | Instructions for AI agents |
 | `ROADMAP.md` | The engine rebuild plan |
-| `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `craft.py` workshops, `save.py` saves, `rng.py` seeded randomness |
+| `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `craft.py` workshops, `events.py` the living world, `save.py` saves, `rng.py` seeded randomness |
 | `tui/`, `play.py` | The terminal UI for the new engine, and how to start it |
 | `core/`, `ui/`, `main.py` | The old engine (being replaced) |
 | `core/data/default-1.0/` | The old engine's content (to be rewritten as a game pack) |
@@ -369,8 +370,6 @@ Rules the engine follows that the schemas alone don't spell out:
   every character in a location gets the location's `on_turn`; statuses run their
   `on_turn` once per stack, count down and end with `on_expire`; timed stat changes
   count down. A choice waiting for the player pauses time.
-- **Not yet active:** `trigger_event` is recorded for the event engine
-  (milestone 6).
 - **Saves** go to `saves/<pack folder>/<slot>.json` and hold only the state. A save
   only loads with the same pack and the same major pack version.
 - **Refitting.** Frames, modules and implants are fitted or removed only within reach
@@ -452,7 +451,7 @@ these effects":
 | `schema_version` | The schema version it targets (currently `1`) |
 | `purpose` | `game` (default) or `test` |
 | `start` | `location`, optional `entry` placement, `player` character, `day` (1), `phase` (the first one) |
-| `settings` | `skill_max_level` (5), `relation_min` (-100), `relation_max` (100), `relation_default` (0) |
+| `settings` | `skill_max_level` (5), `relation_min` (-100), `relation_max` (100), `relation_default` (0), `events_per_trigger` (0 = no limit) |
 | `files` | Data files by kind; paths relative to the pack, no `..` |
 | `extends` | Packs this one modifies. Reserved, for mods |
 
@@ -710,11 +709,11 @@ people each time, including NPCs far from the player.
 
 | Field | Meaning |
 |---|---|
-| `trigger` | When the engine considers it: `day_start` (default), `turn`, `enter_location`, or `manual` (only through `trigger_event`) |
+| `trigger` | When the engine considers it: `day_start` (default), every `turn`, `enter_location` (whenever the player arrives somewhere), or `manual` (only through `trigger_event`) |
 | `cast` | Roles filled in order. Each has `role` (its name), `character` (always this one) or `from` (`anyone`, `here`, `party`), a `when` condition with `self` as the candidate, and `optional` |
 | `when` | Must hold once the cast is filled |
 | `chance` | Chance to fire each time it's considered |
-| `weight` | Relative likelihood when several events could fire at once |
+| `weight` | Events of one moment are considered heaviest first; when the pack sets `events_per_trigger`, the relative likelihood of being among those that fire |
 | `cooldown` | Days before it can fire again |
 | `repeat` | Whether it can fire more than once |
 | `notify` | Whether the player sees its messages; off-screen events between NPCs usually don't |
@@ -730,6 +729,32 @@ condition may only use roles filled before it, and roles exist only inside event
       { "label": "Apologise", "effects": [ { "op": "change_relation", "of": { "role": "sore" }, "amount": 10 } ] },
       { "label": "Ignore it", "effects": [] } ] } ] }
 ```
+
+How the engine runs events:
+
+- **Settling.** After every player action the engine settles what the action left
+  waiting, in this order, until nothing is left: a requested encounter starts;
+  requested events (`trigger_event`, such as a rescue in `on_defeat`) fire; queued
+  trigger moments (each turn, each new day, each arrival of the player) are
+  considered; owed turns are paid. Nothing is settled during an encounter or while a
+  choice waits; it waits with them.
+- **A trigger moment** considers every event with that trigger, heaviest first, then
+  by id. An event can fire when it isn't used up (`repeat: false` and fired before)
+  or cooling down (`cooldown` days since it last fired), its cast can be filled, its
+  `when` holds, and its `chance` passes. All that can fire, fire, unless the pack's
+  `events_per_trigger` limits them; then that many are picked by weight.
+- **Casting.** Roles are filled in order. Candidates come from `from` (`anyone` in
+  play, the player's location, or the player's party; the player included), shuffled
+  by the seed; the first one not already cast whose `when` holds (with `self` as the
+  candidate) gets the role. Relations in those conditions fall back through factions,
+  so a character can qualify through their faction's views.
+- **Firing.** The event's `text` shows, then its effects run with `self` as the player
+  and the cast as roles. With `notify: false` the messages it produces are dropped.
+  Requested events skip `chance` and `cooldown` but still need their cast and `when`.
+  If an event leaves a choice waiting, the rest of its moment waits until it's
+  answered.
+- **Off-screen characters** (no location) never act on their own; only events move
+  them, change their views or ranks.
 
 ### Strings (`strings.schema.json`)
 

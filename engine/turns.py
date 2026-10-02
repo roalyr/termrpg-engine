@@ -35,9 +35,10 @@ def advance(content: Content, state: GameState, count: int) -> GameState:
 
 def _one_turn(content: Content, state: GameState) -> GameState:
     before_day, before_phase = day_of(content, state.turn), phase_of(content, state.turn)
-    state = state._replace(turn=state.turn + 1)
+    state = state._replace(turn=state.turn + 1, triggers=state.triggers + ("turn",))
     if day_of(content, state.turn) != before_day:
         state = _say(state, "plain", content.message("day_start", day=day_of(content, state.turn)))
+        state = state._replace(triggers=state.triggers + ("day_start",))
     elif phase_of(content, state.turn) != before_phase:
         phase = content.get("phase", phase_of(content, state.turn))
         state = _say(state, "plain", content.message("phase_start", phase=phase["name"], day=before_day))

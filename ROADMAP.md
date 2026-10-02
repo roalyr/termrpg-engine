@@ -15,7 +15,8 @@ says how to work on the project.
 - [x] Milestone 3: build
 - [x] Milestone 4: encounters
 - [x] Milestone 5: crafting
-- [ ] Engine rebuild: milestones 6–7 below
+- [x] Milestone 6: living world
+- [ ] Milestone 7: first game pack
 - [ ] **Version 1.0**: the first clean version of the game, after milestone 7
 
 ## Principles
@@ -140,12 +141,20 @@ Every milestone ends with something that runs and is tested, and with two chores
   starts without the tool's design. `tests/test_engine_craft.py` takes the tool
   through its whole life.
 
-### 6. Living world
+### 6. Living world ✓
 
 - The event engine: triggers, cast, chance, weight, cooldown, notify.
 - Off-screen characters moved only by events.
 - Done when: the grudge and off-screen rivalry events fire with different casts
   under different seeds.
+- Delivered: `engine/events.py` (settling after each action: requested encounters,
+  requested events, trigger moments, owed time; casting from seeded candidate pools;
+  repeat, cooldown, chance and the optional `events_per_trigger` limit; notify).
+  Turns, day changes and arrivals queue trigger moments. Schema: the
+  `events_per_trigger` setting, clearer `trigger` and `weight` wording. The test pack
+  gains three off-screen rivals, a morning restock of the crate, an arrival event
+  and a one-time event. `tests/test_engine_events.py` covers casting, firing,
+  triggers, limits and saves.
 
 ### 7. First game pack → version 1.0
 

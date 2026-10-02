@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import NamedTuple, Optional
 
-from engine import build, encounter, save, turns, world
+from engine import build, encounter, events, save, turns, world
 from engine.content import Content, PackError, load_pack
 from engine.effects import choose_option
 from engine.state import GameState, new_game
@@ -37,12 +37,12 @@ def handle(content: Content, state: GameState, key: str, view: View = View()):
         if key in "1234" and key:
             state = choose_option(content, state, int(key) - 1)
             state = turns.advance(content, state, 0)
-        return encounter.begin(content, state), view, False
+        return events.settle(content, state), view, False
     if state.encounter is not None:
         state, view = _fight(content, state, key, view)
-        return state, view, False
+        return events.settle(content, state), view, False
     state, view = _world(content, state, key, view)
-    return encounter.begin(content, state), view, False
+    return events.settle(content, state), view, False
 
 
 def _fight(content: Content, state: GameState, key: str, view: View):

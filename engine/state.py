@@ -105,6 +105,8 @@ class GameState(NamedTuple):
     turns_owed: int = 0                               # time spent by effects, processed after the action
     storage: Mapping[str, Tuple[ItemInst, ...]] = freeze({})   # placement -> items stored in it
     encounter: Optional[Any] = None                   # engine.encounter.EncounterState while fighting
+    triggers: Tuple[str, ...] = ()                    # event trigger moments waiting to be settled
+    event_log: Mapping[str, int] = freeze({})         # event -> day it last fired
 
 
 # --- Time ---------------------------------------------------------------------

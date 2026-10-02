@@ -360,6 +360,7 @@ def _move_to(content, state, ctx, effect):
         state = _set(state, cs._replace(location=effect["location"], at=at, visited=visited))
         follow += [(e, Ctx(self_id=cid)) for e in location.get("on_enter", ())]
     if state.player in moving:
+        state = state._replace(triggers=state.triggers + ("enter_location",))
         state = _say(state, "plain", content.message("enter_location", location=location["name"],
                                                      character=content.get("character", state.characters[state.player].source)["name"]))
     return state, follow
