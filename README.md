@@ -49,6 +49,8 @@ python3 -m core.packtool explain op damage     # document any part of the schema
 python3 -B -m unittest discover -s tests       # run all tests
 ```
 
+[PLAYTEST.md](PLAYTEST.md) walks through every feature by hand in the test pack.
+
 Use `-B` when running tests on shared phone storage: the file system's coarse
 timestamps can make Python run stale cached bytecode.
 
@@ -347,6 +349,8 @@ Rules the engine follows that the schemas alone don't spell out:
   health above 0 brings them back.
 - **Skills.** `grant_xp` raises a skill to every level whose `xp` is reached, up to
   `skill_max_level`, and each new level is announced.
+- **Choices.** While a `choose` waits, options whose `condition` fails are shown
+  greyed out with their `hint`; picking one shows the hint and keeps the choice open.
 - **Order.** Effects run in order. `if` runs its branch before the effects after it;
   `on_defeat`, `on_enter` and a status's `on_apply` run right after the effect that
   caused them. `choose` stops and waits for the player; the remaining effects run
@@ -382,10 +386,10 @@ Rules the engine follows that the schemas alone don't spell out:
   putting on a suit adds its health.
 - **Size at exits.** Going through an exit needs the traveller's size to fit the exit
   placement's `holds_size` and the destination's.
-- **Storage.** Objects with `storage` within reach take and give items one at a time;
+- **Storage.** Objects with `storage` within reach take and give whole stacks;
   items must fit their `holds_size`. That's where suits are parked.
-- **Using items.** An item's interactions are used from the pack; for a consumable,
-  each use spends one before the effects run. In item interactions the item pick
+- **Using items.** An item's interactions are used from the pack ("Used …" is
+  shown); for a consumable, each use spends one before the effects run. In item interactions the item pick
   `{"used": true}` is the item itself.
 
 #### Encounters
@@ -812,6 +816,7 @@ All text the engine prints comes from the pack.
 | `already_modified`, `item_modified` | `{item}`, `{modification}` |
 | `item_dismantled` | `{item}`, `{items}` |
 | `pack_more` | `{page}`, `{pages}` |
+| `item_used` | `{item}` |
 
 ### Modifications (`modification.schema.json`)
 

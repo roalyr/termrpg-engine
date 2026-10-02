@@ -246,6 +246,54 @@
           ]
         }
       ]
+    },
+    {
+      "id": "obj_trainer",
+      "name": "Training console",
+      "glyph": "§",
+      "solid": true,
+      "description": "Test only: a shortcut to experience.",
+      "interactions": [
+        {
+          "id": "train",
+          "label": "Train skill A",
+          "key": "u",
+          "effects": [
+            {
+              "op": "grant_xp",
+              "skill": "skill_a",
+              "amount": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "obj_medbay",
+      "name": "Med station",
+      "glyph": "+",
+      "solid": true,
+      "description": "Test only: heals everyone in your party, even someone who went down.",
+      "interactions": [
+        {
+          "id": "heal",
+          "label": "Heal the party",
+          "key": "u",
+          "effects": [
+            {
+              "op": "restore",
+              "stat": "stat_health",
+              "amount": 99,
+              "subject": "party"
+            },
+            {
+              "op": "message",
+              "text": "Everyone is patched up.",
+              "kind": "gain"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

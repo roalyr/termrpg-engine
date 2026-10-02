@@ -686,6 +686,14 @@
             "page",
             "pages"
           ]
+        },
+        "item_used": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An item's interaction was used from the pack. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
         }
       },
       "additionalProperties": false

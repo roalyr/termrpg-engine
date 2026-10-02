@@ -61,7 +61,7 @@ def at_bay():
     s = walk(new_game(CONTENT, 1), "aaww")
     s = world.act(CONTENT, s, "u")
     s = world.act(CONTENT, s, "g")
-    s = walk(s, "saa")                                   # (1, 1), next to the bay at (2, 1)
+    s = walk(s, "ssaa")                                  # (2, 2), next to the bay at (2, 1)
     assert build.refit_here(CONTENT, s) and build.storage_here(CONTENT, s) == "pl_b_bay"
     return s
 
@@ -167,7 +167,7 @@ class TestFrameSwap(unittest.TestCase):
         self.assertEqual(stats.stat(CONTENT, me(s), "stat_armor"), 5)                        # frame 3 + module 2
 
         # A size-5 suit can't get back through the door into room A (holds 3).
-        s = walk(s, "ddw")
+        s = walk(s, "dww")
         self.assertEqual(s.focus, ("placement", "pl_b_door_a"))
         s = world.act(CONTENT, s, "g")
         self.assertEqual(me(s).location, "room_b")
@@ -210,13 +210,17 @@ class TestStorage(unittest.TestCase):
         self.assertEqual(build.store_problem(CONTENT, s, slot_of(s, "frame_a", "inventory")),
                          "Frame A doesn't fit Locker.")
         s = build.store(CONTENT, s, slot_of(s, "material_a"))
-        self.assertEqual(build.stored(s, "pl_a_locker")[0].count, 1)   # one off the stack
-        s = build.take(CONTENT, s, 0)
-        self.assertEqual(build.stored(s, "pl_a_locker"), ())
+        locker = build.stored(s, "pl_a_locker")
+        self.assertEqual([(i.item, i.count) for i in locker], [("material_exotic", 1), ("material_a", 10)])  # the whole stack
+        self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "material_a"), 2)
+        s = build.take(CONTENT, s, 1)
+        self.assertEqual([i.item for i in build.stored(s, "pl_a_locker")], ["material_exotic"])
+        self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "material_a"), 12)
 
     def test_starting_contents(self):
         s = new_game(CONTENT, 1)
         self.assertEqual([i.item for i in s.storage["pl_b_bay"]], ["frame_b", "implant_a"])
+        self.assertEqual([i.item for i in s.storage["pl_a_locker"]], ["material_exotic"])
 
 
 class TestUsingItems(unittest.TestCase):
@@ -226,6 +230,7 @@ class TestUsingItems(unittest.TestCase):
         option = build.item_options(CONTENT, s, slot)[0]
         self.assertEqual((option.kind, option.label), ("use", "Use"))
         s = build.item_act(CONTENT, s, slot, option.key)
+        self.assertEqual(s.messages[0].text, "Used Consumable A.")
         self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "consumable_a"), 2)
         self.assertGreater(stats.current(CONTENT, me(s), "stat_health"), 20)
 

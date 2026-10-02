@@ -229,6 +229,38 @@ class TestScreen(unittest.TestCase):
         self.assertIn("at least 40x20", render.render(CONTENT, new_game(CONTENT, 1), 30, 60))
 
 
+class TestPlaytestFixes(unittest.TestCase):
+    def test_unavailable_choice_options_are_marked(self):
+        s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id=PLAYER),
+                CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"])
+        coloured = render.render(CONTENT, s, 44, 60)
+        frame = ANSI.sub("", coloured)
+        self.assertIn("2 Option B - Needs flag A.", frame)      # flag A is 0: unavailable, with its hint
+        self.assertIn("\x1b[2m", coloured)                       # and dimmed
+        self.assertEqual(s.rng, run(CONTENT, new_game(CONTENT, 1), Ctx(self_id=PLAYER),
+                                    CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"]).rng)
+
+    def test_training_console(self):
+        s = keys(new_game(CONTENT, 1), "aaaw")                   # bump the console at (1, 1)
+        self.assertEqual(s.focus, ("placement", "pl_a_trainer"))
+        s = keys(s, "u")
+        self.assertIn("Skill A 2! Unlocks Burst.", texts(s))
+
+    def test_med_station_heals_the_party_and_revives(self):
+        s = new_game(CONTENT, 1)
+        npc = s.characters[NPC]                                  # a companion who went down
+        s = s._replace(characters=freeze({**s.characters, NPC: npc._replace(
+            leader=PLAYER, down=True, pools=freeze({**npc.pools, "stat_health": 0}))}))
+        s = keys(s, "aaww")                                      # to the door, with the NPC in tow
+        s = keys(s, "ugssaw")                                    # open, go through, to (2, 2), bump the station
+        self.assertEqual(s.focus, ("placement", "pl_b_medbay"))
+        s = keys(s, "u")
+        self.assertIn("Everyone is patched up.", texts(s))
+        self.assertFalse(s.characters[NPC].down)
+        # Healed to 10; then the turn ends and Room B's hazard hits the unsuited NPC once.
+        self.assertEqual(stats.current(CONTENT, s.characters[NPC], "stat_health"), 9)
+
+
 class TestApp(unittest.TestCase):
     def test_handle_keys(self):
         s = new_game(CONTENT, 1)

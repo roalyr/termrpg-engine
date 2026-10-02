@@ -8,7 +8,7 @@ and, for a frame, a size that fits the current location. Removed items go to the
 inventory, which must still fit in cargo afterwards. A frame comes off only after its
 modules.
 
-Objects with 'storage' hold items for anyone within reach. Items with interactions
+Objects with 'storage' hold items for anyone within reach; store and take move whole stacks. Items with interactions
 can be used from the pack; a consumable spends one per use.
 
 When the loadout changes a pool's maximum, the current value moves with it (never
@@ -230,20 +230,21 @@ def store_problem(content: Content, state: GameState, slot: Slot) -> Optional[st
     view = stats.item_view(content, inst)
     if placed.get("holds_size") is not None and view["size"] > placed["holds_size"]:
         return content.message("cannot_fit", thing=view["name"], container=placed["name"])
-    if len(_put_in(content, stored(state, where), inst._replace(count=1))) > placed["storage"]:
+    if len(_put_in(content, stored(state, where), inst)) > placed["storage"]:
         return content.message("storage_full", container=placed["name"])
     return None
 
 
 def store(content: Content, state: GameState, slot: Slot) -> GameState:
-    """Puts one item (one off a stack) from the inventory into storage within reach."""
+    """Puts a whole stack from the inventory into storage within reach."""
     state = state._replace(messages=())
     problem = store_problem(content, state, slot)
     if problem:
         return _say(state, "plain", problem)
     where = storage_here(content, state)
-    cs, inst = _take_out(state.characters[state.player], slot)
-    state = _set(state, cs)
+    cs = state.characters[state.player]
+    inst = stats.item_at(cs, slot)
+    state = _set(state, stats.with_item(cs, slot, None))
     state = state._replace(storage=freeze({**state.storage, where: _put_in(content, stored(state, where), inst)}))
     state = _say(state, "plain", content.message("item_stored", item=_name(content, inst),
                                                  container=content.get("placement", where)["name"]))
@@ -251,18 +252,13 @@ def store(content: Content, state: GameState, slot: Slot) -> GameState:
 
 
 def take(content: Content, state: GameState, index: int) -> GameState:
-    """Takes one stored item (one off a stack) into the inventory."""
+    """Takes a whole stored stack into the inventory."""
     state = state._replace(messages=())
     where = storage_here(content, state)
     if where is None or not 0 <= index < len(stored(state, where)):
         return state
     items = list(stored(state, where))
-    inst = items[index]
-    if inst.count > 1:
-        items[index] = inst._replace(count=inst.count - 1)
-        inst = inst._replace(count=1)
-    else:
-        items.pop(index)
+    inst = items.pop(index)
     cs = state.characters[state.player]
     inventory = _put_in(content, cs.inventory, inst)
     if len(inventory) > stats.budget_provided(content, cs, "cargo"):
@@ -295,6 +291,7 @@ def use(content: Content, state: GameState, slot: Slot, interaction: Record) -> 
         state = _set(state, cs)
         ctx = ctx._replace(used=None)
     state = state._replace(used=freeze({**state.used, _usage_key(inst, interaction["id"]): turns.today(content, state)}))
+    state = _say(state, "plain", content.message("item_used", item=_name(content, inst)))
     state = run(content, state, ctx, interaction["effects"])
     return turns.advance(content, state, interaction["time"])
 

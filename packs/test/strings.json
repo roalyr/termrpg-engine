@@ -87,7 +87,8 @@
     "item_fabricated": "Made {item}.",
     "item_modified": "{item} is now {modification}.",
     "item_repaired": "Repaired {item}.",
-    "pack_more": "Page {page}/{pages}  ] next"
+    "pack_more": "Page {page}/{pages}  ] next",
+    "item_used": "Used {item}."
   },
   "entries": [
     {

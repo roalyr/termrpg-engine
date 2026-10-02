@@ -8,7 +8,7 @@ always draws the same frame. Every word on screen comes from the pack.
 """
 from typing import List, Optional
 
-from engine import build, context, craft, encounter, stats, world
+from engine import build, conditions, context, craft, encounter, stats, world
 from engine.content import Content
 from engine.state import GameState, day_of, phase_of
 from tui.text import ANSI, Style, pad, visible_len, wrap
@@ -260,7 +260,14 @@ def _messages(content: Content, state: GameState, inner: int, panel: Optional[st
         if state.pending.prompt:
             lines += wrap(state.pending.prompt, width)
         for i, option in enumerate(state.pending.options, 1):
-            lines += wrap(f"{i} {content.text(option['label'])}", width)
+            # Drawing must not change the game: the state a check returns is thrown away.
+            ok, _ = conditions.holds(content, state, state.pending.ctx, option.get("condition"))
+            text = f"{i} {content.text(option['label'])}"
+            if ok:
+                lines += wrap(text, width)
+            else:
+                hint = f" - {content.text(option['hint'])}" if option.get("hint") else ""
+                lines += [style.dim(line) for line in wrap(text + hint, width)]
         return lines
     if panel == "pack":
         return lines + _pack(content, state, width, style, selected, page)
