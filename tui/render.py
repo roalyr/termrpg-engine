@@ -8,7 +8,7 @@ always draws the same frame. Every word on screen comes from the pack.
 """
 from typing import List, Optional
 
-from engine import build, context, encounter, stats, world
+from engine import build, context, craft, encounter, stats, world
 from engine.content import Content
 from engine.state import GameState, day_of, phase_of
 from tui.text import ANSI, Style, pad, visible_len, wrap
@@ -17,7 +17,8 @@ MIN_COLUMNS, MIN_ROWS = 40, 20
 
 
 def render(content: Content, state: GameState, columns: int, rows: int = 60,
-           panel: Optional[str] = None, colour: bool = True, selected: Optional[int] = None) -> str:
+           panel: Optional[str] = None, colour: bool = True, selected: Optional[int] = None,
+           page: int = 0) -> str:
     style = Style(colour)
     if columns < MIN_COLUMNS or rows < MIN_ROWS:
         return content.message("terminal_too_small", columns=MIN_COLUMNS, rows=MIN_ROWS) + "\n"
@@ -41,7 +42,7 @@ def render(content: Content, state: GameState, columns: int, rows: int = 60,
     out.append(_rule("├", "┤", inner))
     out += _box(_legend(content, state, location, inner, style), inner)
     out.append(_rule("├", "┤", inner))
-    out += _box(_messages(content, state, inner, panel, style, selected), inner)
+    out += _box(_messages(content, state, inner, panel, style, selected, page), inner)
     out.append(_rule("├", "┤", inner))
     out += _box(_hints(content, state, inner, style, panel), inner)
     out.append(_rule("└", "┘", inner))
@@ -243,7 +244,7 @@ KIND_ORDER = {"danger": 0, "gain": 1, "plain": 2, "quiet": 3}
 
 
 def _messages(content: Content, state: GameState, inner: int, panel: Optional[str], style: Style,
-              selected: Optional[int] = None) -> List[str]:
+              selected: Optional[int] = None, page: int = 0) -> List[str]:
     width = inner - 2
     lines: List[str] = []
     for message in sorted(state.messages, key=lambda m: KIND_ORDER.get(m.kind, 2)):
@@ -262,7 +263,7 @@ def _messages(content: Content, state: GameState, inner: int, panel: Optional[st
             lines += wrap(f"{i} {content.text(option['label'])}", width)
         return lines
     if panel == "pack":
-        return lines + _pack(content, state, width, style, selected)
+        return lines + _pack(content, state, width, style, selected, page)
     if panel == "character":
         return lines + _character(content, state, width, style)
     current = world.menu(content, state)
@@ -283,8 +284,12 @@ def _wrap_styled(text: str, width: int) -> List[str]:
     return [text] if visible_len(text) <= width else wrap(ANSI.sub("", text), width)
 
 
-def _pack(content: Content, state: GameState, width: int, style: Style, selected: Optional[int]) -> List[str]:
-    """The fitting board: budgets, numbered items by where they are, and the picked item's options."""
+PAGE = 9  # pack entries per page: picked with 1-9
+
+
+def _pack(content: Content, state: GameState, width: int, style: Style, selected: Optional[int],
+          page: int = 0) -> List[str]:
+    """The fitting board: budgets, numbered items by where they are (nine per page), and the picked item's options."""
     player = state.characters[state.player]
     budgets = []
     for role, used in (("power", stats.budget_used(content, player, "power")),
@@ -299,15 +304,28 @@ def _pack(content: Content, state: GameState, width: int, style: Style, selected
     heading = {"fitted": content.message("pack_fitted"), "inventory": content.message("pack_carried")}
     shown = set()
     where_store = build.storage_here(content, state)
-    for number, slot in enumerate(slots, 1):
-        group = "inventory" if slot[0] == "inventory" else "storage" if slot[0] == "storage" else "fitted"
+    pages = max(1, -(-len(slots) // PAGE))
+    page = page % pages
+    first = page * PAGE
+    for number, slot in enumerate(slots[first:first + PAGE], 1):
+        group = slot[0] if slot[0] in ("inventory", "storage", "design") else "fitted"
         if group not in shown:
             shown.add(group)
-            lines.append(content.message("pack_stored", container=content.get("placement", where_store)["name"])
-                         if group == "storage" else heading[group])
-        inst = build.stored(state, where_store)[slot[1]] if slot[0] == "storage" else stats.item_at(player, slot)
-        entry = f"{number if number <= 9 else ' '} {_item_line(content, inst)}"
-        lines.append(style.key(entry) if selected == number - 1 else entry)
+            if group == "storage":
+                lines.append(content.message("pack_stored", container=content.get("placement", where_store)["name"]))
+            elif group == "design":
+                lines.append(content.message("pack_designs"))
+            else:
+                lines.append(heading[group])
+        if slot[0] == "design":
+            text = content.get("item", craft.designs(content, state)[slot[1]])["name"]
+        else:
+            inst = build.stored(state, where_store)[slot[1]] if slot[0] == "storage" else stats.item_at(player, slot)
+            text = _item_line(content, inst)
+        entry = f"{number} {text}"
+        lines.append(style.key(entry) if selected == first + number - 1 else entry)
+    if pages > 1:
+        lines.append(style.dim(content.message("pack_more", page=page + 1, pages=pages)))
     if selected is not None and selected < len(slots):
         for option in build.item_options(content, state, slots[selected]):
             if option.available:

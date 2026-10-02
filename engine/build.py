@@ -23,8 +23,9 @@ from engine.frozen import Record, freeze
 from engine.state import CharState, Ctx, GameState, ItemInst, Message, add_items, is_plain
 from engine.stats import Slot
 
-ITEM_KEYS = {"use": None, "fit": "f", "remove": "r", "store": "o", "take": "k"}
-SPARE_ITEM_KEYS = "uebhjlmnvyz"
+ITEM_KEYS = {"use": None, "fit": "f", "remove": "r", "store": "o", "take": "k",
+             "dismantle": "v", "repair": "e", "fabricate": "b"}
+SPARE_ITEM_KEYS = "uhjlmnyz"
 
 
 class ItemOption(NamedTuple):
@@ -32,8 +33,9 @@ class ItemOption(NamedTuple):
     label: str
     available: bool
     hint: Optional[str]
-    kind: str                         # 'use', 'fit', 'remove', 'store', 'take'
+    kind: str        # 'use', 'fit', 'remove', 'store', 'take', 'dismantle', 'repair', 'fabricate', 'modify'
     interaction: Optional[Record] = None
+    modification: Optional[str] = None
 
 
 # --- Where the player is ---------------------------------------------------------------
@@ -301,11 +303,16 @@ def use(content: Content, state: GameState, slot: Slot, interaction: Record) -> 
 
 def item_options(content: Content, state: GameState, slot: Slot) -> Tuple[ItemOption, ...]:
     """What the player can do with one of their items, or a stored one (slot ('storage', i))."""
+    from engine import craft  # craft builds on this module's helpers
     options: List[ItemOption] = []
     if slot[0] == "storage":
         if storage_here(content, state) is not None:
             options.append(ItemOption(ITEM_KEYS["take"], content.message("take"), True, None, "take"))
         return tuple(options)
+    if slot[0] == "design":
+        item_id = craft.designs(content, state)[slot[1]]
+        problem = craft.fabricate_problem(content, state, item_id)
+        return (ItemOption(ITEM_KEYS["fabricate"], content.message("fabricate"), problem is None, problem, "fabricate"),)
     cs = state.characters[state.player]
     inst = stats.item_at(cs, slot)
     if inst is None:
@@ -337,6 +344,20 @@ def item_options(content: Content, state: GameState, slot: Slot) -> Tuple[ItemOp
     if slot[0] == "inventory" and storage_here(content, state) is not None:
         problem = store_problem(content, state, slot)
         options.append(ItemOption(ITEM_KEYS["store"], content.message("store"), problem is None, problem, "store"))
+    item = content.get("item", inst.item)
+    if slot[0] == "inventory" and item.get("salvage") and craft.offered(content, state, "dismantle"):
+        problem = craft.dismantle_problem(content, state, slot)
+        options.append(ItemOption(ITEM_KEYS["dismantle"], content.message("dismantle"), problem is None, problem, "dismantle"))
+    if item.get("repair") and inst.condition is not None and craft.offered(content, state, "repair"):
+        problem = craft.repair_problem(content, state, slot)
+        options.append(ItemOption(ITEM_KEYS["repair"], content.message("repair"), problem is None, problem, "repair"))
+    if craft.offered(content, state, "modify"):
+        for mod_id in craft.modifications_for(content, state, slot):
+            problem = craft.modify_problem(content, state, slot, mod_id)
+            key = next(k for k in SPARE_ITEM_KEYS if k not in taken)
+            taken.add(key)
+            label = content.message("modify", modification=content.get("modification", mod_id)["name"])
+            options.append(ItemOption(key, label, problem is None, problem, "modify", modification=mod_id))
     return tuple(options)
 
 
@@ -354,14 +375,27 @@ def item_act(content: Content, state: GameState, slot: Slot, key: str) -> GameSt
         return remove(content, state, slot)
     if option.kind == "store":
         return store(content, state, slot)
+    if option.kind in ("dismantle", "repair", "fabricate", "modify"):
+        from engine import craft
+        if option.kind == "dismantle":
+            return craft.dismantle(content, state, slot)
+        if option.kind == "repair":
+            return craft.repair(content, state, slot)
+        if option.kind == "modify":
+            return craft.modify(content, state, slot, option.modification)
+        return craft.fabricate(content, state, craft.designs(content, state)[slot[1]])
     return take(content, state, slot[1])
 
 
 def pack_slots(content: Content, state: GameState) -> List[Slot]:
-    """The pack panel's numbered list: worn and fitted items, carried items, then storage within reach."""
+    """The pack panel's numbered list: worn and fitted items, carried items, storage within reach, then
+    known designs when a fabricating workshop is within reach."""
     cs = state.characters[state.player]
     slots: List[Slot] = [slot for slot, _ in stats.held(cs)]
     where = storage_here(content, state)
     if where is not None:
         slots += [("storage", i) for i in range(len(stored(state, where)))]
+    from engine import craft
+    if craft.offered(content, state, "fabricate"):
+        slots += [("design", i) for i in range(len(craft.designs(content, state)))]
     return slots

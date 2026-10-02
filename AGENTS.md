@@ -191,6 +191,21 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   the word shown over an enemy.
 - Don't put `choose` in an action's effects.
 
+**Crafting**
+
+- Crafting happens only next to a workshop offering the service (`dismantle`,
+  `fabricate`, `modify`, `repair`), on items up to its `max_grade`. Place workshops
+  with the services and grade a place should have: a field bench, a proper shop.
+- Designs are learned by dismantling (when `salvage.learn_requires` holds) or by the
+  `learn_design` effect. An item without `salvage` can never be learned that way.
+- Make every input obtainable: `fabricate.inputs`, `repair.inputs` and a
+  modification's `material` must come from somewhere the player can reach (loot,
+  storage, salvage, trades).
+- A modification fills one of the item's `mod_slots`; items without `mod_slots`
+  can't be modified. `applies_to.kinds` is required; `tags` and `slot_types` narrow
+  it further.
+- What crafting produces must fit in the player's cargo, or the action is refused.
+
 **Text**
 
 - Labels (`name`, `label`) are at most 32 characters. An action's `short` is at

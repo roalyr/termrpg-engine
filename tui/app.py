@@ -25,6 +25,7 @@ class View(NamedTuple):
     panel: Optional[str] = None      # 'pack' or 'character'
     selected: Optional[int] = None   # a pack item (index into build.pack_slots()), or in an
                                      # encounter the action tile waiting for a target
+    page: int = 0                    # the pack panel's page of nine entries
 
 
 def handle(content: Content, state: GameState, key: str, view: View = View()):
@@ -72,8 +73,11 @@ def _world(content: Content, state: GameState, key: str, view: View):
         return state._replace(focus=None, messages=()), View()
     if view.panel == "pack":
         slots = build.pack_slots(content, state)
+        if key == "]":
+            pages = max(1, -(-len(slots) // render.PAGE))
+            return state, View("pack", None, (view.page + 1) % pages)
         if key.isdigit() and key != "0":
-            index = int(key) - 1
+            index = (view.page % max(1, -(-len(slots) // render.PAGE))) * render.PAGE + int(key) - 1
             return state, view._replace(selected=index if index < len(slots) else None)
         if view.selected is not None and view.selected < len(slots):
             return build.item_act(content, state, slots[view.selected], key), view._replace(selected=None)
@@ -103,7 +107,7 @@ def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = 
         if interactive:
             text.clear()
         columns, rows = text.terminal_size()
-        sys.stdout.write(render.render(content, state, columns, rows, view.panel, colour, view.selected))
+        sys.stdout.write(render.render(content, state, columns, rows, view.panel, colour, view.selected, view.page))
         sys.stdout.flush()
         key = text.read_key()
         if key in ("", "\x03", "\x04"):

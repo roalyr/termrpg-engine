@@ -141,6 +141,8 @@ class TestChecks(unittest.TestCase):
 
     def test_knows_design(self):
         s = fresh()
+        self.assertFalse(check(s, {"check": "knows_design", "item": "module_tool"}))
+        s = do(s, {"op": "learn_design", "item": "module_tool"})
         self.assertTrue(check(s, {"check": "knows_design", "item": "module_tool"}))
         self.assertFalse(check(s, {"check": "knows_design", "item": "module_system"}))
 

@@ -14,7 +14,8 @@ says how to work on the project.
 - [x] Milestone 2: walkable world (`python3 play.py`)
 - [x] Milestone 3: build
 - [x] Milestone 4: encounters
-- [ ] Engine rebuild: milestones 5–7 below
+- [x] Milestone 5: crafting
+- [ ] Engine rebuild: milestones 6–7 below
 - [ ] **Version 1.0**: the first clean version of the game, after milestone 7
 
 ## Principles
@@ -126,11 +127,18 @@ Every milestone ends with something that runs and is tested, and with two chores
 - Carried forward: `trigger_event` requests (such as the test player's rescue) wait
   for milestone 6; a `choose` inside an action's effects doesn't pause the round.
 
-### 5. Crafting
+### 5. Crafting ✓
 
 - Workshops: dismantle and learn designs, fabricate, modify, repair.
 - Done when: the test tool can be dismantled, learned, fabricated, reinforced and
   repaired.
+- Delivered: `engine/craft.py` (the four services within reach of a workshop offering
+  them, up to its `max_grade`; dismantling teaches designs when `learn_requires`
+  holds; modifications on carried or fitted items with the loadout re-checked;
+  results must fit in cargo), crafting options and a designs section on the fitting
+  board, and paging for packs with more than nine entries. The test player now
+  starts without the tool's design. `tests/test_engine_craft.py` takes the tool
+  through its whole life.
 
 ### 6. Living world
 

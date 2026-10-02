@@ -31,9 +31,9 @@ The project is between two engines.
 - **The new data layer is complete.** The schemas in `schemas/` describe all game
   content; a validator checks packs against them; a generic test pack in
   `packs/test/` uses every part of them.
-- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0–4 are
+- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0–5 are
   done: the test pack is playable in the terminal with `python3 play.py`, including
-  refitting suits and fighting. See [ROADMAP.md](ROADMAP.md).
+  refitting suits, fighting and crafting. See [ROADMAP.md](ROADMAP.md).
 
 ## Quick start
 
@@ -63,7 +63,7 @@ timestamps can make Python run stale cached bytecode.
 | `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
 | `AGENTS.md`, `GEMINI.md` | Instructions for AI agents |
 | `ROADMAP.md` | The engine rebuild plan |
-| `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `save.py` saves, `rng.py` seeded randomness |
+| `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `craft.py` workshops, `save.py` saves, `rng.py` seeded randomness |
 | `tui/`, `play.py` | The terminal UI for the new engine, and how to start it |
 | `core/`, `ui/`, `main.py` | The old engine (being replaced) |
 | `core/data/default-1.0/` | The old engine's content (to be rewritten as a game pack) |
@@ -780,6 +780,13 @@ All text the engine prints comes from the pack.
 | `needs_item` | `{item}` |
 | `skips_turn`, `fled` | `{character}` |
 | `no_charges`, `keys_encounter`, `keys_target` | none |
+| `dismantle`, `repair`, `fabricate`, `pack_designs`, `needs_service` | none |
+| `modify` | `{modification}` |
+| `too_advanced`, `no_mod_slot`, `not_damaged`, `design_learned`, `design_not_learned`, `item_fabricated`, `item_repaired` | `{item}` |
+| `needs_materials` | `{items}` |
+| `already_modified`, `item_modified` | `{item}`, `{modification}` |
+| `item_dismantled` | `{item}`, `{items}` |
+| `pack_more` | `{page}`, `{pages}` |
 
 ### Modifications (`modification.schema.json`)
 
@@ -808,6 +815,25 @@ storing it in an object whose `holds_size` fits it. The four crafting services:
 - **Fabricate** makes a copy of a known design from `fabricate.inputs`.
 - **Modify** applies a modification.
 - **Repair** restores condition from `repair.inputs`.
+
+How the engine runs them:
+
+- A service works only within reach (the player's tile or next to it) of a workshop
+  offering it, and only on items whose grade is at most the workshop's `max_grade`
+  (ungraded items always qualify). `max_grade` doesn't limit `refit`.
+- **Dismantle** takes one carried item. Its design is learned when `salvage.learn`
+  is on and `learn_requires` holds; otherwise the player is told it's beyond them.
+- **Fabricate** needs the design, `fabricate.requires`, and the inputs carried; it
+  takes `fabricate.time` turns. Known designs are listed on the fitting board when a
+  fabricating workshop is within reach.
+- **Modify** works on carried or fitted items that match `applies_to` and have a free
+  mod slot; the material must be carried. Modifying a fitted item must leave the
+  loadout within its budgets.
+- **Repair** works on carried or fitted items below their maximum condition, by
+  `amount` or fully.
+- Inputs and materials come from plain (unmodified) carried items. Whatever an action
+  produces must fit in cargo, or the action is refused, so nothing is lost. Each
+  action takes one turn unless stated.
 
 ### The validator
 
