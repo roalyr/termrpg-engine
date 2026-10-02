@@ -11,7 +11,8 @@ says how to work on the project.
 - [x] Generic test pack (`packs/test`) that uses every part of the schemas
 - [x] Milestone 0: foundations
 - [x] Milestone 1: state and grammar
-- [ ] Engine rebuild: milestones 2–7 below
+- [x] Milestone 2: walkable world (`python3 play.py`)
+- [ ] Engine rebuild: milestones 3–7 below
 - [ ] **Version 1.0**: the first clean version of the game, after milestone 7
 
 ## Principles
@@ -73,13 +74,21 @@ Every milestone ends with something that runs and is tested, and with two chores
   the player on the crate) should be placed next to it; `spend_time` should run the
   per-turn processing.
 
-### 2. Walkable world
+### 2. Walkable world ✓
 
 - Grid movement, solid objects, the menu built from interactions (`shown_if`,
   `requires`, hints, keys), exits, `on_enter` / `on_turn`, time and phases.
 - The six-zone screen, the input loop, saving and loading.
 - Done when: the test pack is playable. Walk room A → room B, open doors, search the
   crate, take hazard damage, talk to the NPC and recruit them.
+- Delivered: `engine/world.py` (tiles, movement, focus, the menu, interactions, exits,
+  talk, inspect), `engine/turns.py` (per-turn processing and owed time),
+  `engine/save.py` (JSON saves tied to the pack's id and major version), the terminal
+  UI in `tui/` and `play.py`. New engine message keys for the UI's words.
+  `tests/test_engine_world.py` plays the test pack through.
+- Carried forward: using items from the pack (consumables) comes with the fitting
+  board in milestone 3; the crate never restocks until day-start events exist
+  (milestone 6); `start_encounter` requests wait for milestone 4.
 
 ### 3. Build
 

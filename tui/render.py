@@ -1,0 +1,245 @@
+"""
+The six-zone screen, drawn from content and state. A pure function: the same state
+always draws the same frame. Every word on screen comes from the pack.
+
+  1 header: location, region, hazards       4 legend: what each glyph is
+  2 the room grid  | 3 status panel          5 messages, then the menu, choice or panel
+                                             6 key hints
+"""
+from typing import List, Optional
+
+from engine import context, stats, world
+from engine.content import Content
+from engine.state import GameState, day_of, phase_of
+from tui.text import ANSI, Style, pad, visible_len, wrap
+
+MIN_COLUMNS, MIN_ROWS = 40, 20
+
+
+def render(content: Content, state: GameState, columns: int, rows: int = 60,
+           panel: Optional[str] = None, colour: bool = True) -> str:
+    style = Style(colour)
+    if columns < MIN_COLUMNS or rows < MIN_ROWS:
+        return content.message("terminal_too_small", columns=MIN_COLUMNS, rows=MIN_ROWS) + "\n"
+    inner = columns - 2
+    player = state.characters[state.player]
+    location = content.get("location", player.location)
+
+    out: List[str] = [_rule("┌", "┐", inner)]
+    out += _box(_header(content, location, inner, style), inner)
+    out.append(_rule("├", "┤", inner))
+    grid_lines = _grid(content, state, location, style)
+    grid_width = visible_len(grid_lines[0])
+    side_width = inner - grid_width - 1
+    side = _status(content, state, side_width, style)
+    for i in range(max(len(grid_lines), len(side))):
+        left = grid_lines[i] if i < len(grid_lines) else " " * grid_width
+        right = side[i] if i < len(side) else ""
+        out.append(f"│{left}│{pad(right, side_width)}│")
+    out.append(_rule("├", "┤", inner))
+    out += _box(_legend(content, state, location, inner, style), inner)
+    out.append(_rule("├", "┤", inner))
+    out += _box(_messages(content, state, inner, panel, style), inner)
+    out.append(_rule("├", "┤", inner))
+    out += _box(_hints(content, state, inner, style), inner)
+    out.append(_rule("└", "┘", inner))
+    return "\n".join(out) + "\n"
+
+
+def _rule(left: str, right: str, inner: int) -> str:
+    return left + "─" * inner + right
+
+
+def _box(lines: List[str], inner: int) -> List[str]:
+    return [f"│{pad(' ' + line, inner)}│" for line in lines]
+
+
+# --- Zone 1 ----------------------------------------------------------------------------
+
+def _header(content: Content, location, inner: int, style: Style) -> List[str]:
+    region = content.get("region", location["region"])["name"]
+    name = location["name"]
+    gap = max(1, inner - 2 - len(name) - len(region))
+    lines = [style.bold(name) + " " * gap + region]
+    hazards = [content.get("tag", t)["name"] for t in location.get("tags", ())
+               if content.get("tag", t).get("hazard")]
+    if hazards:
+        lines.append(style.danger(", ".join(hazards)))
+    return lines
+
+
+# --- Zones 2 and 3 ------------------------------------------------------------------------
+
+def _grid(content: Content, state: GameState, location, style: Style) -> List[str]:
+    grid = location["grid"]
+    player = state.characters[state.player]
+    people = {tuple(state.characters[cid].at): cid for cid in world.others_here(state)}
+    lines = ["┌" + "─" * (grid["width"] * 2 + 1) + "┐"]
+    for row in range(grid["height"]):
+        cells = []
+        for col in range(grid["width"]):
+            pos = (row, col)
+            glyph = _cell(content, state, location, pos, people)
+            if pos == tuple(player.at):
+                glyph = style.inverse(glyph if glyph.strip() not in ("", grid["floor"]) else "@")
+            cells.append(glyph)
+        lines.append("│ " + " ".join(cells) + " │")
+    lines.append("└" + "─" * (grid["width"] * 2 + 1) + "┘")
+    return lines
+
+
+def _cell(content: Content, state: GameState, location, pos, people) -> str:
+    if pos in people:
+        record = content.get("character", state.characters[people[pos]].source)
+        return record.get("glyph") or record["name"][0]
+    placed = world.placement_at(content, location["id"], pos)
+    if placed is not None:
+        current = state.object_states.get(placed["id"])
+        return placed.get("state_glyphs", {}).get(current, placed["glyph"])
+    kind = world.tile(content, location["id"], pos)
+    return {"#": location["grid"]["wall"], ".": location["grid"]["floor"]}.get(kind, " ")
+
+
+def _bar(value: float, top: float, width: int = 8) -> str:
+    filled = 0 if top <= 0 else round(width * max(0, min(value, top)) / top)
+    return "█" * filled + "░" * (width - filled)
+
+
+def _status(content: Content, state: GameState, width: int, style: Style) -> List[str]:
+    player = state.characters[state.player]
+    phase = content.get("phase", phase_of(content, state.turn))["name"]
+    lines = [" " + content.message("day_phase", day=day_of(content, state.turn), phase=phase)]
+    for stat_id, record in content.all("stat").items():
+        if record.get("kind") != "pool":
+            continue
+        top = stats.stat(content, player, stat_id)
+        now = stats.current(content, player, stat_id)
+        label = record.get("short") or record["name"][:3]
+        line = f" {label:<4}{_bar(now, top)} {int(now)}/{int(top)}"
+        low = (record.get("role") == "health" and now <= top / 3) or (record.get("role") == "heat" and now >= top * 0.8)
+        lines.append(style.danger(line) if low else line)
+    for inst in player.statuses:
+        record = content.get("status", inst.status)
+        text = f" {record.get('glyph', '*')} {record['name']}" + (f" x{inst.stacks}" if inst.stacks > 1 else "")
+        lines.append(style.danger(text) if record.get("harmful", True) else text)
+    party = context.party_of(state, state.player)[1:]
+    if party:
+        names = ", ".join(content.get("character", state.characters[c].source)["name"] for c in party)
+        lines += [" " + line for line in wrap(content.message("party", names=names), width - 1)]
+    return lines
+
+
+# --- Zone 4 -------------------------------------------------------------------------------
+
+def _legend(content: Content, state: GameState, location, inner: int, style: Style) -> List[str]:
+    entries = {}
+    for placed in content.all("placement").values():
+        if placed["location"] != location["id"]:
+            continue
+        current = state.object_states.get(placed["id"])
+        glyph = placed.get("state_glyphs", {}).get(current, placed["glyph"])
+        name = placed["name"]
+        if placed.get("exit") and placed["exit"].get("location"):
+            name = content.get("location", placed["exit"]["location"])["name"]
+        if current:
+            name += f" ({content.get('object_state', current)['name']})"
+        entries.setdefault(glyph, []).append(name)
+    for cid in world.others_here(state):
+        record = content.get("character", state.characters[cid].source)
+        entries.setdefault(record.get("glyph") or record["name"][0], []).append(record["name"])
+    lines = []
+    for glyph, names in entries.items():
+        for i, line in enumerate(wrap(" · ".join(names), inner - 4)):
+            lines.append(f"{glyph if i == 0 else ' '} {style.dim(line)}")
+    return lines
+
+
+# --- Zone 5 -------------------------------------------------------------------------------
+
+KIND_MARK = {"danger": "! ", "gain": "+ ", "plain": "", "quiet": ""}
+KIND_ORDER = {"danger": 0, "gain": 1, "plain": 2, "quiet": 3}
+
+
+def _messages(content: Content, state: GameState, inner: int, panel: Optional[str], style: Style) -> List[str]:
+    width = inner - 2
+    lines: List[str] = []
+    for message in sorted(state.messages, key=lambda m: KIND_ORDER.get(m.kind, 2)):
+        for i, line in enumerate(wrap(KIND_MARK.get(message.kind, "") + message.text, width)):
+            if message.kind == "danger":
+                line = style.danger(line)
+            elif message.kind == "gain":
+                line = style.bold(line)
+            elif message.kind == "quiet":
+                line = style.dim(line)
+            lines.append(line)
+    if state.pending is not None:
+        if state.pending.prompt:
+            lines += wrap(state.pending.prompt, width)
+        for i, option in enumerate(state.pending.options, 1):
+            lines += wrap(f"{i} {content.text(option['label'])}", width)
+        return lines
+    if panel == "pack":
+        return lines + _pack(content, state, width)
+    if panel == "character":
+        return lines + _character(content, state, width, style)
+    current = world.menu(content, state)
+    if current is not None:
+        lines.append(style.bold(current.title))
+        for option in current.options:
+            entry = f"{style.key(option.key.upper())} {option.label}"
+            if not option.available:
+                entry = style.dim(f"{option.key.upper()} {option.label}")
+                if option.hint:
+                    entry += style.dim(f" - {option.hint}")
+            lines += _wrap_styled(entry, width)
+    return lines
+
+
+def _wrap_styled(text: str, width: int) -> List[str]:
+    """Styled text on one line if it fits, otherwise wrapped as plain text."""
+    return [text] if visible_len(text) <= width else wrap(ANSI.sub("", text), width)
+
+
+def _pack(content: Content, state: GameState, width: int) -> List[str]:
+    player = state.characters[state.player]
+    lines = [content.message("pack_fitted")]
+    for (where, _), inst in stats.held(player):
+        if where != "inventory":
+            lines.append("  " + _item_line(content, inst))
+    lines.append(content.message("pack_carried"))
+    for (where, _), inst in stats.held(player):
+        if where == "inventory":
+            lines.append("  " + _item_line(content, inst))
+    return [line[:width] for line in lines]
+
+
+def _item_line(content: Content, inst) -> str:
+    view = stats.item_view(content, inst)
+    text = view["name"] + (f" x{inst.count}" if inst.count > 1 else "")
+    if inst.condition is not None:
+        text += f" {inst.condition}/{view['max_condition']}"
+    return text
+
+
+def _character(content: Content, state: GameState, width: int, style: Style) -> List[str]:
+    player = state.characters[state.player]
+    record = content.get("character", player.source)
+    lines = [style.bold(content.message("character_title", name=record["name"]))]
+    for skill_id, level in player.skills.items():
+        lines.append(f"  {content.get('skill', skill_id)['name']} {level}")
+    for stat_id, stat in content.all("stat").items():
+        if stat.get("kind") != "pool":
+            lines.append(f"  {stat.get('short') or stat['name']} {stats.stat(content, player, stat_id):g}")
+    return [line[:width] if visible_len(line) == len(line) else line for line in lines]
+
+
+# --- Zone 6 -------------------------------------------------------------------------------
+
+def _hints(content: Content, state: GameState, inner: int, style: Style) -> List[str]:
+    if state.pending is not None:
+        key = "keys_choice"
+    elif world.menu(content, state) is not None:
+        key = "keys_menu"
+    else:
+        key = "keys_walk"
+    return [style.dim(line) for line in wrap(content.message(key), inner - 2)]

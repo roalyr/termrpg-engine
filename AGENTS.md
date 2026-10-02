@@ -73,6 +73,7 @@ All commands run from the project root.
 | `python3 -m core.packtool explain item frame` | The fields of an item kind |
 | `python3 -m core.packtool explain location` | Any schema definition: `placement`, `exit`, `character`, `event`, `encounter`, `modification`… |
 | `python3 -m core.packtool explain vocab stats` | A vocabulary section |
+| `python3 play.py --pack packs/game --new` | Play the pack in the terminal to see your work. `--slot name` keeps separate saves |
 | `python3 -B -m unittest discover -s tests` | Run all tests. Use `-B` on phone storage |
 
 **The working loop:** look up (`explain`, `ids`) → edit → `check` → fix → `check` →
@@ -146,6 +147,11 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   on items.
 - A tag marked `hazard` only shows a warning. The harm itself must be written in the
   location's `on_turn`.
+- Solid objects (`"solid": true`) are used from the next tile; the player bumps into
+  them. Don't make a room's only way through solid. An `entry` on a solid object puts
+  arrivals on the nearest free floor tile.
+- Interaction keys `w a s d i x q p c g t` and `1`–`4` are taken by the game; pick
+  another letter for `key`, or the engine picks one.
 
 **Items and characters**
 
@@ -167,7 +173,8 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   most 8. `art` is at most 10 lines of 21 characters.
 - A text that is exactly `@` plus an id shows that entry from `strings.json`.
 - Engine messages in `strings.json` may only use their own placeholders:
-  `explain engine` lists them.
+  `explain engine` lists them. Write all of them: the screen's labels and key hints
+  come from there too, and a missing one shows as its key.
 
 ## Naming ids in game packs
 
@@ -259,8 +266,11 @@ The `hazard` tag shows the warning; `on_turn` does the harm. Note `"subject": "s
 ### Add a person who talks, trades and can join the party
 
 Dialogue lines are tried in order; put the most specific first and a line without
-`when` last. In a character's interactions, `self` is whoever interacts and `target`
-is this character.
+`when` last. **In dialogue lines `self` is the speaker and `target` the listener; in a
+character's interactions it's the other way round:** `self` is whoever interacts and
+`target` is this character. So "the speaker travels with the player" is
+`{ "check": "in_party" }`, but in an interaction it's
+`{ "check": "in_party", "subject": "target" }`.
 
 <!-- recipe -->
 ```json
@@ -272,7 +282,7 @@ is this character.
       "inventory": [ { "item": "consumable_a", "count": 4 } ],
       "wants": ["tag_a"],
       "talk": [
-        { "when": { "check": "in_party", "subject": "target" }, "text": "Where to?" },
+        { "when": { "check": "in_party" }, "text": "Where to?" },
         { "when": { "check": "has_item", "item": "misc_key", "subject": "target" }, "text": "That key. I'd trade for it." },
         { "text": "Looking to trade?" }
       ],

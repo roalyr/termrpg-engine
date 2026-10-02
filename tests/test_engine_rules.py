@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from core import schema
-from engine import effects, stats
+from engine import effects, stats, turns
 from engine.conditions import CHECKS, evaluate
 from engine.content import load_pack
 from engine.effects import HANDLERS, choose_option, run
@@ -57,7 +57,7 @@ class TestNewGame(unittest.TestCase):
         p = char(s)
         self.assertEqual(s.player, PLAYER)
         self.assertEqual(p.location, "room_a")
-        self.assertEqual(p.at, (1, 4))                      # the start entry placement
+        self.assertEqual(p.at, (2, 4))                      # next to the start entry, a solid crate
         self.assertEqual(p.visited, ("room_a",))
         self.assertEqual(s.turn, 0)
         self.assertEqual(phase_of(CONTENT, s.turn), "phase_a")
@@ -73,7 +73,7 @@ class TestNewGame(unittest.TestCase):
         self.assertEqual(stats.budget_used(CONTENT, p, "power"), 4)
         self.assertEqual(stats.budget_provided(CONTENT, p, "power"), 6)
         self.assertEqual(stats.stat(CONTENT, p, "stat_armor"), 2)
-        self.assertEqual(stats.cargo_free(CONTENT, p), 3)   # cargo 2 + 4, three stacks carried
+        self.assertEqual(stats.cargo_free(CONTENT, p), 2)   # cargo 2 + 4, four stacks carried
 
     def test_world_state(self):
         s = fresh()
@@ -100,7 +100,7 @@ class TestChecks(unittest.TestCase):
         self.assertTrue(check(s, {"any": [no, yes]}))
 
     def test_has_tag_sources(self):
-        s = fresh()
+        s = do(fresh(), {"op": "take_item", "item": "misc_key"})   # leave only the fitted tool with tag A
         self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_a"}))
         self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_a", "source": "fitted"}))
         self.assertFalse(check(s, {"check": "has_tag", "tag": "tag_a", "source": "carried"}))
@@ -208,9 +208,9 @@ class TestChecks(unittest.TestCase):
     def test_time(self):
         s = fresh()
         self.assertTrue(check(s, {"check": "time", "phase": "phase_a", "day_max": 1}))
-        s = do(s, {"op": "spend_time", "turns": 30})
+        s = turns.advance(CONTENT, s, 30)
         self.assertTrue(check(s, {"check": "time", "phase": "phase_b"}))
-        s = do(s, {"op": "spend_time", "turns": 30})
+        s = turns.advance(CONTENT, s, 30)
         self.assertEqual(day_of(CONTENT, s.turn), 2)
         self.assertTrue(check(s, {"check": "time", "day_min": 2, "phase": "phase_a"}))
 
@@ -240,8 +240,8 @@ class TestEffects(unittest.TestCase):
 
     def test_give_item_respects_cargo(self):
         s = do(fresh(), {"op": "give_item", "item": "misc_key", "count": 5})
-        self.assertEqual(sum(i.count for i in char(s).inventory if i.item == "misc_key"), 3)
-        self.assertIn("Got: Key A x3.", texts(s))
+        self.assertEqual(sum(i.count for i in char(s).inventory if i.item == "misc_key"), 3)   # had one
+        self.assertIn("Got: Key A x2.", texts(s))
         self.assertIn("No room for Key A.", texts(s))
 
     def test_give_item_stacks(self):
@@ -250,7 +250,7 @@ class TestEffects(unittest.TestCase):
         self.assertEqual(stacks, [10, 10])                   # 12 + 8 in stacks of 10
 
     def test_take_item_by_tag(self):
-        s = do(fresh(), {"op": "give_item", "item": "misc_key"}, {"op": "take_item", "tag": "tag_a"})
+        s = do(fresh(), {"op": "take_item", "tag": "tag_a"})
         self.assertFalse(any(i.item == "misc_key" for i in char(s).inventory))
         self.assertIn("Lost: Key A.", texts(s))
 
@@ -258,10 +258,10 @@ class TestEffects(unittest.TestCase):
         s = do(fresh(), {"op": "wear", "pick": {"tag": "tag_a"}, "amount": 4})
         self.assertEqual(char(s).fitted[0].condition, 0)
         self.assertIn("Tool A breaks.", texts(s))
-        self.assertFalse(check(s, {"check": "has_tag", "tag": "tag_a"}))
+        self.assertFalse(check(s, {"check": "has_tag", "tag": "tag_a", "source": "fitted"}))
         s = do(s, {"op": "wear", "pick": {"item": "module_tool"}, "amount": -2})   # negative repairs
         self.assertEqual(char(s).fitted[0].condition, 2)
-        self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_a"}))
+        self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_a", "source": "fitted"}))
 
     def test_wear_the_used_item(self):
         s = fresh()
@@ -355,7 +355,7 @@ class TestEffects(unittest.TestCase):
     def test_move_to_takes_the_party(self):
         s = do(fresh(), {"op": "join_party", "subject": {"character": NPC}},
                {"op": "move_to", "location": "room_b", "entry": "pl_b_terminal"})
-        self.assertEqual((char(s).location, char(s).at), ("room_b", (2, 5)))
+        self.assertEqual((char(s).location, char(s).at), ("room_b", (1, 5)))   # next to the solid terminal
         self.assertEqual(char(s, NPC).location, "room_b")
         self.assertIn("You enter Room B.", texts(s))
 
@@ -367,7 +367,8 @@ class TestEffects(unittest.TestCase):
     def test_spend_time_and_requests(self):
         s = do(fresh(), {"op": "spend_time", "turns": 7}, {"op": "trigger_event", "event": "event_grudge"},
                {"op": "start_encounter", "encounter": "enc_drones"}, {"op": "end_encounter", "result": "won"})
-        self.assertEqual(s.turn, 7)
+        self.assertEqual(s.turns_owed, 7)                   # paid by engine.turns after the action
+        self.assertEqual(turns.advance(CONTENT, s, 0).turn, 7)
         self.assertEqual(s.event_requests, ("event_grudge",))
         self.assertEqual(s.encounter_request, "enc_drones")
 

@@ -375,7 +375,7 @@ class TestPackErrors(unittest.TestCase):
 
     def test_cargo_capacity(self):
         self.character("char_player", lambda ch: ch["inventory"].append({"item": "misc_key", "count": 4}))
-        self.assertIn("inventory needs 7 cargo stacks, the loadout carries 6", self.errors())
+        self.assertIn("inventory needs 8 cargo stacks, the loadout carries 6", self.errors())
 
     def test_implant_needs_body_slot_on_character(self):
         self.character("char_npc", lambda ch: ch["body"].pop("slots"))

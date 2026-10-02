@@ -31,13 +31,15 @@ The project is between two engines.
 - **The new data layer is complete.** The schemas in `schemas/` describe all game
   content; a validator checks packs against them; a generic test pack in
   `packs/test/` uses every part of them.
-- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0 and 1
-  are done: it loads packs, holds the game state, and applies every check and
-  effect. See [ROADMAP.md](ROADMAP.md).
+- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0–2 are
+  done: the test pack is playable in the terminal with `python3 play.py`. See
+  [ROADMAP.md](ROADMAP.md).
 
 ## Quick start
 
 ```sh
+python3 play.py                                # play the test pack on the new engine
+python3 play.py --pack packs/test --slot two --new   # a fresh game in another save slot
 python3 main.py                                # play the old engine
 python3 -m core.packtool check packs/test      # validate a content pack
 python3 -m core.packtool ids packs/test item   # list the ids of a kind
@@ -62,6 +64,7 @@ timestamps can make Python run stale cached bytecode.
 | `AGENTS.md`, `GEMINI.md` | Instructions for AI agents |
 | `ROADMAP.md` | The engine rebuild plan |
 | `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `rng.py` seeded randomness |
+| `tui/`, `play.py` | The terminal UI for the new engine, and how to start it |
 | `core/`, `ui/`, `main.py` | The old engine (being replaced) |
 | `core/data/default-1.0/` | The old engine's content (to be rewritten as a game pack) |
 | `tests/` | Unit tests; `tests/test_pack_validation.py` covers the validator |
@@ -348,11 +351,29 @@ Rules the engine follows that the schemas alone don't spell out:
   caused them. `choose` stops and waits for the player; the remaining effects run
   after the choice.
 - **Messages** are shown for the player's own character and for characters in the
-  player's location.
+  player's location. Each action starts with an empty message list.
+- **Walking.** A step costs one turn. Floor tiles and non-solid placements (doors on
+  wall tiles) can be stood on. Walking onto a placement puts it in focus; bumping into
+  a solid object or another character puts them in focus without moving. Walls do
+  nothing at all. Party members move with the player. An arrival on a solid object
+  lands on the nearest free floor tile.
+- **The menu** shows the focused thing while it is on the player's tile or next to
+  it: its interactions (`shown_if` hides, `requires` greys out with the hint), "go"
+  for exits, "talk" for characters with dialogue, and "inspect". Keys come from each
+  interaction's `key`; `w a s d i x q p c g t` and `1`–`4` are reserved, so a clash
+  gets a spare letter.
+- **Repeats.** `once` interactions are used up for good, `daily` ones until the next
+  day; the count is per placement or character.
+- **Time.** Interactions take their `time`; exits their `time`; talking one turn.
+  `spend_time` adds to the turns owed, which are processed after the action. Each turn,
+  every character in a location gets the location's `on_turn`; statuses run their
+  `on_turn` once per stack, count down and end with `on_expire`; timed stat changes
+  count down. A choice waiting for the player pauses time.
 - **Not yet active** (later milestones): `start_encounter` and `trigger_event` are
   recorded and handled by encounters (milestone 4) and the event engine
-  (milestone 6); `end_encounter` does nothing outside an encounter; `spend_time` moves
-  the clock without per-turn processing until milestone 2.
+  (milestone 6); `end_encounter` does nothing outside an encounter.
+- **Saves** go to `saves/<pack folder>/<slot>.json` and hold only the state. A save
+  only loads with the same pack and the same major pack version.
 
 #### Interactions
 
@@ -687,6 +708,14 @@ All text the engine prints comes from the pack.
 | `status_applied`, `status_ended` | `{character}`, `{status}` |
 | `day_start` | `{day}` |
 | `phase_start` | `{phase}`, `{day}` |
+| `go_to` | `{destination}` |
+| `talk`, `inspect`, `already_used`, `unavailable` | none |
+| `keys_walk`, `keys_menu`, `keys_choice` | none (the key hints at the bottom) |
+| `day_phase` | `{day}`, `{phase}` |
+| `party` | `{names}` |
+| `pack_fitted`, `pack_carried`, `game_saved` | none |
+| `character_title` | `{name}` |
+| `terminal_too_small` | `{columns}`, `{rows}` |
 
 ### Modifications (`modification.schema.json`)
 

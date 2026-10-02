@@ -100,6 +100,9 @@ class GameState(NamedTuple):
     encounter_request: Optional[str] = None           # set by start_encounter (milestone 4)
     event_requests: Tuple[str, ...] = ()              # queued by trigger_event (milestone 6)
     spawned: int = 0                                  # counter for template copy ids
+    focus: Optional[Tuple[str, str]] = None           # ('placement'|'character', id) the menu is about
+    used: Mapping[str, int] = freeze({})              # 'owner:interaction' -> day it was last used
+    turns_owed: int = 0                               # time spent by effects, processed after the action
 
 
 # --- Time ---------------------------------------------------------------------
@@ -240,13 +243,20 @@ def agent_key_static(agent, self_id: str, player_id: str) -> Optional[str]:
 
 
 def entry_point(content: Content, location_id: str, placement_id: Optional[str]) -> Pos:
-    """Where an arrival appears: the placement given, the location's entry, or the grid centre."""
+    """
+    Where an arrival appears: on the placement given (or the location's entry), or the
+    grid centre. A solid placement can't be stood on, so arrivals land on the nearest
+    free floor tile instead.
+    """
+    from engine import world  # world needs the state types defined above
     location = content.get("location", location_id)
     chosen = placement_id or location.get("entry")
     if chosen:
-        return tuple(content.get("placement", chosen)["at"])
-    grid = location["grid"]
-    return (grid["height"] // 2, grid["width"] // 2)
+        spot = tuple(content.get("placement", chosen)["at"])
+    else:
+        grid = location["grid"]
+        spot = (grid["height"] // 2, grid["width"] // 2)
+    return world.nearest_standable(content, location_id, spot)
 
 
 # --- Items --------------------------------------------------------------------

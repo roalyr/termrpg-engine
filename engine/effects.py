@@ -11,8 +11,8 @@ subject names nobody does nothing. Messages are shown only for what the player c
 see: their own character, and characters in the player's location.
 
 Encounters and events come in later milestones: start_encounter and trigger_event
-leave a request in the state, end_encounter does nothing outside an encounter, and
-spend_time only moves the clock (per-turn processing comes with the walkable world).
+leave a request in the state, and end_encounter does nothing outside an encounter.
+spend_time adds to the turns owed, which engine.turns processes after the action.
 """
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -362,7 +362,7 @@ def _move_to(content, state, ctx, effect):
 
 
 def _spend_time(content, state, ctx, effect):
-    return state._replace(turn=state.turn + effect["turns"]), []
+    return state._replace(turns_owed=state.turns_owed + effect["turns"]), []   # paid by engine.turns
 
 
 def _trigger_event(content, state, ctx, effect):

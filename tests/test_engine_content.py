@@ -123,12 +123,14 @@ class TestLoadPack(unittest.TestCase):
 
 
 class TestEngineNamesNoContent(unittest.TestCase):
-    """The engine must never name content: no id from the test pack may appear in engine code."""
+    """The engine and its UI must never name content: no test-pack id may appear in their code."""
 
     def test_no_pack_ids_in_engine_code(self):
         content = load_pack(TEST_PACK)
         ids = {str(i) for namespace in content.index.values() for i in namespace}
-        sources = {p: p.read_text(encoding="utf-8") for p in (ROOT / "engine").rglob("*.py")}
+        sources = {p: p.read_text(encoding="utf-8")
+                   for folder in ("engine", "tui") for p in (ROOT / folder).rglob("*.py")}
+        sources[ROOT / "play.py"] = (ROOT / "play.py").read_text(encoding="utf-8")
         self.assertTrue(sources)
         for path, text in sources.items():
             quoted = set(re.findall(r"""["']([a-z][a-z0-9_]*)["']""", text))
