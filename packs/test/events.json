@@ -163,6 +163,49 @@
           "name_suffix": "Tuned"
         }
       ]
+    },
+    {
+      "id": "event_restock",
+      "name": "Restock",
+      "trigger": "day_start",
+      "notify": false,
+      "effects": [
+        {
+          "op": "set_state",
+          "object": "pl_a_crate",
+          "state": "state_closed"
+        }
+      ]
+    },
+    {
+      "id": "event_arrival",
+      "name": "Arrival",
+      "trigger": "enter_location",
+      "when": {
+        "check": "location",
+        "location": "room_b"
+      },
+      "text": "Machines hum somewhere below.",
+      "effects": [
+        {
+          "op": "set_flag",
+          "flag": "flag_a",
+          "add": 1
+        }
+      ]
+    },
+    {
+      "id": "event_once",
+      "name": "Once",
+      "trigger": "manual",
+      "repeat": false,
+      "effects": [
+        {
+          "op": "set_flag",
+          "flag": "flag_a",
+          "add": 10
+        }
+      ]
     }
   ]
 }

@@ -205,6 +205,54 @@
         "flee_below": 0.25
       },
       "loot": "loot_drone"
+    },
+    {
+      "id": "char_rival_1",
+      "name": "Rival 1",
+      "rank": 1,
+      "faction": "faction_a",
+      "body": {
+        "size": 3,
+        "stats": {
+          "stat_health": 10
+        }
+      },
+      "views": [
+        {
+          "toward": "player",
+          "value": -30
+        }
+      ]
+    },
+    {
+      "id": "char_rival_2",
+      "name": "Rival 2",
+      "rank": 1,
+      "faction": "faction_a",
+      "body": {
+        "size": 3,
+        "stats": {
+          "stat_health": 10
+        }
+      },
+      "views": [
+        {
+          "toward": "player",
+          "value": -30
+        }
+      ]
+    },
+    {
+      "id": "char_rival_3",
+      "name": "Rival 3",
+      "rank": 1,
+      "faction": "faction_a",
+      "body": {
+        "size": 3,
+        "stats": {
+          "stat_health": 10
+        }
+      }
     }
   ]
 }

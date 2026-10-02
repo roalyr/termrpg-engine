@@ -110,6 +110,12 @@
           "type": "integer",
           "default": 0,
           "description": "How characters regard each other before anything has happened."
+        },
+        "events_per_trigger": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "At most this many events fire at one trigger moment (a day start, a turn, an arrival), picked by weight. 0 means no limit."
         }
       },
       "additionalProperties": false

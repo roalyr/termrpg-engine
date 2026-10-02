@@ -48,7 +48,7 @@
             "manual"
           ],
           "default": "day_start",
-          "description": "When the engine considers it. 'manual' events run only through trigger_event."
+          "description": "When the engine considers it: at the start of each day, every turn, whenever the player arrives in a location, or only through trigger_event ('manual')."
         },
         "cast": {
           "type": "array",
@@ -106,7 +106,7 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "default": 1,
-          "description": "When several events could fire at once, the relative likelihood of this one."
+          "description": "Events of one trigger moment are considered heaviest first. When the pack limits events_per_trigger, the weight is the relative likelihood of being among those that fire."
         },
         "cooldown": {
           "type": "integer",
