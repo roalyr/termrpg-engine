@@ -253,6 +253,29 @@
                 "x-ref": "object_state",
                 "description": "Overrides the template's initial state."
               },
+              "contents": {
+                "type": "array",
+                "description": "What it holds at the start; replaces the template's contents.",
+                "items": {
+                  "type": "object",
+                  "description": "Items and how many.",
+                  "properties": {
+                    "item": {
+                      "$ref": "common.schema.json#/$defs/id",
+                      "x-ref": "item"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "default": 1
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "item"
+                  ]
+                }
+              },
               "tags": {
                 "$ref": "common.schema.json#/$defs/tags",
                 "description": "Added to the template's tags."
@@ -503,6 +526,29 @@
           "$ref": "common.schema.json#/$defs/id",
           "x-ref": "object_state",
           "description": "Overrides the template's initial state."
+        },
+        "contents": {
+          "type": "array",
+          "description": "What it holds at the start; replaces the template's contents.",
+          "items": {
+            "type": "object",
+            "description": "Items and how many.",
+            "properties": {
+              "item": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "item"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "item"
+            ]
+          }
         },
         "tags": {
           "$ref": "common.schema.json#/$defs/tags",

@@ -127,6 +127,22 @@
             2,
             5
           ]
+        },
+        {
+          "id": "pl_b_bay",
+          "object": "obj_bay",
+          "at": [
+            2,
+            1
+          ],
+          "contents": [
+            {
+              "item": "frame_b"
+            },
+            {
+              "item": "implant_a"
+            }
+          ]
         }
       ],
       "on_turn": [

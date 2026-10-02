@@ -87,7 +87,30 @@
         "storage": {
           "type": "integer",
           "minimum": 1,
-          "description": "It can hold this many item stacks (a locker, a cargo rack). Items must also fit its holds_size."
+          "description": "It can hold this many item stacks (a locker, a cargo rack, a suit bay). Items must also fit its holds_size."
+        },
+        "contents": {
+          "type": "array",
+          "description": "What it holds at the start, for objects with storage.",
+          "items": {
+            "type": "object",
+            "description": "Items and how many.",
+            "properties": {
+              "item": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "item"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "item"
+            ]
+          }
         },
         "solid": {
           "type": "boolean",

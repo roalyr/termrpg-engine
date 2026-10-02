@@ -518,6 +518,18 @@ class TestPackErrors(unittest.TestCase):
         self.character("char_player", lambda ch: ch["designs"].append("item_missing"))
         self.assertIn("unknown item 'item_missing'", self.errors())
 
+    def test_contents_need_storage(self):
+        self.placement("room_a", "pl_a_crate", lambda p: p.__setitem__("contents", [{"item": "misc_key"}]))
+        self.assertIn("has contents but no storage", self.errors())
+
+    def test_contents_must_fit(self):
+        self.placement("room_a", "pl_a_locker", lambda p: p.__setitem__("contents", [{"item": "frame_a"}]))
+        self.assertIn("'frame_a' is too big for it (holds_size 2)", self.errors())
+
+    def test_contents_within_storage(self):
+        self.placement("room_a", "pl_a_locker", lambda p: p.__setitem__("contents", [{"item": "misc_key", "count": 7}]))
+        self.assertIn("contents need 7 storage stacks, it holds 6", self.errors())
+
     def test_reserved_feature_warns(self):
         self.edit("pack.json", lambda m: m.__setitem__("extends", ["base"]))
         report = validate_pack(self.pack)

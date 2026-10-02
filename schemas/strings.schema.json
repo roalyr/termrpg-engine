@@ -341,6 +341,136 @@
             "columns",
             "rows"
           ]
+        },
+        "fit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Item menu: fit a frame, module or implant. No placeholders.",
+          "x-placeholders": []
+        },
+        "remove": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Item menu: remove a worn or fitted item. No placeholders.",
+          "x-placeholders": []
+        },
+        "store": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Item menu: put an item into storage within reach. No placeholders.",
+          "x-placeholders": []
+        },
+        "take": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Item menu: take a stored item. No placeholders.",
+          "x-placeholders": []
+        },
+        "refit_needed": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Fitting or removing needs a workshop that offers refit. No placeholders.",
+          "x-placeholders": []
+        },
+        "frame_worn": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A frame is already worn. No placeholders.",
+          "x-placeholders": []
+        },
+        "frame_needed": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Modules need a worn frame. No placeholders.",
+          "x-placeholders": []
+        },
+        "no_free_slot": {
+          "type": "string",
+          "minLength": 1,
+          "description": "No free slot for the item. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "cannot_use": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The character doesn't meet the item's fit requirement. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "over_budget": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The loadout would need more of a budget than it has. Placeholders: {stat}, {need}, {have}.",
+          "x-placeholders": [
+            "stat",
+            "need",
+            "have"
+          ]
+        },
+        "remove_modules_first": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A frame comes off only after its modules. No placeholders.",
+          "x-placeholders": []
+        },
+        "storage_full": {
+          "type": "string",
+          "minLength": 1,
+          "description": "No room left in the storage. Placeholders: {container}.",
+          "x-placeholders": [
+            "container"
+          ]
+        },
+        "item_fitted": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An item was fitted or put on. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "item_removed": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An item was removed. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
+        },
+        "item_stored": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An item was put into storage. Placeholders: {item}, {container}.",
+          "x-placeholders": [
+            "item",
+            "container"
+          ]
+        },
+        "item_taken": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An item was taken from storage. Placeholders: {item}, {container}.",
+          "x-placeholders": [
+            "item",
+            "container"
+          ]
+        },
+        "pack_stored": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Heading for items in storage within reach, in the pack panel. Placeholders: {container}.",
+          "x-placeholders": [
+            "container"
+          ]
+        },
+        "keys_pack": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Key hints in the pack panel. No placeholders.",
+          "x-placeholders": []
         }
       },
       "additionalProperties": false

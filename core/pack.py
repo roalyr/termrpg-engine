@@ -264,6 +264,34 @@ def _check_world_rules(manifest: dict, entries: Entries, where: Dict[Tuple[str, 
         if current in seen:
             errors.append(f"{where[('regions', region_id)]}: region '{region_id}' is its own ancestor")
 
+    # Storage contents must fit the object's storage and holds_size.
+    items = entries.get("items", {})
+
+    def check_contents(holder: dict, contents: list, label: str) -> None:
+        if not contents:
+            return
+        if not holder.get("storage"):
+            errors.append(f"{label}: has contents but no storage")
+            return
+        stacks = 0
+        for entry in contents:
+            item = items.get(entry.get("item")) if isinstance(entry, dict) else None
+            if item is None:
+                continue
+            stacks += -(-entry.get("count", 1) // item.get("stack", 1)) if "condition" not in item else entry.get("count", 1)
+            if holder.get("holds_size") is not None and item.get("size", 0) > holder["holds_size"]:
+                errors.append(f"{label}: '{entry['item']}' is too big for it (holds_size {holder['holds_size']})")
+        if stacks > holder["storage"]:
+            errors.append(f"{label}: contents need {stacks} storage stacks, it holds {holder['storage']}")
+
+    for obj_id, obj in objects.items():
+        check_contents(obj, obj.get("contents", []), where[("objects", obj_id)])
+    for loc_id, loc in locations.items():
+        for j, p in enumerate(_placements(loc)):
+            template = objects.get(p.get("object"))
+            if template is not None and "contents" in p:
+                check_contents(template, p["contents"], f"{where[('locations', loc_id)]}.placements[{j}]")
+
     # Objects: the initial state and state glyphs must use the object's states.
     for obj_id, obj in objects.items():
         states = obj.get("states", [])

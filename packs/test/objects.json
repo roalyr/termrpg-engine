@@ -213,6 +213,20 @@
         ],
         "max_grade": "grade_a"
       }
+    },
+    {
+      "id": "obj_bay",
+      "name": "Bay",
+      "glyph": "▣",
+      "solid": true,
+      "size": 5,
+      "holds_size": 5,
+      "storage": 6,
+      "workshop": {
+        "services": [
+          "refit"
+        ]
+      }
     }
   ]
 }

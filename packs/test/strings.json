@@ -41,7 +41,25 @@
     "pack_carried": "Carried:",
     "character_title": "{name}",
     "game_saved": "Saved.",
-    "terminal_too_small": "Make the terminal at least {columns}x{rows}."
+    "terminal_too_small": "Make the terminal at least {columns}x{rows}.",
+    "fit": "Fit",
+    "remove": "Remove",
+    "store": "Store",
+    "take": "Take",
+    "refit_needed": "Needs a refit workshop.",
+    "frame_worn": "Take off the worn frame first.",
+    "frame_needed": "Needs a frame to fit into.",
+    "no_free_slot": "No free slot for {item}.",
+    "cannot_use": "You can't use {item} yet.",
+    "over_budget": "Needs {need} {stat}, has {have}.",
+    "remove_modules_first": "Remove its modules first.",
+    "storage_full": "{container} is full.",
+    "item_fitted": "Fitted {item}.",
+    "item_removed": "Removed {item}.",
+    "item_stored": "Stored {item} in {container}.",
+    "item_taken": "Took {item} from {container}.",
+    "pack_stored": "In {container}:",
+    "keys_pack": "1-9 pick  Keys above act  P close"
   },
   "entries": [
     {
