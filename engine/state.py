@@ -5,7 +5,7 @@ changes; the state refers to it by id.
 The state is immutable: rules return a new state with ._replace(). Every value is
 plain data (strings, numbers, tuples, read-only mappings), so it can be saved as JSON.
 """
-from typing import Mapping, NamedTuple, Optional, Tuple
+from typing import Any, Mapping, NamedTuple, Optional, Tuple
 
 from engine.content import Content
 from engine.frozen import Record, freeze
@@ -104,6 +104,7 @@ class GameState(NamedTuple):
     used: Mapping[str, int] = freeze({})              # 'owner:interaction' -> day it was last used
     turns_owed: int = 0                               # time spent by effects, processed after the action
     storage: Mapping[str, Tuple[ItemInst, ...]] = freeze({})   # placement -> items stored in it
+    encounter: Optional[Any] = None                   # engine.encounter.EncounterState while fighting
 
 
 # --- Time ---------------------------------------------------------------------

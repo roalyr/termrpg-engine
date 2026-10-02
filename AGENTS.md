@@ -174,6 +174,23 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 - `template: true` characters (enemies spawned in numbers) have no `location`. In
   encounters, only templates take a `count`.
 
+**Encounters**
+
+- Damage written as `{"stat": …, "times": …}` scales with the **user's** stat. An
+  enemy without that stat in its body hits for only the `plus` part: give enemies the
+  stats their actions read.
+- Check that enemies can actually hurt the player and the player can hurt them:
+  damage minus the target's resisting stat must be above 0.
+- AI never uses actions that end the encounter (like Retreat). Give enemies
+  `ai.flee_below` if they should run when hurt.
+- A character's `actions`, their items' actions, skill-level actions and `innate`
+  actions are all they can do. Allies with no actions of their own do nothing.
+- The player's `on_defeat` decides what losing means (carried home, robbed, rescued).
+  It runs after the encounter ends. Without it the player is left with 1 health.
+- Give long action names a `short` (at most 8 characters) for the tile; `intent` is
+  the word shown over an enemy.
+- Don't put `choose` in an action's effects.
+
 **Text**
 
 - Labels (`name`, `label`) are at most 32 characters. An action's `short` is at

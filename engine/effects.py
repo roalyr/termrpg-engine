@@ -10,8 +10,10 @@ An effect on a group (subject 'party') applies to each member; an effect whose
 subject names nobody does nothing. Messages are shown only for what the player can
 see: their own character, and characters in the player's location.
 
-Encounters and events come in later milestones: start_encounter and trigger_event
-leave a request in the state, and end_encounter does nothing outside an encounter.
+start_encounter leaves a request that engine.encounter.begin() acts on, and
+end_encounter ends the running encounter (nothing outside one). trigger_event leaves
+a request for the event engine (milestone 6). During an encounter, a fighter's
+on_defeat waits until the encounter ends.
 spend_time adds to the turns owed, which engine.turns processes after the action.
 """
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple
@@ -263,8 +265,10 @@ def _damage(content, state, ctx, effect):
             state = _set(state, cs)
             if _visible(state, cid):
                 state = _say(state, "danger", content.message("character_down", character=content.get("character", cs.source)["name"]))
-            on_defeat = content.get("character", cs.source).get("on_defeat", ())
-            follow += [(e, Ctx(self_id=cid, target=ctx.self_id)) for e in on_defeat]
+            fighting = state.encounter is not None and cid in state.encounter.allies + state.encounter.enemies
+            if not fighting:                            # in an encounter, on_defeat waits for its end
+                on_defeat = content.get("character", cs.source).get("on_defeat", ())
+                follow += [(e, Ctx(self_id=cid, target=ctx.self_id)) for e in on_defeat]
         else:
             state = _set(state, cs)
     return state, follow
@@ -374,7 +378,8 @@ def _start_encounter(content, state, ctx, effect):
 
 
 def _end_encounter(content, state, ctx, effect):
-    return state, []  # only meaningful inside an encounter (milestone 4)
+    from engine import encounter  # encounter runs effects, so it is imported here
+    return encounter.end_for(state, ctx.self_id, effect["result"]), []
 
 
 # --- People --------------------------------------------------------------------------

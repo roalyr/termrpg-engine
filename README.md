@@ -31,9 +31,9 @@ The project is between two engines.
 - **The new data layer is complete.** The schemas in `schemas/` describe all game
   content; a validator checks packs against them; a generic test pack in
   `packs/test/` uses every part of them.
-- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0–3 are
+- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0–4 are
   done: the test pack is playable in the terminal with `python3 play.py`, including
-  refitting suits. See [ROADMAP.md](ROADMAP.md).
+  refitting suits and fighting. See [ROADMAP.md](ROADMAP.md).
 
 ## Quick start
 
@@ -63,7 +63,7 @@ timestamps can make Python run stale cached bytecode.
 | `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
 | `AGENTS.md`, `GEMINI.md` | Instructions for AI agents |
 | `ROADMAP.md` | The engine rebuild plan |
-| `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `rng.py` seeded randomness |
+| `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `save.py` saves, `rng.py` seeded randomness |
 | `tui/`, `play.py` | The terminal UI for the new engine, and how to start it |
 | `core/`, `ui/`, `main.py` | The old engine (being replaced) |
 | `core/data/default-1.0/` | The old engine's content (to be rewritten as a game pack) |
@@ -369,9 +369,8 @@ Rules the engine follows that the schemas alone don't spell out:
   every character in a location gets the location's `on_turn`; statuses run their
   `on_turn` once per stack, count down and end with `on_expire`; timed stat changes
   count down. A choice waiting for the player pauses time.
-- **Not yet active** (later milestones): `start_encounter` and `trigger_event` are
-  recorded and handled by encounters (milestone 4) and the event engine
-  (milestone 6); `end_encounter` does nothing outside an encounter.
+- **Not yet active:** `trigger_event` is recorded for the event engine
+  (milestone 6).
 - **Saves** go to `saves/<pack folder>/<slot>.json` and hold only the state. A save
   only loads with the same pack and the same major pack version.
 - **Refitting.** Frames, modules and implants are fitted or removed only within reach
@@ -389,6 +388,42 @@ Rules the engine follows that the schemas alone don't spell out:
 - **Using items.** An item's interactions are used from the pack; for a consumable,
   each use spends one before the effects run. In item interactions the item pick
   `{"used": true}` is the item itself.
+
+#### Encounters
+
+- **Beginning.** `start_encounter` starts the encounter after the current action.
+  Template enemies are spawned as copies (not on the map); unique characters in
+  `enemies` or `allies` join as themselves. The player's party is on the player's
+  side. `on_start` runs, and the `intro` is shown.
+- **A round.** Every AI-controlled fighter (everyone but the player) picks an action
+  and a target; enemies' picks show as their intent. The player picks an action tile,
+  and a target when there is more than one. Then all actions resolve in order:
+  higher `priority` first, then higher initiative, ties to the player's side. At the
+  end of the round cooldowns count down and one world turn passes, so statuses tick
+  and location hazards hit every fighter.
+- **Actions** come from the character's own `actions`, their active items, their
+  skill levels, and every `innate` action. An action needs its `requires`, no
+  cooldown, charges left this encounter, and the items it `consumes`. A target that
+  went down is replaced by another. Using it pays the costs, runs the effects against
+  each target (`self` is the user, `target` the one aimed at), and gives the user the
+  experience in `trains`.
+- **Heat.** `cost.heat` goes into the user's heat pool. Reaching the maximum
+  overheats them: they lose their next action and cool to their constant heat load.
+  Characters without heat capacity (no heat stat from body or items) ignore heat.
+- **Statuses** with `blocks_actions` make the fighter lose their action.
+- **AI.** An AI fighter weighs its usable actions by `ai.weight`, skipping those whose
+  `ai.when` fails, and picks with the seed; enemy targets are random, ally targets the
+  most hurt friend. AI never uses an action that ends the encounter: below its
+  `ai.flee_below` share of health (when `escape` allows) it flees alone instead.
+- **The end** comes when every enemy is down or fled (won), the player is down
+  (lost), or `end_encounter` is used (for the user's side: an enemy's "won" is the
+  player's "lost"). Winning rolls the encounter's `loot` and each defeated enemy's
+  `loot` for the player. Then `on_win`, `on_lose` or `on_escape` runs, and after it
+  `on_defeat` for everyone who went down (during the fight it waits). A player still
+  down after all that comes back with 1 health: losing is never a game over.
+  Spawned copies leave, and everyone's heat cools to their constant load.
+- **Known limit:** a `choose` in an action's effects doesn't pause the round; avoid it
+  in actions for now.
 
 #### Interactions
 
@@ -738,6 +773,13 @@ All text the engine prints comes from the pack.
 | `over_budget` | `{stat}`, `{need}`, `{have}` |
 | `storage_full`, `pack_stored` | `{container}` |
 | `item_stored`, `item_taken` | `{item}`, `{container}` |
+| `encounter_round` | `{encounter}`, `{round}` |
+| `uses_action` | `{character}`, `{action}` |
+| `intent` | `{action}`, `{target}` |
+| `on_cooldown` | `{rounds}` |
+| `needs_item` | `{item}` |
+| `skips_turn`, `fled` | `{character}` |
+| `no_charges`, `keys_encounter`, `keys_target` | none |
 
 ### Modifications (`modification.schema.json`)
 

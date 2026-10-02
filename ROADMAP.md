@@ -13,7 +13,8 @@ says how to work on the project.
 - [x] Milestone 1: state and grammar
 - [x] Milestone 2: walkable world (`python3 play.py`)
 - [x] Milestone 3: build
-- [ ] Engine rebuild: milestones 4–7 below
+- [x] Milestone 4: encounters
+- [ ] Engine rebuild: milestones 5–7 below
 - [ ] **Version 1.0**: the first clean version of the game, after milestone 7
 
 ## Principles
@@ -107,7 +108,7 @@ Every milestone ends with something that runs and is tested, and with two chores
 - Carried forward: skills gain experience from actions' `trains` in milestone 4; a
   workshop's `max_grade` applies to crafting (milestone 5), not to refitting.
 
-### 4. Encounters
+### 4. Encounters ✓
 
 - Encounter state, turn order (initiative and priority), action tiles in Zone 4.
 - Costs (heat, cooldown, charges, consumed items), statuses, overheating.
@@ -115,6 +116,15 @@ Every milestone ends with something that runs and is tested, and with two chores
   `on_defeat`.
 - Done when: the test pack's drone encounter can be played to each of its three
   outcomes.
+- Delivered: `engine/encounter.py` (spawning, sides, AI choices with intent and
+  fleeing, rounds ordered by priority then initiative, costs with overheating,
+  cooldowns, charges and consumed items, blocking statuses, skill experience from
+  `trains`, the end with loot, deferred `on_defeat` and no game over), the
+  encounter screen (art, both sides with intents, action tiles) and keys. The test
+  pack gains a drone hatch in room B. `tests/test_engine_encounter.py` wins, loses
+  and escapes the drone encounter.
+- Carried forward: `trigger_event` requests (such as the test player's rescue) wait
+  for milestone 6; a `choose` inside an action's effects doesn't pause the round.
 
 ### 5. Crafting
 

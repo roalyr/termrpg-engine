@@ -12,12 +12,13 @@ import os
 from pathlib import Path
 from typing import Any
 
-from engine import rng, state as st
+from engine import encounter, rng, state as st
 from engine.content import Content
 from engine.frozen import freeze
 
 TYPES = {cls.__name__: cls for cls in (
-    st.GameState, st.CharState, st.ItemInst, st.StatMod, st.StatusInst, st.Message, st.Ctx, st.Pending, rng.Rng)}
+    st.GameState, st.CharState, st.ItemInst, st.StatMod, st.StatusInst, st.Message, st.Ctx, st.Pending, rng.Rng,
+    encounter.EncounterState)}
 FORMAT = 1
 
 

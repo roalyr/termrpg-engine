@@ -8,7 +8,7 @@ always draws the same frame. Every word on screen comes from the pack.
 """
 from typing import List, Optional
 
-from engine import build, context, stats, world
+from engine import build, context, encounter, stats, world
 from engine.content import Content
 from engine.state import GameState, day_of, phase_of
 from tui.text import ANSI, Style, pad, visible_len, wrap
@@ -22,6 +22,8 @@ def render(content: Content, state: GameState, columns: int, rows: int = 60,
     if columns < MIN_COLUMNS or rows < MIN_ROWS:
         return content.message("terminal_too_small", columns=MIN_COLUMNS, rows=MIN_ROWS) + "\n"
     inner = columns - 2
+    if state.encounter is not None:
+        return _render_encounter(content, state, inner, style, selected)
     player = state.characters[state.player]
     location = content.get("location", player.location)
 
@@ -52,6 +54,86 @@ def _rule(left: str, right: str, inner: int) -> str:
 
 def _box(lines: List[str], inner: int) -> List[str]:
     return [f"│{pad(' ' + line, inner)}│" for line in lines]
+
+
+# --- Encounters ------------------------------------------------------------------------
+
+TILE = 10  # width of one action tile
+
+
+def _render_encounter(content: Content, state: GameState, inner: int, style: Style,
+                      selected: Optional[int]) -> str:
+    """Zone 2 shows the target's picture, zone 3 both sides with intents, zone 4 the action tiles."""
+    enc = state.encounter
+    record = content.get("encounter", enc.id)
+    out: List[str] = [_rule("┌", "┐", inner)]
+    out += _box([style.bold(content.message("encounter_round", encounter=record["name"], round=enc.round))], inner)
+    out.append(_rule("├", "┤", inner))
+    enemies = encounter.living(state, "enemies")
+    art = _art(content, state, enemies[0] if enemies else None)
+    art_width = max(visible_len(line) for line in art)
+    side = _fighters(content, state, inner - art_width - 1, style)
+    for i in range(max(len(art), len(side))):
+        left = art[i] if i < len(art) else " " * art_width
+        out.append(f"│{left}│{pad(side[i] if i < len(side) else '', inner - art_width - 1)}│")
+    out.append(_rule("├", "┤", inner))
+    out += _box(_tiles(content, state, inner - 2, style), inner)
+    out.append(_rule("├", "┤", inner))
+    out += _box(_messages(content, state, inner, None, style), inner)
+    out.append(_rule("├", "┤", inner))
+    key = "keys_target" if selected is not None else "keys_encounter"
+    out += _box([style.dim(line) for line in wrap(content.message(key), inner - 2)], inner)
+    out.append(_rule("└", "┘", inner))
+    return "\n".join(out) + "\n"
+
+
+def _art(content: Content, state: GameState, cid: Optional[str]) -> List[str]:
+    record = content.get("character", state.characters[cid].source) if cid else {}
+    lines = list(record.get("art", ())) or [f" {record.get('glyph') or record.get('name', ' ')[0]} "]
+    width = max(len(line) for line in lines) + 2
+    return ["┌" + "─" * width + "┐"] + [f"│ {line.ljust(width - 2)} │" for line in lines] + ["└" + "─" * width + "┘"]
+
+
+def _fighters(content: Content, state: GameState, width: int, style: Style) -> List[str]:
+    health = content.stat_roles["health"]
+    lines = []
+    for cid in encounter.living(state, "allies"):
+        cs = state.characters[cid]
+        name = content.get("character", cs.source)["name"][:10]
+        lines.append(f" {name:<10} {_bar(stats.current(content, cs, health), stats.stat(content, cs, health), 6)}")
+    heat = content.stat_roles["heat"]
+    me = state.characters[state.player]
+    if stats.stat(content, me, heat) > 0:
+        short = content.get("stat", heat).get("short") or "heat"
+        lines.append(f" {short:<10} {_bar(stats.current(content, me, heat), stats.stat(content, me, heat), 6)}")
+    lines.append("")
+    for number, cid in enumerate(encounter.living(state, "enemies"), 1):
+        cs = state.characters[cid]
+        name = content.get("character", cs.source)["name"][:8]
+        now, top = stats.current(content, cs, health), stats.stat(content, cs, health)
+        lines.append(f" {number} {name:<8} {_bar(now, top, 6)} {int(now)}")
+        intent = encounter.intent_line(content, state, cid)
+        if intent:
+            lines.append(style.danger(f"   ⚠ {intent}"[:width]))
+    return lines
+
+
+def _tiles(content: Content, state: GameState, width: int, style: Style) -> List[str]:
+    tiles = encounter.tiles(content, state)
+    per_row = max(1, width // TILE)
+    lines: List[str] = []
+    for start in range(0, len(tiles), per_row):
+        row = tiles[start:start + per_row]
+        parts = [[], [], [], []]
+        for tile in row:
+            paint = (lambda t: t) if tile.available else style.dim
+            inner_width = TILE - 2
+            parts[0].append("┌" + "─" * inner_width + "┐")
+            parts[1].append(paint("│" + f"{tile.key} {tile.label}"[:inner_width].ljust(inner_width) + "│"))
+            parts[2].append(paint("│" + (f"▲{tile.cost}" if tile.cost else "").ljust(inner_width) + "│"))
+            parts[3].append("└" + "─" * inner_width + "┘")
+        lines += ["".join(p) for p in parts]
+    return lines
 
 
 # --- Zone 1 ----------------------------------------------------------------------------
