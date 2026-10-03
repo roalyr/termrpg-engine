@@ -218,19 +218,26 @@ From (2,2): **D** to (2,3), then **S** (bump the hatch). **U** (Open).
   they fight on your side.
 - [ ] **(chance)** With two drones, **1** asks for a target ("1-9 target  X back"):
   press its number. **X** backs out.
-- [ ] **1** (Strike): the drones act first ("Drone uses Strike."; they're quicker),
-  then you. Heat rises by 1. In the heavy suit their hits don't get through your
-  armor.
-- [ ] **3** (Guard) in a later round: "Player uses Guard." comes **first** (priority).
-  Guard then shows "Ready in 1.".
-- [ ] Win: "! Drone goes down.", "+ Won.", then "+ Found: …" lines (the encounter's and
-  each drone's loot). Heat cools to the constant load.
+- [ ] **1** (Strike): the header moves on to "round 2" and the message area shows
+  what happened, headed **"Round 1:"**, in order: the drones act first (they're
+  quicker), e.g. "Drone: Strike on Player." then "Player is unhurt." (the heavy suit's
+  armor stops it), then "Player: Strike on Drone." and "Drone takes 5 damage.". Heat
+  rises by 1.
+- [ ] Anything the end of the round brings comes after an **"End of round:"** line
+  (statuses ticking, Room B's hazard on anyone it can hurt).
+- [ ] **3** (Guard) in a later round: "Player uses Guard." is the first line of that
+  round (priority). Guard then shows "Ready in 1.".
+- [ ] Win: the fight ends on an **after-action screen**: "Won." as its title, the last
+  round's log ending with "! Drone goes down.", then "+ Found: …" lines (the
+  encounter's and each drone's loot), and "Any key: continue". Any key returns to the
+  map with an empty message area. Heat has cooled to the constant load.
 - [ ] Open the hatch again. **2** (Burst): "Player uses Burst of damage.",
   "Lost: Material A x2.", and every drone gets "Damage over time". **(chance)** Usually
   both go down that round. If the fight goes on, Burst shows "Used up." (one charge per
   fight).
-- [ ] Open it once more and press **4** (Retreat): **(chance, 60%)** "+ Escaped.", or
-  "You can't get away." and the round goes on.
+- [ ] Open it once more and press **4** (Retreat): **(chance, 60%)** the after-action
+  screen titled "Escaped.", or "You can't get away." in the round's log and the fight
+  goes on.
 
 ## 15. The door in a heavy suit
 
@@ -274,8 +281,10 @@ python3 play.py --slot lose --new
 - [ ] Open the door with the tool (**A A W W U**), go through (**G**), walk to the hatch
   (**S S**, then **S** to bump it) and open it (**U**).
 - [ ] Keep striking; between fights stay in Room B (the hazard hurts without the
-  Strange tool). When your health runs out: "! Player goes down.", "! Lost.",
-  "! You go down.", "You enter Room A." and "! Someone drags you out." You wake in Room A with 5 health: losing is never a game
+  Strange tool). When your health runs out, the after-action screen is titled
+  "Lost." (in the warning colour): the last round ends with "! Player goes down.",
+  then "! You go down." and "You enter Room A.". Press any key: back on the map in Room
+  A, "! Someone drags you out." appears and you have 5 health. Losing is never a game
   over.
 
 ---

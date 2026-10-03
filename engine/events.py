@@ -1,8 +1,8 @@
 """
 The living world: events, and settling everything an action left waiting.
 
-settle() runs after every player action. While no encounter is running and no choice
-is waiting, it starts a requested encounter, fires requested events (trigger_event),
+settle() runs after every player action. While no encounter is running, no choice
+is waiting and no after-action screen is up, it starts a requested encounter, fires requested events (trigger_event),
 considers the trigger moments the action queued (day_start, turn, enter_location)
 and pays any turns effects still owe; until nothing is left.
 
@@ -38,7 +38,7 @@ MAX_STEPS = 200  # a guard against events that keep triggering each other
 def settle(content: Content, state: GameState) -> GameState:
     """Handles everything an action left waiting: encounters, requested events, triggers, owed time."""
     for _ in range(MAX_STEPS):
-        if state.pending is not None or state.encounter is not None:
+        if state.pending is not None or state.encounter is not None or state.debrief is not None:
             break
         if state.encounter_request:
             state = encounter.begin(content, state)

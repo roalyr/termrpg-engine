@@ -258,6 +258,11 @@ def _damage(content, state, ctx, effect):
         if resisted_by:
             amount -= stats.stat(content, cs, resisted_by)
         amount = max(0, amount)
+        if state.encounter is not None and cid in state.encounter.allies + state.encounter.enemies:
+            name = content.get("character", cs.source)["name"]
+            state = _say(state, "danger" if cid == state.player and amount else "plain",
+                         content.message("damage_taken", character=name, amount=f"{amount:g}") if amount
+                         else content.message("damage_blocked", character=name))
         now = max(0, stats.current(content, cs, health) - amount)
         cs = cs._replace(pools=freeze({**cs.pools, health: now}))
         if now <= 0:

@@ -131,7 +131,8 @@ class TestTriggers(unittest.TestCase):
         self.assertIsNotNone(s.encounter)
         cs = s.characters[PLAYER]
         s = s._replace(characters=freeze({**s.characters, PLAYER: cs._replace(pools=freeze({**cs.pools, "stat_health": 1}))}))
-        s = events.settle(CONTENT, encounter.take_turn(CONTENT, s, "action_strike", "char_drone#1"))
+        s = encounter.take_turn(CONTENT, s, "action_strike", "char_drone#1")
+        s = events.settle(CONTENT, s._replace(debrief=None))  # leaving the after-action screen
         self.assertIn("Someone drags you out.", texts(s))
         self.assertEqual(s.event_requests, ())
 

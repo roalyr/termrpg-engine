@@ -13,7 +13,7 @@ from engine import encounter, save, stats
 from engine.content import load_pack
 from engine.effects import run
 from engine.frozen import freeze
-from engine.state import Ctx, StatusInst, new_game
+from engine.state import Ctx, Message, StatusInst, new_game
 from tui import app, render
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -37,6 +37,9 @@ def hp(state, cid=PLAYER):
 
 
 def texts(state):
+    """What the player reads: the messages, or the after-action screen once a fight is over."""
+    if state.debrief is not None:
+        return [state.debrief.title] + [m.text for m in state.debrief.messages]
     return [m.text for m in state.messages]
 
 
@@ -131,9 +134,12 @@ class TestRound(unittest.TestCase):
     def test_order_by_priority_then_initiative(self):
         s = fight(2)
         s = encounter.take_turn(CONTENT, s, "action_strike", "char_drone#1")
-        self.assertEqual(texts(s)[:3], ["Drone uses Strike.", "Drone uses Strike.", "Player uses Strike."])  # drones are quicker
-        s = encounter.take_turn(CONTENT, s._replace(messages=()), "action_guard")
-        self.assertEqual(texts(s)[0], "Player uses Guard.")                                               # priority 1 goes first
+        self.assertEqual(texts(s), ["Drone: Strike on Player.", "Player takes 3 damage.",           # drones are quicker
+                                    "Drone: Strike on Npc.", "Npc takes 5 damage.",
+                                    "Player: Strike on Drone.", "Drone takes 5 damage."])
+        s = encounter.take_turn(CONTENT, s, "action_guard")
+        self.assertEqual(texts(s)[0], "Player uses Guard.")                                                # priority 1 goes first
+        self.assertIn("Player is unhurt.", texts(s))                                                      # Guard's armor holds
 
     def test_guard_blunts_the_hit(self):
         s = fight(1)
@@ -189,6 +195,52 @@ class TestRound(unittest.TestCase):
 
     def test_save_mid_encounter(self):
         s = encounter.take_turn(CONTENT, fight(2), "action_strike", "char_drone#1")
+        self.assertEqual(save.from_json(CONTENT, save.to_json(CONTENT, s)), s)
+
+
+class TestReadableFights(unittest.TestCase):
+    def test_a_fight_starts_on_a_clean_page(self):
+        s = new_game(CONTENT, 2)._replace(encounter_request="enc_drones",
+                                          messages=(Message("plain", "Something from before."),))
+        s = encounter.begin(CONTENT, s)
+        self.assertEqual(texts(s), ["Drones!", "Drones close in."])
+
+    def test_the_log_is_labelled_with_its_round(self):
+        s = encounter.take_turn(CONTENT, fight(2), "action_strike", "char_drone#1")
+        self.assertEqual((s.encounter.round, s.encounter.log_round), (2, 1))
+        frame = ANSI.sub("", render.render(CONTENT, s, 44, 60))
+        self.assertIn("Drones · round 2", frame)
+        self.assertIn("Round 1:", frame)
+        log = frame.index("Round 1:")
+        self.assertLess(frame.index("Drone: Strike on Player."), frame.index("Player: Strike on Drone."))
+        self.assertGreater(frame.index("Drone: Strike on Player."), log)
+
+    def test_the_end_is_an_after_action_screen(self):
+        s, _ = strike_until_over(fight(2))
+        self.assertIsNone(s.encounter)
+        self.assertEqual(s.messages, ())                       # nothing bleeds onto the map
+        self.assertEqual((s.debrief.title, s.debrief.result), ("Won.", "won"))
+        self.assertTrue(any(m.text.startswith("Found:") for m in s.debrief.messages))
+        frame = ANSI.sub("", render.render(CONTENT, s, 44, 60))
+        self.assertIn("Won.", frame)
+        self.assertIn(f"Round {s.debrief.round}:", frame)
+        self.assertIn("Any key: continue", frame)
+        s2, view, _ = app.handle(CONTENT, s, "w")
+        self.assertIsNone(s2.debrief)
+        self.assertEqual(s2.characters[PLAYER].at, s.characters[PLAYER].at)   # the key only closed the screen
+        self.assertEqual(s2.messages, ())
+
+    def test_follow_ups_wait_for_the_after_action_screen(self):
+        from engine import events
+        s = set_pool(fight(2), PLAYER, "stat_health", 1)
+        s = events.settle(CONTENT, encounter.take_turn(CONTENT, s, "action_strike", "char_drone#1"))
+        self.assertEqual(s.debrief.result, "lost")
+        self.assertIn("event_rescue", s.event_requests)        # the rescue waits
+        s, _, _ = app.handle(CONTENT, s, "x")
+        self.assertIn("Someone drags you out.", [m.text for m in s.messages])
+
+    def test_debrief_survives_a_save(self):
+        s, _ = strike_until_over(fight(2))
         self.assertEqual(save.from_json(CONTENT, save.to_json(CONTENT, s)), s)
 
 

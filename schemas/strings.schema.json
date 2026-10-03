@@ -694,6 +694,53 @@
           "x-placeholders": [
             "item"
           ]
+        },
+        "action_on": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Someone uses an action on someone else in an encounter. Placeholders: {character}, {action}, {target}.",
+          "x-placeholders": [
+            "character",
+            "action",
+            "target"
+          ]
+        },
+        "damage_taken": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A fighter takes damage in an encounter (after resistance). Placeholders: {character}, {amount}.",
+          "x-placeholders": [
+            "character",
+            "amount"
+          ]
+        },
+        "damage_blocked": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A hit does no damage: resistance stopped all of it. Placeholders: {character}.",
+          "x-placeholders": [
+            "character"
+          ]
+        },
+        "round_log": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Heading over the log of the round just played. Placeholders: {round}.",
+          "x-placeholders": [
+            "round"
+          ]
+        },
+        "keys_debrief": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Key hint on the after-action screen at the end of an encounter. No placeholders.",
+          "x-placeholders": []
+        },
+        "round_end": {
+          "type": "string",
+          "minLength": 1,
+          "description": "In an encounter's log, before what the end of the round brings (hazards, statuses). No placeholders.",
+          "x-placeholders": []
         }
       },
       "additionalProperties": false

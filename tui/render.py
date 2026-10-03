@@ -23,6 +23,8 @@ def render(content: Content, state: GameState, columns: int, rows: int = 60,
     if columns < MIN_COLUMNS or rows < MIN_ROWS:
         return content.message("terminal_too_small", columns=MIN_COLUMNS, rows=MIN_ROWS) + "\n"
     inner = columns - 2
+    if state.debrief is not None:
+        return _render_debrief(content, state, inner, style)
     if state.encounter is not None:
         return _render_encounter(content, state, inner, style, selected)
     player = state.characters[state.player]
@@ -84,6 +86,22 @@ def _render_encounter(content: Content, state: GameState, inner: int, style: Sty
     out.append(_rule("├", "┤", inner))
     key = "keys_target" if selected is not None else "keys_encounter"
     out += _box([style.dim(line) for line in wrap(content.message(key), inner - 2)], inner)
+    out.append(_rule("└", "┘", inner))
+    return "\n".join(out) + "\n"
+
+
+def _render_debrief(content: Content, state: GameState, inner: int, style: Style) -> str:
+    """The after-action screen: the result, the last round, then loot and what followed."""
+    debrief = state.debrief
+    title = style.danger(debrief.title) if debrief.result == "lost" else style.bold(debrief.title)
+    out: List[str] = [_rule("┌", "┐", inner)]
+    out += _box([title], inner)
+    out.append(_rule("├", "┤", inner))
+    body = [style.bold(content.message("round_log", round=debrief.round))] if debrief.round else []
+    body += _message_lines(debrief.messages, inner - 2, style)
+    out += _box(body, inner)
+    out.append(_rule("├", "┤", inner))
+    out += _box([style.dim(line) for line in wrap(content.message("keys_debrief"), inner - 2)], inner)
     out.append(_rule("└", "┘", inner))
     return "\n".join(out) + "\n"
 
@@ -240,22 +258,15 @@ def _legend(content: Content, state: GameState, location, inner: int, style: Sty
 # --- Zone 5 -------------------------------------------------------------------------------
 
 KIND_MARK = {"danger": "! ", "gain": "+ ", "plain": "", "quiet": ""}
-KIND_ORDER = {"danger": 0, "gain": 1, "plain": 2, "quiet": 3}
 
 
 def _messages(content: Content, state: GameState, inner: int, panel: Optional[str], style: Style,
               selected: Optional[int] = None, page: int = 0) -> List[str]:
     width = inner - 2
     lines: List[str] = []
-    for message in sorted(state.messages, key=lambda m: KIND_ORDER.get(m.kind, 2)):
-        for i, line in enumerate(wrap(KIND_MARK.get(message.kind, "") + message.text, width)):
-            if message.kind == "danger":
-                line = style.danger(line)
-            elif message.kind == "gain":
-                line = style.bold(line)
-            elif message.kind == "quiet":
-                line = style.dim(line)
-            lines.append(line)
+    if state.encounter is not None and state.encounter.log_round and state.messages:
+        lines.append(style.bold(content.message("round_log", round=state.encounter.log_round)))
+    lines += _message_lines(state.messages, width, style)
     if state.pending is not None:
         if state.pending.prompt:
             lines += wrap(state.pending.prompt, width)
@@ -283,6 +294,21 @@ def _messages(content: Content, state: GameState, inner: int, panel: Optional[st
                 if option.hint:
                     entry += style.dim(f" - {option.hint}")
             lines += _wrap_styled(entry, width)
+    return lines
+
+
+def _message_lines(messages, width: int, style: Style) -> List[str]:
+    """Messages in the order they happened; their kind only sets the mark and the style."""
+    lines: List[str] = []
+    for message in messages:
+        for line in wrap(KIND_MARK.get(message.kind, "") + message.text, width):
+            if message.kind == "danger":
+                line = style.danger(line)
+            elif message.kind == "gain":
+                line = style.bold(line)
+            elif message.kind == "quiet":
+                line = style.dim(line)
+            lines.append(line)
     return lines
 
 

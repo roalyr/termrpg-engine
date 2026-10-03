@@ -33,6 +33,8 @@ def handle(content: Content, state: GameState, key: str, view: View = View()):
     key = key.lower()
     if key == "q":
         return state, view, True
+    if state.debrief is not None:                 # any key leaves the after-action screen
+        return events.settle(content, state._replace(debrief=None)), View(), False
     if state.pending is not None:
         if key in "1234" and key:
             state = choose_option(content, state, int(key) - 1)

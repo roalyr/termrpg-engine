@@ -30,7 +30,7 @@ from engine import conditions, context, rng, stats, turns
 from engine.content import Content
 from engine.effects import run
 from engine.frozen import Record, freeze
-from engine.state import CharState, Ctx, GameState, Message, character_from
+from engine.state import CharState, Ctx, Debrief, GameState, Message, character_from
 
 
 class EncounterState(NamedTuple):
@@ -45,6 +45,7 @@ class EncounterState(NamedTuple):
     skip: Tuple[str, ...] = ()                        # overheated: lose their next action
     fled: Tuple[str, ...] = ()
     result: Optional[str] = None                      # 'won', 'lost', 'escaped' (for the player's side)
+    log_round: int = 0                                # the round the messages describe
 
 
 class Tile(NamedTuple):
@@ -137,7 +138,7 @@ def begin(content: Content, state: GameState) -> GameState:
                 spawned.append(new_id)
     state = state._replace(encounter=EncounterState(id=request, allies=tuple(dict.fromkeys(allies)),
                                                     enemies=tuple(enemies), spawned=tuple(spawned)),
-                           focus=None)
+                           focus=None, messages=())               # a fight starts on a clean page
     state = _say(state, "danger", content.message("encounter_start", encounter=record["name"]))
     if record.get("intro"):
         state = _say(state, "quiet", content.text(record["intro"]))
@@ -313,6 +314,7 @@ def _order(content: Content, state: GameState) -> List[str]:
 
 
 def _resolve(content: Content, state: GameState) -> GameState:
+    state = _with_enc(state, log_round=_enc(state).round)
     for cid in _order(content, state):
         if _enc(state).result or not active(state, cid):
             continue
@@ -331,7 +333,11 @@ def _resolve(content: Content, state: GameState) -> GameState:
     # End of round: cooldowns count down, one world turn passes.
     cooldowns = {cid: {a: n - 1 for a, n in acts.items() if n > 1} for cid, acts in _enc(state).cooldowns.items()}
     state = _with_enc(state, cooldowns=freeze(cooldowns), round=_enc(state).round + 1)
+    before = len(state.messages)
     state = turns.advance(content, state, 1)
+    if len(state.messages) > before:                  # say why hazards and statuses hit now
+        marker = Message("quiet", content.message("round_end"))
+        state = state._replace(messages=state.messages[:before] + (marker,) + state.messages[before:])
     state = _check_end(content, state)
     if _enc(state).result:
         return _finish(content, state)
@@ -357,8 +363,12 @@ def _perform(content: Content, state: GameState, cid: str, action_id: str, targe
         aimed = friends(state, cid)
     else:
         aimed = [cid]
-    state = _say(state, "plain", content.message("uses_action", character=_name(content, state, cid),
-                                                 action=action["name"]))
+    if len(aimed) == 1 and aimed[0] != cid:
+        line = content.message("action_on", character=_name(content, state, cid), action=action["name"],
+                               target=_name(content, state, aimed[0]))
+    else:
+        line = content.message("uses_action", character=_name(content, state, cid), action=action["name"])
+    state = _say(state, "plain", line)
     state = _pay(content, state, cid, action_id)
     for aimed_at in aimed:
         if _enc(state).result:
@@ -431,8 +441,7 @@ def _finish(content: Content, state: GameState) -> GameState:
     record = content.get("encounter", enc.id)
     ctx = Ctx(self_id=state.player)
     result = enc.result
-    state = _say(state, "danger" if result == "lost" else "gain",
-                 content.message(f"encounter_{result}", encounter=record["name"]))
+    title = content.message(f"encounter_{result}", encounter=record["name"])
     if result == "won":
         if record.get("loot"):
             state = run(content, state, ctx, [freeze({"op": "roll_loot", "table": record["loot"], "rolls": 1, "subject": "self"})])
@@ -452,6 +461,8 @@ def _finish(content: Content, state: GameState) -> GameState:
     health = content.stat_roles["health"]
     if player.down:                                    # never a game over
         state = _set(state, player._replace(down=False, pools=freeze({**player.pools, health: 1})))
+    # The after-action screen holds the last round and everything the end brought.
+    state = state._replace(debrief=Debrief(title, result, enc.log_round, state.messages), messages=())
     heat = content.stat_roles["heat"]
     chars = {}
     for cid, cs in state.characters.items():

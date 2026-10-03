@@ -356,7 +356,8 @@ Rules the engine follows that the schemas alone don't spell out:
   caused them. `choose` stops and waits for the player; the remaining effects run
   after the choice.
 - **Messages** are shown for the player's own character and for characters in the
-  player's location. Each action starts with an empty message list.
+  player's location, always in the order they happened; a message's kind only sets
+  its mark and style. Each action starts with an empty message list.
 - **Walking.** A step costs one turn. Floor tiles and non-solid placements (doors on
   wall tiles) can be stood on. Walking onto a placement puts it in focus; bumping into
   a solid object or another character puts them in focus without moving. Walls do
@@ -425,6 +426,17 @@ Rules the engine follows that the schemas alone don't spell out:
   `on_defeat` for everyone who went down (during the fight it waits). A player still
   down after all that comes back with 1 health: losing is never a game over.
   Spawned copies leave, and everyone's heat cools to their constant load.
+- **What the player reads.** A fight opens on a clean message area. After each
+  round, the log of that round is shown under "Round N:" (the header already shows
+  the next round): each action as "who: action on whom" (or "who uses action" when it
+  has no single other target), followed by what it did ("takes N damage", "is
+  unhurt", statuses, going down). What the round's end brings (hazards, statuses)
+  follows an "End of round:" line, shown only when something happens.
+- **The after-action screen.** When a fight ends, its result ("won", "lost",
+  "escaped") is the title of an after-action screen that shows the last round, then
+  loot, experience and everything `on_win` / `on_lose` / `on_escape` and `on_defeat`
+  brought. Any key returns to the map with an empty message area; only then are
+  waiting events settled (such as a rescue requested by `on_defeat`).
 - **Known limit:** a `choose` in an action's effects doesn't pause the round; avoid it
   in actions for now.
 
@@ -740,8 +752,8 @@ How the engine runs events:
   waiting, in this order, until nothing is left: a requested encounter starts;
   requested events (`trigger_event`, such as a rescue in `on_defeat`) fire; queued
   trigger moments (each turn, each new day, each arrival of the player) are
-  considered; owed turns are paid. Nothing is settled during an encounter or while a
-  choice waits; it waits with them.
+  considered; owed turns are paid. Nothing is settled during an encounter, while a
+  choice waits, or while the after-action screen is up; it waits with them.
 - **A trigger moment** considers every event with that trigger, heaviest first, then
   by id. An event can fire when it isn't used up (`repeat: false` and fired before)
   or cooling down (`cooldown` days since it last fired), its cast can be filled, its
@@ -804,6 +816,11 @@ All text the engine prints comes from the pack.
 | `item_stored`, `item_taken` | `{item}`, `{container}` |
 | `encounter_round` | `{encounter}`, `{round}` |
 | `uses_action` | `{character}`, `{action}` |
+| `action_on` | `{character}`, `{action}`, `{target}` |
+| `damage_taken` | `{character}`, `{amount}` |
+| `damage_blocked` | `{character}` |
+| `round_log` | `{round}` |
+| `round_end`, `keys_debrief` | none |
 | `intent` | `{action}`, `{target}` |
 | `on_cooldown` | `{rounds}` |
 | `needs_item` | `{item}` |

@@ -87,6 +87,14 @@ class Pending(NamedTuple):
     rest: Tuple[Tuple[Record, Ctx], ...]
 
 
+class Debrief(NamedTuple):
+    """The after-action screen at the end of an encounter: its result, the last round, and what followed."""
+    title: str
+    result: str                          # 'won', 'lost' or 'escaped', for the player's side
+    round: int
+    messages: Tuple[Message, ...]
+
+
 class GameState(NamedTuple):
     player: str
     turn: int                                         # turns since day 1 began
@@ -107,6 +115,7 @@ class GameState(NamedTuple):
     encounter: Optional[Any] = None                   # engine.encounter.EncounterState while fighting
     triggers: Tuple[str, ...] = ()                    # event trigger moments waiting to be settled
     event_log: Mapping[str, int] = freeze({})         # event -> day it last fired
+    debrief: Optional[Debrief] = None                 # shown after an encounter until the player moves on
 
 
 # --- Time ---------------------------------------------------------------------

@@ -88,7 +88,13 @@
     "item_modified": "{item} is now {modification}.",
     "item_repaired": "Repaired {item}.",
     "pack_more": "Page {page}/{pages}  ] next",
-    "item_used": "Used {item}."
+    "item_used": "Used {item}.",
+    "action_on": "{character}: {action} on {target}.",
+    "damage_taken": "{character} takes {amount} damage.",
+    "damage_blocked": "{character} is unhurt.",
+    "round_log": "Round {round}:",
+    "keys_debrief": "Any key: continue",
+    "round_end": "End of round:"
   },
   "entries": [
     {
