@@ -1,0 +1,1797 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ui.schema.json",
+  "title": "UI packs",
+  "description": "A UI pack standardises the terminal UI: tokens (sizes, glyphs, styles), a fixed catalogue of widgets arranged into screens, key bindings with their hints, and the UI's own words. Every field defaults to the standard look, so a UI pack only writes what it changes. The engine owns the catalogue: screens, widgets and where each may appear, input actions, hint contexts and style roles.",
+  "x-schema-version": 1,
+  "$ref": "#/$defs/manifest",
+  "$defs": {
+    "manifest": {
+      "type": "object",
+      "description": "A UI pack's manifest (ui.json). A UI pack is shared by game packs; it owns the look, layout, keys and the UI's words.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "The UI pack's own version."
+        },
+        "schema_version": {
+          "const": 1,
+          "description": "Schema version the UI pack was written for."
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "authors": {
+          "type": "array",
+          "description": "Credits.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "files": {
+          "type": "object",
+          "description": "Data files by kind; files of one kind are merged.",
+          "properties": {
+            "tokens": {
+              "type": "array",
+              "description": "tokens files.",
+              "items": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+                "description": "Path relative to the UI pack."
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "keys": {
+              "type": "array",
+              "description": "keys files.",
+              "items": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+                "description": "Path relative to the UI pack."
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "screens": {
+              "type": "array",
+              "description": "screens files.",
+              "items": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+                "description": "Path relative to the UI pack."
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "words": {
+              "type": "array",
+              "description": "words files.",
+              "items": {
+                "type": "string",
+                "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+                "description": "Path relative to the UI pack."
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tokens",
+            "keys",
+            "screens",
+            "words"
+          ]
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "version",
+        "schema_version",
+        "files"
+      ]
+    },
+    "tokens_file": {
+      "type": "object",
+      "description": "Layout variables: every size, glyph and style the widgets use.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "size": {
+          "type": "object",
+          "description": "Sizes, in terminal cells.",
+          "properties": {
+            "min_columns": {
+              "type": "integer",
+              "minimum": 30,
+              "maximum": 200,
+              "default": 40,
+              "description": "The narrowest terminal the screens must fit."
+            },
+            "min_rows": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 100,
+              "default": 20,
+              "description": "The shortest terminal the screens must fit."
+            },
+            "cell_width": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3,
+              "default": 2,
+              "description": "Columns per grid tile (the glyph plus spacing)."
+            },
+            "tile_width": {
+              "type": "integer",
+              "minimum": 6,
+              "maximum": 16,
+              "default": 10,
+              "description": "Width of an action tile, borders included."
+            },
+            "bar_length": {
+              "type": "integer",
+              "minimum": 3,
+              "maximum": 16,
+              "default": 8,
+              "description": "Length of a pool bar in the status panel."
+            },
+            "fighter_bar_length": {
+              "type": "integer",
+              "minimum": 3,
+              "maximum": 16,
+              "default": 6,
+              "description": "Length of a health bar in the fighters panel."
+            },
+            "side_min_width": {
+              "type": "integer",
+              "minimum": 8,
+              "maximum": 60,
+              "default": 14,
+              "description": "The narrowest the panel beside the grid or the art may get."
+            },
+            "page_size": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9,
+              "default": 9,
+              "description": "Entries per page of the fitting board (picked with 1-9)."
+            }
+          },
+          "additionalProperties": false,
+          "default": {}
+        },
+        "padding": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 1,
+          "description": "Spaces between a zone's border and its text."
+        },
+        "glyphs": {
+          "type": "object",
+          "description": "Characters the widgets draw with.",
+          "properties": {
+            "border": {
+              "type": "object",
+              "description": "The box-drawing set.",
+              "properties": {
+                "horizontal": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "─",
+                  "description": "The horizontal piece."
+                },
+                "vertical": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "│",
+                  "description": "The vertical piece."
+                },
+                "top_left": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "┌",
+                  "description": "The top left piece."
+                },
+                "top_right": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "┐",
+                  "description": "The top right piece."
+                },
+                "bottom_left": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "└",
+                  "description": "The bottom left piece."
+                },
+                "bottom_right": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "┘",
+                  "description": "The bottom right piece."
+                },
+                "join_left": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "├",
+                  "description": "The join left piece."
+                },
+                "join_right": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "┤",
+                  "description": "The join right piece."
+                }
+              },
+              "additionalProperties": false,
+              "default": {}
+            },
+            "bar_full": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1,
+              "default": "█",
+              "description": "A filled step of a bar."
+            },
+            "bar_empty": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1,
+              "default": "░",
+              "description": "An empty step of a bar."
+            },
+            "player": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1,
+              "default": "@",
+              "description": "The player on the grid when nothing else is on their tile."
+            },
+            "intent": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2,
+              "default": "⚠",
+              "description": "Before an enemy's intent."
+            },
+            "cost": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1,
+              "default": "▲",
+              "description": "Before an action tile's heat cost."
+            },
+            "mark_danger": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 3,
+              "default": "! ",
+              "description": "Before warning messages."
+            },
+            "mark_gain": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 3,
+              "default": "+ ",
+              "description": "Before gain messages."
+            },
+            "separator": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 3,
+              "default": " · ",
+              "description": "Between entries on one line (the legend)."
+            }
+          },
+          "additionalProperties": false,
+          "default": {}
+        },
+        "styles": {
+          "type": "object",
+          "description": "Text style by role. Roles are fixed by the engine.",
+          "properties": {
+            "title": {
+              "type": "object",
+              "description": "Screen titles: the location, the encounter, the result.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "white",
+                "bold": true,
+                "dim": false
+              }
+            },
+            "heading": {
+              "type": "object",
+              "description": "Headings inside zones: 'Fitted:', 'Round 1:'.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "white",
+                "bold": true,
+                "dim": false
+              }
+            },
+            "danger": {
+              "type": "object",
+              "description": "Warnings, hazards, harm, intents, low pools.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "orange",
+                "bold": false,
+                "dim": false
+              }
+            },
+            "gain": {
+              "type": "object",
+              "description": "Gains: items, levels, wins.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "white",
+                "bold": true,
+                "dim": false
+              }
+            },
+            "quiet": {
+              "type": "object",
+              "description": "Dialogue and descriptions.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "grey",
+                "bold": false,
+                "dim": true
+              }
+            },
+            "unavailable": {
+              "type": "object",
+              "description": "Options that can't be used now, with their hint.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "grey",
+                "bold": false,
+                "dim": true
+              }
+            },
+            "hint": {
+              "type": "object",
+              "description": "Key hints and the legend.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "grey",
+                "bold": false,
+                "dim": true
+              }
+            },
+            "key": {
+              "type": "object",
+              "description": "Key letters in menus (drawn inverse).",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "white",
+                "bold": false,
+                "dim": false
+              }
+            }
+          },
+          "additionalProperties": false,
+          "default": {}
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false
+    },
+    "keys_file": {
+      "type": "object",
+      "description": "Key bindings and the hints each context shows. Number keys 1-9 always pick numbered entries and can't be bound.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "bindings": {
+          "type": "object",
+          "description": "The key for each input action.",
+          "properties": {
+            "move_north": {
+              "type": "string",
+              "pattern": "^[^0-9\\s]$",
+              "default": "w",
+              "description": "Step up."
+            },
+            "move_west": {
+              "type": "string",
+              "pattern": "^[^0-9\\s]$",
+              "default": "a",
+              "description": "Step left."
+            },
+            "move_south": {
+              "type": "string",
+              "pattern": "^[^0-9\\s]$",
+              "default": "s",
+              "description": "Step down."
+            },
+            "move_east": {
+              "type": "string",
+              "pattern": "^[^0-9\\s]$",
+              "default": "d",
+              "description": "Step right."
+            },
+            "wait": {
+              "type": "string",
+              "pattern": "^[^0-9\\s]$",
+              "default": ".",
+              "description": "Let a turn pass."
+            },
+            "pack": {
+              "type": "string",
+              "pattern": "^[^0-9\\s]$",
+              "default": "p",
+              "description": "Open or close the fitting board."
+            },
+            "character": {
+              "type": "string",
+              "pattern": "^[^0-9\\s]$",
+              "default": "c",
+              "description": "Open or close the character sheet."
+            },
+            "close": {
+              "type": "string",
+              "pattern": "^[^0-9\\s]$",
+              "default": "x",
+              "description": "Close the menu, panel or target choice."
+            },
+            "quit": {
+              "type": "string",
+              "pattern": "^[^0-9\\s]$",
+              "default": "q",
+              "description": "Save and quit."
+            },
+            "next_page": {
+              "type": "string",
+              "pattern": "^[^0-9\\s]$",
+              "default": "]",
+              "description": "Next page of the fitting board."
+            }
+          },
+          "additionalProperties": false,
+          "default": {}
+        },
+        "hints": {
+          "type": "object",
+          "description": "The hints shown in each context, in order.",
+          "properties": {
+            "walk": {
+              "type": "array",
+              "description": "Walking with nothing in focus.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "menu": {
+              "type": "array",
+              "description": "A menu is open.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "choice": {
+              "type": "array",
+              "description": "A choice waits for an answer.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "pack": {
+              "type": "array",
+              "description": "The fitting board is open.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "sheet": {
+              "type": "array",
+              "description": "The character sheet is open.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "encounter": {
+              "type": "array",
+              "description": "Picking an action tile.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "target": {
+              "type": "array",
+              "description": "Picking a target for an action.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "debrief": {
+              "type": "array",
+              "description": "The after-action screen.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            }
+          },
+          "additionalProperties": false,
+          "default": {}
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false
+    },
+    "screens_file": {
+      "type": "object",
+      "description": "Each screen as a list of zones, top to bottom.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        },
+        "world": {
+          "type": "array",
+          "description": "Walking around.",
+          "items": {
+            "$ref": "#/$defs/zone"
+          },
+          "minItems": 1
+        },
+        "encounter": {
+          "type": "array",
+          "description": "A fight.",
+          "items": {
+            "$ref": "#/$defs/zone"
+          },
+          "minItems": 1
+        },
+        "debrief": {
+          "type": "array",
+          "description": "The after-action screen at the end of a fight.",
+          "items": {
+            "$ref": "#/$defs/zone"
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "world",
+        "encounter",
+        "debrief"
+      ]
+    },
+    "words_file": {
+      "type": "object",
+      "description": "The UI's own words: labels, headings and hint labels. The game's voice (what happens, hints, dialogue) stays in the game pack's strings.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "engine": {
+          "type": "object",
+          "description": "Words the widgets use. Placeholders in braces are filled in; each word may use only its own. A missing word shows as its key.",
+          "properties": {
+            "go_to": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Menu label for an exit without a label of its own. Placeholders: {destination}.",
+              "x-placeholders": [
+                "destination"
+              ]
+            },
+            "talk": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Menu label for talking to someone. No placeholders.",
+              "x-placeholders": []
+            },
+            "inspect": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Menu label for looking closely. No placeholders.",
+              "x-placeholders": []
+            },
+            "fit": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board: fit a frame, module or implant. No placeholders.",
+              "x-placeholders": []
+            },
+            "remove": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board: remove a worn or fitted item. No placeholders.",
+              "x-placeholders": []
+            },
+            "store": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board: put an item into storage within reach. No placeholders.",
+              "x-placeholders": []
+            },
+            "take": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board: take a stored item. No placeholders.",
+              "x-placeholders": []
+            },
+            "dismantle": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board: dismantle an item at a workshop. No placeholders.",
+              "x-placeholders": []
+            },
+            "repair": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board: repair a worn item. No placeholders.",
+              "x-placeholders": []
+            },
+            "fabricate": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board: make a copy of a known design. No placeholders.",
+              "x-placeholders": []
+            },
+            "modify": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board: apply a modification. Placeholders: {modification}.",
+              "x-placeholders": [
+                "modification"
+              ]
+            },
+            "pack_fitted": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board heading: worn and fitted items. No placeholders.",
+              "x-placeholders": []
+            },
+            "pack_carried": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board heading: carried items. No placeholders.",
+              "x-placeholders": []
+            },
+            "pack_stored": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board heading: storage within reach. Placeholders: {container}.",
+              "x-placeholders": [
+                "container"
+              ]
+            },
+            "pack_designs": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board heading: known designs, near a fabricating workshop. No placeholders.",
+              "x-placeholders": []
+            },
+            "pack_more": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board: more pages. Placeholders: {page}, {pages}.",
+              "x-placeholders": [
+                "page",
+                "pages"
+              ]
+            },
+            "character_title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Sheet heading. Placeholders: {name}.",
+              "x-placeholders": [
+                "name"
+              ]
+            },
+            "day_phase": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Status: the day and part of the day. Placeholders: {day}, {phase}.",
+              "x-placeholders": [
+                "day",
+                "phase"
+              ]
+            },
+            "party": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Status: who travels with the player. Placeholders: {names}.",
+              "x-placeholders": [
+                "names"
+              ]
+            },
+            "encounter_round": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Encounter title with the round about to be played. Placeholders: {encounter}, {round}.",
+              "x-placeholders": [
+                "encounter",
+                "round"
+              ]
+            },
+            "round_log": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Log heading: the round just played. Placeholders: {round}.",
+              "x-placeholders": [
+                "round"
+              ]
+            },
+            "round_end": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Log line before what the end of a round brings. No placeholders.",
+              "x-placeholders": []
+            },
+            "terminal_too_small": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Shown instead of the game when the terminal is too small. Placeholders: {columns}, {rows}.",
+              "x-placeholders": [
+                "columns",
+                "rows"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "default": {}
+        },
+        "entries": {
+          "type": "array",
+          "description": "Hint labels, referred to by id from keys.json.",
+          "items": {
+            "type": "object",
+            "description": "A label for key hints.",
+            "properties": {
+              "id": {
+                "$ref": "common.schema.json#/$defs/id"
+              },
+              "text": {
+                "$ref": "common.schema.json#/$defs/label"
+              },
+              "notes": {
+                "$ref": "common.schema.json#/$defs/notes"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "text"
+            ]
+          },
+          "default": []
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false
+    },
+    "zone": {
+      "type": "object",
+      "description": "One bordered band of a screen.",
+      "properties": {
+        "content": {
+          "$ref": "#/$defs/layout"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9,
+          "default": 0,
+          "description": "When the screen doesn't fit the terminal, zones with the highest priority are dropped first; 0 is never dropped."
+        },
+        "hide_when_empty": {
+          "type": "boolean",
+          "default": true,
+          "description": "Draw nothing, not even the border, when the zone has nothing to show."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "content"
+      ]
+    },
+    "layout": {
+      "description": "What a zone holds: one widget, two side by side, or several one after another.",
+      "x-discriminator": "widget",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Two layouts side by side, divided by a line.",
+          "properties": {
+            "row": {
+              "type": "array",
+              "description": "Left, then right.",
+              "items": {
+                "$ref": "#/$defs/layout"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "fixed": {
+              "enum": [
+                "left",
+                "right"
+              ],
+              "default": "left",
+              "description": "The side that keeps its natural width; the other takes the rest."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "row"
+          ]
+        },
+        {
+          "type": "object",
+          "description": "Layouts one after another in the same zone; empty ones take no space.",
+          "properties": {
+            "stack": {
+              "type": "array",
+              "description": "Top to bottom.",
+              "items": {
+                "$ref": "#/$defs/layout"
+              },
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "stack"
+          ]
+        },
+        {
+          "$ref": "#/$defs/widget_title"
+        },
+        {
+          "$ref": "#/$defs/widget_grid"
+        },
+        {
+          "$ref": "#/$defs/widget_status"
+        },
+        {
+          "$ref": "#/$defs/widget_legend"
+        },
+        {
+          "$ref": "#/$defs/widget_log"
+        },
+        {
+          "$ref": "#/$defs/widget_menu"
+        },
+        {
+          "$ref": "#/$defs/widget_choice"
+        },
+        {
+          "$ref": "#/$defs/widget_board"
+        },
+        {
+          "$ref": "#/$defs/widget_sheet"
+        },
+        {
+          "$ref": "#/$defs/widget_tiles"
+        },
+        {
+          "$ref": "#/$defs/widget_fighters"
+        },
+        {
+          "$ref": "#/$defs/widget_art"
+        },
+        {
+          "$ref": "#/$defs/widget_keys"
+        }
+      ]
+    },
+    "hint": {
+      "type": "object",
+      "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "description": "Actions whose keys are shown, joined, e.g. WASD.",
+          "items": {
+            "enum": [
+              "move_north",
+              "move_west",
+              "move_south",
+              "move_east",
+              "wait",
+              "pack",
+              "character",
+              "close",
+              "quit",
+              "next_page"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "digits": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show '1-9' (the number keys) instead of action keys."
+        },
+        "label": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "word",
+          "description": "Id of a text in the words file."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "label"
+      ]
+    },
+    "style": {
+      "type": "object",
+      "description": "How text in one role looks.",
+      "properties": {
+        "colour": {
+          "enum": [
+            "grey",
+            "white",
+            "green",
+            "cyan",
+            "blue",
+            "violet",
+            "yellow",
+            "orange",
+            "red"
+          ],
+          "description": "Colour from the engine's palette."
+        },
+        "bold": {
+          "type": "boolean",
+          "default": false,
+          "description": "Bold."
+        },
+        "dim": {
+          "type": "boolean",
+          "default": false,
+          "description": "Dimmed."
+        }
+      },
+      "additionalProperties": false
+    },
+    "widget_title": {
+      "type": "object",
+      "description": "The screen's title line: the location and region with hazards, the encounter and its round, or the fight's result. Allowed on: world, encounter, debrief.",
+      "properties": {
+        "widget": {
+          "const": "title"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world",
+        "encounter",
+        "debrief"
+      ]
+    },
+    "widget_grid": {
+      "type": "object",
+      "description": "The room: tiles, objects, characters and the player. Allowed on: world.",
+      "properties": {
+        "widget": {
+          "const": "grid"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world"
+      ]
+    },
+    "widget_status": {
+      "type": "object",
+      "description": "Day and phase, pool bars, statuses and party. Allowed on: world.",
+      "properties": {
+        "widget": {
+          "const": "status"
+        },
+        "pools": {
+          "description": "Which pool stats show as bars: 'all', or a list of stat roles in order.",
+          "default": "all",
+          "oneOf": [
+            {
+              "const": "all"
+            },
+            {
+              "type": "array",
+              "description": "Stat roles.",
+              "items": {
+                "enum": [
+                  "health",
+                  "heat",
+                  "power",
+                  "mass",
+                  "initiative",
+                  "cargo"
+                ]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          ]
+        },
+        "day": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the day and phase."
+        },
+        "statuses": {
+          "type": "boolean",
+          "default": true,
+          "description": "List the player's statuses."
+        },
+        "party": {
+          "type": "boolean",
+          "default": true,
+          "description": "List who travels with the player."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world"
+      ]
+    },
+    "widget_legend": {
+      "type": "object",
+      "description": "What each glyph on the grid is. Allowed on: world.",
+      "properties": {
+        "widget": {
+          "const": "legend"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world"
+      ]
+    },
+    "widget_log": {
+      "type": "object",
+      "description": "Messages, in the order they happened. Allowed on: world, encounter, debrief.",
+      "properties": {
+        "widget": {
+          "const": "log"
+        },
+        "round_heading": {
+          "type": "boolean",
+          "default": true,
+          "description": "In fights, head the log with the round it describes."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world",
+        "encounter",
+        "debrief"
+      ]
+    },
+    "widget_menu": {
+      "type": "object",
+      "description": "What can be done with the thing in focus. Allowed on: world.",
+      "properties": {
+        "widget": {
+          "const": "menu"
+        },
+        "hints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show why unavailable options can't be used."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world"
+      ]
+    },
+    "widget_choice": {
+      "type": "object",
+      "description": "A choice waiting for an answer. Allowed on: world, encounter.",
+      "properties": {
+        "widget": {
+          "const": "choice"
+        },
+        "hints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show why unavailable options can't be picked."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world",
+        "encounter"
+      ]
+    },
+    "widget_board": {
+      "type": "object",
+      "description": "The fitting board: budgets, items by where they are, the picked item's options. Allowed on: world.",
+      "properties": {
+        "widget": {
+          "const": "board"
+        },
+        "budgets": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the power, mass and cargo line."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world"
+      ]
+    },
+    "widget_sheet": {
+      "type": "object",
+      "description": "The character sheet: skills with experience, and stats. Allowed on: world.",
+      "properties": {
+        "widget": {
+          "const": "sheet"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world"
+      ]
+    },
+    "widget_tiles": {
+      "type": "object",
+      "description": "The player's action tiles. Allowed on: encounter.",
+      "properties": {
+        "widget": {
+          "const": "tiles"
+        },
+        "per_row": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9,
+          "default": 0,
+          "description": "Tiles per row; 0 fits as many as the width allows."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "encounter"
+      ]
+    },
+    "widget_fighters": {
+      "type": "object",
+      "description": "Both sides with health bars, and the enemies' intents. Allowed on: encounter.",
+      "properties": {
+        "widget": {
+          "const": "fighters"
+        },
+        "intent": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show each enemy's intent."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "encounter"
+      ]
+    },
+    "widget_art": {
+      "type": "object",
+      "description": "The picture of the enemy in front. Allowed on: encounter.",
+      "properties": {
+        "widget": {
+          "const": "art"
+        },
+        "frame": {
+          "type": "boolean",
+          "default": true,
+          "description": "Draw a frame around it."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "encounter"
+      ]
+    },
+    "widget_keys": {
+      "type": "object",
+      "description": "The key hints for the current context, built from the key bindings. Allowed on: world, encounter, debrief.",
+      "properties": {
+        "widget": {
+          "const": "keys"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world",
+        "encounter",
+        "debrief"
+      ]
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "../../../schemas/ui.schema.json",
+  "world": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "row": [
+          {
+            "widget": "grid"
+          },
+          {
+            "widget": "status"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "widget": "legend"
+      },
+      "priority": 1
+    },
+    {
+      "content": {
+        "stack": [
+          {
+            "widget": "log"
+          },
+          {
+            "widget": "choice"
+          },
+          {
+            "widget": "board"
+          },
+          {
+            "widget": "sheet"
+          },
+          {
+            "widget": "menu"
+          }
+        ]
+      },
+      "hide_when_empty": false
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
+  ],
+  "encounter": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "row": [
+          {
+            "widget": "art"
+          },
+          {
+            "widget": "fighters"
+          }
+        ]
+      }
+    },
+    {
+      "content": {
+        "widget": "tiles"
+      }
+    },
+    {
+      "content": {
+        "stack": [
+          {
+            "widget": "log"
+          },
+          {
+            "widget": "choice"
+          }
+        ]
+      },
+      "hide_when_empty": false
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
+  ],
+  "debrief": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "widget": "log"
+      }
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
+  ]
+}

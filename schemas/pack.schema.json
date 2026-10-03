@@ -53,6 +53,11 @@
         "minLength": 1
       }
     },
+    "ui": {
+      "$ref": "common.schema.json#/$defs/id",
+      "default": "default",
+      "description": "The UI pack to play with, by id: packs/ui/<id>. Players can choose another."
+    },
     "start": {
       "type": "object",
       "description": "Where and how a new game begins.",

@@ -61,6 +61,8 @@ timestamps can make Python run stale cached bytecode.
 | `VISION.md` | The game's direction and design rules |
 | `schemas/` | JSON Schemas: the contract between engine and content |
 | `packs/test/` | Generic test pack for engine development and tests |
+| `packs/ui/default/` | The default UI pack: the standard look, layout, keys and the UI's words |
+| `core/uipack.py` | UI pack validator |
 | `core/schema.py` | Checker for the JSON Schema subset the schemas use |
 | `core/pack.py` | Pack validator: files, references and game rules |
 | `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
@@ -881,6 +883,76 @@ How the engine runs them:
 - Inputs and materials come from plain (unmodified) carried items. Whatever an action
   produces must fit in cargo, or the action is refused, so nothing is lost. Each
   action takes one turn unless stated.
+
+### UI packs (`ui.schema.json`)
+
+A **UI pack** standardises the terminal UI and is shared by game packs. It lives in
+`packs/ui/<id>/`; a game pack names its UI pack in `pack.json` → `ui` (default
+`default`). It owns the **look, the layout, the keys and the UI's own words**; the
+game pack keeps the game's voice (what happens, hints, dialogue, results).
+
+> **Status:** the schema, the default UI pack and the validator exist. The renderer
+> doesn't read UI packs yet: it still draws the standard look from code, and the
+> UI's words are still read from the game pack's `strings.json`. Rebuilding `tui/`
+> on the UI pack is the next step.
+
+**Every field has a default, and the defaults are the standard look.** A UI pack only
+writes what it changes; an empty file of a kind means "all standard".
+
+A UI pack has a manifest, `ui.json` (`id`, `name`, `version`, `schema_version`, and
+`files` by kind), and four kinds of files; files of one kind are merged (later files
+win key by key; word entries add up):
+
+| Kind | Holds |
+|---|---|
+| `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, fitting-board page size), `padding`, `glyphs` (the border set, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
+| `screens` | Each screen (`world`, `encounter`, `debrief`) as zones, top to bottom |
+| `keys` | `bindings` (action → key) and `hints` (what each context shows) |
+| `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |
+
+**Zones and layouts.** A zone is one bordered band of a screen. Its `content` is a
+widget, a `row` of two layouts side by side (`fixed` says which side keeps its natural
+width), or a `stack` of layouts one after another (empty ones take no space). A zone
+has a `priority` (when the screen doesn't fit, zones with the highest priority are
+dropped first; 0 is never dropped) and `hide_when_empty`.
+
+**Widgets** are a fixed catalogue owned by the engine; each has a few options and is
+allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
+
+| Widget | Shows | Screens | Options |
+|---|---|---|---|
+| `title` | The location with region and hazards; the encounter and its round; the fight's result | all | — |
+| `grid` | The room | world | — |
+| `status` | Day and phase, pool bars, statuses, party | world | `pools` (`all` or stat roles), `day`, `statuses`, `party` |
+| `legend` | What each glyph is | world | — |
+| `log` | Messages in order | all | `round_heading` |
+| `menu` | What can be done with the thing in focus | world | `hints` |
+| `choice` | A choice waiting for an answer | world, encounter | `hints` |
+| `board` | The fitting board | world | `budgets` |
+| `sheet` | The character sheet | world | — |
+| `tiles` | Action tiles | encounter | `per_row` (0 = fit) |
+| `fighters` | Both sides with bars and intents | encounter | `intent` |
+| `art` | The enemy's picture | encounter | `frame` |
+| `keys` | Key hints for the current context, built from the bindings | all | — |
+
+**Keys.** The input actions are fixed by the engine: `move_north`, `move_west`,
+`move_south`, `move_east`, `wait`, `pack`, `character`, `close`, `quit`, `next_page`.
+Number keys 1–9 always pick numbered entries and can't be bound. `hints` lists, per
+context (`walk`, `menu`, `choice`, `pack`, `sheet`, `encounter`, `target`,
+`debrief`), entries that show some actions' keys joined (`WASD`) or `1-9` (`digits`),
+then a label from the words file. Hints are generated from the bindings, so they can't
+disagree with the real keys.
+
+**The UI validator** (`python3 -m core.packtool check packs/ui/<id>`) checks every
+file against the schema, then:
+
+- each widget only on the screens that allow it, at most once per screen;
+- no two actions on one key;
+- hint labels that exist, and a hint shows actions or digits, not both;
+- words with only their own placeholders;
+- the world screen fits the minimum width: outer borders + the largest room
+  (10 tiles × `cell_width` + 3) + divider + `side_min_width` ≤ `min_columns`;
+- a warning for a screen without a `keys` widget.
 
 ### The validator
 

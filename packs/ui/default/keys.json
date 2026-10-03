@@ -1,0 +1,145 @@
+{
+  "$schema": "../../../schemas/ui.schema.json",
+  "bindings": {
+    "move_north": "w",
+    "move_west": "a",
+    "move_south": "s",
+    "move_east": "d",
+    "wait": ".",
+    "pack": "p",
+    "character": "c",
+    "close": "x",
+    "quit": "q",
+    "next_page": "]"
+  },
+  "hints": {
+    "walk": [
+      {
+        "actions": [
+          "move_north",
+          "move_west",
+          "move_south",
+          "move_east"
+        ],
+        "label": "hint_move"
+      },
+      {
+        "actions": [
+          "wait"
+        ],
+        "label": "hint_wait"
+      },
+      {
+        "actions": [
+          "pack"
+        ],
+        "label": "hint_pack"
+      },
+      {
+        "actions": [
+          "character"
+        ],
+        "label": "hint_character"
+      },
+      {
+        "actions": [
+          "quit"
+        ],
+        "label": "hint_quit"
+      }
+    ],
+    "menu": [
+      {
+        "label": "hint_keys_above"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_close"
+      },
+      {
+        "actions": [
+          "move_north",
+          "move_west",
+          "move_south",
+          "move_east"
+        ],
+        "label": "hint_move"
+      }
+    ],
+    "choice": [
+      {
+        "digits": true,
+        "label": "hint_choose"
+      }
+    ],
+    "pack": [
+      {
+        "digits": true,
+        "label": "hint_pick"
+      },
+      {
+        "actions": [
+          "next_page"
+        ],
+        "label": "hint_page"
+      },
+      {
+        "label": "hint_keys_act"
+      },
+      {
+        "actions": [
+          "pack"
+        ],
+        "label": "hint_close"
+      }
+    ],
+    "sheet": [
+      {
+        "actions": [
+          "character"
+        ],
+        "label": "hint_close"
+      },
+      {
+        "actions": [
+          "move_north",
+          "move_west",
+          "move_south",
+          "move_east"
+        ],
+        "label": "hint_move"
+      }
+    ],
+    "encounter": [
+      {
+        "digits": true,
+        "label": "hint_act"
+      },
+      {
+        "actions": [
+          "quit"
+        ],
+        "label": "hint_quit"
+      }
+    ],
+    "target": [
+      {
+        "digits": true,
+        "label": "hint_target"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_back"
+      }
+    ],
+    "debrief": [
+      {
+        "label": "hint_any_key"
+      }
+    ]
+  }
+}

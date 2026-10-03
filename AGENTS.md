@@ -45,6 +45,7 @@ to check your work, and the rules of the data that are easy to get wrong.
 |---|---|---|
 | `packs/game/**` (and other game packs) | **Yes** | Your normal workspace |
 | `packs/test/**` | Ask first | Only changes when the engine or schemas change; its ids are used by tests |
+| `packs/ui/**` | **Yes, when asked** | The look, layout, keys and the UI's words. Check with `packtool check packs/ui/<id>` |
 | `schemas/**` | Ask first | The contract with the engine. See [Changing the engine or schemas](#changing-the-engine-or-schemas) |
 | `core/schema.py`, `core/pack.py`, `core/packtool.py` | Ask first | The validator and tools |
 | `engine/**` | Ask first | Small, tested changes only |
@@ -73,6 +74,8 @@ All commands run from the project root.
 | `python3 -m core.packtool explain item frame` | The fields of an item kind |
 | `python3 -m core.packtool explain location` | Any schema definition: `placement`, `exit`, `character`, `event`, `encounter`, `modification`… |
 | `python3 -m core.packtool explain vocab stats` | A vocabulary section |
+| `python3 -m core.packtool check packs/ui/default` | Validate a UI pack |
+| `python3 -m core.packtool explain widget status` / `explain ui tokens` | A UI widget's options, or a UI pack file's fields |
 | `python3 play.py --pack packs/game --new` | Play the pack in the terminal to see your work. `--slot name` keeps separate saves |
 | `python3 -B -m unittest discover -s tests` | Run all tests. Use `-B` on phone storage |
 
@@ -230,6 +233,25 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 - Engine messages in `strings.json` may only use their own placeholders:
   `explain engine` lists them. Write all of them: the screen's labels and key hints
   come from there too, and a missing one shows as its key.
+
+## Editing a UI pack
+
+A UI pack (`packs/ui/<id>/`) holds the look and layout shared by game packs:
+`tokens.json` (sizes, glyphs, styles), `screens.json` (which widgets each screen
+shows, in what order), `keys.json` (key bindings and the hints they produce) and
+`words.json` (labels, headings and hint labels). README.md, "UI packs", explains
+each part.
+
+- Change values; leave out what should stay standard (every field has a default).
+- Use only the widgets in the catalogue (`explain widget …`) on the screens that allow
+  them. Behaviour (what appears when, how a widget draws) is engine code.
+- Keep the world screen within `min_columns`: the checker shows the numbers when the
+  grid and side panel don't fit.
+- Keys: one action per key; digits are reserved for picking numbered entries. Game
+  packs' interaction keys must not use the bound keys either.
+- The game's voice stays in the game pack's `strings.json`; only labels, headings and
+  hints go in the UI pack's `words.json`.
+- Check with `python3 -m core.packtool check packs/ui/<id>`, then run the tests.
 
 ## Naming ids in game packs
 

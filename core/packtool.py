@@ -1,13 +1,13 @@
 """
 Command-line tools for working on content packs.
 
-  python3 -m core.packtool check   <pack>             validate a pack
+  python3 -m core.packtool check   <pack>             validate a pack (game pack or UI pack)
   python3 -m core.packtool ids     <pack> [namespace] list declared ids
   python3 -m core.packtool refs    <pack> <id>        where an id is declared and used
   python3 -m core.packtool explain [topic]            document a schema part
 
 Topics for explain: 'checks', 'ops', 'check <name>', 'op <name>', 'item <kind>',
-'vocab <section>', a schema definition name ('location', 'placement', 'event'…),
+'vocab <section>', 'widget <name>', 'ui tokens|keys|screens|words|manifest', a schema definition name ('location', 'placement', 'event'…),
 or a schema file name ('pack', 'vocab', 'world'…).
 """
 import sys
@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
 from core import schema
+from core import uipack
 from core.pack import SCHEMA_DIR, index_pack, main as check_main, _a
 
 COMMON = "common.schema.json"
@@ -74,6 +75,14 @@ def _find(topic: List[str], schemas: schema.Schemas) -> Optional[Tuple[str, dict
     if len(topic) == 2 and topic[0] == "item":
         defs = schemas["item.schema.json"]["$defs"]
         return (f"item kind '{topic[1]}'", defs[topic[1]], "item.schema.json") if topic[1] in defs else None
+    if len(topic) == 2 and topic[0] == "widget":
+        defs = schemas["ui.schema.json"]["$defs"]
+        key = f"widget_{topic[1]}"
+        return (f"widget '{topic[1]}'", defs[key], "ui.schema.json") if key in defs else None
+    if len(topic) == 2 and topic[0] == "ui":
+        defs = schemas["ui.schema.json"]["$defs"]
+        key = f"{topic[1]}_file" if f"{topic[1]}_file" in defs else topic[1]
+        return (f"ui {topic[1]}", defs[key], "ui.schema.json") if key in defs else None
     if len(topic) == 2 and topic[0] == "vocab":
         prop = schemas["vocab.schema.json"]["properties"].get(topic[1])
         return (f"vocab {topic[1]}", prop["items"], "vocab.schema.json") if prop else None
@@ -183,12 +192,24 @@ def cmd_explain(topic: List[str]) -> int:
     return 0
 
 
+def _check_ui(folder: Path) -> int:
+    report = uipack.validate_ui_pack(folder)
+    for line in report.errors:
+        print(f"ERROR   {line}")
+    for line in report.warnings:
+        print(f"warning {line}")
+    print(f"{'OK' if report.ok else 'FAILED'}: {len(report.errors)} error(s), {len(report.warnings)} warning(s)")
+    return 0 if report.ok else 1
+
+
 def main(argv: List[str]) -> int:
     if not argv:
         print(__doc__.strip())
         return 2
     command, args = argv[0], argv[1:]
     if command == "check" and len(args) == 1:
+        if uipack.is_ui_pack(Path(args[0])):
+            return _check_ui(Path(args[0]))
         return check_main(args)
     if command == "ids" and len(args) in (1, 2):
         return cmd_ids(Path(args[0]), args[1] if len(args) == 2 else None)

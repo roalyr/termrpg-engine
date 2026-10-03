@@ -1,0 +1,90 @@
+{
+  "$schema": "../../../schemas/ui.schema.json",
+  "engine": {
+    "go_to": "Go to {destination}",
+    "talk": "Talk",
+    "inspect": "Inspect",
+    "fit": "Fit",
+    "remove": "Remove",
+    "store": "Store",
+    "take": "Take",
+    "dismantle": "Dismantle",
+    "repair": "Repair",
+    "fabricate": "Fabricate",
+    "modify": "Modify: {modification}",
+    "pack_fitted": "Fitted:",
+    "pack_carried": "Carried:",
+    "pack_stored": "In {container}:",
+    "pack_designs": "Designs:",
+    "pack_more": "Page {page}/{pages}",
+    "character_title": "{name}",
+    "day_phase": "Day {day} · {phase}",
+    "party": "With: {names}",
+    "encounter_round": "{encounter} · round {round}",
+    "round_log": "Round {round}:",
+    "round_end": "End of round:",
+    "terminal_too_small": "Make the terminal at least {columns}x{rows}."
+  },
+  "entries": [
+    {
+      "id": "hint_move",
+      "text": "move"
+    },
+    {
+      "id": "hint_wait",
+      "text": "wait"
+    },
+    {
+      "id": "hint_pack",
+      "text": "pack"
+    },
+    {
+      "id": "hint_character",
+      "text": "char"
+    },
+    {
+      "id": "hint_quit",
+      "text": "quit"
+    },
+    {
+      "id": "hint_close",
+      "text": "close"
+    },
+    {
+      "id": "hint_keys_above",
+      "text": "Keys shown above"
+    },
+    {
+      "id": "hint_keys_act",
+      "text": "Keys above act"
+    },
+    {
+      "id": "hint_choose",
+      "text": "choose"
+    },
+    {
+      "id": "hint_pick",
+      "text": "pick"
+    },
+    {
+      "id": "hint_page",
+      "text": "page"
+    },
+    {
+      "id": "hint_act",
+      "text": "act"
+    },
+    {
+      "id": "hint_target",
+      "text": "target"
+    },
+    {
+      "id": "hint_back",
+      "text": "back"
+    },
+    {
+      "id": "hint_any_key",
+      "text": "Any key: continue"
+    }
+  ]
+}
