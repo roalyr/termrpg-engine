@@ -1,291 +1,188 @@
 # Playtest: the test pack
 
-A step-by-step check of every feature the engine has so far (milestones 0–6), played
-by hand in the terminal. Each step says what to press and what you should see. Tick
-the box when it matches; note anything that doesn't.
-
-Every route and message here was checked against the game with the default seed
-(`--new`, seed 1). Things that depend on chance are marked **(chance)**.
-
-## Before you start
+A checklist of every feature the engine has so far (milestones 0–6 and the UI pack),
+played by hand in the terminal. Each point says what to try and what should happen;
+how you get there is up to you. Tick the box when it works; note anything that
+doesn't. Things that depend on chance are marked **(chance)**.
 
 ```sh
-python3 play.py --new            # a fresh game of the test pack (seed 1)
-python3 play.py                  # resume the saved game
-python3 play.py --no-colour      # plain text
-python3 play.py --slot two --new # a separate save
+python3 play.py --new                 # a fresh game of the test pack
+python3 play.py                       # resume the saved game
+python3 play.py --no-colour           # plain text
+python3 play.py --slot two --new      # a separate save
+python3 play.py --ui packs/ui/<id>    # another UI pack
 ```
 
-- Keys act immediately; no Enter. **Q** saves and quits at any time.
-- Positions are `(row, column)` from the top-left corner.
-- **On the fitting board (P), numbers change** whenever something is taken, stored,
-  fitted, removed or made, because items are grouped by where they are. Always read
-  the number off the screen. Where these steps give numbers, they're what you'll see
-  if you followed every step before exactly.
-- The **training console** and **med station** are test-only shortcuts, so the
-  later features can be reached by hand.
+The key hints at the bottom of the screen always show the keys that work right now.
 
-### Room A (where you start)
+## Where things are
 
-```
-         col 0 1 2 3 4 5
-   row 0     ░ ░ ◆ ░ ░ ░     ◆ (0,2) door to Room B, closed
-   row 1     ░ § · · ⊞ ░     § (1,1) training console   ⊞ (1,4) crate
-   row 2     ░ · · · @ ░     @ (2,4) you
-   row 3     ░ · · N · ░     N (3,3) Npc
-   row 4     ░ ▯ · · ■ ░     ▯ (4,1) locker   ■ (4,4) bench (workshop)
-   row 5     ░ ░ ◆ ░ ░ ░     ◆ (5,2) zone passage (not active yet)
-```
-
-### Room B (through the door)
-
-```
-         col 0 1 2 3 4 5 6
-   row 0     ░ ░ ░ ◇ ░ ░ ░   ◇ (0,3) door back to Room A
-   row 1     ░ ~ + ~ ~ ~ ░   + (1,2) med station
-   row 2     ░ ▣ ~ ~ ~ ⌸ ░   ▣ (2,1) suit bay   ⌸ (2,5) terminal
-   row 3     ░ ░ ~ ⊙ ~ ░ ░   ⊙ (3,3) hatch (starts a fight)
-   row 4       ░ ░ ░ ░ ░
-```
-
-Room B is hazardous: everyone without a suit carrying tag B loses 1 health per turn
-there, the player and companions included.
+- **Room A** (the start): a door to Room B, a crate, a locker, a bench (a workshop),
+  a training console, the NPC, and a zone passage that isn't active yet.
+- **Room B** (hazardous): a door back, a med station, a suit bay holding a heavy suit
+  and an implant, a terminal, and a hatch that starts a fight. Without something
+  carrying tag B, everyone there loses health every turn.
+- The **training console** and **med station** are test-only shortcuts, so later
+  features can be reached by hand.
 
 ---
 
 ## 1. The screen
 
-- [ ] Six zones: header "Room A · Region A1"; the grid with you as `@`; the status
-  panel "Day 1 · Phase A", `HP 30/30`, `HT 2/8`; the legend; an empty message area;
-  key hints at the bottom.
-- [ ] The legend lists the door, crate, locker, bench, training console and `N Npc`.
-- [ ] Shrink the terminal below 40×20: "Make the terminal at least 40x20." Restore it.
+- [ ] The world screen shows the location and region, the room grid with you on it,
+  the day and phase, health and heat bars, a legend of every glyph, messages, and key
+  hints.
+- [ ] Every line is the terminal's width; nothing spills past the right border.
+- [ ] On a short terminal the legend disappears first and the newest messages and
+  menu stay in view; a crowded fight switches its tiles to a compact list. Below
+  40×20 the game asks for a bigger terminal.
 
 ## 2. Walking and looking
 
-- [ ] **D** (into the east wall): nothing at all. No message, no time passes.
-- [ ] **W** (into the crate): you don't move; the menu shows `Crate`, `F Search`,
-  `I Inspect`, and the hints read "Keys shown above  X close  WASD move".
-- [ ] **I**: "Crate". **X**: the menu closes.
+- [ ] Walking into a wall does nothing: no message, no time.
+- [ ] Bumping a solid object or a person puts it in focus without moving, and shows
+  its menu with the right keys. Close it with the close key.
+- [ ] Unavailable options are greyed out with a hint saying what's needed; pressing
+  them shows the hint and takes no time.
+- [ ] Inspect shows the thing's name and description.
 
-## 3. The crate (a daily search)
+## 3. Interactions
 
-- [ ] **W** then **F**: two turns pass. **(chance)** "Empty.", or "+ Found: …" and
-  "You find something."
-- [ ] The legend shows `Crate (used)`. **F** again: "Already searched."
+- [ ] A daily interaction (searching the crate) takes time, gives loot **(chance)**,
+  changes the object's state in the legend, and can't be repeated the same day.
+- [ ] A once-only interaction can't be used twice.
+- [ ] An interaction's key never clashes with the UI's keys or with Go, Talk and
+  Inspect: a clash gets a spare letter.
 
-## 4. The NPC: talk, trade, recruit (optional)
+## 4. People
 
-From the start tile: **A**, then **S** (bump the NPC).
+- [ ] Talking shows the most fitting dialogue line; it changes when they travel with
+  you.
+- [ ] Trading changes items both ways and improves the NPC's view of you; recruiting
+  is greyed out until they like you enough.
+- [ ] A recruited companion leaves the map, follows you between rooms, shows in the
+  status panel, and fights on your side.
 
-- [ ] Menu `Npc`: `B Trade`, `U Recruit - Doesn't trust you enough.` (greyed out),
-  `T Talk`, `I Inspect`. Recruit got **U** because T belongs to Talk.
-- [ ] **T**: "Npc: Hello." **I**: "Npc - Test NPC".
-- [ ] **B**: "Lost: Key A." and "+ Got: Consumable A x2."
-- [ ] **U** (Recruit, now available): "+ Npc joins Player." **T**: "Npc: Lead on."
-- [ ] The status panel shows "With: Npc"; the `N` leaves the map and follows you.
+## 5. The fitting board and the character sheet
 
-If you recruit them, they come into Room B without a suit and get hurt there; step 12
-heals them. If you trade the key away, skip storing it in step 10.
+- [ ] The board shows power, mass and cargo budgets, then fitted, carried, stored
+  (next to storage) and designs, numbered; picking a number shows that item's options.
+- [ ] Using a consumable spends one from the stack.
+- [ ] After an action the same item stays picked at its new number (store an item, then
+  take it back without picking it again); it's unpicked when the item is gone.
+- [ ] Removing or fitting gear away from a refit workshop is refused with a hint.
+- [ ] The character sheet shows skills with experience progress and the derived
+  stats.
 
-## 5. The fitting board and using an item
+## 6. Doors and exits
 
-- [ ] **P**: `PWR 4/6  MAS 5/10  CRG …/6`, then `Fitted:` 1 Frame A, 2 Tool A 4/4,
-  3 System A, and `Carried:` with Consumable A and Material A in two stacks (10 and 2).
-- [ ] Pick the consumable, **U**: "Used Consumable A." and the stack drops by one.
-- [ ] Pick Frame A: `R Remove - Needs a refit workshop.`
-- [ ] **P** closes the board. **C** opens the character panel: `Skill A 1 (0/30)`,
-  `PWR 6, MAS 10, INI 0, ARM 2, CRG 6`. **C** closes it.
+- [ ] A closed door blocks its exit with a hint; opening it changes its glyph and
+  legend entry.
+- [ ] Using a tool to open it wears the tool down.
+- [ ] Going through puts you at the matching door on the other side and passes time.
+- [ ] A suit too big for a door or room is refused ("doesn't fit").
 
-## 6. The door
+## 7. Skills
 
-Walk to the door at (0,2) (from the start: **A A W W**, or around the NPC).
+- [ ] Training raises experience; reaching a level is announced with what it unlocks
+  (a new action, or a stat bonus visible in the sheet).
 
-- [ ] Menu `Door`: `U Open`, `G Go to Room B - The door is closed.` (greyed out).
-- [ ] **G** while closed: "The door is closed."
-- [ ] **U**: the door opens (legend `Room B (open)`, glyph `◇`). On the board, Tool A
-  is now 3/4: the tool that opened it wore down. **Don't go through yet.**
+## 8. Crafting at a workshop
 
-## 7. Training (test-only shortcut)
+- [ ] **Repair** restores a worn item's condition for materials; an undamaged item says
+  so.
+- [ ] **Dismantle** gives materials and, with enough skill, teaches the design (a
+  Designs section appears); without the skill it says the item is beyond you.
+- [ ] **Fabricate** makes the item from a learned design, spends materials and time,
+  and is refused when the result won't fit in cargo.
+- [ ] **Modify** fills a mod slot for good and shows in the item's name; it's refused
+  when no slot is free, when the material is missing, or when the item's grade is
+  above the workshop's.
+- [ ] The exotic material's modification changes the item in a fixed way (here it adds
+  an action, heat and tag B, which protects you in Room B).
 
-From the door: **S**, then **A** (bump the console at (1,1)).
+## 9. Storage
 
-- [ ] Menu `Training console`, `U Train skill A`.
-- [ ] **U**: "+ Skill A 2! Unlocks Burst." **U** again: nothing announced (60 of 90).
-  **U** again: "+ Skill A 3! Tougher." In **C**: `Skill A 3`, and HP max is now 35.
+- [ ] Next to a locker or bay, its contents appear on the board; take and store move
+  whole stacks.
+- [ ] Storage refuses more than it holds.
 
-## 8. The bench: repair, dismantle, learn, fabricate, modify
+## 10. Hazards and on-arrival events
 
-From (1,2): **S D D S S**. You end at (3,4), bumping the bench. **P**.
+- [ ] Entering Room B shows the arrival message and an arrival event's text; the
+  hazard is named in the warning colour.
+- [ ] Without protection, health drops every turn there, for you and for companions;
+  with tag B it doesn't.
 
-- [ ] Pick Tool A (3/4): `R Remove`, `E Repair`, `U Modify: Reinforced`,
-  `H Modify: Strange - Needs Exotic A x1.`
-- [ ] **E**: "+ Repaired Tool A." (4/4). Its repair option now says "Tool A is in good
-  shape."
-- [ ] Pick System A: `Modify: Reinforced - System A is beyond this workshop.` (its
-  grade is above the bench's).
-- [ ] Pick Tool A, **R**: "Removed Tool A." It moves to `Carried:`.
-- [ ] Pick it, **V** (Dismantle): "+ Took apart Tool A: Material A x2." and
-  "+ You understand how Tool A is made." A `Designs:` section appears with Tool A.
-  (At skill A 1 you'd only get "Tool A is beyond you for now.")
-- [ ] Pick the design, **B** (Fabricate): "+ Made Tool A." Two turns pass; Material A
-  drops by 3.
-- [ ] Pick the new Tool A (4/4), **F**: "Fitted Tool A."
-- [ ] Pick Frame A, **U**: "+ Frame A is now Reinforced." It shows as
-  `Frame A (Reinforced)`.
+## 11. Choices
 
-## 9. The exotic material and the Strange modification
+- [ ] Using the terminal asks a question with numbered options; the hint shows the
+  real range (1-2). Moving does nothing while it waits.
+- [ ] An option whose condition fails is greyed out with its hint and can't be picked.
 
-From the bench: **W A A A S** to (3,1), next to the locker. **P**.
+## 12. Healing
 
-- [ ] An `In Locker:` section shows `Exotic A`. Pick it, **K**: "Took Exotic A from
-  Locker."
-- [ ] Back to the bench: **W D D D S S**. **P**, pick Tool A, **H**: "+ Tool A is now
-  Strange." It's `Tool A (Strange)`; the heat bar's constant load rises by 1, and
-  Strange added the Burst action and **tag B** to the tool. Tag B is what Room B's
-  hazard checks for, so from now on the hazard can't hurt you while the tool is
-  fitted. (The material decided the property, and it happens to protect you.)
-- [ ] Pick Tool A again: `Modify: Reinforced - Tool A (Strange) has no free mod
-  slot.` (it has one).
+- [ ] The med station heals the whole party and brings a downed companion back.
+- [ ] Each morning the party gets 10 health back, and a downed companion gets up again.
 
-## 10. Packing for the suit swap
+## 13. Suits, modules and implants
 
-The heavy suit can only be put on in Room B, and taking the light one off leaves you
-carrying only 2 stacks. So empty the pack here, except the small Material A stack
-(Burst uses 2 of them).
-
-From the bench: **W A A A S** to the locker. **P**.
-
-- [ ] Store the consumables (**O**): "Stored Consumable A in Locker." The whole stack
-  goes; the numbers shift.
-- [ ] Store the big Material A stack, then Key A (if you still have it). Keep the small
-  Material A stack.
-- [ ] `Carried:` now holds only Material A. **P** closes the board.
-
-## 11. Room B: arrival, hazard, the terminal
-
-From the locker: **W D W W** to the door, then **G**.
-
-- [ ] "You enter Room B." and "Machines hum somewhere below." (the arrival event). The
-  header shows `a hazard` in the warning colour. Thanks to the Strange tool your
-  health doesn't drop here. (Without it, it drops by 1 every turn, as it does for a
-  recruited NPC without a suit.)
-- [ ] **S S** to (2,3), **D**, then **D** (bump the terminal). **R** (Use): "Pick one.",
-  `1 Option A`, `2 Option B`, hints "1-2 choose". Movement keys do nothing while it
-  waits.
-- [ ] **2**: Option B (it needs flag A ≥ 1, which the arrival event set). It sets the
-  flag back to 0.
-- [ ] **R** again: now `2 Option B - Needs flag A.` is greyed out. **2**: "Needs flag
-  A." and the choice stays. **1** closes it.
-
-## 12. The med station
-
-From the terminal: **A A** to (2,2), then **W** (bump the med station at (1,2)).
-
-- [ ] **U** (Heal the party): "+ Everyone is patched up." Health and the party's health
-  back to full.
-- [ ] If the recruited NPC went down ("! Npc goes down." after about ten turns here),
-  this brings them back too.
-
-## 13. The suit swap
-
-Heal first (step 12): taking off the light suit costs its 20 health, and once the
-Strange tool is off, the hazard ticks again until Frame B (which carries tag B) is on. Stand at (2,2), between the bay and the med station. **P**: the board
-shows `In Bay:` Frame B and Implant A.
-
-These numbers assume steps 8–10 exactly:
-
-- [ ] **3 R**: "Removed Tool A (Strange)." **4 O**: stored in the bay.
-- [ ] **2 R**: "Removed System A." **3 O**: stored.
-- [ ] **1 R**: "Removed Frame A (Reinforced)." Health drops by 20; `PWR 0/0`,
-  `CRG 2/2`. **2 O**: stored.
-- [ ] **2 K**: "Took Frame B from Bay." **2 F**: "Fitted Frame B." Health jumps (about
-  +45) and stops dropping: Frame B carries tag B.
-- [ ] Take the tool and the system back from the bay and fit them (**K**, then **F**,
-  reading the numbers off the screen): `PWR 4/12  MAS 5/25`.
-- [ ] Before fitting, Frame A gave `F Fit - Take off the worn frame first.` and
-  `R Remove - Remove its modules first.`. Try these out of order to see the refusals.
-- [ ] Optional: take Implant A and fit it: "Fitted Implant A."; `INI` becomes 1.
+- [ ] At the bay (a refit workshop): taking off the worn frame needs its modules
+  removed first; a new frame needs the old one off first.
+- [ ] Health, budgets and cargo follow the loadout: they drop when a suit comes off
+  and rise when a heavier one goes on.
+- [ ] Fitting is refused when it would go over a budget or has no free slot.
+- [ ] Fitting an implant changes its stat (initiative).
 
 ## 14. Fighting
 
-From (2,2): **D** to (2,3), then **S** (bump the hatch). **U** (Open).
+- [ ] The fight opens with its intro; the encounter screen shows the round, the enemy's
+  picture, both sides with health bars (and your heat), each enemy's intent, and the
+  action tiles with their costs.
+- [ ] An action with several possible targets asks for one; the close key backs out.
+- [ ] Each round's log is headed "Round N:" and lists what happened in order:
+  quicker fighters first, priority actions (Guard) before everyone.
+- [ ] Armor reduces damage; heat rises with actions and cools after the fight.
+- [ ] Anything the end of a round brings (statuses ticking, the hazard) comes after an
+  "End of round:" line.
+- [ ] Cooldowns ("Ready in N") and one-charge actions ("Used up.") work; an action that
+  consumes materials takes them.
+- [ ] Statuses (damage over time) tick and end.
+- [ ] Winning ends on an after-action screen: the result, the last round, the loot.
+  Any key returns to the map.
+- [ ] Retreat **(chance)** ends on an "Escaped." screen, or fails and the fight goes
+  on.
 
-- [ ] "! Drones!", "Drones close in.". The encounter screen: "Drones · round 1", the
-  drone's picture, health bars (and your heat), each drone with its intent
-  (`⚠ STRIKE Player`) in the warning colour, and the tiles `1 Strike ▲1`,
-  `2 Burst ▲3-4`, `3 Guard ▲1`, `4 Retreat`. If the NPC exists and isn't with you,
-  they fight on your side.
-- [ ] **(chance)** With two drones, **1** asks for a target ("1-9 target  X back"):
-  press its number. **X** backs out.
-- [ ] **1** (Strike): the header moves on to "round 2" and the message area shows
-  what happened, headed **"Round 1:"**, in order: the drones act first (they're
-  quicker), e.g. "Drone: Strike on Player." then "Player is unhurt." (the heavy suit's
-  armor stops it), then "Player: Strike on Drone." and "Drone takes 5 damage.". Heat
-  rises by 1.
-- [ ] Anything the end of the round brings comes after an **"End of round:"** line
-  (statuses ticking, Room B's hazard on anyone it can hurt).
-- [ ] **3** (Guard) in a later round: "Player uses Guard." is the first line of that
-  round (priority). Guard then shows "Ready in 1.".
-- [ ] Win: the fight ends on an **after-action screen**: "Won." as its title, the last
-  round's log ending with "! Drone goes down.", then "+ Found: …" lines (the
-  encounter's and each drone's loot), and "Any key: continue". Any key returns to the
-  map with an empty message area. Heat has cooled to the constant load.
-- [ ] Open the hatch again. **2** (Burst): "Player uses Burst of damage.",
-  "Lost: Material A x2.", and every drone gets "Damage over time". **(chance)** Usually
-  both go down that round. If the fight goes on, Burst shows "Used up." (one charge per
-  fight).
-- [ ] Open it once more and press **4** (Retreat): **(chance, 60%)** the after-action
-  screen titled "Escaped.", or "You can't get away." in the round's log and the fight
-  goes on.
+## 15. Losing
 
-## 15. The door in a heavy suit
-
-- [ ] From (2,3): **W W** to the door, **G**: "Frame B doesn't fit Door." Heavy suits
-  can't enter Room A (it holds size 3). To go back, swap to Frame A at the bay (step 13
-  in reverse).
+- [ ] When your health runs out, the after-action screen says "Lost." in the warning
+  colour; any key brings you back to the map, rescued and alive. Losing is never a
+  game over.
 
 ## 16. Paging
 
-- [ ] Once the board has more than nine entries (loot from a few fights does it), the
-  last line reads "Page 1/2" and the key hints show "] page". **]** shows the next page; numbers start at 1
-  again on each page.
+- [ ] With more than nine board entries, the board shows "Page 1/2" and the next-page
+  key shows the rest; numbers start at 1 again on each page.
 
 ## 17. Time and the living world
 
-Press **.** (wait) repeatedly. A day is 60 turns; Phase B starts at turn 30.
-
-- [ ] "Phase B." then, at the next day, "Day 2.".
-- [ ] The crate in Room A is `(closed)` again and can be searched (the quiet morning
-  restock).
-- [ ] **(chance, 30% each morning)** "Someone holds a grudge." with `1 Apologise`,
-  `2 Ignore it`: one of the two rivals who resent you was cast. While it waits, the
-  rest of that morning waits too.
-- [ ] Off-screen rivals change their views of each other quietly; that can't be seen
-  on screen yet.
+- [ ] Waiting passes time: the phase changes mid-day, and a new day is announced.
+- [ ] The crate restocks quietly each morning.
+- [ ] **(chance)** A grudge event casts one of the rivals who resent you and asks what
+  to do; the rest of the morning waits for your answer.
 
 ## 18. Saving
 
-- [ ] **Q**: "Saved." Run `python3 play.py` again: exactly where you left off, even
-  mid-fight or with a choice waiting.
-- [ ] `python3 play.py --new` starts over.
+- [ ] Quitting saves; starting again resumes exactly, even mid-fight or with a choice
+  waiting.
+- [ ] `--new` starts over; `--slot` keeps games apart.
 
-## 19. Losing (a separate game)
+## 19. The UI pack
 
-The heavy suit makes you nearly untouchable, so test losing in a fresh game.
-
-```sh
-python3 play.py --slot lose --new
-```
-
-- [ ] Open the door with the tool (**A A W W U**), go through (**G**), walk to the hatch
-  (**S S**, then **S** to bump it) and open it (**U**).
-- [ ] Keep striking; between fights stay in Room B (the hazard hurts without the
-  Strange tool). When your health runs out, the after-action screen is titled
-  "Lost." (in the warning colour): the last round ends with "! Player goes down.",
-  then "! You go down." and "You enter Room A.". Press any key: back on the map in Room
-  A, "! Someone drags you out." appears and you have 5 health. Losing is never a game
-  over.
+- [ ] Copy `packs/ui/default`, change a key binding, a glyph and a word, and play with
+  `--ui`: the hints, input and screen follow.
+- [ ] A broken UI pack (two actions on one key, or the engine's G key) is refused at
+  start with the checker's message.
 
 ---
 
@@ -294,15 +191,14 @@ python3 play.py --slot lose --new
 These work (the automated tests cover them) but are hard to reach on purpose:
 
 - **Overheating:** heat cools after each fight; reaching the maximum takes a long
-  fight with several Bursts.
-- **A drone fleeing:** it needs a drone below a quarter of its health at the start of
-  a round, which the damage numbers rarely leave.
+  fight with several heat-heavy actions.
+- **An enemy fleeing:** it needs an enemy below its flee threshold at the start of a
+  round.
 - **`events_per_trigger`:** the test pack doesn't set a limit.
 
-## Open design gaps
+## Settled for now (the simplest choices)
 
-1. **Downed companions don't recover on their own.** Only an effect that restores
-   health brings them back (the test-only med station does).
-2. **There is no healing over time.** Health returns only through consumables,
-   restoring effects and the rescue after losing.
-3. **Fitting-board numbers shift** after every take, store, fit, remove or make.
+1. **Healing over time and downed companions:** a quiet morning event restores 10
+   health to the party, which also gets downed companions up. Packs choose the amount.
+2. **Shifting board numbers:** the board keeps the acted-on item picked at its new
+   number.

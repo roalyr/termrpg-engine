@@ -348,7 +348,10 @@ Rules the engine follows that the schemas alone don't spell out:
   faction toward faction; then the pack's `relation_default`.
 - **Defeat.** When health reaches 0 the character is down and their `on_defeat` runs
   next, with `self` the defeated character and `target` whoever caused it. Restoring
-  health above 0 brings them back.
+  health above 0 brings them back. The engine never heals on its own: healing over
+  time, and downed companions getting up again, is a pack's `day_start` event with
+  `restore` on the `party` (the test pack's `event_rest` restores 10 health each
+  morning).
 - **Skills.** `grant_xp` raises a skill to every level whose `xp` is reached, up to
   `skill_max_level`, and each new level is announced.
 - **Choices.** While a `choose` waits, options whose `condition` fails are shown
@@ -906,7 +909,15 @@ has a `priority` (when the screen is taller than the terminal, zones with the hi
 priority are dropped first; 0 is never dropped), `hide_when_empty` (when off, an empty
 zone keeps one blank line) and `scroll` (when the screen still doesn't fit, the zone
 shows only its last lines, at least one, so the newest messages and the menu stay in
-view).
+view). When even that doesn't fit, the screen is drawn again with the widgets'
+compact forms (action tiles as a list, fighters without the gap between the sides,
+the enemy's picture without its frame), and as a last resort the tallest zones lose
+their last lines: a frame never overflows the terminal.
+
+**The fitting board keeps its pick.** Numbers shift when an item is fitted, removed,
+stored, taken or made, because entries are grouped by where they are. After an action
+the board keeps the same item picked at its new number (or drops the pick when the
+item is gone), so its next action is one key away.
 
 **Widgets** are a fixed catalogue owned by the engine; each has a few options and is
 allowed on some screens only (`python3 -m core.packtool explain widget <name>`):

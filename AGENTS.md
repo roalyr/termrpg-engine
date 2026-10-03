@@ -212,7 +212,9 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 **Events**
 
 - Routine upkeep is an event too: a crate that refills each morning is a `day_start`
-  event with `notify: false` that sets its state back.
+  event with `notify: false` that sets its state back. The engine never heals on its
+  own: a night's rest is a `day_start` event with `restore` on `"subject": "party"`,
+  which also gets downed companions back up.
 - A cast drawn `from` `anyone` can include the player and characters with no
   location. Write conditions that rule out who shouldn't play the role.
 - Relations in cast conditions fall back through factions: a character with no view
