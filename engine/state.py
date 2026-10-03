@@ -178,9 +178,14 @@ def new_game(content: Content, seed: int) -> GameState:
     player = player._replace(location=start["location"],
                              at=entry_point(content, start["location"], start.get("entry")))
     characters[player.id] = player
+    from engine import world  # world needs the state types too
+    taken = {(cs.location, tuple(cs.at)) for cs in characters.values() if cs.location and cs.at is not None}
     for char_id, cs in characters.items():
-        if cs.location and cs.at is None:
-            characters[char_id] = cs._replace(at=entry_point(content, cs.location, None))
+        if cs.location and cs.at is None:           # near the entry point, on a tile of their own
+            avoid = frozenset(at for where, at in taken if where == cs.location)
+            at = world.nearest_standable(content, cs.location, entry_point(content, cs.location, None), avoid)
+            taken.add((cs.location, tuple(at)))
+            characters[char_id] = cs._replace(at=at)
         if cs.location:
             characters[char_id] = characters[char_id]._replace(visited=(cs.location,))
 

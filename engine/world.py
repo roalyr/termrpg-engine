@@ -58,9 +58,9 @@ def standable(content: Content, location_id: str, pos: Pos) -> bool:
     return tile(content, location_id, pos) == "."
 
 
-def nearest_standable(content: Content, location_id: str, start: Pos) -> Pos:
-    """The start tile if it can be stood on, otherwise the closest floor tile that can."""
-    if standable(content, location_id, start):
+def nearest_standable(content: Content, location_id: str, start: Pos, avoid: frozenset = frozenset()) -> Pos:
+    """The start tile if it can be stood on, otherwise the closest floor tile that can, not one in 'avoid'."""
+    if standable(content, location_id, start) and tuple(start) not in avoid:
         return start
     seen, queue = {start}, deque([start])
     while queue:
@@ -69,7 +69,7 @@ def nearest_standable(content: Content, location_id: str, start: Pos) -> Pos:
             nxt = (row + dr, col + dc)
             if nxt in seen or tile(content, location_id, nxt) == " ":
                 continue
-            if tile(content, location_id, nxt) == "." and standable(content, location_id, nxt):
+            if tile(content, location_id, nxt) == "." and standable(content, location_id, nxt) and nxt not in avoid:
                 return nxt
             seen.add(nxt)
             queue.append(nxt)
@@ -341,7 +341,8 @@ def wait(content: Content, state: GameState) -> GameState:
 def used_item(content: Content, state: GameState, ctx: Ctx, cond: Optional[Mapping]) -> Optional[Tuple[str, str, int]]:
     """
     The item that satisfied a requirement: the first item of 'self' carrying a tag that
-    a passing has_tag check asked for. Effects reach it with the item pick {"used": true}.
+    a passing has_tag check asked for, from where that check looked (its 'source').
+    Effects reach it with the item pick {"used": true}.
     """
     if cond is None:
         return None
@@ -352,10 +353,18 @@ def used_item(content: Content, state: GameState, ctx: Ctx, cond: Optional[Mappi
         if not ok:
             continue
         cs = state.characters[ctx.self_id]
+        where = USED_FROM.get(leaf.get("source", "any"))
         for slot, inst in stats.held(cs):
+            if where is not None and slot[0] not in where:
+                continue
             if not stats.is_broken(inst) and leaf["tag"] in stats.item_view(content, inst)["tags"]:
                 return (ctx.self_id, slot[0], slot[1])
     return None
+
+
+# The slots each has_tag source looks in ('any' looks everywhere; 'party' is others' items).
+USED_FROM = {"any": None, "fitted": ("frame", "fitted"), "carried": ("inventory",), "body": ("implants",),
+             "party": ()}
 
 
 def _has_tag_leaves(cond: Mapping) -> List[Mapping]:

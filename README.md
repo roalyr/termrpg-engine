@@ -239,7 +239,7 @@ An **item pick** says which of the subject's items is meant:
 | `{"item": "id"}` | That item |
 | `{"tag": "id"}` | The first carried or fitted item with that tag |
 | `{"slot_type": "id"}` | The item fitted in a slot of that type |
-| `{"used": true}` | The item that satisfied the requirement of the interaction or action being performed |
+| `{"used": true}` | The item that satisfied the requirement of the interaction or action being performed: the first item with the tag a passing `has_tag` asked for, from where that check looked (its `source`) |
 
 #### Conditions
 
@@ -249,7 +249,7 @@ other conditions; the leaves are checks, picked by the `check` field.
 | Check | Fields | True when |
 |---|---|---|
 | `has_tag` | `tag`, `subject`, `source` | The subject has the tag. `source` narrows where it may come from: `any` (default), `fitted` (suit gear), `carried`, `body` (implants and skills), `party` (companions) |
-| `has_item` | `item`, `count` (1), `subject` | The subject carries at least `count` of the item |
+| `has_item` | `item`, `count` (1), `source` (`carried`), `subject` | The subject holds at least `count` of the item: `carried` (what `take_item` can take), `fitted` (worn frame, modules, implants) or `any` |
 | `skill` | `skill`, `min`, `subject` | The skill is at least level `min` |
 | `stat` | `stat`, `min`, `max`, `subject` | The stat's current value is within bounds |
 | `item_condition` | `pick`, `min`, `max`, `subject` | A picked item's condition is within bounds (items that don't wear always pass) |
@@ -291,7 +291,7 @@ in order.
 | | `modify_item` | `pick`, `add_tags`, `remove_tags`, `stats`, `max_condition`, `name_suffix` | Permanently changes one item into a unique variant |
 | | `learn_design` | `item`, `subject` | The subject can now fabricate the item |
 | Stats | `damage` | `amount`, `damage_type`, `subject` (default `target`) | Deals damage; the damage type's resisting stat reduces it |
-| | `restore` | `stat`, `amount`, `subject` | Raises a pool toward its maximum (heal, repair, cool) |
+| | `restore` | `stat`, `amount`, `subject` | Brings a pool back to normal: health and charges up toward their maximum, heat down toward 0 |
 | | `modify_stat` | `stat`, `amount`, `subject`, `duration` | Adds to a stat; temporary with a duration, otherwise permanent |
 | | `apply_status` | `status`, `subject` (default `target`), `duration`, `stacks` | Puts a status on the subject |
 | | `remove_status` | `status`, `subject` | Removes a status |
@@ -348,7 +348,9 @@ Rules the engine follows that the schemas alone don't spell out:
   faction toward faction; then the pack's `relation_default`.
 - **Defeat.** When health reaches 0 the character is down and their `on_defeat` runs
   next, with `self` the defeated character and `target` whoever caused it. Restoring
-  health above 0 brings them back. The engine never heals on its own: healing over
+  health above 0 brings them back. The player is never left down: after their
+  `on_defeat` (in a fight, after the fight's end), a player still down gets up with 1
+  health. The engine never heals on its own: healing over
   time, and downed companions getting up again, is a pack's `day_start` event with
   `restore` on the `party` (the test pack's `event_rest` restores 10 health each
   morning).
@@ -378,9 +380,11 @@ Rules the engine follows that the schemas alone don't spell out:
   day; the count is per placement or character.
 - **Time.** Interactions take their `time`; exits their `time`; talking one turn.
   `spend_time` adds to the turns owed, which are processed after the action. Each turn,
-  every character in a location gets the location's `on_turn`; statuses run their
-  `on_turn` once per stack, count down and end with `on_expire`; timed stat changes
-  count down. A choice waiting for the player pauses time.
+  every character in the player's location gets that location's `on_turn` (places
+  elsewhere don't act; its `message` and `choose` steps run only for the player, so a
+  line shows once); everyone's statuses run their `on_turn` once per stack, count down
+  and end with `on_expire`; timed stat changes count down. A choice waiting for the
+  player pauses time, and a second `choose` while one waits is skipped.
 - **Saves** go to `saves/<pack folder>/<slot>.json` and hold only the state. A save
   only loads with the same pack and the same major pack version.
 - **Refitting.** Frames, modules and implants are fitted or removed only within reach
@@ -403,7 +407,8 @@ Rules the engine follows that the schemas alone don't spell out:
 
 - **Beginning.** `start_encounter` starts the encounter after the current action.
   Template enemies are spawned as copies (not on the map); unique characters in
-  `enemies` or `allies` join as themselves. The player's party is on the player's
+  `enemies` or `allies` join as themselves, except unique enemies who are down. With
+  no enemy left to fight, the encounter doesn't start. The player's party is on the player's
   side. `on_start` runs, and the `intro` is shown.
 - **A round.** Every AI-controlled fighter (everyone but the player) picks an action
   and a target; enemies' picks show as their intent. The player picks an action tile,
@@ -651,7 +656,7 @@ levels, their own `actions` list, and innate actions.
 | `name`, `short` | `short` (≤8 chars) is the tile's label |
 | `description`, `glyph`, `tags` | Tags say what kind of action it is (attack, defence…) |
 | `target` | `self`, `enemy` (default), `ally`, `all_enemies`, `all_allies` |
-| `cost` | `heat` (an amount), `cooldown` (rounds), `charges` (per encounter), `consumes` (`item` or `tag`, `count`) |
+| `cost` | `heat` (an amount), `cooldown` (whole rounds it can't be used after the round it was used in), `charges` (per encounter), `consumes` (`item` or `tag`, `count`) |
 | `requires`, `hint` | Usable only when the condition holds; otherwise the tile is greyed out with the hint |
 | `priority` | -3 to 3: acts earlier or later in the round than initiative alone would put it |
 | `effects` | Required. Damage defaults to the target |
@@ -758,7 +763,10 @@ How the engine runs events:
   waiting, in this order, until nothing is left: a requested encounter starts;
   requested events (`trigger_event`, such as a rescue in `on_defeat`) fire; queued
   trigger moments (each turn, each new day, each arrival of the player) are
-  considered; owed turns are paid. Nothing is settled during an encounter, while a
+  considered; owed turns are paid. Time is paid in stretches that end at a trigger
+  moment some event listens to, so a long wait handles each morning on its own day,
+  in order, before the next stretch. Only moments that events listen to are queued;
+  the turns that pass during a fight make one `turn` moment after it. Nothing is settled during an encounter, while a
   choice waits, or while the after-action screen is up; it waits with them.
 - **A trigger moment** considers every event with that trigger, heaviest first, then
   by id. An event can fire when it isn't used up (`repeat: false` and fired before)
@@ -940,7 +948,9 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 
 **Keys.** The input actions are fixed by the engine: `move_north`, `move_west`,
 `move_south`, `move_east`, `wait`, `pack`, `character`, `close`, `quit`, `next_page`.
-Number keys 1–9 always pick numbered entries and can't be bound. `hints` lists, per
+Number keys 1–9 always pick numbered entries and can't be bound. Bindings are lower
+case (keys match either case). The arrow keys always move and Esc always closes,
+whatever the bindings. `hints` lists, per
 context (`walk`, `menu`, `choice`, `pack`, `sheet`, `encounter`, `target`,
 `debrief`), entries that show some actions' keys joined (`WASD`) or `1-9` (`digits`),
 then a label from the words file. Hints are generated from the bindings, so they can't

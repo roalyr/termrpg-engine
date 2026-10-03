@@ -149,7 +149,8 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 - `holds_size` left out means no limit on locations and objects, but holds nothing
   on items.
 - A tag marked `hazard` only shows a warning. The harm itself must be written in the
-  location's `on_turn`.
+  location's `on_turn`, which only runs while the player is there (for everyone in
+  the room).
 - Solid objects (`"solid": true`) are used from the next tile; the player bumps into
   them. Don't make a room's only way through solid. An `entry` on a solid object puts
   arrivals on the nearest free floor tile.
@@ -165,6 +166,8 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 
 **Items and characters**
 
+- `has_item` checks carried items unless its `source` says `fitted` or `any`; that is
+  what `take_item` can take, so a "requires it, then takes it" trade can't be cheated.
 - An item's `kind` decides its fields. Only frames, modules and implants take
   `slot_type`, `slots`, `mod_slots` and `fit_requires`. Only modules take `uses`.
 - Modules go into `frame` slot types, implants into `body` slot types.
@@ -251,7 +254,8 @@ each part.
   them. Behaviour (what appears when, how a widget draws) is engine code.
 - Keep the world screen within `min_columns`: the checker shows the numbers when the
   grid and side panel don't fit.
-- Keys: one action per key; digits are reserved for picking numbered entries. Game
+- Keys: one action per key, in lower case; digits are reserved for picking numbered
+  entries. Game
   packs' interaction keys must not use the bound keys either.
 - The game's voice stays in the game pack's `strings.json`; only labels, headings and
   hints go in the UI pack's `words.json`.

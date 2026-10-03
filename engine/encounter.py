@@ -112,7 +112,10 @@ def _health_share(content: Content, cs: CharState) -> float:
 # --- Beginning --------------------------------------------------------------------------
 
 def begin(content: Content, state: GameState) -> GameState:
-    """Starts the requested encounter, if there is one and none is running."""
+    """
+    Starts the requested encounter, if there is one and none is running. Unique enemies
+    who are down stay out of it; with nobody left to fight, it doesn't start at all.
+    """
     request = state.encounter_request
     state = state._replace(encounter_request=None)
     if request is None or state.encounter is not None:
@@ -126,7 +129,8 @@ def begin(content: Content, state: GameState) -> GameState:
         for entry in entries:
             source = content.get("character", entry["character"])
             if not source.get("template"):
-                if entry["character"] in state.characters:
+                cs = state.characters.get(entry["character"])
+                if cs is not None and not (side == "enemies" and cs.down):
                     (allies if side == "allies" else enemies).append(entry["character"])
                 continue
             count, state = context.amount(content, state, Ctx(self_id=state.player), entry["count"])
@@ -136,6 +140,8 @@ def begin(content: Content, state: GameState) -> GameState:
                 state = _set(state, stats.fill_pools(content, cs))._replace(spawned=state.spawned + 1)
                 (allies if side == "allies" else enemies).append(new_id)
                 spawned.append(new_id)
+    if not enemies:                                   # nobody to fight: allies spawned for it go again
+        return state._replace(characters=freeze({k: v for k, v in state.characters.items() if k not in spawned}))
     state = state._replace(encounter=EncounterState(id=request, allies=tuple(dict.fromkeys(allies)),
                                                     enemies=tuple(enemies), spawned=tuple(spawned)),
                            focus=None, messages=())               # a fight starts on a clean page
@@ -386,7 +392,8 @@ def _pay(content: Content, state: GameState, cid: str, action_id: str) -> GameSt
     enc = _enc(state)
     if cost.get("cooldown"):
         cooldowns = {k: dict(v) for k, v in enc.cooldowns.items()}
-        cooldowns.setdefault(cid, {})[action_id] = cost["cooldown"]
+        # +1: this round's end counts down once, then it's blocked for 'cooldown' whole rounds
+        cooldowns.setdefault(cid, {})[action_id] = cost["cooldown"] + 1
         state = _with_enc(state, cooldowns=freeze(cooldowns))
     if cost.get("charges"):
         charges = {k: dict(v) for k, v in _enc(state).charges.items()}

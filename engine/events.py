@@ -32,12 +32,18 @@ from engine.effects import run
 from engine.frozen import Record, freeze
 from engine.state import Ctx, GameState, Message, day_of
 
-MAX_STEPS = 200  # a guard against events that keep triggering each other
+MAX_STEPS = 200  # a guard against events that keep triggering each other while no time passes
 
 
 def settle(content: Content, state: GameState) -> GameState:
-    """Handles everything an action left waiting: encounters, requested events, triggers, owed time."""
-    for _ in range(MAX_STEPS):
+    """
+    Handles everything an action left waiting: encounters, requested events, triggers, owed
+    time. Owed time is paid in stretches that end at trigger moments, so each moment's
+    events see the world as it was then.
+    """
+    start, steps = state.turn, 0
+    while steps < MAX_STEPS and state.turn - start <= turns.MAX_TURNS_PER_ACTION:
+        turn = state.turn
         if state.pending is not None or state.encounter is not None or state.debrief is not None:
             break
         if state.encounter_request:
@@ -52,6 +58,7 @@ def settle(content: Content, state: GameState) -> GameState:
             state = turns.advance(content, state, 0)
         else:
             break
+        steps = 0 if state.turn != turn else steps + 1
     return state
 
 

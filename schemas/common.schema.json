@@ -588,7 +588,7 @@
     },
     "check_has_item": {
       "type": "object",
-      "description": "The subject carries at least this many of the item.",
+      "description": "The subject holds at least this many of the item: carried by default, or fitted (worn frame, modules, implants), or either.",
       "properties": {
         "check": {
           "const": "has_item"
@@ -601,6 +601,15 @@
           "type": "integer",
           "minimum": 1,
           "default": 1
+        },
+        "source": {
+          "enum": [
+            "carried",
+            "fitted",
+            "any"
+          ],
+          "default": "carried",
+          "description": "Where the items may be. 'carried' (the default) matches what take_item can take; 'fitted' = the worn frame, modules and implants."
         },
         "subject": {
           "$ref": "#/$defs/subject"
@@ -1343,7 +1352,7 @@
     },
     "op_restore": {
       "type": "object",
-      "description": "Raise a depletable stat toward its maximum (heal, repair, cool down, recharge).",
+      "description": "Bring a pool back to normal: health and charges rise toward their maximum (heal, repair, recharge); heat falls toward 0 (cool down). Restoring health above 0 gets a downed character up.",
       "properties": {
         "op": {
           "const": "restore"

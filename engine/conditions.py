@@ -73,8 +73,14 @@ def _has_tag(content: Content, state: GameState, ctx: Ctx, cond: Mapping) -> Res
 
 
 def _has_item(content: Content, state: GameState, ctx: Ctx, cond: Mapping) -> Result:
+    source = cond.get("source", "carried")    # 'carried' matches what take_item can take
+
+    def where(slot) -> bool:
+        return source == "any" or (slot[0] == "inventory") == (source == "carried")
+
     def has(cid: str) -> bool:
-        held = sum(inst.count for _, inst in stats.held(state.characters[cid]) if inst.item == cond["item"])
+        held = sum(inst.count for slot, inst in stats.held(state.characters[cid])
+                   if inst.item == cond["item"] and where(slot))
         return held >= cond.get("count", 1)
     return _any_subject(state, ctx, cond, has)
 

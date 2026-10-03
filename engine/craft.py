@@ -16,7 +16,7 @@ What comes out must fit in cargo, or the action is refused: nothing is lost.
 """
 from typing import List, Optional, Sequence, Tuple
 
-from engine import conditions, stats, turns
+from engine import build, conditions, stats, turns
 from engine.content import Content
 from engine.frozen import Record, freeze
 from engine.state import CharState, Ctx, GameState, ItemInst, Message, add_items
@@ -65,11 +65,6 @@ def _set(state: GameState, cs: CharState) -> GameState:
 
 def _say(state: GameState, kind: str, text: str) -> GameState:
     return state._replace(messages=state.messages + (Message(kind, text),))
-
-
-def _role_name(content: Content, role: str) -> str:
-    stat_id = content.stat_roles.get(role)
-    return content.get("stat", stat_id)["name"] if stat_id else role
 
 
 def _count(content: Content, cs: CharState, item_id: str) -> int:
@@ -236,15 +231,14 @@ def modify_problem(content: Content, state: GameState, slot: Slot, mod_id: str) 
     lacking = _missing(content, cs, [{"item": mod["material"], "count": mod["count"]}])
     if lacking:
         return content.message("needs_materials", items=lacking)
+    if slot[0] == "inventory" and inst.count > 1:       # one off the stack needs a cargo stack of its own
+        stacks = len(_take(content, cs, mod["material"], mod["count"]).inventory) + 1
+        if stacks > stats.budget_provided(content, cs, "cargo"):
+            return content.message("cargo_full", item=stats.item_view(content, inst)["name"])
     if slot[0] in ("frame", "fitted", "implants"):
-        after = _modified(content, cs, slot, mod_id)
-        for budget in ("power", "mass"):
-            need, have = stats.budget_used(content, after, budget), stats.budget_provided(content, after, budget)
-            if need > have:
-                return content.message("over_budget", stat=_role_name(content, budget), need=f"{need:g}", have=f"{have:g}")
-        load, top = stats.budget_used(content, after, "heat"), stats.budget_provided(content, after, "heat")
-        if load and load >= top:
-            return content.message("over_budget", stat=_role_name(content, "heat"), need=f"{load:g}", have=f"{top:g}")
+        problem = build.budget_problem(content, _modified(content, cs, slot, mod_id))
+        if problem:
+            return problem
     return None
 
 

@@ -117,7 +117,11 @@ class TestChecks(unittest.TestCase):
         s = fresh()
         self.assertTrue(check(s, {"check": "has_item", "item": "consumable_a", "count": 3}))
         self.assertFalse(check(s, {"check": "has_item", "item": "consumable_a", "count": 4}))
-        self.assertTrue(check(s, {"check": "has_item", "item": "module_tool"}))   # fitted counts
+        # carried by default (what take_item can take); fitted only when asked for
+        self.assertFalse(check(s, {"check": "has_item", "item": "module_tool"}))
+        self.assertTrue(check(s, {"check": "has_item", "item": "module_tool", "source": "fitted"}))
+        self.assertTrue(check(s, {"check": "has_item", "item": "module_tool", "source": "any"}))
+        self.assertFalse(check(s, {"check": "has_item", "item": "consumable_a", "source": "fitted"}))
 
     def test_skill(self):
         s = fresh()

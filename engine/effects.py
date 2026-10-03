@@ -50,11 +50,13 @@ def choose_option(content: Content, state: GameState, index: int) -> GameState:
 def _drain(content: Content, state: GameState, queue: Work) -> GameState:
     while queue:
         effect, ctx = queue.pop(0)
+        if effect["op"] == "choose" and state.pending is not None:
+            continue                             # one question at a time: never replace a waiting one
         if effect["op"] == "choose":
             return state._replace(pending=Pending(
                 prompt=content.text(effect["prompt"]) if effect.get("prompt") else None,
                 options=tuple(effect["options"]), ctx=ctx, rest=tuple(queue)))
-        state, follow = HANDLERS[effect["op"]](content, state, ctx, effect)
+        state, follow = (HANDLERS.get(effect["op"]) or ENGINE_STEPS[effect["op"]])(content, state, ctx, effect)
         queue[:0] = follow
     return state
 
@@ -167,13 +169,21 @@ def _wear(content, state, ctx, effect):
 
 
 def _modify_item(content, state, ctx, effect):
-    change = freeze({k: v for k, v in effect.items() if k not in ("op", "pick", "subject")})
     for cid in _who(state, ctx, effect):
         slot = context.pick(content, state, ctx, cid, effect["pick"])
         if slot is None:
             continue
         cs = state.characters[cid]
         inst = stats.item_at(cs, slot)
+        if inst.count > 1 and len(cs.inventory) + 1 > stats.budget_provided(content, cs, "cargo"):
+            if cid == state.player:   # one off the stack would need a cargo stack of its own
+                state = _say(state, "plain", content.message("cargo_full", item=stats.item_view(content, inst)["name"]))
+            continue
+        rolled = {}                   # amounts are rolled once, now; the item keeps the numbers
+        for stat_id, amount in effect.get("stats", {}).items():
+            rolled[stat_id], state = _number(content, state, ctx, amount)
+        change = freeze({**{k: v for k, v in effect.items() if k not in ("op", "pick", "subject")},
+                         **({"stats": rolled} if rolled else {})})
         changed = ItemInst(item=inst.item, count=1, condition=inst.condition, mods=inst.mods,
                            changes=inst.changes + (change,))
         if change.get("max_condition") and changed.condition is not None:
@@ -274,18 +284,37 @@ def _damage(content, state, ctx, effect):
             if not fighting:                            # in an encounter, on_defeat waits for its end
                 on_defeat = content.get("character", cs.source).get("on_defeat", ())
                 follow += [(e, Ctx(self_id=cid, target=ctx.self_id)) for e in on_defeat]
+                if cid == state.player:                 # never a game over: up again afterwards
+                    follow.append((GET_UP, Ctx(self_id=cid)))
         else:
             state = _set(state, cs)
     return state, follow
 
 
+def _get_up(content, state, ctx, effect):
+    """The engine's own step after a player's on_defeat outside a fight: still down means 1 health."""
+    cs = state.characters[ctx.self_id]
+    if cs.down:
+        health = content.stat_roles["health"]
+        state = _set(state, cs._replace(down=False, pools=freeze({**cs.pools, health: 1})))
+    return state, []
+
+
+GET_UP = freeze({"op": "_get_up"})    # not a pack effect: queued by the engine only
+
+
 def _restore(content, state, ctx, effect):
+    """Brings a pool back to normal: health and charges up toward their maximum, heat down toward 0."""
     health = content.stat_roles["health"]
+    cooling = effect["stat"] == content.stat_roles.get("heat")
     for cid in _who(state, ctx, effect):
         cs = state.characters[cid]
         amount, state = _number(content, state, ctx, effect["amount"])
         top = stats.stat(content, cs, effect["stat"])
-        now = min(top, stats.current(content, cs, effect["stat"]) + max(0, amount))
+        if cooling:
+            now = max(0, stats.current(content, cs, effect["stat"]) - max(0, amount))
+        else:
+            now = min(top, stats.current(content, cs, effect["stat"]) + max(0, amount))
         cs = cs._replace(pools=freeze({**cs.pools, effect["stat"]: now}))
         if effect["stat"] == health and now > 0:
             cs = cs._replace(down=False)
@@ -495,3 +524,6 @@ HANDLERS: Dict[str, Handler] = {
     "change_relation": _change_relation, "change_rank": _change_rank, "unlock_slot": _unlock_slot,
     "if": _if,
 }
+
+# Steps only the engine queues; packs can't write them.
+ENGINE_STEPS: Dict[str, Handler] = {"_get_up": _get_up}

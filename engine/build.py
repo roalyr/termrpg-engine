@@ -154,16 +154,24 @@ def fit_problem(content: Content, state: GameState, slot: Slot) -> Optional[str]
     if not ok:
         return content.message("cannot_use", item=view["name"])
     after, _ = _fitted(content, cs, slot)
-    for budget in ("power", "mass"):
-        need, have = stats.budget_used(content, after, budget), stats.budget_provided(content, after, budget)
-        if need > have:
-            return content.message("over_budget", stat=_role_name(content, budget), need=f"{need:g}", have=f"{have:g}")
-    load, top = stats.budget_used(content, after, "heat"), stats.budget_provided(content, after, "heat")
-    if load and load >= top:
-        return content.message("over_budget", stat=_role_name(content, "heat"), need=f"{load:g}", have=f"{top:g}")
+    problem = budget_problem(content, after)
+    if problem:
+        return problem
     location = content.get("location", cs.location)
     if kind == "frame" and location.get("holds_size") is not None and view["size"] > location["holds_size"]:
         return content.message("cannot_fit", thing=view["name"], container=location["name"])
+    return None
+
+
+def budget_problem(content: Content, cs: CharState) -> Optional[str]:
+    """Why a loadout doesn't work: power or mass used above what it provides, or a constant heat load at its maximum."""
+    for budget in ("power", "mass"):
+        need, have = stats.budget_used(content, cs, budget), stats.budget_provided(content, cs, budget)
+        if need > have:
+            return content.message("over_budget", stat=_role_name(content, budget), need=f"{need:g}", have=f"{have:g}")
+    load, top = stats.budget_used(content, cs, "heat"), stats.budget_provided(content, cs, "heat")
+    if load and load >= top:
+        return content.message("over_budget", stat=_role_name(content, "heat"), need=f"{load:g}", have=f"{top:g}")
     return None
 
 
@@ -203,7 +211,7 @@ def remove_problem(content: Content, state: GameState, slot: Slot) -> Optional[s
     after = _removed(content, cs, slot)
     if len(after.inventory) > stats.budget_provided(content, after, "cargo"):
         return content.message("cargo_full", item=_name(content, stats.item_at(cs, slot)))
-    return None
+    return budget_problem(content, after)     # what it provided may be what the rest needs
 
 
 def _removed(content: Content, cs: CharState, slot: Slot) -> CharState:

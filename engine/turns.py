@@ -2,10 +2,17 @@
 Time. advance() processes turns one by one; actions call it with the turns they take,
 and it also pays the turns that effects owe (spend_time).
 
-Each turn, for every character in a location: the location's on_turn runs; each
+Each turn, for every character in the player's location, that location's on_turn runs
+(its 'message' and 'choose' steps only for the player, so a line shows once and a
+question is only ever the player's); for every character in a location, each
 status's on_turn runs once per stack, then its duration counts down and, when it runs
 out, the status ends and its on_expire runs; timed stat changes count down and end.
 A pending choice pauses time until it is answered.
+
+A turn that brings a trigger moment some event listens to (a new day, or 'turn') ends
+the stretch early: the rest is owed, so events.settle() can handle that moment at its
+own time before more turns pass. Only listened-to moments are queued, and at most one
+'turn' moment waits at a time (turns passing in a fight count as one).
 """
 from engine import stats
 from engine.content import Content
@@ -21,36 +28,63 @@ def today(content: Content, state: GameState) -> int:
 
 
 def advance(content: Content, state: GameState, count: int) -> GameState:
-    """Processes count turns, then any turns effects owe, until done or a choice is pending."""
+    """
+    Processes count turns, then any turns effects owe, until done, a choice is pending,
+    or a turn queued a trigger moment for events; then the rest stays owed.
+    """
     owed = count + state.turns_owed
     state = state._replace(turns_owed=0)
     processed = 0
     while owed > 0 and state.pending is None and processed < MAX_TURNS_PER_ACTION:
+        queued = len(state.triggers)
         state = _one_turn(content, state)
         processed += 1
         owed = owed - 1 + state.turns_owed
         state = state._replace(turns_owed=0)
+        if len(state.triggers) > queued and state.encounter is None:
+            return state._replace(turns_owed=owed)          # events.settle() goes on from here
     return state._replace(turns_owed=owed if state.pending is not None else 0)
+
+
+def _listened(content: Content, trigger: str) -> bool:
+    return any(event["trigger"] == trigger for event in content.all("event").values())
 
 
 def _one_turn(content: Content, state: GameState) -> GameState:
     before_day, before_phase = day_of(content, state.turn), phase_of(content, state.turn)
-    state = state._replace(turn=state.turn + 1, triggers=state.triggers + ("turn",))
+    state = state._replace(turn=state.turn + 1)
+    if _listened(content, "turn") and "turn" not in state.triggers:
+        state = state._replace(triggers=state.triggers + ("turn",))
     if day_of(content, state.turn) != before_day:
         state = _say(state, "plain", content.message("day_start", day=day_of(content, state.turn)))
-        state = state._replace(triggers=state.triggers + ("day_start",))
+        if _listened(content, "day_start"):
+            state = state._replace(triggers=state.triggers + ("day_start",))
     elif phase_of(content, state.turn) != before_phase:
         phase = content.get("phase", phase_of(content, state.turn))
         state = _say(state, "plain", content.message("phase_start", phase=phase["name"], day=before_day))
+    here = state.characters[state.player].location
     for cid in list(state.characters):
         cs = state.characters[cid]
         if cs.location is None:
             continue
-        location = content.get("location", cs.location)
-        state = run(content, state, Ctx(self_id=cid), location.get("on_turn", ()))
+        if cs.location == here:                    # places only act where the player is
+            on_turn = content.get("location", here).get("on_turn", ())
+            state = run(content, state, Ctx(self_id=cid), on_turn if cid == state.player else _silent(on_turn))
         state = _statuses(content, state, cid)
         state = _timed_mods(content, state, cid)
     return state
+
+
+def _silent(effects):
+    """The effects without their 'message' and 'choose' steps (nested 'if' branches too)."""
+    kept = []
+    for effect in effects:
+        if effect["op"] in ("message", "choose"):
+            continue
+        if effect["op"] == "if":
+            effect = freeze({**effect, "then": _silent(effect.get("then", ())), "else": _silent(effect.get("else", ()))})
+        kept.append(effect)
+    return tuple(kept)
 
 
 def _statuses(content: Content, state: GameState, cid: str) -> GameState:

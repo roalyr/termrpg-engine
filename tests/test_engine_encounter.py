@@ -150,6 +150,9 @@ class TestRound(unittest.TestCase):
     def test_cooldown(self):
         s = encounter.take_turn(CONTENT, fight(2), "action_guard")
         guard = next(t for t in encounter.tiles(CONTENT, s) if t.action == "action_guard")
+        self.assertEqual((guard.available, guard.hint), (False, "Ready in 2."))   # cooldown 2: two whole rounds
+        s = encounter.take_turn(CONTENT, s, "action_strike", encounter.living(s, "enemies")[0])
+        guard = next(t for t in encounter.tiles(CONTENT, s) if t.action == "action_guard")
         self.assertEqual((guard.available, guard.hint), (False, "Ready in 1."))
         s = encounter.take_turn(CONTENT, s, "action_strike", encounter.living(s, "enemies")[0])
         self.assertTrue(next(t for t in encounter.tiles(CONTENT, s) if t.action == "action_guard").available)

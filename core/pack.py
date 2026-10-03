@@ -456,6 +456,12 @@ def _check_character_rules(manifest: dict, entries: Entries, vocab: Dict[str, An
                 for budget, amount in (item.get("uses", {}) or {}).items():
                     used[budget] = used.get(budget, 0.0) + amount
 
+        # skill levels add stats too, as the engine counts them (stats.stat)
+        for skill_id, level in (char.get("skills", {}) or {}).items():
+            skill = entries.get("skills", {}).get(skill_id)
+            for lv in (skill or {}).get("levels", []) or []:
+                if isinstance(lv, dict) and isinstance(level, int) and lv.get("level", 0) <= level:
+                    worn.append(lv)
         provided = {role: sum(w.get("stats", {}).get(role_stat[role], 0) for w in worn if isinstance(w.get("stats"), dict))
                     for role in ("power", "mass", "heat", "cargo") if role in role_stat}
         for budget in ("power", "mass"):
