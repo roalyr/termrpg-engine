@@ -3,7 +3,8 @@ UI pack validation: the manifest, every listed file against its part of the UI s
 and the rules a schema can't express:
 
 - each widget appears only on the screens that allow it, at most once per screen;
-- no two actions share a key;
+- no two actions share a key, and none takes a key the engine's menus use (G, T, I and
+  the fitting board's letters);
 - hint labels exist in the words file; a hint shows actions or digits, not both;
 - words use only their own placeholders;
 - the world screen's grid row (the largest room plus the side panel) fits the minimum width.
@@ -22,6 +23,14 @@ from core.pack import SCHEMA_DIR, Report, _collect, _fmt, _read_json
 UI_SCHEMA = "ui.schema.json"
 KINDS = ("tokens", "keys", "screens", "words")
 GRID_MAX_TILES = 10   # the world schema's largest grid side
+
+
+def _engine_keys() -> Dict[str, str]:
+    """Keys the engine's own menu options always use, by option."""
+    from engine import build, world
+    keys = dict(world.MENU_KEYS)
+    keys.update({kind: key for kind, key in build.ITEM_KEYS.items() if key})
+    return keys
 
 
 def is_ui_pack(folder: Path) -> bool:
@@ -114,9 +123,13 @@ def _check_keys(keys: Dict[str, Any], errors: List[str]) -> None:
     by_key: Dict[str, List[str]] = {}
     for action, key in keys.get("bindings", {}).items():
         by_key.setdefault(key, []).append(action)
+    engine_keys = {key: option for option, key in _engine_keys().items()}
     for key, actions in by_key.items():
         if len(actions) > 1:
             errors.append(f"keys: '{key}' is bound to {' and '.join(actions)}")
+        if key.lower() in engine_keys:
+            errors.append(f"keys: '{key}' ({' and '.join(actions)}) is the engine's key for "
+                          f"'{engine_keys[key.lower()]}'; pick another")
     for context, hints in keys.get("hints", {}).items():
         for i, hint in enumerate(hints):
             if hint.get("actions") and hint.get("digits"):
@@ -144,7 +157,8 @@ def _check_sizes(ui: Dict[str, Any], errors: List[str]) -> None:
     columns = size["min_columns"]
     world = [w for zone in ui["screens"].get("world", []) for w in _widgets(zone.get("content"))]
     if "grid" in world:
-        grid = GRID_MAX_TILES * size["cell_width"] + 3          # the largest room, in its own box
+        cell = size["cell_width"]
+        grid = GRID_MAX_TILES + (GRID_MAX_TILES - 1) * (cell - 1) + 4   # the largest room, in its own box
         needed = 2 + grid + 1 + size["side_min_width"]         # outer borders, grid, divider, side panel
         if needed > columns:
             errors.append(f"tokens: the world screen needs {needed} columns for the largest grid and the side panel, "

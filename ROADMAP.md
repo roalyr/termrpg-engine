@@ -164,7 +164,7 @@ Every milestone ends with something that runs and is tested, and with two chores
   `main.py`) and the old design document.
 - Tag the result as **version 1.0**.
 
-## UI packs (in progress)
+## UI packs (done)
 
 Standard widgets and layout variables in a separate UI pack, shared by game packs.
 
@@ -173,7 +173,7 @@ Standard widgets and layout variables in a separate UI pack, shared by game pack
   standard look.
 - [x] `packs/ui/default`: the standard look as data; `core/uipack.py` validates UI
   packs; `packtool` checks and explains them.
-- [ ] Rebuild `tui/` as the widget catalogue plus a layout engine reading the UI pack;
+- [x] Rebuild `tui/` as the widget catalogue plus a layout engine reading the UI pack;
   move the UI's words out of game packs' `strings.json`; key hints generated from the
   bindings; tests rendering every screen at the minimum size and wider.
 

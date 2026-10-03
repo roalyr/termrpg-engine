@@ -14,7 +14,7 @@ can be used from the pack; a consumable spends one per use.
 When the loadout changes a pool's maximum, the current value moves with it (never
 below 1 when it drops), so putting on a suit adds its health and heat capacity.
 """
-from typing import List, NamedTuple, Optional, Tuple
+from typing import List, Mapping, NamedTuple, Optional, Tuple
 
 from engine import conditions, stats, turns, world
 from engine.content import Content
@@ -29,13 +29,18 @@ SPARE_ITEM_KEYS = "uhjlmnyz"
 
 
 class ItemOption(NamedTuple):
+    """
+    One option for an item. 'label' is the content's own label (an item interaction);
+    when it's None the UI words the option from its 'kind' and 'params'.
+    """
     key: str
-    label: str
+    label: Optional[str]
     available: bool
     hint: Optional[str]
     kind: str        # 'use', 'fit', 'remove', 'store', 'take', 'dismantle', 'repair', 'fabricate', 'modify'
     interaction: Optional[Record] = None
     modification: Optional[str] = None
+    params: Mapping[str, str] = freeze({})
 
 
 # --- Where the player is ---------------------------------------------------------------
@@ -298,24 +303,29 @@ def use(content: Content, state: GameState, slot: Slot, interaction: Record) -> 
 
 # --- The item menu -------------------------------------------------------------------------
 
-def item_options(content: Content, state: GameState, slot: Slot) -> Tuple[ItemOption, ...]:
-    """What the player can do with one of their items, or a stored one (slot ('storage', i))."""
+def item_options(content: Content, state: GameState, slot: Slot,
+                 bindings: Optional[frozenset] = None) -> Tuple[ItemOption, ...]:
+    """
+    What the player can do with one of their items, or a stored one (slot ('storage', i)).
+    'bindings' are the UI's keys, which interaction keys must avoid.
+    """
+    reserved = world.reserved_keys(bindings)
     from engine import craft  # craft builds on this module's helpers
     options: List[ItemOption] = []
     if slot[0] == "storage":
         if storage_here(content, state) is not None:
-            options.append(ItemOption(ITEM_KEYS["take"], content.message("take"), True, None, "take"))
+            options.append(ItemOption(ITEM_KEYS["take"], None, True, None, "take"))
         return tuple(options)
     if slot[0] == "design":
         item_id = craft.designs(content, state)[slot[1]]
         problem = craft.fabricate_problem(content, state, item_id)
-        return (ItemOption(ITEM_KEYS["fabricate"], content.message("fabricate"), problem is None, problem, "fabricate"),)
+        return (ItemOption(ITEM_KEYS["fabricate"], None, problem is None, problem, "fabricate"),)
     cs = state.characters[state.player]
     inst = stats.item_at(cs, slot)
     if inst is None:
         return ()
     ctx = Ctx(self_id=cs.id, used=(cs.id, slot[0], slot[1]))
-    taken = set(ITEM_KEYS.values())
+    taken = set(ITEM_KEYS.values()) | set(reserved)
     for interaction in content.get("item", inst.item).get("interactions", ()):
         shown, state = conditions.holds(content, state, ctx, interaction.get("shown_if"))
         if not shown:
@@ -327,39 +337,38 @@ def item_options(content: Content, state: GameState, slot: Slot) -> Tuple[ItemOp
                                          (interaction["repeat"] == "daily" and last == turns.today(content, state))):
             ok, hint = False, content.message("already_used")
         wanted = interaction.get("key")
-        key = wanted if wanted and wanted not in taken and wanted not in "wasdpcxq" \
-            else next(k for k in SPARE_ITEM_KEYS if k not in taken)
+        key = wanted if wanted and wanted not in taken else next(k for k in SPARE_ITEM_KEYS if k not in taken)
         taken.add(key)
         options.append(ItemOption(key, content.text(interaction["label"]), ok, hint, "use", interaction))
     kind = content.get("item", inst.item)["kind"]
     if slot[0] == "inventory" and kind in ("frame", "module", "implant"):
         problem = fit_problem(content, state, slot)
-        options.append(ItemOption(ITEM_KEYS["fit"], content.message("fit"), problem is None, problem, "fit"))
+        options.append(ItemOption(ITEM_KEYS["fit"], None, problem is None, problem, "fit"))
     if slot[0] in ("frame", "fitted", "implants"):
         problem = remove_problem(content, state, slot)
-        options.append(ItemOption(ITEM_KEYS["remove"], content.message("remove"), problem is None, problem, "remove"))
+        options.append(ItemOption(ITEM_KEYS["remove"], None, problem is None, problem, "remove"))
     if slot[0] == "inventory" and storage_here(content, state) is not None:
         problem = store_problem(content, state, slot)
-        options.append(ItemOption(ITEM_KEYS["store"], content.message("store"), problem is None, problem, "store"))
+        options.append(ItemOption(ITEM_KEYS["store"], None, problem is None, problem, "store"))
     item = content.get("item", inst.item)
     if slot[0] == "inventory" and item.get("salvage") and craft.offered(content, state, "dismantle"):
         problem = craft.dismantle_problem(content, state, slot)
-        options.append(ItemOption(ITEM_KEYS["dismantle"], content.message("dismantle"), problem is None, problem, "dismantle"))
+        options.append(ItemOption(ITEM_KEYS["dismantle"], None, problem is None, problem, "dismantle"))
     if item.get("repair") and inst.condition is not None and craft.offered(content, state, "repair"):
         problem = craft.repair_problem(content, state, slot)
-        options.append(ItemOption(ITEM_KEYS["repair"], content.message("repair"), problem is None, problem, "repair"))
+        options.append(ItemOption(ITEM_KEYS["repair"], None, problem is None, problem, "repair"))
     if craft.offered(content, state, "modify"):
         for mod_id in craft.modifications_for(content, state, slot):
             problem = craft.modify_problem(content, state, slot, mod_id)
             key = next(k for k in SPARE_ITEM_KEYS if k not in taken)
             taken.add(key)
-            label = content.message("modify", modification=content.get("modification", mod_id)["name"])
-            options.append(ItemOption(key, label, problem is None, problem, "modify", modification=mod_id))
+            options.append(ItemOption(key, None, problem is None, problem, "modify", modification=mod_id,
+                                      params=freeze({"modification": content.get("modification", mod_id)["name"]})))
     return tuple(options)
 
 
-def item_act(content: Content, state: GameState, slot: Slot, key: str) -> GameState:
-    option = next((o for o in item_options(content, state, slot) if o.key == key), None)
+def item_act(content: Content, state: GameState, slot: Slot, key: str, bindings: Optional[frozenset] = None) -> GameState:
+    option = next((o for o in item_options(content, state, slot, bindings) if o.key == key), None)
     if option is None:
         return state
     if not option.available:

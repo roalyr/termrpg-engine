@@ -171,7 +171,7 @@ From the locker: **W D W W** to the door, then **G**.
   health doesn't drop here. (Without it, it drops by 1 every turn, as it does for a
   recruited NPC without a suit.)
 - [ ] **S S** to (2,3), **D**, then **D** (bump the terminal). **R** (Use): "Pick one.",
-  `1 Option A`, `2 Option B`, hints "1-4 choose". Movement keys do nothing while it
+  `1 Option A`, `2 Option B`, hints "1-2 choose". Movement keys do nothing while it
   waits.
 - [ ] **2**: Option B (it needs flag A ≥ 1, which the arrival event set). It sets the
   flag back to 0.
@@ -248,7 +248,7 @@ From (2,2): **D** to (2,3), then **S** (bump the hatch). **U** (Open).
 ## 16. Paging
 
 - [ ] Once the board has more than nine entries (loot from a few fights does it), the
-  last line reads "Page 1/2  ] next". **]** shows the next page; numbers start at 1
+  last line reads "Page 1/2" and the key hints show "] page". **]** shows the next page; numbers start at 1
   again on each page.
 
 ## 17. Time and the living world

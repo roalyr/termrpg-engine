@@ -240,26 +240,6 @@
             "day"
           ]
         },
-        "go_to": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Menu label for an exit without a label of its own. Placeholders: {destination}.",
-          "x-placeholders": [
-            "destination"
-          ]
-        },
-        "talk": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Menu label for talking to someone. No placeholders.",
-          "x-placeholders": []
-        },
-        "inspect": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Menu label for looking at something closely. No placeholders.",
-          "x-placeholders": []
-        },
         "already_used": {
           "type": "string",
           "minLength": 1,
@@ -272,98 +252,10 @@
           "description": "Why an option is unavailable when it has no hint of its own. No placeholders.",
           "x-placeholders": []
         },
-        "keys_walk": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Key hints while walking around. No placeholders.",
-          "x-placeholders": []
-        },
-        "keys_menu": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Key hints while a menu is open. No placeholders.",
-          "x-placeholders": []
-        },
-        "keys_choice": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Key hints while a choice waits for an answer. No placeholders.",
-          "x-placeholders": []
-        },
-        "day_phase": {
-          "type": "string",
-          "minLength": 1,
-          "description": "The day and part of the day, in the status panel. Placeholders: {day}, {phase}.",
-          "x-placeholders": [
-            "day",
-            "phase"
-          ]
-        },
-        "party": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Who travels with the player, in the status panel. Placeholders: {names}.",
-          "x-placeholders": [
-            "names"
-          ]
-        },
-        "pack_fitted": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Heading for worn and fitted items in the pack panel. No placeholders.",
-          "x-placeholders": []
-        },
-        "pack_carried": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Heading for carried items in the pack panel. No placeholders.",
-          "x-placeholders": []
-        },
-        "character_title": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Heading of the character panel. Placeholders: {name}.",
-          "x-placeholders": [
-            "name"
-          ]
-        },
         "game_saved": {
           "type": "string",
           "minLength": 1,
           "description": "The game was saved. No placeholders.",
-          "x-placeholders": []
-        },
-        "terminal_too_small": {
-          "type": "string",
-          "minLength": 1,
-          "description": "The terminal is too small to draw the game. Placeholders: {columns}, {rows}.",
-          "x-placeholders": [
-            "columns",
-            "rows"
-          ]
-        },
-        "fit": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Item menu: fit a frame, module or implant. No placeholders.",
-          "x-placeholders": []
-        },
-        "remove": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Item menu: remove a worn or fitted item. No placeholders.",
-          "x-placeholders": []
-        },
-        "store": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Item menu: put an item into storage within reach. No placeholders.",
-          "x-placeholders": []
-        },
-        "take": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Item menu: take a stored item. No placeholders.",
           "x-placeholders": []
         },
         "refit_needed": {
@@ -458,29 +350,6 @@
             "container"
           ]
         },
-        "pack_stored": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Heading for items in storage within reach, in the pack panel. Placeholders: {container}.",
-          "x-placeholders": [
-            "container"
-          ]
-        },
-        "keys_pack": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Key hints in the pack panel. No placeholders.",
-          "x-placeholders": []
-        },
-        "encounter_round": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Encounter header: its name and the round. Placeholders: {encounter}, {round}.",
-          "x-placeholders": [
-            "encounter",
-            "round"
-          ]
-        },
         "uses_action": {
           "type": "string",
           "minLength": 1,
@@ -536,50 +405,6 @@
           "x-placeholders": [
             "character"
           ]
-        },
-        "keys_encounter": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Key hints in an encounter. No placeholders.",
-          "x-placeholders": []
-        },
-        "keys_target": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Key hints while picking a target. No placeholders.",
-          "x-placeholders": []
-        },
-        "dismantle": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Item menu: dismantle an item at a workshop. No placeholders.",
-          "x-placeholders": []
-        },
-        "repair": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Item menu: repair a worn item at a workshop. No placeholders.",
-          "x-placeholders": []
-        },
-        "fabricate": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Item menu: make a copy of a known design. No placeholders.",
-          "x-placeholders": []
-        },
-        "modify": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Item menu: apply a modification. Placeholders: {modification}.",
-          "x-placeholders": [
-            "modification"
-          ]
-        },
-        "pack_designs": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Heading for known designs in the pack panel, near a fabricating workshop. No placeholders.",
-          "x-placeholders": []
         },
         "needs_service": {
           "type": "string",
@@ -678,15 +503,6 @@
             "item"
           ]
         },
-        "pack_more": {
-          "type": "string",
-          "minLength": 1,
-          "description": "The pack panel has more pages. Placeholders: {page}, {pages}.",
-          "x-placeholders": [
-            "page",
-            "pages"
-          ]
-        },
         "item_used": {
           "type": "string",
           "minLength": 1,
@@ -721,26 +537,6 @@
           "x-placeholders": [
             "character"
           ]
-        },
-        "round_log": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Heading over the log of the round just played. Placeholders: {round}.",
-          "x-placeholders": [
-            "round"
-          ]
-        },
-        "keys_debrief": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Key hint on the after-action screen at the end of an encounter. No placeholders.",
-          "x-placeholders": []
-        },
-        "round_end": {
-          "type": "string",
-          "minLength": 1,
-          "description": "In an encounter's log, before what the end of the round brings (hazards, statuses). No placeholders.",
-          "x-placeholders": []
         }
       },
       "additionalProperties": false

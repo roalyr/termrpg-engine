@@ -3,7 +3,7 @@ import os
 import re
 import shutil
 import sys
-from typing import List
+from typing import List, Mapping, Optional
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 RESET = "\x1b[0m"
@@ -15,13 +15,29 @@ DANGER = "orange"
 
 
 class Style:
-    """Text styles. With colour off everything is plain except the player's inverse cursor."""
+    """
+    Text styles by role, from the UI pack's tokens. With colour off everything is plain
+    except the player's inverse cursor.
+    """
 
-    def __init__(self, colour: bool = True):
+    def __init__(self, colour: bool = True, styles: Optional[Mapping[str, Mapping]] = None):
         self.colour = colour
+        self.styles = styles or {}
 
     def _wrap(self, text: str, code: str) -> str:
         return f"\x1b[{code}m{text}{RESET}" if self.colour and text else text
+
+    def role(self, text: str, role: str) -> str:
+        """Text in a role's style: its colour, bold and dim."""
+        spec = self.styles.get(role, {})
+        codes = []
+        if spec.get("bold"):
+            codes.append("1")
+        if spec.get("dim"):
+            codes.append("2")
+        if spec.get("colour"):
+            codes.append(f"38;5;{PALETTE.get(spec['colour'], PALETTE['white'])}")
+        return self._wrap(text, ";".join(codes)) if codes else text
 
     def bold(self, text: str) -> str:
         return self._wrap(text, "1")
@@ -40,7 +56,7 @@ class Style:
         return self._wrap(text, f"38;5;{PALETTE.get(colour, PALETTE['white'])}")
 
     def danger(self, text: str) -> str:
-        return self.tint(text, DANGER)
+        return self.role(text, "danger") if "danger" in self.styles else self.tint(text, DANGER)
 
 
 def visible_len(text: str) -> int:

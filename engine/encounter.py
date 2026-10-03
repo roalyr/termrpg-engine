@@ -336,7 +336,7 @@ def _resolve(content: Content, state: GameState) -> GameState:
     before = len(state.messages)
     state = turns.advance(content, state, 1)
     if len(state.messages) > before:                  # say why hazards and statuses hit now
-        marker = Message("quiet", content.message("round_end"))
+        marker = Message("heading", "round_end")      # worded by the UI
         state = state._replace(messages=state.messages[:before] + (marker,) + state.messages[before:])
     state = _check_end(content, state)
     if _enc(state).result:

@@ -12,6 +12,10 @@ from engine.effects import run
 from engine.frozen import freeze
 from engine.state import Ctx, new_game
 from tui import render
+from tui.ui import default_ui
+from tui.widgets import option_text
+
+UI = default_ui()
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")
@@ -76,7 +80,7 @@ class TestTheToolsLife(unittest.TestCase):
         self.assertEqual(stats.item_at(me(s), new_tool).condition, 4)
 
         # Reinforce it: the material decides what's added, and it fills the one mod slot.
-        options = {o.label: o for o in build.item_options(CONTENT, s, new_tool)}
+        options = {option_text(UI, o): o for o in build.item_options(CONTENT, s, new_tool)}
         self.assertIn("Modify: Reinforced", options)
         s = craft.modify(CONTENT, s, new_tool, "mod_reinforced")
         tool = stats.item_at(me(s), carried(s, "module_tool"))
@@ -154,7 +158,7 @@ class TestPaging(unittest.TestCase):
         slots = build.pack_slots(CONTENT, s)
         self.assertGreater(len(slots), 9)
         frame = ANSI.sub("", render.render(CONTENT, s, 44, 80, panel="pack"))
-        self.assertIn("Page 1/2  ] next", frame)
+        self.assertIn("Page 1/2", frame)
         s, view, _ = app.handle(CONTENT, s, "p")
         s, view, _ = app.handle(CONTENT, s, "]", view)
         s, view, _ = app.handle(CONTENT, s, "1", view)

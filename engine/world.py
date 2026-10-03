@@ -18,8 +18,15 @@ from engine.frozen import Record, freeze
 from engine.state import Ctx, GameState, Message, Pos
 
 DIRECTIONS = {"w": (-1, 0), "s": (1, 0), "a": (0, -1), "d": (0, 1)}
-RESERVED_KEYS = set("wasdixqpcgt") | set("1234")
+MENU_KEYS = {"go": "g", "talk": "t", "inspect": "i"}   # the engine's own menu options
+STANDARD_BINDINGS = frozenset("wasd.pcxq]")             # the standard UI pack's keys
+DIGITS = frozenset("123456789")
 SPARE_KEYS = "ufrbehjklmnoyvz"
+
+
+def reserved_keys(bindings: Optional[frozenset] = None) -> frozenset:
+    """Keys interactions can't take: the UI's bindings, the engine's menu keys and the digits."""
+    return frozenset(bindings if bindings is not None else STANDARD_BINDINGS) | frozenset(MENU_KEYS.values()) | DIGITS
 
 
 # --- Tiles -------------------------------------------------------------------------
@@ -127,12 +134,17 @@ def move(content: Content, state: GameState, key: str) -> GameState:
 # --- The menu ----------------------------------------------------------------------------
 
 class Option(NamedTuple):
+    """
+    One menu option. 'label' is the content's own label; when it's None the UI words the
+    option from its 'kind' ('go', 'talk', 'inspect') and 'params' (e.g. the destination).
+    """
     key: str
-    label: str
+    label: Optional[str]
     available: bool
     hint: Optional[str]
     kind: str                        # 'interaction', 'go', 'talk', 'inspect'
     interaction: Optional[Record]
+    params: Mapping[str, str] = freeze({})
 
 
 class Menu(NamedTuple):
@@ -176,8 +188,12 @@ def _interactions(content: Content, state: GameState) -> Tuple[Record, ...]:
     return content.get("character", state.characters[ref].source).get("interactions", ())
 
 
-def menu(content: Content, state: GameState) -> Optional[Menu]:
-    """What the player can do with the focused thing, or None with nothing in focus."""
+def menu(content: Content, state: GameState, bindings: Optional[frozenset] = None) -> Optional[Menu]:
+    """
+    What the player can do with the focused thing, or None with nothing in focus.
+    'bindings' are the UI's keys, which interaction keys must avoid.
+    """
+    reserved = reserved_keys(bindings)
     if state.focus is None or not _in_reach(content, state):
         return None
     ctx = _ctx_for(state)
@@ -191,29 +207,29 @@ def menu(content: Content, state: GameState) -> Optional[Menu]:
         hint = content.text(interaction["hint"]) if not ok and interaction.get("hint") else None
         if ok and _used_up(content, state, interaction):
             ok, hint = False, content.message("already_used")
-        key = _assign_key(interaction.get("key"), taken)
+        key = _assign_key(interaction.get("key"), taken, reserved)
         taken.add(key)
         options.append(Option(key, content.text(interaction["label"]), ok, hint, "interaction", interaction))
     kind, ref = state.focus
     if kind == "placement" and content.get("placement", ref).get("exit"):
         exit_ = content.get("placement", ref)["exit"]
         ok, state = conditions.holds(content, state, ctx, exit_.get("requires"))
-        label = content.text(exit_["label"]) if exit_.get("label") else \
-            content.message("go_to", destination=_destination_name(content, exit_))
+        label = content.text(exit_["label"]) if exit_.get("label") else None
         hint = content.text(exit_["hint"]) if not ok and exit_.get("hint") else None
         if not exit_.get("location"):            # procedural zones are reserved
             ok, hint = False, content.message("unavailable")
-        options.append(Option("g", label, ok, hint, "go", None))
+        options.append(Option(MENU_KEYS["go"], label, ok, hint, "go", None,
+                              freeze({"destination": _destination_name(content, exit_)})))
     if kind == "character" and content.get("character", state.characters[ref].source).get("talk"):
-        options.append(Option("t", content.message("talk"), True, None, "talk", None))
-    options.append(Option("i", content.message("inspect"), True, None, "inspect", None))
+        options.append(Option(MENU_KEYS["talk"], None, True, None, "talk", None))
+    options.append(Option(MENU_KEYS["inspect"], None, True, None, "inspect", None))
     return Menu(focus_name(content, state), tuple(options))
 
 
-def _assign_key(wanted: Optional[str], taken: set) -> str:
-    if wanted and wanted not in RESERVED_KEYS and wanted not in taken:
+def _assign_key(wanted: Optional[str], taken: set, reserved: frozenset) -> str:
+    if wanted and wanted not in reserved and wanted not in taken:
         return wanted
-    return next(k for k in SPARE_KEYS if k not in taken)
+    return next(k for k in SPARE_KEYS if k not in taken and k not in reserved)
 
 
 def _destination_name(content: Content, exit_: Record) -> str:
@@ -239,9 +255,9 @@ def _in_reach(content: Content, state: GameState) -> bool:
 
 # --- Acting --------------------------------------------------------------------------------
 
-def act(content: Content, state: GameState, key: str) -> GameState:
+def act(content: Content, state: GameState, key: str, bindings: Optional[frozenset] = None) -> GameState:
     """Does the menu option with this key. Unavailable options show their hint and take no time."""
-    current = menu(content, state)
+    current = menu(content, state, bindings)
     if current is None or state.pending is not None:
         return state
     option = next((o for o in current.options if o.key == key), None)

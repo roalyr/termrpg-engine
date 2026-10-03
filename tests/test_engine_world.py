@@ -17,6 +17,11 @@ from engine.effects import run
 from engine.frozen import freeze
 from engine.state import Ctx, StatusInst, new_game
 from tui import app, render
+from tui.text import Style
+from tui.ui import default_ui
+from tui.widgets import option_text
+
+UI = default_ui()
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")
@@ -42,7 +47,7 @@ def health(state):
 
 
 def option(state, label):
-    return next(o for o in world.menu(CONTENT, state).options if o.label == label)
+    return next(o for o in world.menu(CONTENT, state).options if option_text(UI, o) == label)
 
 
 def texts(state):
@@ -126,7 +131,7 @@ class TestMovement(unittest.TestCase):
 
     def test_reserved_keys_are_reassigned(self):
         s = keys(new_game(CONTENT, 1), "as")                 # step west, bump the NPC below
-        labels = {o.label: o.key for o in world.menu(CONTENT, s).options}
+        labels = {option_text(UI, o): o.key for o in world.menu(CONTENT, s).options}
         self.assertEqual(labels["Talk"], "t")
         self.assertNotEqual(labels["Recruit"], "t")
 
@@ -188,7 +193,7 @@ class TestSave(unittest.TestCase):
             with self.assertRaisesRegex(save.SaveError, "for pack 'other'"):
                 save.from_json(CONTENT, text.replace('"pack": "test"', '"pack": "other"'))
             with self.assertRaisesRegex(save.SaveError, "version 9.0.0"):
-                save.from_json(CONTENT, text.replace('"pack_version": "0.1.0"', '"pack_version": "9.0.0"'))
+                save.from_json(CONTENT, text.replace(f'"pack_version": "{CONTENT.pack["version"]}"', '"pack_version": "9.0.0"'))
 
     def test_pending_choice_survives_a_save(self):
         s = keys(new_game(CONTENT, 1), "ddd")
@@ -223,7 +228,7 @@ class TestScreen(unittest.TestCase):
         s = run(CONTENT, s, Ctx(self_id=PLAYER), CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"])
         f = self.frame(s)
         self.assertIn("1 Option A", f)
-        self.assertIn("1-4 choose", f)
+        self.assertIn("1-2 choose", f)
 
     def test_too_small(self):
         self.assertIn("at least 40x20", render.render(CONTENT, new_game(CONTENT, 1), 30, 60))
@@ -236,7 +241,7 @@ class TestPlaytestFixes(unittest.TestCase):
         coloured = render.render(CONTENT, s, 44, 60)
         frame = ANSI.sub("", coloured)
         self.assertIn("2 Option B - Needs flag A.", frame)      # flag A is 0: unavailable, with its hint
-        self.assertIn("\x1b[2m", coloured)                       # and dimmed
+        self.assertIn(Style(True, UI.tokens["styles"]).role("2 Option B - Needs flag A.", "unavailable"), coloured)   # and greyed
         self.assertEqual(s.rng, run(CONTENT, new_game(CONTENT, 1), Ctx(self_id=PLAYER),
                                     CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"]).rng)
 

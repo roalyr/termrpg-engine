@@ -367,9 +367,10 @@ Rules the engine follows that the schemas alone don't spell out:
   lands on the nearest free floor tile.
 - **The menu** shows the focused thing while it is on the player's tile or next to
   it: its interactions (`shown_if` hides, `requires` greys out with the hint), "go"
-  for exits, "talk" for characters with dialogue, and "inspect". Keys come from each
-  interaction's `key`; `w a s d i x q p c g t` and `1`–`4` are reserved, so a clash
-  gets a spare letter.
+  for exits, "talk" for characters with dialogue, and "inspect" (keys G, T and I; the
+  UI pack words them). Keys come from each interaction's `key`; the UI pack's key
+  bindings (by default `w a s d . p c x q ]`), `g t i` and the digits are reserved, so
+  a clash gets a spare letter.
 - **Repeats.** `once` interactions are used up for good, `daily` ones until the next
   day; the count is per placement or character.
 - **Time.** Interactions take their `time`; exits their `time`; talking one turn.
@@ -802,39 +803,25 @@ All text the engine prints comes from the pack.
 | `status_applied`, `status_ended` | `{character}`, `{status}` |
 | `day_start` | `{day}` |
 | `phase_start` | `{phase}`, `{day}` |
-| `go_to` | `{destination}` |
-| `talk`, `inspect`, `already_used`, `unavailable` | none |
-| `keys_walk`, `keys_menu`, `keys_choice` | none (the key hints at the bottom) |
-| `day_phase` | `{day}`, `{phase}` |
-| `party` | `{names}` |
-| `pack_fitted`, `pack_carried`, `game_saved` | none |
-| `character_title` | `{name}` |
-| `terminal_too_small` | `{columns}`, `{rows}` |
-| `fit`, `remove`, `store`, `take` | none (pack panel labels) |
-| `refit_needed`, `frame_worn`, `frame_needed`, `remove_modules_first`, `keys_pack` | none |
+| `already_used`, `unavailable`, `game_saved` | none |
+| `refit_needed`, `frame_worn`, `frame_needed`, `remove_modules_first` | none |
 | `no_free_slot`, `cannot_use`, `item_fitted`, `item_removed` | `{item}` |
 | `over_budget` | `{stat}`, `{need}`, `{have}` |
-| `storage_full`, `pack_stored` | `{container}` |
+| `storage_full` | `{container}` |
 | `item_stored`, `item_taken` | `{item}`, `{container}` |
-| `encounter_round` | `{encounter}`, `{round}` |
 | `uses_action` | `{character}`, `{action}` |
 | `action_on` | `{character}`, `{action}`, `{target}` |
 | `damage_taken` | `{character}`, `{amount}` |
 | `damage_blocked` | `{character}` |
-| `round_log` | `{round}` |
-| `round_end`, `keys_debrief` | none |
 | `intent` | `{action}`, `{target}` |
 | `on_cooldown` | `{rounds}` |
 | `needs_item` | `{item}` |
 | `skips_turn`, `fled` | `{character}` |
-| `no_charges`, `keys_encounter`, `keys_target` | none |
-| `dismantle`, `repair`, `fabricate`, `pack_designs`, `needs_service` | none |
-| `modify` | `{modification}` |
+| `no_charges`, `needs_service` | none |
 | `too_advanced`, `no_mod_slot`, `not_damaged`, `design_learned`, `design_not_learned`, `item_fabricated`, `item_repaired` | `{item}` |
 | `needs_materials` | `{items}` |
 | `already_modified`, `item_modified` | `{item}`, `{modification}` |
 | `item_dismantled` | `{item}`, `{items}` |
-| `pack_more` | `{page}`, `{pages}` |
 | `item_used` | `{item}` |
 
 ### Modifications (`modification.schema.json`)
@@ -891,10 +878,12 @@ A **UI pack** standardises the terminal UI and is shared by game packs. It lives
 `default`). It owns the **look, the layout, the keys and the UI's own words**; the
 game pack keeps the game's voice (what happens, hints, dialogue, results).
 
-> **Status:** the schema, the default UI pack and the validator exist. The renderer
-> doesn't read UI packs yet: it still draws the standard look from code, and the
-> UI's words are still read from the game pack's `strings.json`. Rebuilding `tui/`
-> on the UI pack is the next step.
+The renderer (`tui/`) draws everything from the UI pack: `tui/ui.py` loads and
+validates it (an invalid UI pack is refused at start), `tui/widgets.py` holds the
+widget catalogue and `tui/layout.py` lays out the zones. `python3 play.py --ui
+<folder>` plays with another UI pack. The engine never words the UI: built-in options
+("go", "talk", "inspect", "fit", "dismantle"…) carry a kind and parameters, and the
+UI pack's words turn them into text.
 
 **Every field has a default, and the defaults are the standard look.** A UI pack only
 writes what it changes; an empty file of a kind means "all standard".
@@ -913,8 +902,11 @@ win key by key; word entries add up):
 **Zones and layouts.** A zone is one bordered band of a screen. Its `content` is a
 widget, a `row` of two layouts side by side (`fixed` says which side keeps its natural
 width), or a `stack` of layouts one after another (empty ones take no space). A zone
-has a `priority` (when the screen doesn't fit, zones with the highest priority are
-dropped first; 0 is never dropped) and `hide_when_empty`.
+has a `priority` (when the screen is taller than the terminal, zones with the highest
+priority are dropped first; 0 is never dropped), `hide_when_empty` (when off, an empty
+zone keeps one blank line) and `scroll` (when the screen still doesn't fit, the zone
+shows only its last lines, at least one, so the newest messages and the menu stay in
+view).
 
 **Widgets** are a fixed catalogue owned by the engine; each has a few options and is
 allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
@@ -947,11 +939,13 @@ disagree with the real keys.
 file against the schema, then:
 
 - each widget only on the screens that allow it, at most once per screen;
-- no two actions on one key;
+- no two actions on one key, and none on a key the engine's menus use (`g t i` and the
+  fitting board's `f r o k v e b`);
 - hint labels that exist, and a hint shows actions or digits, not both;
 - words with only their own placeholders;
-- the world screen fits the minimum width: outer borders + the largest room
-  (10 tiles × `cell_width` + 3) + divider + `side_min_width` ≤ `min_columns`;
+- the world screen fits the minimum width: outer borders + the largest room in its
+  box (10 tiles, 9 gaps of `cell_width` − 1, the box and its padding) + divider +
+  `side_min_width` ≤ `min_columns`;
 - a warning for a screen without a `keys` widget.
 
 ### The validator

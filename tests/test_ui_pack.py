@@ -95,7 +95,7 @@ class TestUiRules(unittest.TestCase):
 
     def test_grid_must_fit_the_narrowest_screen(self):
         self.edit("tokens.json", lambda d: d["size"].__setitem__("cell_width", 3))
-        self.assertIn("the world screen needs 50 columns", self.errors())
+        self.assertIn("the world screen needs 49 columns", self.errors())
 
     def test_screen_without_keys_warns(self):
         self.edit("screens.json", lambda d: d.__setitem__("debrief", d["debrief"][:2]))

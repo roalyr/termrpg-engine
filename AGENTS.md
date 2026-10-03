@@ -153,8 +153,8 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 - Solid objects (`"solid": true`) are used from the next tile; the player bumps into
   them. Don't make a room's only way through solid. An `entry` on a solid object puts
   arrivals on the nearest free floor tile.
-- Interaction keys `w a s d i x q p c g t` and `1`–`4` are taken by the game; pick
-  another letter for `key`, or the engine picks one.
+- Interaction keys `w a s d . p c x q ]` (the UI pack's bindings), `g t i` and the
+  digits are taken by the game; pick another letter for `key`, or the engine picks one.
 - Players can change frames, modules and implants only next to a workshop offering
   `refit`. Put one where players should be able to refit, and make sure the room's
   `holds_size` fits the frames meant to be worn there.
@@ -231,8 +231,10 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   most 8. `art` is at most 10 lines of 21 characters.
 - A text that is exactly `@` plus an id shows that entry from `strings.json`.
 - Engine messages in `strings.json` may only use their own placeholders:
-  `explain engine` lists them. Write all of them: the screen's labels and key hints
-  come from there too, and a missing one shows as its key.
+  `explain engine` lists them. Write all of them: a missing one shows as its key.
+- The screen's labels, headings and key hints are not in `strings.json`: they belong
+  to the UI pack (`packs/ui/<id>/words.json`), shared by every game. Change them only
+  when the user asks.
 
 ## Editing a UI pack
 

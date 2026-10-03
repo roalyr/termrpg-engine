@@ -1332,6 +1332,11 @@
           "default": true,
           "description": "Draw nothing, not even the border, when the zone has nothing to show."
         },
+        "scroll": {
+          "type": "boolean",
+          "default": false,
+          "description": "When the screen still doesn't fit after dropping zones, show only this zone's last lines (at least one), so the newest messages and the menu stay in view."
+        },
         "notes": {
           "$ref": "common.schema.json#/$defs/notes"
         }

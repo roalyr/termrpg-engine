@@ -1,10 +1,10 @@
 """
 The terminal game: one key at a time, autosaving after every turn.
 
-Keys: WASD move; the letters shown in the menu act; X closes the menu; '.' waits;
-1-4 answer a choice; P and C toggle the pack and character panels; Q saves and
-quits. In the pack panel, 1-9 pick an item and the letters shown act on it. In an
-encounter, 1-9 pick an action tile and, when it needs one, a target.
+Keys come from the UI pack's bindings: moving, waiting, the fitting board, the
+character sheet, closing, quitting and the board's next page. Number keys pick
+numbered entries (a choice's options, board items, action tiles, targets); the letters
+shown in menus act. Any key leaves the after-action screen.
 
 When stdin isn't a terminal, keys are read from it one character at a time, so a
 game can be scripted: python3 play.py < keys.txt
@@ -18,81 +18,94 @@ from engine.content import Content, PackError, load_pack
 from engine.effects import choose_option
 from engine.state import GameState, new_game
 from tui import render, text
+from tui.ui import UI, UIPackError, default_ui, load_ui, ui_dir_for
+
+# The engine's step directions, by input action.
+MOVES = {"move_north": "w", "move_west": "a", "move_south": "s", "move_east": "d"}
 
 
 class View(NamedTuple):
     """What the screen shows besides the world: an open panel and a picked entry."""
     panel: Optional[str] = None      # 'pack' or 'character'
-    selected: Optional[int] = None   # a pack item (index into build.pack_slots()), or in an
+    selected: Optional[int] = None   # a board item (index into build.pack_slots()), or in an
                                      # encounter the action tile waiting for a target
-    page: int = 0                    # the pack panel's page of nine entries
+    page: int = 0                    # the board's page
 
 
-def handle(content: Content, state: GameState, key: str, view: View = View()):
+def _digit(key: str) -> Optional[int]:
+    return int(key) if len(key) == 1 and key.isdigit() and key != "0" else None
+
+
+def handle(content: Content, state: GameState, key: str, view: View = View(), ui: Optional[UI] = None):
     """One key: returns the new state, the view, and whether to quit."""
+    ui = ui or default_ui()
     key = key.lower()
-    if key == "q":
+    action = ui.action_of(key)
+    if action == "quit":
         return state, view, True
     if state.debrief is not None:                 # any key leaves the after-action screen
         return events.settle(content, state._replace(debrief=None)), View(), False
     if state.pending is not None:
-        if key in "1234" and key:
-            state = choose_option(content, state, int(key) - 1)
+        if _digit(key):
+            state = choose_option(content, state, _digit(key) - 1)
             state = turns.advance(content, state, 0)
         return events.settle(content, state), view, False
     if state.encounter is not None:
-        state, view = _fight(content, state, key, view)
+        state, view = _fight(content, state, key, action, view)
         return events.settle(content, state), view, False
-    state, view = _world(content, state, key, view)
+    state, view = _world(content, state, key, action, view, ui)
     return events.settle(content, state), view, False
 
 
-def _fight(content: Content, state: GameState, key: str, view: View):
-    """Encounter keys: a digit picks a tile; when it needs a target, a second digit picks one."""
+def _fight(content: Content, state: GameState, key: str, action: Optional[str], view: View):
+    """A digit picks a tile; when it needs a target, a second digit picks one."""
     tiles = encounter.tiles(content, state)
     if view.selected is not None:
-        if key == "x":
+        if action == "close":
             return state, View()
         options = encounter.targets(content, state, state.player, tiles[view.selected].action)
-        if key.isdigit() and 1 <= int(key) <= len(options):
-            return encounter.take_turn(content, state, tiles[view.selected].action, options[int(key) - 1]), View()
+        if _digit(key) and _digit(key) <= len(options):
+            return encounter.take_turn(content, state, tiles[view.selected].action, options[_digit(key) - 1]), View()
         return state, view
-    if not key.isdigit() or not 1 <= int(key) <= len(tiles):
+    if not _digit(key) or _digit(key) > len(tiles):
         return state, view
-    tile = tiles[int(key) - 1]
+    tile = tiles[_digit(key) - 1]
     if tile.available and len(encounter.targets(content, state, state.player, tile.action)) > 1:
-        return state, View(selected=int(key) - 1)
+        return state, View(selected=_digit(key) - 1)
     return encounter.take_turn(content, state, tile.action), View()
 
 
-def _world(content: Content, state: GameState, key: str, view: View):
-    if key in ("p", "c"):
-        wanted = "pack" if key == "p" else "character"
-        return state, View() if view.panel == wanted else View(wanted)
-    if key in world.DIRECTIONS:
-        return world.move(content, state, key), View()
-    if key == "x":
+def _world(content: Content, state: GameState, key: str, action: Optional[str], view: View, ui: UI):
+    if action in ("pack", "character"):
+        return state, View() if view.panel == action else View(action)
+    if action in MOVES:
+        return world.move(content, state, MOVES[action]), View()
+    if action == "close":
         return state._replace(focus=None, messages=()), View()
     if view.panel == "pack":
         slots = build.pack_slots(content, state)
-        if key == "]":
-            pages = max(1, -(-len(slots) // render.PAGE))
+        page_size = ui.tokens["size"]["page_size"]
+        pages = max(1, -(-len(slots) // page_size))
+        if action == "next_page":
             return state, View("pack", None, (view.page + 1) % pages)
-        if key.isdigit() and key != "0":
-            index = (view.page % max(1, -(-len(slots) // render.PAGE))) * render.PAGE + int(key) - 1
+        if _digit(key) and _digit(key) <= page_size:
+            index = (view.page % pages) * page_size + _digit(key) - 1
             return state, view._replace(selected=index if index < len(slots) else None)
         if view.selected is not None and view.selected < len(slots):
-            return build.item_act(content, state, slots[view.selected], key), view._replace(selected=None)
+            state = build.item_act(content, state, slots[view.selected], key, ui.bound_keys)
+            return state, view._replace(selected=None)
         return state, view
-    if key == ".":
+    if action == "wait":
         return world.wait(content, state), View()
-    return world.act(content, state, key), View()
+    return world.act(content, state, key, ui.bound_keys), View()
 
 
-def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = True) -> int:
+def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = True,
+        ui_dir: Optional[Path] = None) -> int:
     try:
         content = load_pack(pack_dir)
-    except PackError as error:
+        ui = load_ui(ui_dir or ui_dir_for(content.pack["ui"]))
+    except (PackError, UIPackError) as error:
         print(error)
         return 1
     if save_path.exists() and not fresh:
@@ -109,7 +122,8 @@ def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = 
         if interactive:
             text.clear()
         columns, rows = text.terminal_size()
-        sys.stdout.write(render.render(content, state, columns, rows, view.panel, colour, view.selected, view.page))
+        sys.stdout.write(render.render(content, state, columns, rows, view.panel, colour, view.selected,
+                                       view.page, ui))
         sys.stdout.flush()
         key = text.read_key()
         if key in ("", "\x03", "\x04"):
@@ -117,7 +131,7 @@ def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = 
         if key in ("\n", "\r", " "):
             continue
         before = state.turn
-        state, view, quit_now = handle(content, state, key, view)
+        state, view, quit_now = handle(content, state, key, view, ui)
         if state.turn != before:
             save.save(content, state, save_path)
         if quit_now:
