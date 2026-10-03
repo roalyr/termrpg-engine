@@ -217,6 +217,27 @@ class TestStorage(unittest.TestCase):
         self.assertEqual([i.item for i in build.stored(s, "pl_a_locker")], ["material_exotic"])
         self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "material_a"), 12)
 
+    def test_the_board_keeps_the_pick_when_numbers_shift(self):
+        s = walk(new_game(CONTENT, 1), "aaas")               # next to the locker
+        slots = build.pack_slots(CONTENT, s)
+        picked = slots.index(slot_of(s, "material_a"))
+        s, view, _ = app.handle(CONTENT, s, "o", app.View("pack", picked))      # store it
+        stored = build.pack_slots(CONTENT, s)[view.selected]
+        self.assertEqual(stored[0], "storage")
+        self.assertEqual(build.entry_at(CONTENT, s, stored).item, "material_a")
+        s, view, _ = app.handle(CONTENT, s, "k", view)                          # and take it back
+        back = build.pack_slots(CONTENT, s)[view.selected]
+        self.assertEqual(back[0], "inventory")
+        self.assertEqual(build.entry_at(CONTENT, s, back).count, 10)
+
+    def test_the_pick_is_dropped_when_the_item_is_gone(self):
+        s = new_game(CONTENT, 1)
+        s = effects(s, {"op": "take_item", "item": "consumable_a", "count": 2, "subject": "self"})
+        slots = build.pack_slots(CONTENT, s)
+        picked = slots.index(slot_of(s, "consumable_a"))
+        s, view, _ = app.handle(CONTENT, s, "u", app.View("pack", picked))      # uses the last one
+        self.assertIsNone(view.selected)
+
     def test_starting_contents(self):
         s = new_game(CONTENT, 1)
         self.assertEqual([i.item for i in s.storage["pl_b_bay"]], ["frame_b", "implant_a"])

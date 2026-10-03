@@ -92,8 +92,14 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
             index = (view.page % pages) * page_size + _digit(key) - 1
             return state, view._replace(selected=index if index < len(slots) else None)
         if view.selected is not None and view.selected < len(slots):
-            state = build.item_act(content, state, slots[view.selected], key, ui.bound_keys)
-            return state, view._replace(selected=None)
+            slot = slots[view.selected]
+            option = next((o for o in build.item_options(content, state, slot, ui.bound_keys) if o.key == key), None)
+            after = build.item_act(content, state, slot, key, ui.bound_keys)
+            if option is None or after is state:
+                return state, view
+            selected = build.follow(content, state, after, slot, option.kind)   # numbers shift; the pick doesn't
+            page = selected // page_size if selected is not None else view.page
+            return after, View("pack", selected, page)
         return state, view
     if action == "wait":
         return world.wait(content, state), View()

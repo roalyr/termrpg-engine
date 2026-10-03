@@ -2,7 +2,7 @@
   "$schema": "../../schemas/pack.schema.json",
   "id": "test",
   "name": "Test pack",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "schema_version": 1,
   "purpose": "test",
   "description": "Small generic content for engine development and automated tests. Names are placeholders on purpose.",

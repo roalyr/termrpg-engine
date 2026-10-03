@@ -14,7 +14,7 @@ can be used from the pack; a consumable spends one per use.
 When the loadout changes a pool's maximum, the current value moves with it (never
 below 1 when it drops), so putting on a suit adds its health and heat capacity.
 """
-from typing import List, Mapping, NamedTuple, Optional, Tuple
+from typing import List, Mapping, NamedTuple, Optional, Tuple, Union
 
 from engine import conditions, stats, turns, world
 from engine.content import Content
@@ -391,6 +391,46 @@ def item_act(content: Content, state: GameState, slot: Slot, key: str, bindings:
             return craft.modify(content, state, slot, option.modification)
         return craft.fabricate(content, state, craft.designs(content, state)[slot[1]])
     return take(content, state, slot[1])
+
+
+def entry_at(content: Content, state: GameState, slot: Slot) -> Union[ItemInst, str, None]:
+    """What a pack slot holds: an item, a design's item id, or None when the slot is gone."""
+    from engine import craft
+    if slot[0] == "design":
+        known = craft.designs(content, state)
+        return known[slot[1]] if slot[1] < len(known) else None
+    if slot[0] == "storage":
+        where = storage_here(content, state)
+        items = stored(state, where) if where is not None else ()
+        return items[slot[1]] if slot[1] < len(items) else None
+    return stats.item_at(state.characters[state.player], slot)
+
+
+MOVES = {"fit": ("frame", "fitted", "implants"), "remove": ("inventory",), "store": ("storage",), "take": ("inventory",)}
+
+
+def follow(content: Content, before: GameState, after: GameState, slot: Slot, kind: Optional[str]) -> Optional[int]:
+    """
+    Where the pack entry at 'slot' went after an action of this kind, as its new index in
+    pack_slots(), or None when it's gone. Fitting, removing, storing and taking move it to
+    another group, where it's found by value; anything else leaves it in place (repaired,
+    modified, one used from a stack) as long as the slot still holds the same item.
+    """
+    old = entry_at(content, before, slot)
+    if old is None:
+        return None
+    slots = pack_slots(content, after)
+    if kind in MOVES:
+        return next((i for i, s in enumerate(slots) if s[0] in MOVES[kind] and entry_at(content, after, s) == old), None)
+    if slot in slots:
+        now = entry_at(content, after, slot)
+        if now is not None and _entry_item(now) == _entry_item(old):
+            return slots.index(slot)
+    return None
+
+
+def _entry_item(entry: Union[ItemInst, str]) -> str:
+    return entry if isinstance(entry, str) else entry.item
 
 
 def pack_slots(content: Content, state: GameState) -> List[Slot]:

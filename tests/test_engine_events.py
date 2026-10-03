@@ -105,6 +105,23 @@ class TestFiring(unittest.TestCase):
         self.assertEqual(s.characters[PLAYER].designs, before)
 
 
+class TestRest(unittest.TestCase):
+    def test_the_party_recovers_each_morning(self):
+        s = new_game(CONTENT, 1)
+        s = run(CONTENT, s, Ctx(self_id="char_npc"), [
+            freeze({"op": "join_party", "subject": "self"}),
+            freeze({"op": "damage", "amount": 999, "damage_type": "dmg_a", "subject": "self"})])
+        s = run(CONTENT, s, Ctx(self_id=PLAYER), [freeze({"op": "damage", "amount": 15, "damage_type": "dmg_a", "subject": "self"})])
+        self.assertTrue(s.characters["char_npc"].down)
+        hurt = s.characters[PLAYER].pools["stat_health"]
+        s = next_day(s)
+        while s.pending is not None:                         # a morning question waits first
+            s = events.settle(CONTENT, choose_option(CONTENT, s, 0))
+        self.assertFalse(s.characters["char_npc"].down)
+        self.assertGreater(s.characters["char_npc"].pools["stat_health"], 0)
+        self.assertEqual(s.characters[PLAYER].pools["stat_health"], hurt + 10)
+
+
 class TestTriggers(unittest.TestCase):
     def test_the_crate_restocks_each_morning(self):
         s = new_game(CONTENT, 1)

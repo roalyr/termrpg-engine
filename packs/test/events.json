@@ -178,6 +178,21 @@
       ]
     },
     {
+      "id": "event_rest",
+      "name": "Rest",
+      "trigger": "day_start",
+      "notify": false,
+      "notes": "A night's rest: everyone in the player's party gets some health back each morning, and someone who went down gets up again.",
+      "effects": [
+        {
+          "op": "restore",
+          "stat": "stat_health",
+          "amount": 10,
+          "subject": "party"
+        }
+      ]
+    },
+    {
       "id": "event_arrival",
       "name": "Arrival",
       "trigger": "enter_location",
