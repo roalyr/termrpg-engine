@@ -22,6 +22,10 @@ from tui.ui import UI, UIPackError, default_ui, load_ui, ui_dir_for
 
 # The engine's step directions, by input action.
 MOVES = {"move_north": "w", "move_west": "a", "move_south": "s", "move_east": "d"}
+# Keys every terminal sends the same way, whatever the UI pack binds: arrows move, Esc closes.
+FIXED_KEYS = {"\x1b[A": "move_north", "\x1b[B": "move_south", "\x1b[C": "move_east", "\x1b[D": "move_west",
+              "\x1bOA": "move_north", "\x1bOB": "move_south", "\x1bOC": "move_east", "\x1bOD": "move_west",
+              "\x1b": "close"}
 
 
 class View(NamedTuple):
@@ -39,8 +43,10 @@ def _digit(key: str) -> Optional[int]:
 def handle(content: Content, state: GameState, key: str, view: View = View(), ui: Optional[UI] = None):
     """One key: returns the new state, the view, and whether to quit."""
     ui = ui or default_ui()
+    action = FIXED_KEYS.get(key) or ui.action_of(key.lower())        # bindings are lower case
+    if key in FIXED_KEYS:
+        key = ui.bindings.get(action, "")
     key = key.lower()
-    action = ui.action_of(key)
     if action == "quit":
         return state, view, True
     if state.debrief is not None:                 # any key leaves the after-action screen

@@ -633,63 +633,63 @@
           "properties": {
             "move_north": {
               "type": "string",
-              "pattern": "^[^0-9\\s]$",
+              "pattern": "^[^0-9A-Z\\s]$",
               "default": "w",
-              "description": "Step up."
+              "description": "Step up. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "move_west": {
               "type": "string",
-              "pattern": "^[^0-9\\s]$",
+              "pattern": "^[^0-9A-Z\\s]$",
               "default": "a",
-              "description": "Step left."
+              "description": "Step left. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "move_south": {
               "type": "string",
-              "pattern": "^[^0-9\\s]$",
+              "pattern": "^[^0-9A-Z\\s]$",
               "default": "s",
-              "description": "Step down."
+              "description": "Step down. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "move_east": {
               "type": "string",
-              "pattern": "^[^0-9\\s]$",
+              "pattern": "^[^0-9A-Z\\s]$",
               "default": "d",
-              "description": "Step right."
+              "description": "Step right. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "wait": {
               "type": "string",
-              "pattern": "^[^0-9\\s]$",
+              "pattern": "^[^0-9A-Z\\s]$",
               "default": ".",
-              "description": "Let a turn pass."
+              "description": "Let a turn pass. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "pack": {
               "type": "string",
-              "pattern": "^[^0-9\\s]$",
+              "pattern": "^[^0-9A-Z\\s]$",
               "default": "p",
-              "description": "Open or close the fitting board."
+              "description": "Open or close the fitting board. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "character": {
               "type": "string",
-              "pattern": "^[^0-9\\s]$",
+              "pattern": "^[^0-9A-Z\\s]$",
               "default": "c",
-              "description": "Open or close the character sheet."
+              "description": "Open or close the character sheet. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "close": {
               "type": "string",
-              "pattern": "^[^0-9\\s]$",
+              "pattern": "^[^0-9A-Z\\s]$",
               "default": "x",
-              "description": "Close the menu, panel or target choice."
+              "description": "Close the menu, panel or target choice. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "quit": {
               "type": "string",
-              "pattern": "^[^0-9\\s]$",
+              "pattern": "^[^0-9A-Z\\s]$",
               "default": "q",
-              "description": "Save and quit."
+              "description": "Save and quit. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "next_page": {
               "type": "string",
-              "pattern": "^[^0-9\\s]$",
+              "pattern": "^[^0-9A-Z\\s]$",
               "default": "]",
-              "description": "Next page of the fitting board."
+              "description": "Next page of the fitting board. One key: not a digit, a space or an upper-case letter (keys match either case)."
             }
           },
           "additionalProperties": false,

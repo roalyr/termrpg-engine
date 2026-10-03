@@ -91,7 +91,11 @@ def clear() -> None:
 
 
 def read_key() -> str:
-    """One keypress without Enter (raw mode). Falls back to a line when stdin isn't a terminal."""
+    """
+    One keypress without Enter (raw mode): a whole character, or a whole escape sequence
+    such as an arrow key ('\x1b[A'). '' only at the end of input. When stdin isn't a
+    terminal, keys are read from it one character at a time.
+    """
     if not sys.stdin.isatty():
         return sys.stdin.read(1)
     import termios
@@ -100,7 +104,20 @@ def read_key() -> str:
     old = termios.tcgetattr(fd)
     try:
         tty.setraw(fd)
-        key = os.read(fd, 1).decode(errors="ignore")
+        data = os.read(fd, 1)
+        if data == b"\x1b":                               # an escape sequence, or Esc alone
+            data += _pending_bytes(fd)
+        elif data and data[0] >= 0xC0:                    # the rest of a UTF-8 character
+            data += os.read(fd, 1 if data[0] < 0xE0 else 2 if data[0] < 0xF0 else 3)
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
-    return key
+    return data.decode(errors="replace")
+
+
+def _pending_bytes(fd: int, limit: int = 8) -> bytes:
+    """Bytes that arrive right after Esc: the rest of an escape sequence."""
+    import select
+    data = b""
+    while len(data) < limit and select.select([fd], [], [], 0.03)[0]:
+        data += os.read(fd, 1)
+    return data
