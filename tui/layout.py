@@ -6,11 +6,14 @@ A zone is one bordered band; its content is a widget, a row of two layouts side 
 layouts one after another. Zones with nothing to show are skipped when
 hide_when_empty is on. When the screen is taller than the terminal, zones are dropped
 highest priority first (priority 0 is never dropped); if it still doesn't fit, scroll
-zones keep only their last lines (at least one).
+zones keep only their last lines (at least one). If even that is too tall, the screen
+is drawn again with the widgets' compact forms (tiles as a list, no gaps, no art frame),
+and as a last resort the tallest zones lose their last lines, so a frame never
+overflows the terminal.
 """
 from typing import Any, List, Mapping, Optional, Tuple
 
-from tui.text import pad, visible_len
+from tui.text import pad
 from tui.widgets import NATURAL_WIDTH, WIDGETS, Frame
 
 
@@ -25,7 +28,7 @@ def draw_layout(frame: Frame, layout: Mapping[str, Any], width: int) -> List[str
 
 def _natural(frame: Frame, layout: Mapping[str, Any]) -> Optional[int]:
     if "widget" in layout and layout["widget"] in NATURAL_WIDTH:
-        return NATURAL_WIDTH[layout["widget"]](frame)
+        return NATURAL_WIDTH[layout["widget"]](frame, layout)
     return None
 
 
@@ -72,9 +75,29 @@ def _zone_lines(frame: Frame, zone: Mapping[str, Any], inner: int) -> List[str]:
 
 
 def draw_screen(frame: Frame, zones: List[Mapping[str, Any]], columns: int, rows: int) -> str:
-    """A whole screen at the terminal's size: zones in bordered bands, dropped by priority when too tall."""
+    """A whole screen at the terminal's size: zones in bordered bands, fitted to the terminal's height."""
     border = frame.glyphs["border"]
     inner = columns - 2
+    bands = _fit(frame, zones, inner, rows)
+    if _height(bands) > rows and not frame.compact:
+        bands = _fit(frame._replace(compact=True), zones, inner, rows)
+    while _height(bands) > rows:                             # last resort: clip the tallest zone
+        i = max(range(len(bands)), key=lambda j: len(bands[j][1]))
+        if len(bands[i][1]) <= 1:
+            break
+        bands[i] = (bands[i][0], bands[i][1][:-1])
+    horizontal = border["horizontal"] * inner
+    out = [border["top_left"] + horizontal + border["top_right"]]
+    for index, (_, lines) in enumerate(bands):
+        if index:
+            out.append(border["join_left"] + horizontal + border["join_right"])
+        out += [border["vertical"] + pad(line, inner) + border["vertical"] for line in lines]
+    out.append(border["bottom_left"] + horizontal + border["bottom_right"])
+    return "\n".join(out) + "\n"
+
+
+def _fit(frame: Frame, zones: List[Mapping[str, Any]], inner: int, rows: int) -> List[Tuple[Mapping[str, Any], List[str]]]:
+    """The zones' bands, with low-priority zones dropped and scroll zones scrolled to fit."""
     bands: List[Tuple[Mapping[str, Any], List[str]]] = []
     for zone in zones:
         lines = _zone_lines(frame, zone, inner)
@@ -92,14 +115,7 @@ def draw_screen(frame: Frame, zones: List[Mapping[str, Any]], columns: int, rows
         excess = _height(bands) - rows
         if excess > 0 and zone.get("scroll") and len(lines) > 1:
             bands[i] = (zone, lines[min(excess, len(lines) - 1):])
-    horizontal = border["horizontal"] * inner
-    out = [border["top_left"] + horizontal + border["top_right"]]
-    for index, (_, lines) in enumerate(bands):
-        if index:
-            out.append(border["join_left"] + horizontal + border["join_right"])
-        out += [border["vertical"] + pad(line, inner) + border["vertical"] for line in lines]
-    out.append(border["bottom_left"] + horizontal + border["bottom_right"])
-    return "\n".join(out) + "\n"
+    return bands
 
 
 def _height(bands: List[Tuple[Mapping[str, Any], List[str]]]) -> int:

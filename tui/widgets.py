@@ -8,10 +8,10 @@ headings from the UI pack. Sizes, glyphs and styles come from the UI pack's toke
 """
 from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional
 
-from engine import build, conditions, context, craft, encounter, stats, world
+from engine import build, conditions, context, encounter, stats, world
 from engine.content import Content
 from engine.state import GameState, day_of, phase_of
-from tui.text import ANSI, Style, pad, visible_len, wrap
+from tui.text import ANSI, Style, visible_len, wrap
 from tui.ui import UI
 
 
@@ -25,6 +25,7 @@ class Frame(NamedTuple):
     panel: Optional[str] = None   # 'pack' or 'character'
     selected: Optional[int] = None
     page: int = 0
+    compact: bool = False         # the screen is short: widgets with a compact form use it
 
     @property
     def tokens(self) -> Mapping[str, Any]:
@@ -108,7 +109,7 @@ def title(frame: Frame, width: int, options: Mapping) -> List[str]:
 
 # --- grid ------------------------------------------------------------------------------
 
-def grid_width(frame: Frame) -> int:
+def grid_width(frame: Frame, options: Mapping) -> int:
     location = frame.content.get("location", frame.state.characters[frame.state.player].location)
     tiles, cell = location["grid"]["width"], frame.size["cell_width"]
     return tiles + (tiles - 1) * (cell - 1) + 4
@@ -122,7 +123,7 @@ def grid(frame: Frame, width: int, options: Mapping) -> List[str]:
     spec = location["grid"]
     people = {tuple(state.characters[cid].at): cid for cid in world.others_here(state)}
     gap = " " * (frame.size["cell_width"] - 1)
-    inner = grid_width(frame) - 2
+    inner = grid_width(frame, options) - 2
     lines = [border["top_left"] + border["horizontal"] * inner + border["top_right"]]
     for row in range(spec["height"]):
         cells = []
@@ -291,11 +292,8 @@ def board(frame: Frame, width: int, options: Mapping) -> List[str]:
                        "design": ui.word("pack_designs")}.get(group) or \
                 ui.word("pack_stored", container=content.get("placement", where_store)["name"])
             lines.append(style.role(heading, "heading"))
-        if slot[0] == "design":
-            text = content.get("item", craft.designs(content, state)[slot[1]])["name"]
-        else:
-            inst = build.stored(state, where_store)[slot[1]] if slot[0] == "storage" else stats.item_at(player, slot)
-            text = _item_line(content, inst)
+        entry = build.entry_at(content, state, slot)
+        text = content.get("item", entry)["name"] if slot[0] == "design" else _item_line(content, entry)
         entry = f"{number} {text}"[:width]
         lines.append(style.key(entry) if frame.selected == first + number - 1 else entry)
     if pages > 1:
@@ -335,8 +333,8 @@ def sheet(frame: Frame, width: int, options: Mapping) -> List[str]:
 
 # --- encounter widgets -----------------------------------------------------------------
 
-def art_width(frame: Frame) -> int:
-    return max(visible_len(line) for line in _art_lines(frame, {"frame": True}))
+def art_width(frame: Frame, options: Mapping) -> int:
+    return max(visible_len(line) for line in _art_lines(frame, options))
 
 
 def _art_lines(frame: Frame, options: Mapping) -> List[str]:
@@ -345,7 +343,7 @@ def _art_lines(frame: Frame, options: Mapping) -> List[str]:
     record = content.get("character", state.characters[enemies[0]].source) if enemies else {}
     lines = list(record.get("art", ())) or [record.get("glyph") or record.get("name", " ")[0]]
     widest = max(len(line) for line in lines)
-    if not options.get("frame", True):
+    if not options.get("frame", True) or frame.compact:
         return [line.ljust(widest) for line in lines]
     border = frame.glyphs["border"]
     edge = border["horizontal"] * (widest + 2)
@@ -372,7 +370,8 @@ def fighters(frame: Frame, width: int, options: Mapping) -> List[str]:
     if stats.stat(content, me, heat) > 0:
         short = content.get("stat", heat).get("short") or heat
         lines.append(f"{short:<10} {bar(frame, stats.current(content, me, heat), stats.stat(content, me, heat), length)}")
-    lines.append("")
+    if not frame.compact:
+        lines.append("")                              # a gap between the sides
     for number, cid in enumerate(encounter.living(state, "enemies"), 1):
         cs = state.characters[cid]
         name = content.get("character", cs.source)["name"][:8]
@@ -385,7 +384,19 @@ def fighters(frame: Frame, width: int, options: Mapping) -> List[str]:
 
 
 def tiles(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """Action tiles as boxes; compact, as a wrapped list ('1 Strike ▲1  2 Guard ▲1')."""
     tile_list = encounter.tiles(frame.content, frame.state)
+    if frame.compact:
+        lines: List[str] = []
+        for tile in tile_list:
+            cost = f" {frame.glyphs['cost']}{tile.cost}" if tile.cost else ""
+            entry = f"{tile.key} {tile.label}{cost}"[:width]
+            entry = entry if tile.available else frame.style.role(entry, "unavailable")
+            if lines and visible_len(lines[-1]) + 2 + visible_len(entry) <= width:
+                lines[-1] += "  " + entry
+            else:
+                lines.append(entry)
+        return lines
     tile_width = frame.size["tile_width"]
     per_row = options.get("per_row", 0) or max(1, width // tile_width)
     per_row = min(per_row, max(1, width // tile_width))
@@ -472,4 +483,4 @@ WIDGETS: Dict[str, Draw] = {
 }
 
 # Widgets with a natural width of their own (the rest take the width they're given).
-NATURAL_WIDTH: Dict[str, Callable[[Frame], int]] = {"grid": grid_width, "art": art_width}
+NATURAL_WIDTH: Dict[str, Callable[[Frame, Mapping], int]] = {"grid": grid_width, "art": art_width}

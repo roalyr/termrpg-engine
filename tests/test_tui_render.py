@@ -15,7 +15,7 @@ from engine.effects import run
 from engine.frozen import freeze
 from engine.state import Ctx, new_game
 from tui import app, render
-from tui.text import visible_len
+from tui.text import Style, visible_len
 from tui.ui import UIPackError, default_ui, load_ui, ui_dir_for
 from tui.widgets import option_text
 
@@ -145,6 +145,20 @@ class TestFitting(unittest.TestCase):
         self.assertFalse(any(a.startswith("├") and b.startswith("├") for a, b in zip(lines, lines[1:])))
 
 
+    def test_short_encounters_switch_to_compact_widgets(self):
+        s = new_game(CONTENT, 1)
+        s = run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "grant_xp", "skill": "skill_a", "amount": 30,
+                                                             "subject": "self"})])          # unlocks a fourth tile
+        s = encounter.begin(CONTENT, s._replace(encounter_request="enc_drones"))
+        self.assertEqual(len(encounter.tiles(CONTENT, s)), 4)
+        roomy, short = plain(s, 40, 40), plain(s, 40, 20)
+        self.assertIn("┌────────┐", roomy)                       # boxed tiles when there's room
+        self.assertLessEqual(len(short.splitlines()), 20)
+        self.assertIn("1 Strike ▲1  2 Guard ▲1", short)           # a list when there isn't
+        self.assertIn("4 Retreat", short)
+        self.assertIn("2 Drone", short)                          # every fighter still shown
+
+
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):
     def test_built_in_options_have_no_label(self):
         options = {o.kind: o for o in world.menu(CONTENT, menu_state()).options}
@@ -160,6 +174,17 @@ class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):
         s = encounter.take_turn(CONTENT, s, "action_guard")         # the status ticks at the round's end
         self.assertIn(("heading", "round_end"), [(m.kind, m.text) for m in s.messages])
         self.assertIn("End of round", plain(s))
+
+
+class TestEngineDefaults(unittest.TestCase):
+    def test_engine_default_bindings_match_the_default_ui_pack(self):
+        # The engine avoids these keys when no UI pack is passed in; they must be the standard ones.
+        self.assertEqual(world.STANDARD_BINDINGS, UI.bound_keys)
+
+    def test_menu_keys_are_drawn_in_the_key_style(self):
+        frame = render.render(CONTENT, menu_state(), 44, 60, ui=UI)
+        self.assertIn(Style(True, UI.tokens["styles"]).key("U"), frame)
+        self.assertIn("\x1b[7;", frame)
 
 
 class TestCustomUIPack(unittest.TestCase):

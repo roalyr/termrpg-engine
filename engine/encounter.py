@@ -29,7 +29,7 @@ from typing import Dict, List, Mapping, NamedTuple, Optional, Tuple
 from engine import conditions, context, rng, stats, turns
 from engine.content import Content
 from engine.effects import run
-from engine.frozen import Record, freeze
+from engine.frozen import freeze
 from engine.state import CharState, Ctx, Debrief, GameState, Message, character_from
 
 

@@ -4,7 +4,7 @@ validated and with every default filled in.
 """
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, NamedTuple, Optional
+from typing import Any, List, Mapping, NamedTuple, Optional
 
 from core import uipack
 from core.pack import Report

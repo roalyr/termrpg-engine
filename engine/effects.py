@@ -16,7 +16,7 @@ a request for the event engine (milestone 6). During an encounter, a fighter's
 on_defeat waits until the encounter ends.
 spend_time adds to the turns owed, which engine.turns processes after the action.
 """
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Sequence, Tuple
 
 from engine import context, stats
 from engine.conditions import evaluate, holds

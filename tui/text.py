@@ -11,7 +11,6 @@ RESET = "\x1b[0m"
 # The engine's palette (grade colours and the warning colour), as 256-colour codes.
 PALETTE = {"grey": 245, "white": 255, "green": 114, "cyan": 80, "blue": 75,
            "violet": 141, "yellow": 221, "orange": 208, "red": 203}
-DANGER = "orange"
 
 
 class Style:
@@ -27,10 +26,10 @@ class Style:
     def _wrap(self, text: str, code: str) -> str:
         return f"\x1b[{code}m{text}{RESET}" if self.colour and text else text
 
-    def role(self, text: str, role: str) -> str:
-        """Text in a role's style: its colour, bold and dim."""
+    def role(self, text: str, role: str, *extra: str) -> str:
+        """Text in a role's style: its colour, bold and dim (plus any extra codes)."""
         spec = self.styles.get(role, {})
-        codes = []
+        codes = list(extra)
         if spec.get("bold"):
             codes.append("1")
         if spec.get("dim"):
@@ -39,24 +38,12 @@ class Style:
             codes.append(f"38;5;{PALETTE.get(spec['colour'], PALETTE['white'])}")
         return self._wrap(text, ";".join(codes)) if codes else text
 
-    def bold(self, text: str) -> str:
-        return self._wrap(text, "1")
-
-    def dim(self, text: str) -> str:
-        return self._wrap(text, "2")
-
     def inverse(self, text: str) -> str:
         return f"\x1b[7m{text}{RESET}" if text else text
 
     def key(self, text: str) -> str:
-        """A key letter in a menu: inverse in colour, plain otherwise."""
-        return f"\x1b[7m{text}{RESET}" if self.colour and text else text
-
-    def tint(self, text: str, colour: str) -> str:
-        return self._wrap(text, f"38;5;{PALETTE.get(colour, PALETTE['white'])}")
-
-    def danger(self, text: str) -> str:
-        return self.role(text, "danger") if "danger" in self.styles else self.tint(text, DANGER)
+        """A key letter in a menu: inverse, in the 'key' role's style. Plain without colour."""
+        return self.role(text, "key", "7")
 
 
 def visible_len(text: str) -> int:

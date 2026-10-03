@@ -12,7 +12,7 @@ or a schema file name ('pack', 'vocab', 'world'…).
 """
 import sys
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from core import schema
 from core import uipack
