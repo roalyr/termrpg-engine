@@ -2,11 +2,11 @@
   "$schema": "../../schemas/item.schema.json",
   "entries": [
     {
-      "id": "frame_a",
+      "id": "frame_light",
       "kind": "frame",
-      "name": "Frame A",
+      "name": "Light suit",
       "size": 3,
-      "grade": "grade_a",
+      "grade": "grade_common",
       "stats": {
         "stat_health": 20,
         "stat_power": 6,
@@ -16,23 +16,23 @@
       },
       "slots": [
         {
-          "slot_type": "slot_frame_hand",
+          "slot_type": "slot_hand",
           "count": 2
         },
         {
-          "slot_type": "slot_frame_a"
+          "slot_type": "slot_back"
         }
       ],
       "mod_slots": 2
     },
     {
-      "id": "frame_b",
+      "id": "frame_heavy",
       "kind": "frame",
-      "name": "Frame B",
+      "name": "Heavy suit",
       "size": 5,
-      "grade": "grade_b",
+      "grade": "grade_fine",
       "tags": [
-        "tag_b"
+        "tag_filter"
       ],
       "stats": {
         "stat_health": 45,
@@ -44,30 +44,30 @@
       },
       "slots": [
         {
-          "slot_type": "slot_frame_hand",
+          "slot_type": "slot_hand",
           "count": 2
         },
         {
-          "slot_type": "slot_frame_a",
+          "slot_type": "slot_back",
           "count": 3
         }
       ],
       "fit_requires": {
         "check": "skill",
-        "skill": "skill_a",
+        "skill": "skill_salvage",
         "min": 2
       }
     },
     {
-      "id": "module_tool",
+      "id": "module_cutter",
       "kind": "module",
-      "name": "Tool A",
+      "name": "Cutter",
       "size": 1,
       "tags": [
-        "tag_a"
+        "tag_tool"
       ],
       "condition": 4,
-      "slot_type": "slot_frame_hand",
+      "slot_type": "slot_hand",
       "uses": {
         "power": 1,
         "mass": 2
@@ -79,20 +79,20 @@
       "salvage": {
         "yields": [
           {
-            "item": "material_a",
+            "item": "material_scrap",
             "count": 2
           }
         ],
         "learn_requires": {
           "check": "skill",
-          "skill": "skill_a",
+          "skill": "skill_salvage",
           "min": 2
         }
       },
       "fabricate": {
         "inputs": [
           {
-            "item": "material_a",
+            "item": "material_scrap",
             "count": 3
           }
         ],
@@ -101,19 +101,19 @@
       "repair": {
         "inputs": [
           {
-            "item": "material_a"
+            "item": "material_scrap"
           }
         ],
         "amount": 2
       }
     },
     {
-      "id": "module_system",
+      "id": "module_shield",
       "kind": "module",
-      "name": "System A",
+      "name": "Shield",
       "size": 2,
-      "grade": "grade_b",
-      "slot_type": "slot_frame_a",
+      "grade": "grade_fine",
+      "slot_type": "slot_back",
       "uses": {
         "power": 3,
         "mass": 3,
@@ -128,28 +128,28 @@
       "mod_slots": 2
     },
     {
-      "id": "implant_a",
+      "id": "implant_eye",
       "kind": "implant",
-      "name": "Implant A",
+      "name": "Eye implant",
       "size": 0,
-      "slot_type": "slot_body_a",
+      "slot_type": "slot_head",
       "stats": {
         "stat_initiative": 1
       }
     },
     {
-      "id": "material_a",
+      "id": "material_scrap",
       "kind": "material",
-      "name": "Material A",
+      "name": "Scrap",
       "size": 1,
       "stack": 10,
       "value": 2,
-      "grade": "grade_a"
+      "grade": "grade_common"
     },
     {
-      "id": "consumable_a",
+      "id": "consumable_medkit",
       "kind": "consumable",
-      "name": "Consumable A",
+      "name": "Medkit",
       "size": 0,
       "stack": 5,
       "interactions": [
@@ -170,21 +170,21 @@
       ]
     },
     {
-      "id": "misc_key",
+      "id": "misc_keycard",
       "kind": "misc",
-      "name": "Key A",
+      "name": "Keycard",
       "size": 0,
       "tags": [
-        "tag_a"
+        "tag_tool"
       ]
     },
     {
-      "id": "material_exotic",
+      "id": "material_odd_metal",
       "kind": "material",
-      "name": "Exotic A",
+      "name": "Odd metal",
       "size": 0,
       "stack": 5,
-      "grade": "grade_b"
+      "grade": "grade_fine"
     }
   ]
 }

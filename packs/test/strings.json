@@ -68,11 +68,11 @@
   },
   "entries": [
     {
-      "id": "greeting",
+      "id": "str_greeting",
       "text": "Hello."
     },
     {
-      "id": "shrug",
+      "id": "str_shrug",
       "text": "You let it go."
     }
   ]

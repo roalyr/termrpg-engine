@@ -23,13 +23,13 @@ class TestLoadPack(unittest.TestCase):
             self.assertTrue(self.content.all(namespace), namespace)
 
     def test_lookup(self):
-        self.assertEqual(self.content.get("item", "frame_a")["kind"], "frame")
+        self.assertEqual(self.content.get("item", "frame_light")["kind"], "frame")
         with self.assertRaisesRegex(KeyError, "unknown item 'nope'"):
             self.content.get("item", "nope")
         self.assertEqual(self.content.all("no_such_namespace"), {})
 
     def test_records_are_read_only(self):
-        item = self.content.get("item", "frame_a")
+        item = self.content.get("item", "frame_light")
         with self.assertRaises(TypeError):
             item["name"] = "Changed"
         self.assertIsInstance(item["slots"], tuple)
@@ -37,12 +37,12 @@ class TestLoadPack(unittest.TestCase):
             self.content.index["item"]["new"] = {}
 
     def test_defaults_from_the_schemas(self):
-        tool = self.content.get("item", "module_tool")
+        tool = self.content.get("item", "module_cutter")
         self.assertEqual(tool["stack"], 1)
         self.assertEqual(tool["salvage"]["learn"], True)
-        system = self.content.get("item", "module_system")
+        system = self.content.get("item", "module_shield")
         self.assertEqual(system["uses"]["power"], 3)
-        self.assertEqual(self.content.get("item", "module_tool")["uses"]["heat"], 0)
+        self.assertEqual(self.content.get("item", "module_cutter")["uses"]["heat"], 0)
         search = self.content.get("object", "obj_crate")["interactions"][0]
         self.assertEqual(search["repeat"], "daily")
         door = self.content.get("object", "obj_door")["interactions"][1]
@@ -72,17 +72,17 @@ class TestLoadPack(unittest.TestCase):
         self.assertEqual([r["rank"] for r in self.content.ranks], [0, 1])
 
     def test_placements_merge_their_template(self):
-        door_b = self.content.get("placement", "pl_b_door_a")
-        self.assertEqual(door_b["location"], "room_b")
+        door_b = self.content.get("placement", "storage_door")
+        self.assertEqual(door_b["location"], "loc_storage")
         self.assertEqual(door_b["name"], "Door")                 # from the template
         self.assertEqual(door_b["state"], "state_open")          # placement override
         self.assertEqual(door_b["at"], (0, 3))
-        self.assertEqual(door_b["exit"]["location"], "room_a")
+        self.assertEqual(door_b["exit"]["location"], "loc_workshop")
         self.assertEqual([i["id"] for i in door_b["interactions"]], ["open", "close"])
-        door_a = self.content.get("placement", "pl_a_door_b")
+        door_a = self.content.get("placement", "workshop_door")
         self.assertEqual(door_a["state"], "state_closed")        # template's first state
-        passage = self.content.get("placement", "pl_a_zone")
-        self.assertEqual(passage["name"], "Zone passage")         # name override
+        passage = self.content.get("placement", "workshop_passage")
+        self.assertEqual(passage["name"], "Tunnel hatch")         # name override
         self.assertIsNone(passage["state"])                        # no states at all
 
     def test_placement_interactions_merge_by_id(self):
@@ -90,20 +90,20 @@ class TestLoadPack(unittest.TestCase):
             pack = Path(tmp) / "pack"
             shutil.copytree(TEST_PACK, pack)
             data = json.loads((pack / "locations.json").read_text())
-            crate = next(p for p in data["entries"][0]["placements"] if p["id"] == "pl_a_crate")
+            crate = next(p for p in data["entries"][0]["placements"] if p["id"] == "workshop_crate")
             crate["interactions"] = [
                 {"id": "search", "label": "Search carefully", "effects": []},
                 {"id": "kick", "label": "Kick it", "effects": []}]
-            crate["tags"] = ["tag_b"]
+            crate["tags"] = ["tag_filter"]
             (pack / "locations.json").write_text(json.dumps(data))
-            placed = load_pack(pack).get("placement", "pl_a_crate")
+            placed = load_pack(pack).get("placement", "workshop_crate")
         self.assertEqual([i["label"] for i in placed["interactions"]], ["Search carefully", "Kick it"])
-        self.assertEqual(placed["tags"], ("tag_b",))
+        self.assertEqual(placed["tags"], ("tag_filter",))
 
     def test_text_and_messages(self):
-        self.assertEqual(self.content.text("@greeting"), "Hello.")
+        self.assertEqual(self.content.text("@str_greeting"), "Hello.")
         self.assertEqual(self.content.text("Plain words."), "Plain words.")
-        self.assertEqual(self.content.message("enter_location", location="Room A"), "You enter Room A.")
+        self.assertEqual(self.content.message("enter_location", location="Workshop"), "You enter Workshop.")
         self.assertEqual(self.content.message("not_written"), "not_written")
 
     def test_warnings_are_kept(self):

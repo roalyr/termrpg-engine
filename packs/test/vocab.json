@@ -2,17 +2,21 @@
   "$schema": "../../schemas/vocab.schema.json",
   "tags": [
     {
-      "id": "tag_a",
-      "name": "a tag A item"
+      "id": "tag_tool",
+      "name": "a tool"
     },
     {
-      "id": "tag_b",
-      "name": "a tag B item"
+      "id": "tag_filter",
+      "name": "an air filter"
     },
     {
-      "id": "tag_hazard",
-      "name": "a hazard",
+      "id": "tag_gas_leak",
+      "name": "gas leak",
       "hazard": true
+    },
+    {
+      "id": "tag_machine",
+      "name": "a machine"
     }
   ],
   "stats": [
@@ -62,19 +66,19 @@
   ],
   "damage_types": [
     {
-      "id": "dmg_a",
-      "name": "Damage A",
+      "id": "dmg_impact",
+      "name": "Impact",
       "resisted_by": "stat_armor"
     },
     {
-      "id": "dmg_b",
-      "name": "Damage B"
+      "id": "dmg_toxic",
+      "name": "Toxic"
     }
   ],
   "statuses": [
     {
-      "id": "status_dot",
-      "name": "Damage over time",
+      "id": "status_burning",
+      "name": "Burning",
       "glyph": "*",
       "stacking": "stack",
       "max_stacks": 3,
@@ -85,7 +89,7 @@
             "min": 1,
             "max": 2
           },
-          "damage_type": "dmg_b",
+          "damage_type": "dmg_toxic",
           "subject": "self"
         }
       ]
@@ -98,17 +102,17 @@
   ],
   "slot_types": [
     {
-      "id": "slot_frame_a",
-      "name": "Frame slot A",
+      "id": "slot_back",
+      "name": "Back",
       "host": "frame"
     },
     {
-      "id": "slot_body_a",
-      "name": "Body slot A",
+      "id": "slot_head",
+      "name": "Head",
       "host": "body"
     },
     {
-      "id": "slot_frame_hand",
+      "id": "slot_hand",
       "name": "Hand",
       "host": "frame"
     }
@@ -142,11 +146,11 @@
   "ranks": [
     {
       "rank": 0,
-      "name": "R0"
+      "name": "Newcomer"
     },
     {
       "rank": 1,
-      "name": "R1"
+      "name": "Regular"
     }
   ],
   "relation_levels": [
@@ -179,38 +183,38 @@
   ],
   "phases": [
     {
-      "id": "phase_a",
-      "name": "Phase A",
+      "id": "phase_day",
+      "name": "Day shift",
       "turns": 30
     },
     {
-      "id": "phase_b",
-      "name": "Phase B",
+      "id": "phase_night",
+      "name": "Night shift",
       "turns": 30
     }
   ],
   "factions": [
     {
-      "id": "faction_a",
-      "name": "Faction A"
+      "id": "faction_crew",
+      "name": "Station crew"
     }
   ],
   "flags": [
     {
-      "id": "flag_a",
-      "description": "A test flag."
+      "id": "flag_power",
+      "description": "Power reaches the storage terminal."
     }
   ],
   "grades": [
     {
-      "id": "grade_a",
-      "name": "Grade A",
+      "id": "grade_common",
+      "name": "Common",
       "colour": "grey",
       "order": 0
     },
     {
-      "id": "grade_b",
-      "name": "Grade B",
+      "id": "grade_fine",
+      "name": "Fine",
       "colour": "cyan",
       "order": 1
     }

@@ -2,9 +2,9 @@
   "$schema": "../../schemas/world.schema.json",
   "entries": [
     {
-      "id": "room_a",
-      "name": "Room A",
-      "region": "region_a_1",
+      "id": "loc_workshop",
+      "name": "Workshop",
+      "region": "reg_lower_deck",
       "size": 4,
       "holds_size": 3,
       "grid": {
@@ -19,15 +19,15 @@
       },
       "placements": [
         {
-          "id": "pl_a_door_b",
+          "id": "workshop_door",
           "object": "obj_door",
           "at": [
             0,
             2
           ],
           "exit": {
-            "location": "room_b",
-            "entry": "pl_b_door_a",
+            "location": "loc_storage",
+            "entry": "storage_door",
             "requires": {
               "check": "object_state",
               "object": "this",
@@ -37,7 +37,7 @@
           }
         },
         {
-          "id": "pl_a_crate",
+          "id": "workshop_crate",
           "object": "obj_crate",
           "at": [
             1,
@@ -45,19 +45,19 @@
           ]
         },
         {
-          "id": "pl_a_zone",
+          "id": "workshop_passage",
           "object": "obj_passage",
           "at": [
             5,
             2
           ],
-          "name": "Zone passage",
+          "name": "Tunnel hatch",
           "exit": {
-            "zone": "zone_a"
+            "zone": "zone_tunnels"
           }
         },
         {
-          "id": "pl_a_locker",
+          "id": "workshop_locker",
           "object": "obj_locker",
           "at": [
             4,
@@ -65,12 +65,12 @@
           ],
           "contents": [
             {
-              "item": "material_exotic"
+              "item": "material_odd_metal"
             }
           ]
         },
         {
-          "id": "pl_a_bench",
+          "id": "workshop_bench",
           "object": "obj_bench",
           "at": [
             4,
@@ -78,7 +78,7 @@
           ]
         },
         {
-          "id": "pl_a_trainer",
+          "id": "workshop_trainer",
           "object": "obj_trainer",
           "at": [
             1,
@@ -88,11 +88,11 @@
       ]
     },
     {
-      "id": "room_b",
-      "name": "Room B",
-      "region": "region_a_1",
+      "id": "loc_storage",
+      "name": "Storage",
+      "region": "reg_lower_deck",
       "tags": [
-        "tag_hazard"
+        "tag_gas_leak"
       ],
       "holds_size": 5,
       "grid": {
@@ -108,14 +108,14 @@
           " ##### "
         ]
       },
-      "entry": "pl_b_door_a",
+      "entry": "storage_door",
       "map": {
         "x": 1,
         "y": 0
       },
       "placements": [
         {
-          "id": "pl_b_door_a",
+          "id": "storage_door",
           "object": "obj_door",
           "at": [
             0,
@@ -123,8 +123,8 @@
           ],
           "state": "state_open",
           "exit": {
-            "location": "room_a",
-            "entry": "pl_a_door_b",
+            "location": "loc_workshop",
+            "entry": "workshop_door",
             "requires": {
               "check": "object_state",
               "object": "this",
@@ -134,7 +134,7 @@
           }
         },
         {
-          "id": "pl_b_terminal",
+          "id": "storage_terminal",
           "object": "obj_terminal",
           "at": [
             2,
@@ -142,7 +142,7 @@
           ]
         },
         {
-          "id": "pl_b_bay",
+          "id": "storage_bay",
           "object": "obj_bay",
           "at": [
             2,
@@ -150,15 +150,15 @@
           ],
           "contents": [
             {
-              "item": "frame_b"
+              "item": "frame_heavy"
             },
             {
-              "item": "implant_a"
+              "item": "implant_eye"
             }
           ]
         },
         {
-          "id": "pl_b_hatch",
+          "id": "storage_hatch",
           "object": "obj_hatch",
           "at": [
             3,
@@ -166,7 +166,7 @@
           ]
         },
         {
-          "id": "pl_b_medbay",
+          "id": "storage_medbay",
           "object": "obj_medbay",
           "at": [
             1,
@@ -180,7 +180,7 @@
           "if": {
             "not": {
               "check": "has_tag",
-              "tag": "tag_b",
+              "tag": "tag_filter",
               "source": "fitted"
             }
           },
@@ -188,7 +188,7 @@
             {
               "op": "damage",
               "amount": 1,
-              "damage_type": "dmg_b",
+              "damage_type": "dmg_toxic",
               "subject": "self"
             }
           ]
@@ -196,9 +196,9 @@
       ]
     },
     {
-      "id": "room_template_a",
-      "name": "Template room",
-      "region": "region_a",
+      "id": "loc_side_room",
+      "name": "Side room",
+      "region": "reg_station",
       "template": true,
       "grid": {
         "width": 5,

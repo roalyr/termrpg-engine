@@ -2,10 +2,10 @@
   "$schema": "../../schemas/skill.schema.json",
   "entries": [
     {
-      "id": "skill_a",
-      "name": "Skill A",
-      "short": "SKA",
-      "earned_by": "Using tag A actions.",
+      "id": "skill_salvage",
+      "name": "Salvage",
+      "short": "SLV",
+      "earned_by": "Using tools.",
       "levels": [
         {
           "level": 1,
@@ -15,9 +15,9 @@
         {
           "level": 2,
           "xp": 30,
-          "text": "Unlocks Burst.",
+          "text": "Unlocks Burn.",
           "actions": [
-            "action_burst"
+            "action_burn"
           ]
         },
         {
@@ -33,21 +33,21 @@
           "xp": 300,
           "text": "Mastery.",
           "tags": [
-            "tag_b"
+            "tag_filter"
           ]
         }
       ]
     },
     {
-      "id": "skill_b",
-      "name": "Skill B",
+      "id": "skill_repair",
+      "name": "Repair",
       "levels": [
         {
           "level": 2,
           "xp": 30,
-          "text": "Frame B allowed.",
+          "text": "You can make do without proper tools.",
           "tags": [
-            "tag_a"
+            "tag_tool"
           ]
         }
       ]

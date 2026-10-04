@@ -17,7 +17,7 @@ from engine.state import Ctx, new_game
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")
 PLAYER = "char_player"
-RIVALS = {"char_rival_1", "char_rival_2", "char_rival_3"}
+RIVALS = {"char_dov", "char_ilse", "char_tomas"}
 
 
 def texts(state):
@@ -34,7 +34,7 @@ class TestCasting(unittest.TestCase):
     def test_grudge_casts_differ_by_seed(self):
         grudge = CONTENT.get("event", "event_grudge")
         sore = {events.cast(CONTENT, new_game(CONTENT, seed), grudge)[0]["sore"] for seed in range(1, 30)}
-        self.assertEqual(sore, {"char_rival_1", "char_rival_2"})       # only these two resent the player
+        self.assertEqual(sore, {"char_dov", "char_ilse"})       # only these two resent the player
 
     def test_rivalry_casts_differ_by_seed(self):
         rivalry = CONTENT.get("event", "event_offscreen")
@@ -50,10 +50,10 @@ class TestCasting(unittest.TestCase):
         grudge = CONTENT.get("event", "event_grudge")
         roles, _ = events.cast(CONTENT, new_game(CONTENT, 1), grudge)
         # The NPC has no view of the rival, but likes faction A (50), which the rival belongs to.
-        self.assertEqual(roles["friend"], "char_npc")
+        self.assertEqual(roles["friend"], "char_juno")
         s = new_game(CONTENT, 1)
-        npc = s.characters["char_npc"]._replace(location="room_b")
-        s = s._replace(characters=freeze({**s.characters, "char_npc": npc}))
+        npc = s.characters["char_juno"]._replace(location="loc_storage")
+        s = s._replace(characters=freeze({**s.characters, "char_juno": npc}))
         roles, _ = events.cast(CONTENT, s, grudge)
         self.assertNotIn("friend", roles)                                # nobody here: the optional role stays empty
         self.assertIn("sore", roles)
@@ -79,7 +79,7 @@ class TestFiring(unittest.TestCase):
         s = events.fire(CONTENT, new_game(CONTENT, 3), "event_grudge", manual=True)
         self.assertIn("Someone holds a grudge.", texts(s))
         self.assertIsNotNone(s.pending)
-        sore = next(cid for cid in ("char_rival_1", "char_rival_2")
+        sore = next(cid for cid in ("char_dov", "char_ilse")
                     if s.pending.ctx.roles.get("sore") == cid)
         s = choose_option(CONTENT, s, 0)                                   # apologise
         self.assertEqual(s.relations[f"character:{sore}"]["character:char_player"], -20)
@@ -95,11 +95,11 @@ class TestFiring(unittest.TestCase):
     def test_repeat_false(self):
         s = events.fire(CONTENT, new_game(CONTENT, 1), "event_once", manual=True)
         s = events.fire(CONTENT, s, "event_once", manual=True)
-        self.assertEqual(s.flags["flag_a"], 10)
+        self.assertEqual(s.flags["flag_power"], 10)
 
     def test_manual_events_still_need_their_condition(self):
         s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id=PLAYER),
-                [freeze({"op": "learn_design", "item": "module_system", "subject": "self"})])
+                [freeze({"op": "learn_design", "item": "module_shield", "subject": "self"})])
         before = s.characters[PLAYER].designs
         s = events.fire(CONTENT, s, "event_insight", manual=True)         # 'when' fails: already known
         self.assertEqual(s.characters[PLAYER].designs, before)
@@ -108,17 +108,17 @@ class TestFiring(unittest.TestCase):
 class TestRest(unittest.TestCase):
     def test_the_party_recovers_each_morning(self):
         s = new_game(CONTENT, 1)
-        s = run(CONTENT, s, Ctx(self_id="char_npc"), [
+        s = run(CONTENT, s, Ctx(self_id="char_juno"), [
             freeze({"op": "join_party", "subject": "self"}),
-            freeze({"op": "damage", "amount": 999, "damage_type": "dmg_a", "subject": "self"})])
-        s = run(CONTENT, s, Ctx(self_id=PLAYER), [freeze({"op": "damage", "amount": 15, "damage_type": "dmg_a", "subject": "self"})])
-        self.assertTrue(s.characters["char_npc"].down)
+            freeze({"op": "damage", "amount": 999, "damage_type": "dmg_impact", "subject": "self"})])
+        s = run(CONTENT, s, Ctx(self_id=PLAYER), [freeze({"op": "damage", "amount": 15, "damage_type": "dmg_impact", "subject": "self"})])
+        self.assertTrue(s.characters["char_juno"].down)
         hurt = s.characters[PLAYER].pools["stat_health"]
         s = next_day(s)
         while s.pending is not None:                         # a morning question waits first
             s = events.settle(CONTENT, choose_option(CONTENT, s, 0))
-        self.assertFalse(s.characters["char_npc"].down)
-        self.assertGreater(s.characters["char_npc"].pools["stat_health"], 0)
+        self.assertFalse(s.characters["char_juno"].down)
+        self.assertGreater(s.characters["char_juno"].pools["stat_health"], 0)
         self.assertEqual(s.characters[PLAYER].pools["stat_health"], hurt + 10)
 
 
@@ -127,11 +127,11 @@ class TestTriggers(unittest.TestCase):
         s = new_game(CONTENT, 1)
         s = world.move(CONTENT, s, "w")
         s = world.act(CONTENT, s, "f")
-        self.assertEqual(s.object_states["pl_a_crate"], "state_used")
+        self.assertEqual(s.object_states["workshop_crate"], "state_used")
         s = next_day(s)
         while s.pending is not None:                                       # answer any morning grudge
             s = events.settle(CONTENT, choose_option(CONTENT, s, 1))
-        self.assertEqual(s.object_states["pl_a_crate"], "state_closed")
+        self.assertEqual(s.object_states["workshop_crate"], "state_closed")
 
     def test_arriving_somewhere(self):
         s = new_game(CONTENT, 1)
@@ -140,7 +140,7 @@ class TestTriggers(unittest.TestCase):
         s = world.act(CONTENT, s, "u")
         s = events.settle(CONTENT, world.act(CONTENT, s, "g"))
         self.assertIn("Machines hum somewhere below.", texts(s))
-        self.assertEqual(s.flags["flag_a"], 1)
+        self.assertEqual(s.flags["flag_power"], 1)
 
     def test_requested_events_fire_after_losing(self):
         s = new_game(CONTENT, 2)._replace(encounter_request="enc_drones")
@@ -159,22 +159,22 @@ class TestTriggers(unittest.TestCase):
         s = s._replace(event_requests=("event_once",))
         s = events.settle(CONTENT, s)
         self.assertEqual(s.event_requests, ("event_once",))
-        self.assertEqual(s.flags["flag_a"], 0)
+        self.assertEqual(s.flags["flag_power"], 0)
 
     def test_a_choice_holds_the_rest_of_the_morning(self):
         # Seed search: a morning where the grudge fires and asks, so the restock must wait for the answer.
         for seed in range(1, 60):
             s = new_game(CONTENT, seed)._replace(object_states=freeze({**new_game(CONTENT, seed).object_states,
-                                                                       "pl_a_crate": "state_used"}))
+                                                                       "workshop_crate": "state_used"}))
             s = next_day(s)
             if s.pending is not None:
                 break
         else:
             self.fail("no seed made the grudge fire")
         self.assertIn("event_restock", s.event_requests)
-        self.assertEqual(s.object_states["pl_a_crate"], "state_used")
+        self.assertEqual(s.object_states["workshop_crate"], "state_used")
         s = events.settle(CONTENT, choose_option(CONTENT, s, 1))
-        self.assertEqual(s.object_states["pl_a_crate"], "state_closed")
+        self.assertEqual(s.object_states["workshop_crate"], "state_closed")
 
     def test_events_per_trigger_limit(self):
         with tempfile.TemporaryDirectory() as tmp:

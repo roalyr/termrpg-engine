@@ -6,7 +6,7 @@
       "name": "Strike",
       "glyph": "/",
       "tags": [
-        "tag_a"
+        "tag_tool"
       ],
       "target": "enemy",
       "cost": {
@@ -14,12 +14,12 @@
       },
       "intent": "STRIKE",
       "trains": {
-        "skill_a": 3
+        "skill_salvage": 3
       },
       "effects": [
         {
           "op": "damage",
-          "damage_type": "dmg_a",
+          "damage_type": "dmg_impact",
           "amount": {
             "stat": "stat_power",
             "times": 0.5,
@@ -57,9 +57,8 @@
       }
     },
     {
-      "id": "action_burst",
-      "name": "Burst of damage",
-      "short": "Burst",
+      "id": "action_burn",
+      "name": "Burn",
       "target": "all_enemies",
       "cost": {
         "heat": {
@@ -68,28 +67,28 @@
         },
         "charges": 1,
         "consumes": {
-          "item": "material_a",
+          "item": "material_scrap",
           "count": 2
         }
       },
       "requires": {
         "check": "skill",
-        "skill": "skill_a",
+        "skill": "skill_salvage",
         "min": 2
       },
-      "hint": "Needs skill A level 2.",
+      "hint": "Needs Salvage level 2.",
       "effects": [
         {
           "op": "damage",
-          "damage_type": "dmg_b",
+          "damage_type": "dmg_toxic",
           "amount": {
-            "skill": "skill_a",
+            "skill": "skill_salvage",
             "times": 2
           }
         },
         {
           "op": "apply_status",
-          "status": "status_dot",
+          "status": "status_burning",
           "duration": 3
         }
       ]

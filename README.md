@@ -44,7 +44,7 @@ python3 play.py --pack packs/test --slot two --new   # a fresh game in another s
 python3 main.py                                # play the old engine
 python3 -m core.packtool check packs/test      # validate a content pack
 python3 -m core.packtool ids packs/test item   # list the ids of a kind
-python3 -m core.packtool refs packs/test pl_a_door_b   # where an id is declared and used
+python3 -m core.packtool refs packs/test workshop_door   # where an id is declared and used
 python3 -m core.packtool explain op damage     # document any part of the schemas
 python3 -B -m unittest discover -s tests       # run all tests
 ```
@@ -80,7 +80,7 @@ timestamps can make Python run stale cached bytecode.
 person or tag, and prints no text of its own. Everything comes from a **pack**: a
 folder of JSON data checked against the schemas.
 
-- **Test pack** (`purpose: "test"`): small, generic content (`room_a`, `item_1`) for
+- **Test pack** (`purpose: "test"`): small, generic content (`loc_workshop`, `item_1`) for
   engine work and automated tests.
 - **Game pack** (`purpose: "game"`): the real world, names and writing.
 
@@ -140,7 +140,7 @@ file as you type. The engine ignores it.
 - **Labels** are short names (at most 32 characters) that must fit a 40-column
   screen. **Text** is longer player-facing prose (at most 600 characters).
 - **`@` texts.** A text field whose value is exactly `@` plus an id (for example
-  `"@greeting"`) shows that entry from the strings file.
+  `"@str_greeting"`) shows that entry from the strings file.
 - **Glyphs** are one or two characters drawn on the map. No emoji.
 - **`notes`** fields are for authors; the engine ignores them.
 - **Defaults.** Fields with a default can be left out. The engine fills in every
@@ -219,7 +219,7 @@ An **amount** is one of three forms:
 3                                             fixed
 { "min": 1, "max": 3 }                        rolled from the game seed (integers roll integers)
 { "stat": "stat_power", "times": 0.5, "plus": 2 }   scaled from the subject's stat, rounded down
-{ "skill": "skill_a", "times": 2 }                  … or from a skill level
+{ "skill": "skill_salvage", "times": 2 }                  … or from a skill level
 ```
 
 The scaled form takes `stat` or `skill` (not both), an optional `subject` (default
@@ -571,8 +571,8 @@ placement in the destination, a `label` (default "Go to …"), a `requires` cond
 with a `hint`, and a `time`. The engine offers the "go" interaction by itself.
 
 ```json
-{ "id": "pl_a_door_b", "object": "obj_door", "at": [0, 2],
-  "exit": { "location": "room_b", "entry": "pl_b_door_a",
+{ "id": "workshop_door", "object": "obj_door", "at": [0, 2],
+  "exit": { "location": "loc_storage", "entry": "storage_door",
             "requires": { "check": "object_state", "object": "this", "state": "state_open" },
             "hint": "The door is closed." } }
 ```
@@ -640,8 +640,8 @@ overheating, and it must stay below maximum heat. Carried items must fit in carg
 counted in stacks. Frame traits such as sealing, limbs or thrusters are tags.
 
 ```json
-{ "id": "module_system", "kind": "module", "name": "System A", "size": 2,
-  "slot_type": "slot_frame_a", "uses": { "power": 3, "mass": 3, "heat": 2 },
+{ "id": "module_shield", "kind": "module", "name": "System A", "size": 2,
+  "slot_type": "slot_back", "uses": { "power": 3, "mass": 3, "heat": 2 },
   "stats": { "stat_armor": 2 }, "mod_slots": 2 }
 ```
 
@@ -660,7 +660,7 @@ levels, their own `actions` list, and innate actions.
 | `requires`, `hint` | Usable only when the condition holds; otherwise the tile is greyed out with the hint |
 | `priority` | -3 to 3: acts earlier or later in the round than initiative alone would put it |
 | `effects` | Required. Damage defaults to the target |
-| `trains` | Skill experience gained per use: `{"skill_a": 3}` |
+| `trains` | Skill experience gained per use: `{"skill_salvage": 3}` |
 | `innate` | Every character has it (retreat, wait) |
 | `intent` | Word shown over an AI-controlled character about to use it, e.g. "CRUSH" |
 | `ai` | `when` it is considered and its `weight`, for AI-controlled characters |
@@ -694,7 +694,7 @@ One record serves the player's character, NPCs, companions and enemies.
 | `frame`, `fitted`, `implants` | Worn suit, modules in its slots, implants in the body |
 | `inventory` | Carried items with counts |
 | `designs` | Items they can fabricate at the start |
-| `skills` | Starting levels: `{"skill_a": 2}` |
+| `skills` | Starting levels: `{"skill_salvage": 2}` |
 | `actions` | Actions of their own, e.g. a drone's claws |
 | `views` | Starting relations: `toward` (an agent) and `value` |
 | `wants` | Tags of things they value, for trades and the world simulation |

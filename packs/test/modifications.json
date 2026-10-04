@@ -4,7 +4,7 @@
     {
       "id": "mod_reinforced",
       "name": "Reinforced",
-      "material": "material_a",
+      "material": "material_scrap",
       "count": 2,
       "applies_to": {
         "kinds": [
@@ -20,31 +20,31 @@
       }
     },
     {
-      "id": "mod_exotic",
-      "name": "Strange",
-      "material": "material_exotic",
+      "id": "mod_odd_metal",
+      "name": "Odd metal",
+      "material": "material_odd_metal",
       "applies_to": {
         "kinds": [
           "module"
         ],
         "tags": [
-          "tag_a"
+          "tag_tool"
         ],
         "slot_types": [
-          "slot_frame_hand"
+          "slot_hand"
         ]
       },
       "requires": {
         "check": "skill",
-        "skill": "skill_a",
+        "skill": "skill_salvage",
         "min": 3
       },
       "adds": {
         "actions": [
-          "action_burst"
+          "action_burn"
         ],
         "tags": [
-          "tag_b"
+          "tag_filter"
         ],
         "uses": {
           "heat": 1

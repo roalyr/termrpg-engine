@@ -10,7 +10,7 @@
       "nothing": 1,
       "entries": [
         {
-          "item": "material_a",
+          "item": "material_scrap",
           "count": {
             "min": 1,
             "max": 3
@@ -18,7 +18,7 @@
           "weight": 3
         },
         {
-          "item": "consumable_a"
+          "item": "consumable_medkit"
         },
         {
           "table": "loot_rare",
@@ -30,14 +30,14 @@
       "id": "loot_rare",
       "entries": [
         {
-          "item": "module_tool",
+          "item": "module_cutter",
           "when": {
             "check": "rank",
             "min": 1
           }
         },
         {
-          "item": "implant_a"
+          "item": "implant_eye"
         }
       ]
     },
@@ -45,7 +45,7 @@
       "id": "loot_drone",
       "always": [
         {
-          "item": "material_a",
+          "item": "material_scrap",
           "count": 1
         }
       ],

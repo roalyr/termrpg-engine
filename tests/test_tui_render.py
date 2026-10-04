@@ -94,11 +94,11 @@ class TestEveryScreen(unittest.TestCase):
 
     def test_what_each_screen_shows(self):
         expected = {
-            "walk": ["Room A", "Region A1", "Day 1", "WASD move", "P pack"],
-            "menu": ["Door", "G Go to Room B - The door is closed.", "I Inspect", "X close"],
-            "choice": ["Pick one.", "1 Option A", "1-2 choose"],
-            "board": ["Fitted:", "Carried:", "1 Frame A", "] page"],
-            "sheet": ["Skill A 1", "C close"],
+            "walk": ["Workshop", "Lower deck", "Day 1", "WASD move", "P pack"],
+            "menu": ["Door", "G Go to Storage - The door is closed.", "I Inspect", "X close"],
+            "choice": ["The screen wakes.", "1 Check the logs", "1-2 choose"],
+            "board": ["Fitted:", "Carried:", "1 Light suit", "] page"],
+            "sheet": ["Salvage 1", "C close"],
             "encounter": ["Drones · round 1", "1 Strike", "⚠ STRIKE", "1-3 act", "Q quit"],
             "target": ["1-2 target", "X back"],
             "debrief": ["Won.", "Round", "Any key: continue"],
@@ -147,7 +147,7 @@ class TestFitting(unittest.TestCase):
 
     def test_short_encounters_switch_to_compact_widgets(self):
         s = new_game(CONTENT, 1)
-        s = run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "grant_xp", "skill": "skill_a", "amount": 30,
+        s = run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "grant_xp", "skill": "skill_salvage", "amount": 30,
                                                              "subject": "self"})])          # unlocks a fourth tile
         s = encounter.begin(CONTENT, s._replace(encounter_request="enc_drones"))
         self.assertEqual(len(encounter.tiles(CONTENT, s)), 4)
@@ -163,14 +163,14 @@ class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):
     def test_built_in_options_have_no_label(self):
         options = {o.kind: o for o in world.menu(CONTENT, menu_state()).options}
         self.assertIsNone(options["go"].label)
-        self.assertEqual(dict(options["go"].params), {"destination": "Room B"})
-        self.assertEqual(option_text(UI, options["go"]), "Go to Room B")
+        self.assertEqual(dict(options["go"].params), {"destination": "Storage"})
+        self.assertEqual(option_text(UI, options["go"]), "Go to Storage")
         self.assertEqual(options["interaction"].label, "Open")    # the content's own label
 
     def test_round_end_is_a_heading(self):
         s = encounter_state()
         s = run(CONTENT, s, Ctx(self_id=s.player), [freeze(
-            {"op": "apply_status", "status": "status_dot", "subject": "self", "duration": 3})])
+            {"op": "apply_status", "status": "status_burning", "subject": "self", "duration": 3})])
         s = encounter.take_turn(CONTENT, s, "action_guard")         # the status ticks at the round's end
         self.assertIn(("heading", "round_end"), [(m.kind, m.text) for m in s.messages])
         self.assertIn("End of round", plain(s))
@@ -229,7 +229,7 @@ class TestCustomUIPack(unittest.TestCase):
         ui = load_ui(self.dir)
         s = menu_state()
         frame = plain(s, ui=ui)
-        self.assertIn("G Enter Room B", frame)
+        self.assertIn("G Enter Storage", frame)
         self.assertNotIn("Locker", frame)
         self.assertIn("&", plain(new_game(CONTENT, 1), ui=ui))
 

@@ -23,7 +23,7 @@ from tui.ui import default_ui, ui_dir_for
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")
-PLAYER, NPC = "char_player", "char_npc"
+PLAYER, NPC = "char_player", "char_juno"
 UI = default_ui()
 
 
@@ -78,7 +78,7 @@ class PackCopy:
 
 class TestModifyItem(unittest.TestCase):
     def test_rolled_stat_amounts_are_kept_as_numbers(self):           # finding 1
-        s = do(new_game(CONTENT, 1), {"op": "modify_item", "pick": {"item": "frame_a"},
+        s = do(new_game(CONTENT, 1), {"op": "modify_item", "pick": {"item": "frame_light"},
                                       "stats": {"stat_armor": {"min": 1, "max": 2}}, "subject": "self"})
         armor = stats.item_view(CONTENT, me(s).frame)["stats"]["stat_armor"]
         self.assertIn(armor, (1, 2))
@@ -87,12 +87,12 @@ class TestModifyItem(unittest.TestCase):
     def test_one_off_a_stack_needs_a_cargo_stack(self):                 # finding 11
         s = new_game(CONTENT, 1)
         free = int(stats.budget_provided(CONTENT, me(s), "cargo")) - len(me(s).inventory)
-        s = do(s, *[{"op": "give_item", "item": "misc_key", "count": 1, "subject": "self"}] * free)
+        s = do(s, *[{"op": "give_item", "item": "misc_keycard", "count": 1, "subject": "self"}] * free)
         self.assertEqual(len(me(s).inventory), stats.budget_provided(CONTENT, me(s), "cargo"))   # full
         before = me(s).inventory
-        s = do(s, {"op": "modify_item", "pick": {"item": "consumable_a"}, "name_suffix": "Odd", "subject": "self"})
+        s = do(s, {"op": "modify_item", "pick": {"item": "consumable_medkit"}, "name_suffix": "Odd", "subject": "self"})
         self.assertEqual(me(s).inventory, before)
-        self.assertIn(CONTENT.message("cargo_full", item="Consumable A"), [m.text for m in s.messages])
+        self.assertIn(CONTENT.message("cargo_full", item="Medkit"), [m.text for m in s.messages])
 
 
 class TestDefeatOutsideFights(unittest.TestCase):
@@ -101,7 +101,7 @@ class TestDefeatOutsideFights(unittest.TestCase):
         try:
             pack.edit("characters.json", lambda d: pack.entry(d, PLAYER).pop("on_defeat"))
             content = pack.load()
-            hurt = [freeze({"op": "damage", "amount": 999, "damage_type": "dmg_a", "subject": "self"})]
+            hurt = [freeze({"op": "damage", "amount": 999, "damage_type": "dmg_impact", "subject": "self"})]
             s = run(content, new_game(content, 1), Ctx(self_id=PLAYER), hurt)
             self.assertFalse(s.characters[PLAYER].down)
             self.assertEqual(stats.current(content, s.characters[PLAYER], "stat_health"), 1)
@@ -117,7 +117,7 @@ class TestDefeatOutsideFights(unittest.TestCase):
                 on_defeat=[{"op": "restore", "stat": "stat_health", "amount": 7, "subject": "self"}]))
             content = pack.load()
             s = run(content, new_game(content, 1), Ctx(self_id=PLAYER),
-                    [freeze({"op": "damage", "amount": 999, "damage_type": "dmg_a", "subject": "self"})])
+                    [freeze({"op": "damage", "amount": 999, "damage_type": "dmg_impact", "subject": "self"})])
             self.assertEqual(stats.current(content, s.characters[PLAYER], "stat_health"), 7)
         finally:
             pack.close()
@@ -185,7 +185,7 @@ class TestUniqueEnemies(unittest.TestCase):
             started = encounter.begin(content, s._replace(encounter_request="enc_duel"))
             self.assertEqual(started.encounter.enemies, (NPC,))
             down = run(content, s, Ctx(self_id=NPC),
-                       [freeze({"op": "damage", "amount": 999, "damage_type": "dmg_a", "subject": "self"})])
+                       [freeze({"op": "damage", "amount": 999, "damage_type": "dmg_impact", "subject": "self"})])
             self.assertTrue(down.characters[NPC].down)
             again = encounter.begin(content, down._replace(encounter_request="enc_duel"))
             self.assertIsNone(again.encounter)
@@ -196,7 +196,7 @@ class TestUniqueEnemies(unittest.TestCase):
 
 class TestTime(unittest.TestCase):
     def test_every_morning_of_a_long_wait_counts(self):               # finding 8
-        s = do(new_game(CONTENT, 1), {"op": "damage", "amount": 25, "damage_type": "dmg_a", "subject": "self"})
+        s = do(new_game(CONTENT, 1), {"op": "damage", "amount": 25, "damage_type": "dmg_impact", "subject": "self"})
         hurt = health(s)
         self.assertLessEqual(hurt + 20, stats.stat(CONTENT, me(s), "stat_health"))
         s = answer_everything(turns.advance(CONTENT, s, 120))      # two mornings
@@ -209,16 +209,16 @@ class TestTime(unittest.TestCase):
         self.assertEqual((s.turn, s.triggers, s.turns_owed), (300, (), 0))
 
     def test_places_act_only_where_the_player_is(self):              # finding 9
-        s = do(new_game(CONTENT, 1), {"op": "move_to", "location": "room_b", "subject": "self"}, who=NPC)
+        s = do(new_game(CONTENT, 1), {"op": "move_to", "location": "loc_storage", "subject": "self"}, who=NPC)
         before = health(s, NPC)
-        s = turns.advance(CONTENT, s, 3)                              # Room B's hazard, the player away
+        s = turns.advance(CONTENT, s, 3)                              # Storage's hazard, the player away
         self.assertEqual(health(s, NPC), before)
 
     def test_a_place_speaks_once_per_turn(self):
         pack = PackCopy()
         try:
             def add_message(data):
-                room = pack.entry(data, "room_a")
+                room = pack.entry(data, "loc_workshop")
                 room["on_turn"] = list(room.get("on_turn", [])) + [{"op": "message", "text": "Fans hum."}]
             pack.edit("locations.json", add_message)
             content = pack.load()
@@ -238,23 +238,23 @@ class TestTime(unittest.TestCase):
 class TestBudgets(unittest.TestCase):
     def test_removing_what_powers_the_rest_is_refused(self):           # finding 10
         s = new_game(CONTENT, 1)
-        s = do(s, {"op": "move_to", "location": "room_b", "subject": "self"})
+        s = do(s, {"op": "move_to", "location": "loc_storage", "subject": "self"})
         chars = dict(s.characters)
         chars[PLAYER] = me(s)._replace(at=(2, 2))                    # by the bay, a refit workshop
         s = s._replace(characters=freeze(chars))
-        s = do(s, {"op": "modify_item", "pick": {"item": "module_tool"}, "stats": {"stat_power": 4},
+        s = do(s, {"op": "modify_item", "pick": {"item": "module_cutter"}, "stats": {"stat_power": 4},
                    "subject": "self"},
                {"op": "modify_stat", "stat": "stat_power", "amount": -4, "subject": "self"})
-        tool = slot_of(s, "module_tool", "fitted")
+        tool = slot_of(s, "module_cutter", "fitted")
         self.assertIn("Power", build.remove_problem(CONTENT, s, tool) or "")
-        self.assertIsNone(build.remove_problem(CONTENT, s, slot_of(s, "module_system", "fitted")))
+        self.assertIsNone(build.remove_problem(CONTENT, s, slot_of(s, "module_shield", "fitted")))
 
 
 class TestUsedItem(unittest.TestCase):
     def test_the_used_item_comes_from_where_the_check_looked(self):    # finding 12
-        s = do(new_game(CONTENT, 1), {"op": "give_item", "item": "module_tool", "count": 1, "subject": "self"})
-        carried = {"check": "has_tag", "tag": "tag_a", "source": "carried"}
-        fitted = {"check": "has_tag", "tag": "tag_a", "source": "fitted"}
+        s = do(new_game(CONTENT, 1), {"op": "give_item", "item": "module_cutter", "count": 1, "subject": "self"})
+        carried = {"check": "has_tag", "tag": "tag_tool", "source": "carried"}
+        fitted = {"check": "has_tag", "tag": "tag_tool", "source": "fitted"}
         self.assertEqual(world.used_item(CONTENT, s, Ctx(self_id=PLAYER), freeze(carried))[1], "inventory")
         self.assertEqual(world.used_item(CONTENT, s, Ctx(self_id=PLAYER), freeze(fitted))[1], "fitted")
 
@@ -275,7 +275,7 @@ class TestPlacement(unittest.TestCase):
             spots = [tuple(s.characters[c].at) for c in (PLAYER, NPC, "char_twin")]
             self.assertEqual(len(set(spots)), 3)
             for spot in spots[1:]:
-                self.assertTrue(world.standable(content, "room_a", spot))
+                self.assertTrue(world.standable(content, "loc_workshop", spot))
         finally:
             pack.close()
 
@@ -284,12 +284,12 @@ class TestValidator(unittest.TestCase):
     def test_skill_levels_count_toward_budgets(self):                  # finding 15
         pack = PackCopy()
         try:
-            pack.edit("items.json", lambda d: pack.entry(d, "frame_a")["stats"].update(stat_power=3))
+            pack.edit("items.json", lambda d: pack.entry(d, "frame_light")["stats"].update(stat_power=3))
             errors = validate_pack(pack.dir).errors
             self.assertTrue(any("fitted gear needs 4 power" in e for e in errors), errors)
 
             def level_one_power(data):
-                pack.entry(data, "skill_a")["levels"][0]["stats"] = {"stat_power": 1}
+                pack.entry(data, "skill_salvage")["levels"][0]["stats"] = {"stat_power": 1}
             pack.edit("skills.json", level_one_power)
             errors = validate_pack(pack.dir).errors
             self.assertFalse(any("fitted gear needs 4 power" in e for e in errors), errors)

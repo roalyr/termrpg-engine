@@ -289,13 +289,14 @@ Prefixes make ids easy to read and search. Use them in game packs:
 | Object state, phase, faction, flag | `state_`, `phase_`, `faction_`, `flag_` | `state_open`, `phase_night` |
 | Custom string | `str_` | `str_kael_greeting` |
 
-The test pack uses shorter placeholder names on purpose.
+The test pack follows these prefixes too, with plain names (a workshop, a storage room,
+a cutter, scrap), so its ids can be copied as examples.
 
 ## Recipes
 
 Each recipe shows entries grouped by the kind of file they go into: `"items": […]`
-means "add these to the `entries` of your items file". `"placements:room_a": […]`
-means "add these to the `placements` of location `room_a`". The ids come from the
+means "add these to the `entries` of your items file". `"placements:loc_workshop": […]`
+means "add these to the `placements` of location `loc_workshop`". The ids come from the
 test pack; replace them with your pack's.
 
 Every recipe here is validated against the test pack by
@@ -310,19 +311,19 @@ door. Both are placed on wall tiles.
 ```json
 {
   "locations": [
-    { "id": "room_c", "name": "Room C", "region": "region_a_1",
-      "description": "A narrow side room.",
+    { "id": "loc_corridor", "name": "Corridor", "region": "reg_lower_deck",
+      "description": "A narrow corridor.",
       "grid": { "width": 5, "height": 5, "floor": "·", "wall": "░" },
       "placements": [
-        { "id": "room_c_door_a", "object": "obj_door", "at": [2, 0], "state": "state_open",
-          "exit": { "location": "room_a", "entry": "room_a_door_c",
+        { "id": "corridor_door", "object": "obj_door", "at": [2, 0], "state": "state_open",
+          "exit": { "location": "loc_workshop", "entry": "workshop_door_corridor",
                     "requires": { "check": "object_state", "object": "this", "state": "state_open" },
                     "hint": "The door is closed." } }
       ] }
   ],
-  "placements:room_a": [
-    { "id": "room_a_door_c", "object": "obj_door", "at": [3, 5], "state": "state_open",
-      "exit": { "location": "room_c", "entry": "room_c_door_a",
+  "placements:loc_workshop": [
+    { "id": "workshop_door_corridor", "object": "obj_door", "at": [3, 5], "state": "state_open",
+      "exit": { "location": "loc_corridor", "entry": "corridor_door",
                 "requires": { "check": "object_state", "object": "this", "state": "state_open" },
                 "hint": "The door is closed." } }
   ]
@@ -337,12 +338,12 @@ The `hazard` tag shows the warning; `on_turn` does the harm. Note `"subject": "s
 ```json
 {
   "locations": [
-    { "id": "room_cold", "name": "Cold room", "region": "region_a_1", "tags": ["tag_hazard"],
+    { "id": "loc_vent_room", "name": "Vent room", "region": "reg_lower_deck", "tags": ["tag_gas_leak"],
       "grid": { "width": 5, "height": 5, "floor": "·", "wall": "░" },
       "on_turn": [
         { "op": "if",
-          "if": { "not": { "check": "has_tag", "tag": "tag_b", "source": "fitted" } },
-          "then": [ { "op": "damage", "amount": 1, "damage_type": "dmg_b", "subject": "self" } ] }
+          "if": { "not": { "check": "has_tag", "tag": "tag_filter", "source": "fitted" } },
+          "then": [ { "op": "damage", "amount": 1, "damage_type": "dmg_toxic", "subject": "self" } ] }
       ] }
   ]
 }
@@ -362,22 +363,22 @@ character's interactions it's the other way round:** `self` is whoever interacts
 {
   "characters": [
     { "id": "char_trader", "name": "Trader", "title": "Scrap dealer",
-      "location": "room_a", "at": [2, 1], "faction": "faction_a",
+      "location": "loc_workshop", "at": [2, 1], "faction": "faction_crew",
       "body": { "size": 3, "stats": { "stat_health": 10, "stat_cargo": 4 } },
-      "inventory": [ { "item": "consumable_a", "count": 4 } ],
-      "wants": ["tag_a"],
+      "inventory": [ { "item": "consumable_medkit", "count": 4 } ],
+      "wants": ["tag_tool"],
       "talk": [
         { "when": { "check": "in_party" }, "text": "Where to?" },
-        { "when": { "check": "has_item", "item": "misc_key", "subject": "target" }, "text": "That key. I'd trade for it." },
+        { "when": { "check": "has_item", "item": "misc_keycard", "subject": "target" }, "text": "That key. I'd trade for it." },
         { "text": "Looking to trade?" }
       ],
       "interactions": [
         { "id": "trade", "label": "Trade key for supplies", "key": "b", "repeat": "once",
-          "requires": { "check": "has_item", "item": "misc_key" },
+          "requires": { "check": "has_item", "item": "misc_keycard" },
           "hint": "Wants a key.",
           "effects": [
-            { "op": "take_item", "item": "misc_key" },
-            { "op": "give_item", "item": "consumable_a", "count": 2 },
+            { "op": "take_item", "item": "misc_keycard" },
+            { "op": "give_item", "item": "consumable_medkit", "count": 2 },
             { "op": "change_relation", "of": "target", "toward": "self", "amount": 20 }
           ] },
         { "id": "recruit", "label": "Ask to join", "key": "t",
@@ -399,26 +400,26 @@ numbers: power 2 of 8, mass 3 of 12, heat 0 of 10, cargo 1 stack of 3 + 2.
 ```json
 {
   "items": [
-    { "id": "frame_c", "kind": "frame", "name": "Frame C", "size": 3, "grade": "grade_a",
+    { "id": "frame_work", "kind": "frame", "name": "Work suit", "size": 3, "grade": "grade_common",
       "description": "A light work suit.",
       "stats": { "stat_health": 25, "stat_power": 8, "stat_mass": 12, "stat_heat": 10, "stat_cargo": 3 },
-      "slots": [ { "slot_type": "slot_frame_hand", "count": 2 } ],
+      "slots": [ { "slot_type": "slot_hand", "count": 2 } ],
       "mod_slots": 1, "condition": 10,
-      "repair": { "inputs": [ { "item": "material_a", "count": 2 } ] } },
-    { "id": "module_c", "kind": "module", "name": "Cutter C", "size": 1, "grade": "grade_a",
-      "tags": ["tag_a"], "slot_type": "slot_frame_hand",
+      "repair": { "inputs": [ { "item": "material_scrap", "count": 2 } ] } },
+    { "id": "module_drill", "kind": "module", "name": "Drill", "size": 1, "grade": "grade_common",
+      "tags": ["tag_tool"], "slot_type": "slot_hand",
       "uses": { "power": 2, "mass": 3 },
       "actions": ["action_strike"], "condition": 5,
-      "salvage": { "yields": [ { "item": "material_a", "count": 2 } ],
-                   "learn_requires": { "check": "skill", "skill": "skill_a", "min": 2 } },
-      "fabricate": { "inputs": [ { "item": "material_a", "count": 4 } ] } }
+      "salvage": { "yields": [ { "item": "material_scrap", "count": 2 } ],
+                   "learn_requires": { "check": "skill", "skill": "skill_salvage", "min": 2 } },
+      "fabricate": { "inputs": [ { "item": "material_scrap", "count": 4 } ] } }
   ],
   "characters": [
     { "id": "char_worker", "name": "Worker",
       "body": { "size": 3, "stats": { "stat_health": 10, "stat_cargo": 2 } },
-      "frame": "frame_c", "fitted": ["module_c"],
-      "inventory": [ { "item": "material_a", "count": 5 } ],
-      "skills": { "skill_a": 2 } }
+      "frame": "frame_work", "fitted": ["module_drill"],
+      "inventory": [ { "item": "material_scrap", "count": 5 } ],
+      "skills": { "skill_salvage": 2 } }
   ]
 }
 ```
@@ -426,15 +427,15 @@ numbers: power 2 of 8, mass 3 of 12, heat 0 of 10, cargo 1 stack of 3 + 2.
 ### Add an enemy, its loot, an encounter, and something that starts it
 
 Enemies spawned in numbers are templates: no location, and a `count` in the
-encounter. Here an alarm panel in room B starts the encounter.
+encounter. Here an alarm panel in the storage room starts the encounter.
 
 <!-- recipe -->
 ```json
 {
   "loot_tables": [
     { "id": "loot_sentry", "rolls": 1, "nothing": 1,
-      "always": [ { "item": "material_a", "count": 1 } ],
-      "entries": [ { "item": "material_exotic", "weight": 1 }, { "item": "consumable_a", "weight": 3 } ] }
+      "always": [ { "item": "material_scrap", "count": 1 } ],
+      "entries": [ { "item": "material_odd_metal", "weight": 1 }, { "item": "consumable_medkit", "weight": 3 } ] }
   ],
   "characters": [
     { "id": "char_sentry", "name": "Sentry", "template": true, "glyph": "s",
@@ -447,7 +448,7 @@ encounter. Here an alarm panel in room B starts the encounter.
   "encounters": [
     { "id": "enc_sentries", "name": "Sentries", "intro": "Two shapes unfold from the wall.",
       "enemies": [ { "character": "char_sentry", "count": 2 } ],
-      "on_win": [ { "op": "set_flag", "flag": "flag_a", "add": 1 } ] }
+      "on_win": [ { "op": "set_flag", "flag": "flag_power", "add": 1 } ] }
   ],
   "objects": [
     { "id": "obj_alarm", "name": "Alarm panel", "glyph": "!", "solid": true,
@@ -462,8 +463,8 @@ encounter. Here an alarm panel in room B starts the encounter.
           ] }
       ] }
   ],
-  "placements:room_b": [
-    { "id": "room_b_alarm", "object": "obj_alarm", "at": [1, 1] }
+  "placements:loc_storage": [
+    { "id": "storage_alarm", "object": "obj_alarm", "at": [1, 1] }
   ]
 }
 ```
@@ -504,11 +505,11 @@ good.
 ```json
 {
   "modifications": [
-    { "id": "mod_lightened", "name": "Lightened", "material": "material_exotic", "count": 1,
+    { "id": "mod_lightened", "name": "Lightened", "material": "material_odd_metal", "count": 1,
       "description": "Strange metal, lighter than it should be.",
-      "applies_to": { "kinds": ["module"], "slot_types": ["slot_frame_hand"] },
-      "requires": { "check": "skill", "skill": "skill_a", "min": 2 },
-      "adds": { "uses": { "mass": -1 }, "tags": ["tag_b"] } }
+      "applies_to": { "kinds": ["module"], "slot_types": ["slot_hand"] },
+      "requires": { "check": "skill", "skill": "skill_salvage", "min": 2 },
+      "adds": { "uses": { "mass": -1 }, "tags": ["tag_filter"] } }
   ]
 }
 ```

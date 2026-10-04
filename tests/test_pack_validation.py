@@ -84,8 +84,8 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("tags[0].id: 'Tag A' does not match", self.errors())
 
     def test_duplicate_id(self):
-        self.edit("vocab.json", lambda v: v["tags"].append({"id": "tag_a", "name": "again"}))
-        self.assertIn("duplicate tag 'tag_a'", self.errors())
+        self.edit("vocab.json", lambda v: v["tags"].append({"id": "tag_tool", "name": "again"}))
+        self.assertIn("duplicate tag 'tag_tool'", self.errors())
 
     def test_unknown_op(self):
         self.status_effects({"op": "dmg", "amount": 1})
@@ -100,7 +100,7 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("needs 'check', or one of: all, any, not", self.errors())
 
     def test_exclusive_fields(self):
-        self.status_effects({"op": "take_item", "item": "item_a", "tag": "tag_a"})
+        self.status_effects({"op": "take_item", "item": "item_a", "tag": "tag_tool"})
         self.assertIn("use only one of: item, tag", self.errors())
 
     def test_named_character_subject_reports_the_id(self):
@@ -120,7 +120,7 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("unknown size class '7'", self.errors())
 
     def test_seeded_range_and_bounds(self):
-        self.status_effects({"op": "damage", "amount": {"min": 1}, "damage_type": "dmg_a"})
+        self.status_effects({"op": "damage", "amount": {"min": 1}, "damage_type": "dmg_impact"})
         self.assertIn("missing required field 'max'", self.errors())
 
     def test_role_given_twice(self):
@@ -148,55 +148,55 @@ class TestPackErrors(unittest.TestCase):
         self.location(loc_id, lambda loc: change(next(p for p in loc["placements"] if p["id"] == pl_id)))
 
     def test_placement_outside_grid(self):
-        self.placement("room_a", "pl_a_crate", lambda p: p.__setitem__("at", [9, 9]))
+        self.placement("loc_workshop", "workshop_crate", lambda p: p.__setitem__("at", [9, 9]))
         self.assertIn("position [9, 9] is outside the grid", self.errors())
 
     def test_placement_on_empty_tile_of_shaped_room(self):
-        self.placement("room_b", "pl_b_terminal", lambda p: p.__setitem__("at", [4, 0]))
+        self.placement("loc_storage", "storage_terminal", lambda p: p.__setitem__("at", [4, 0]))
         self.assertIn("position [4, 0] is outside the grid", self.errors())
 
     def test_placement_position_taken(self):
-        self.placement("room_a", "pl_a_crate", lambda p: p.__setitem__("at", [0, 2]))
-        self.assertIn("position [0, 2] is already taken by 'pl_a_door_b'", self.errors())
+        self.placement("loc_workshop", "workshop_crate", lambda p: p.__setitem__("at", [0, 2]))
+        self.assertIn("position [0, 2] is already taken by 'workshop_door'", self.errors())
 
     def test_rows_must_match_size(self):
-        self.location("room_b", lambda loc: loc["grid"]["rows"].pop())
+        self.location("loc_storage", lambda loc: loc["grid"]["rows"].pop())
         self.assertIn("rows must be 5 strings of 7 characters", self.errors())
 
     def test_placement_ids_unique_across_locations(self):
-        self.placement("room_b", "pl_b_terminal", lambda p: p.__setitem__("id", "pl_a_crate"))
-        self.assertIn("duplicate placement 'pl_a_crate'", self.errors())
+        self.placement("loc_storage", "storage_terminal", lambda p: p.__setitem__("id", "workshop_crate"))
+        self.assertIn("duplicate placement 'workshop_crate'", self.errors())
 
     def test_unknown_placement_reference(self):
-        self.placement("room_a", "pl_a_door_b", lambda p: p["exit"].__setitem__("entry", "pl_missing"))
+        self.placement("loc_workshop", "workshop_door", lambda p: p["exit"].__setitem__("entry", "pl_missing"))
         self.assertIn("unknown placement 'pl_missing'", self.errors())
 
     def test_exit_arrival_must_be_in_destination(self):
-        self.placement("room_a", "pl_a_door_b", lambda p: p["exit"].__setitem__("entry", "pl_a_crate"))
-        self.assertIn("exit arrives at 'pl_a_crate', which is not in 'room_b'", self.errors())
+        self.placement("loc_workshop", "workshop_door", lambda p: p["exit"].__setitem__("entry", "workshop_crate"))
+        self.assertIn("exit arrives at 'workshop_crate', which is not in 'loc_storage'", self.errors())
 
     def test_exit_into_template(self):
-        self.placement("room_a", "pl_a_door_b", lambda p: p["exit"].update(location="room_template_a", entry=None) or p["exit"].pop("entry"))
-        self.assertIn("exit leads to 'room_template_a', which is a template", self.errors())
+        self.placement("loc_workshop", "workshop_door", lambda p: p["exit"].update(location="loc_side_room", entry=None) or p["exit"].pop("entry"))
+        self.assertIn("exit leads to 'loc_side_room', which is a template", self.errors())
 
     def test_exit_needs_one_destination(self):
-        self.placement("room_a", "pl_a_door_b", lambda p: p["exit"].__setitem__("zone", "zone_a"))
+        self.placement("loc_workshop", "workshop_door", lambda p: p["exit"].__setitem__("zone", "zone_tunnels"))
         self.assertIn("exit: use only one of: location, zone", self.errors())
 
     def test_location_entry_elsewhere(self):
-        self.location("room_b", lambda loc: loc.__setitem__("entry", "pl_a_crate"))
-        self.assertIn("entry 'pl_a_crate' is placed in another location", self.errors())
+        self.location("loc_storage", lambda loc: loc.__setitem__("entry", "workshop_crate"))
+        self.assertIn("entry 'workshop_crate' is placed in another location", self.errors())
 
     def test_start_entry_elsewhere(self):
-        self.edit("pack.json", lambda m: m["start"].__setitem__("entry", "pl_b_terminal"))
-        self.assertIn("start.entry 'pl_b_terminal' is not in 'room_a'", self.errors())
+        self.edit("pack.json", lambda m: m["start"].__setitem__("entry", "storage_terminal"))
+        self.assertIn("start.entry 'storage_terminal' is not in 'loc_workshop'", self.errors())
 
     def test_start_in_template(self):
-        self.edit("pack.json", lambda m: m["start"].update(location="room_template_a") or m["start"].pop("entry"))
-        self.assertIn("start.location 'room_template_a' is a template", self.errors())
+        self.edit("pack.json", lambda m: m["start"].update(location="loc_side_room") or m["start"].pop("entry"))
+        self.assertIn("start.location 'loc_side_room' is a template", self.errors())
 
     def test_placement_state_must_belong_to_object(self):
-        self.placement("room_a", "pl_a_crate", lambda p: p.__setitem__("state", "state_open"))
+        self.placement("loc_workshop", "workshop_crate", lambda p: p.__setitem__("state", "state_open"))
         self.assertIn("state 'state_open' is not one of the object's states", self.errors())
 
     def test_state_glyph_must_belong_to_object(self):
@@ -204,12 +204,12 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("state_glyphs names 'state_open'", self.errors())
 
     def test_region_loop(self):
-        self.edit("regions.json", lambda d: d["entries"][0].__setitem__("parent", "region_a_1"))
+        self.edit("regions.json", lambda d: d["entries"][0].__setitem__("parent", "reg_lower_deck"))
         self.assertIn("is its own ancestor", self.errors())
 
     def test_zone_pool_needs_templates(self):
-        self.edit("zones.json", lambda d: d["entries"][0]["room_pool"][0].__setitem__("location", "room_a"))
-        self.assertIn("'room_a' is not a template", self.errors())
+        self.edit("zones.json", lambda d: d["entries"][0]["room_pool"][0].__setitem__("location", "loc_workshop"))
+        self.assertIn("'loc_workshop' is not a template", self.errors())
 
     def test_this_is_not_a_placement_reference(self):
         report = validate_pack(self.pack)
@@ -223,39 +223,39 @@ class TestPackErrors(unittest.TestCase):
         self.edit("items.json", apply)
 
     def test_unknown_item_kind(self):
-        self.item("misc_key", lambda i: i.__setitem__("kind", "weapon"))
+        self.item("misc_keycard", lambda i: i.__setitem__("kind", "weapon"))
         self.assertIn("kind: unknown kind 'weapon'", self.errors())
 
     def test_frame_needs_slots(self):
-        self.item("frame_a", lambda i: i.pop("slots"))
+        self.item("frame_light", lambda i: i.pop("slots"))
         self.assertIn("missing required field 'slots'", self.errors())
 
     def test_fields_belong_to_their_kind(self):
-        self.item("material_a", lambda i: i.__setitem__("slot_type", "slot_frame_a"))
+        self.item("material_scrap", lambda i: i.__setitem__("slot_type", "slot_back"))
         self.assertIn("unknown field 'slot_type'", self.errors())
 
     def test_implant_needs_body_slot(self):
-        self.item("implant_a", lambda i: i.__setitem__("slot_type", "slot_frame_a"))
-        self.assertIn("slot type 'slot_frame_a' is a frame slot; an implant needs a body slot", self.errors())
+        self.item("implant_eye", lambda i: i.__setitem__("slot_type", "slot_back"))
+        self.assertIn("slot type 'slot_back' is a frame slot; an implant needs a body slot", self.errors())
 
     def test_module_needs_frame_slot(self):
-        self.item("module_tool", lambda i: i.__setitem__("slot_type", "slot_body_a"))
-        self.assertIn("slot type 'slot_body_a' is a body slot; a module needs a frame slot", self.errors())
+        self.item("module_cutter", lambda i: i.__setitem__("slot_type", "slot_head"))
+        self.assertIn("slot type 'slot_head' is a body slot; a module needs a frame slot", self.errors())
 
     def test_stacked_items_cannot_wear(self):
-        self.item("material_a", lambda i: i.__setitem__("condition", 3))
+        self.item("material_scrap", lambda i: i.__setitem__("condition", 3))
         self.assertIn("items that stack can't have a condition", self.errors())
 
     def test_unknown_stat_key(self):
-        self.item("frame_a", lambda i: i["stats"].__setitem__("stat_missing", 1))
+        self.item("frame_light", lambda i: i["stats"].__setitem__("stat_missing", 1))
         self.assertIn("stats.stat_missing: unknown stat 'stat_missing'", self.errors())
 
     def test_unknown_grade(self):
-        self.item("frame_a", lambda i: i.__setitem__("grade", "grade_missing"))
+        self.item("frame_light", lambda i: i.__setitem__("grade", "grade_missing"))
         self.assertIn("unknown grade 'grade_missing'", self.errors())
 
     def test_budget_keys_are_fixed(self):
-        self.item("module_tool", lambda i: i["uses"].__setitem__("fuel", 1))
+        self.item("module_cutter", lambda i: i["uses"].__setitem__("fuel", 1))
         self.assertIn("uses: unknown field 'fuel'", self.errors())
 
     def test_grade_colour_from_palette(self):
@@ -279,15 +279,15 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("target: must be one of", self.errors())
 
     def test_tile_name_length(self):
-        self.action("action_burst", lambda a: a.__setitem__("short", "Much too long"))
+        self.action("action_burn", lambda a: a.__setitem__("short", "Much too long"))
         self.assertIn("short: must be at most 8 characters", self.errors())
 
     def test_consumes_item_or_tag(self):
-        self.action("action_burst", lambda a: a["cost"]["consumes"].__setitem__("tag", "tag_a"))
+        self.action("action_burn", lambda a: a["cost"]["consumes"].__setitem__("tag", "tag_tool"))
         self.assertIn("consumes: use only one of: item, tag", self.errors())
 
     def test_scaled_amount_needs_one_source(self):
-        self.action("action_strike", lambda a: a["effects"][0]["amount"].__setitem__("skill", "skill_a"))
+        self.action("action_strike", lambda a: a["effects"][0]["amount"].__setitem__("skill", "skill_salvage"))
         self.assertIn("amount: use only one of: stat, skill", self.errors())
 
     def test_trains_unknown_skill(self):
@@ -299,15 +299,15 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("result: must be one of", self.errors())
 
     def test_item_grants_unknown_action(self):
-        self.item("module_tool", lambda i: i.__setitem__("actions", ["action_missing"]))
+        self.item("module_cutter", lambda i: i.__setitem__("actions", ["action_missing"]))
         self.assertIn("unknown action 'action_missing'", self.errors())
 
     def test_levels_in_order(self):
-        self.skill("skill_a", lambda k: k["levels"].reverse())
+        self.skill("skill_salvage", lambda k: k["levels"].reverse())
         self.assertIn("levels must be listed once each, lowest first", self.errors())
 
     def test_xp_must_rise(self):
-        self.skill("skill_a", lambda k: k["levels"][2].__setitem__("xp", 30))
+        self.skill("skill_salvage", lambda k: k["levels"][2].__setitem__("xp", 30))
         self.assertIn("each level must need more xp than the one before", self.errors())
 
     def test_level_above_max(self):
@@ -315,7 +315,7 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("level 5 is above skill_max_level (3)", self.errors())
 
     def test_level_one_starts_at_zero(self):
-        self.skill("skill_a", lambda k: k["levels"][0].__setitem__("xp", 5))
+        self.skill("skill_salvage", lambda k: k["levels"][0].__setitem__("xp", 5))
         self.assertIn("level 1 needs 0 xp", self.errors())
 
     # --- Characters, encounters, loot ---
@@ -330,76 +330,76 @@ class TestPackErrors(unittest.TestCase):
         self.assertFalse(any("not checked" in w for w in report.warnings), report.warnings)
 
     def test_template_has_no_location(self):
-        self.character("char_drone", lambda ch: ch.__setitem__("location", "room_a"))
+        self.character("char_drone", lambda ch: ch.__setitem__("location", "loc_workshop"))
         self.assertIn("templates are spawned by encounters and zones", self.errors())
 
     def test_character_on_a_placement(self):
-        self.character("char_npc", lambda ch: ch.__setitem__("at", [1, 4]))
-        self.assertIn("position [1, 4] is already taken by placement 'pl_a_crate'", self.errors())
+        self.character("char_juno", lambda ch: ch.__setitem__("at", [1, 4]))
+        self.assertIn("position [1, 4] is already taken by placement 'workshop_crate'", self.errors())
 
     def test_character_on_wall(self):
-        self.character("char_npc", lambda ch: ch.__setitem__("at", [0, 0]))
-        self.assertIn("is not a floor tile of 'room_a'", self.errors())
+        self.character("char_juno", lambda ch: ch.__setitem__("at", [0, 0]))
+        self.assertIn("is not a floor tile of 'loc_workshop'", self.errors())
 
     def test_character_on_taken_tile(self):
-        self.character("char_npc", lambda ch: ch.__setitem__("at", [4, 1]))
-        self.assertIn("already taken by placement 'pl_a_locker'", self.errors())
+        self.character("char_juno", lambda ch: ch.__setitem__("at", [4, 1]))
+        self.assertIn("already taken by placement 'workshop_locker'", self.errors())
 
     def test_at_needs_location(self):
-        self.character("char_npc", lambda ch: ch.pop("location"))
+        self.character("char_juno", lambda ch: ch.pop("location"))
         self.assertIn("'at' needs a location", self.errors())
 
     def test_frame_must_be_a_frame(self):
-        self.character("char_player", lambda ch: ch.__setitem__("frame", "module_tool"))
-        self.assertIn("'module_tool' is worn as a frame but is a module", self.errors())
+        self.character("char_player", lambda ch: ch.__setitem__("frame", "module_cutter"))
+        self.assertIn("'module_cutter' is worn as a frame but is a module", self.errors())
 
     def test_fitted_must_be_modules(self):
-        self.character("char_player", lambda ch: ch["fitted"].append("implant_a"))
-        self.assertIn("fitted lists 'implant_a', which is an implant, not a module", self.errors())
+        self.character("char_player", lambda ch: ch["fitted"].append("implant_eye"))
+        self.assertIn("fitted lists 'implant_eye', which is an implant, not a module", self.errors())
 
     def test_too_many_modules_for_slots(self):
-        self.character("char_player", lambda ch: ch["fitted"].extend(["module_tool", "module_tool"]))
-        self.assertIn("no free 'slot_frame_hand' slot in the frame for 'module_tool'", self.errors())
+        self.character("char_player", lambda ch: ch["fitted"].extend(["module_cutter", "module_cutter"]))
+        self.assertIn("no free 'slot_hand' slot in the frame for 'module_cutter'", self.errors())
 
     def test_fitted_without_frame(self):
         self.character("char_player", lambda ch: ch.pop("frame"))
         self.assertIn("has fitted modules but wears no frame", self.errors())
 
     def test_power_budget(self):
-        self.item("module_system", lambda i: i["uses"].__setitem__("power", 9))
+        self.item("module_shield", lambda i: i["uses"].__setitem__("power", 9))
         self.assertIn("fitted gear needs 10 power, the loadout provides 6", self.errors())
 
     def test_heat_load(self):
-        self.item("module_system", lambda i: i["uses"].__setitem__("heat", 8))
+        self.item("module_shield", lambda i: i["uses"].__setitem__("heat", 8))
         self.assertIn("constant heat 8 leaves no room below maximum heat 8", self.errors())
 
     def test_cargo_capacity(self):
-        self.character("char_player", lambda ch: ch["inventory"].append({"item": "misc_key", "count": 4}))
+        self.character("char_player", lambda ch: ch["inventory"].append({"item": "misc_keycard", "count": 4}))
         self.assertIn("inventory needs 8 cargo stacks, the loadout carries 6", self.errors())
 
     def test_implant_needs_body_slot_on_character(self):
-        self.character("char_npc", lambda ch: ch["body"].pop("slots"))
-        self.assertIn("no free 'slot_body_a' slot in the body for 'implant_a'", self.errors())
+        self.character("char_juno", lambda ch: ch["body"].pop("slots"))
+        self.assertIn("no free 'slot_head' slot in the body for 'implant_eye'", self.errors())
 
     def test_skill_level_above_max(self):
-        self.character("char_player", lambda ch: ch["skills"].__setitem__("skill_a", 6))
-        self.assertIn("skill 'skill_a' at level 6 is above skill_max_level (5)", self.errors())
+        self.character("char_player", lambda ch: ch["skills"].__setitem__("skill_salvage", 6))
+        self.assertIn("skill 'skill_salvage' at level 6 is above skill_max_level (5)", self.errors())
 
     def test_player_is_not_a_template(self):
         self.edit("pack.json", lambda m: m["start"].__setitem__("player", "char_drone"))
         self.assertIn("start.player 'char_drone' is a template", self.errors())
 
     def test_player_placed_elsewhere(self):
-        self.character("char_player", lambda ch: ch.__setitem__("location", "room_b"))
-        self.assertIn("start.player 'char_player' is placed in 'room_b'", self.errors())
+        self.character("char_player", lambda ch: ch.__setitem__("location", "loc_storage"))
+        self.assertIn("start.player 'char_player' is placed in 'loc_storage'", self.errors())
 
     def test_leader_loop(self):
-        self.character("char_npc", lambda ch: ch.__setitem__("leader", "char_npc"))
+        self.character("char_juno", lambda ch: ch.__setitem__("leader", "char_juno"))
         self.assertIn("ends up leading itself", self.errors())
 
     def test_unique_character_takes_no_count(self):
         self.edit("encounters.json", lambda d: d["entries"][0]["allies"][0].__setitem__("count", 2))
-        self.assertIn("'char_npc' is unique; only templates take a count", self.errors())
+        self.assertIn("'char_juno' is unique; only templates take a count", self.errors())
 
     def test_loot_table_rolls_itself(self):
         self.edit("loot.json", lambda d: d["entries"][1]["entries"].append({"table": "loot_crate"}))
@@ -463,12 +463,12 @@ class TestPackErrors(unittest.TestCase):
         self.assertTrue(any("not written yet" in w and "overheated" in w for w in report.warnings))
 
     def test_unknown_string_reference(self):
-        self.character("char_npc", lambda ch: ch["talk"][-1].__setitem__("text", "@missing"))
+        self.character("char_juno", lambda ch: ch["talk"][-1].__setitem__("text", "@missing"))
         self.assertIn("unknown string '@missing'", self.errors())
 
     def test_string_reference_needs_strings_file(self):
         self.edit("pack.json", lambda m: m["files"].pop("strings"))
-        self.assertIn("unknown string '@greeting' (the pack loads no strings)", self.errors())
+        self.assertIn("unknown string '@str_greeting' (the pack loads no strings)", self.errors())
 
     # --- Crafting ---
 
@@ -478,8 +478,8 @@ class TestPackErrors(unittest.TestCase):
         self.edit("modifications.json", apply)
 
     def test_modification_needs_a_material(self):
-        self.modification("mod_reinforced", lambda m: m.__setitem__("material", "module_tool"))
-        self.assertIn("'module_tool' is a module, not a material", self.errors())
+        self.modification("mod_reinforced", lambda m: m.__setitem__("material", "module_cutter"))
+        self.assertIn("'module_cutter' is a module, not a material", self.errors())
 
     def test_modification_only_for_fittable_kinds(self):
         self.modification("mod_reinforced", lambda m: m["applies_to"].__setitem__("kinds", ["material"]))
@@ -490,23 +490,23 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("adds: needs at least one of: actions, max_condition, stats, tags, uses", self.errors())
 
     def test_materials_have_no_mod_slots(self):
-        self.item("material_a", lambda i: i.__setitem__("mod_slots", 1))
+        self.item("material_scrap", lambda i: i.__setitem__("mod_slots", 1))
         self.assertIn("unknown field 'mod_slots'", self.errors())
 
     def test_too_many_mod_slots(self):
-        self.item("frame_a", lambda i: i.__setitem__("mod_slots", 9))
+        self.item("frame_light", lambda i: i.__setitem__("mod_slots", 9))
         self.assertIn("mod_slots: must be at most 5", self.errors())
 
     def test_repair_needs_condition(self):
-        self.item("module_system", lambda i: i.__setitem__("repair", {"inputs": [{"item": "material_a"}]}))
+        self.item("module_shield", lambda i: i.__setitem__("repair", {"inputs": [{"item": "material_scrap"}]}))
         self.assertIn("has repair costs but no condition", self.errors())
 
     def test_dismantling_cannot_return_itself(self):
-        self.item("module_tool", lambda i: i["salvage"]["yields"].append({"item": "module_tool"}))
+        self.item("module_cutter", lambda i: i["salvage"]["yields"].append({"item": "module_cutter"}))
         self.assertIn("dismantling it can't give back the item itself", self.errors())
 
     def test_fabricate_needs_inputs(self):
-        self.item("module_tool", lambda i: i["fabricate"].__setitem__("inputs", []))
+        self.item("module_cutter", lambda i: i["fabricate"].__setitem__("inputs", []))
         self.assertIn("fabricate.inputs: needs at least 1 item(s)", self.errors())
 
     def test_workshop_services(self):
@@ -519,15 +519,15 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("unknown item 'item_missing'", self.errors())
 
     def test_contents_need_storage(self):
-        self.placement("room_a", "pl_a_crate", lambda p: p.__setitem__("contents", [{"item": "misc_key"}]))
+        self.placement("loc_workshop", "workshop_crate", lambda p: p.__setitem__("contents", [{"item": "misc_keycard"}]))
         self.assertIn("has contents but no storage", self.errors())
 
     def test_contents_must_fit(self):
-        self.placement("room_a", "pl_a_locker", lambda p: p.__setitem__("contents", [{"item": "frame_a"}]))
-        self.assertIn("'frame_a' is too big for it (holds_size 2)", self.errors())
+        self.placement("loc_workshop", "workshop_locker", lambda p: p.__setitem__("contents", [{"item": "frame_light"}]))
+        self.assertIn("'frame_light' is too big for it (holds_size 2)", self.errors())
 
     def test_contents_within_storage(self):
-        self.placement("room_a", "pl_a_locker", lambda p: p.__setitem__("contents", [{"item": "misc_key", "count": 7}]))
+        self.placement("loc_workshop", "workshop_locker", lambda p: p.__setitem__("contents", [{"item": "misc_keycard", "count": 7}]))
         self.assertIn("contents need 7 storage stacks, it holds 6", self.errors())
 
     def test_reserved_feature_warns(self):

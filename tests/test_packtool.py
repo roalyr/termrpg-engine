@@ -31,7 +31,7 @@ class TestPackTool(unittest.TestCase):
     def test_ids_of_a_namespace(self):
         code, out = run("ids", TEST_PACK, "item")
         self.assertEqual(code, 0)
-        self.assertIn("frame_a", out)
+        self.assertIn("frame_light", out)
         self.assertIn("items.json: entries[0]", out)
 
     def test_ids_unknown_namespace(self):
@@ -40,7 +40,7 @@ class TestPackTool(unittest.TestCase):
         self.assertIn("Namespaces:", out)
 
     def test_refs_shows_declaration_and_uses(self):
-        code, out = run("refs", TEST_PACK, "pl_a_door_b")
+        code, out = run("refs", TEST_PACK, "workshop_door")
         self.assertEqual(code, 0)
         self.assertIn("declared  placement", out)
         self.assertIn("exit.entry", out)

@@ -63,7 +63,7 @@
               "effects": [
                 {
                   "op": "message",
-                  "text": "@shrug"
+                  "text": "@str_shrug"
                 }
               ]
             }
@@ -144,18 +144,18 @@
       "when": {
         "not": {
           "check": "knows_design",
-          "item": "module_system"
+          "item": "module_shield"
         }
       },
       "effects": [
         {
           "op": "learn_design",
-          "item": "module_system"
+          "item": "module_shield"
         },
         {
           "op": "modify_item",
           "pick": {
-            "slot_type": "slot_frame_a"
+            "slot_type": "slot_back"
           },
           "stats": {
             "stat_armor": 1
@@ -172,7 +172,7 @@
       "effects": [
         {
           "op": "set_state",
-          "object": "pl_a_crate",
+          "object": "workshop_crate",
           "state": "state_closed"
         }
       ]
@@ -198,13 +198,13 @@
       "trigger": "enter_location",
       "when": {
         "check": "location",
-        "location": "room_b"
+        "location": "loc_storage"
       },
       "text": "Machines hum somewhere below.",
       "effects": [
         {
           "op": "set_flag",
-          "flag": "flag_a",
+          "flag": "flag_power",
           "add": 1
         }
       ]
@@ -217,7 +217,7 @@
       "effects": [
         {
           "op": "set_flag",
-          "flag": "flag_a",
+          "flag": "flag_power",
           "add": 10
         }
       ]

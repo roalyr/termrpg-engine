@@ -25,15 +25,15 @@ UI = default_ui()
 STEPS = int(os.environ.get("RANDOM_PLAY_STEPS", "250"))
 SEEDS = range(1, 7)
 SIZES = ((40, 20), (44, 30), (72, 50))
-STARTS = ("start", "room_b", "fight", "choice")
+STARTS = ("start", "loc_storage", "fight", "choice")
 # Every bound key except quit, the digits, and letters menus and the board use.
 KEYS = sorted((UI.bound_keys - {UI.bindings["quit"]}) | set("123456789") | set("ufrbehjklmnoyvzgtio"))
 
 
 def start(name, seed):
     s = new_game(CONTENT, seed)
-    if name == "room_b":
-        return run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "move_to", "location": "room_b"})])
+    if name == "loc_storage":
+        return run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "move_to", "location": "loc_storage"})])
     if name == "fight":
         return encounter.begin(CONTENT, s._replace(encounter_request="enc_drones"))
     if name == "choice":                                     # the terminal's question, waiting

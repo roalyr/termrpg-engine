@@ -62,7 +62,7 @@ def at_bay():
     s = world.act(CONTENT, s, "u")
     s = world.act(CONTENT, s, "g")
     s = walk(s, "ssaa")                                  # (2, 2), next to the bay at (2, 1)
-    assert build.refit_here(CONTENT, s) and build.storage_here(CONTENT, s) == "pl_b_bay"
+    assert build.refit_here(CONTENT, s) and build.storage_here(CONTENT, s) == "storage_bay"
     return s
 
 
@@ -70,7 +70,7 @@ class TestRefitPlaces(unittest.TestCase):
     def test_refit_only_at_a_refit_workshop(self):
         s = new_game(CONTENT, 1)
         self.assertFalse(build.refit_here(CONTENT, s))
-        slot = slot_of(s, "module_tool")
+        slot = slot_of(s, "module_cutter")
         self.assertEqual(build.remove_problem(CONTENT, s, slot), "Needs a refit workshop.")
         s = build.remove(CONTENT, s, slot)
         self.assertEqual(last(s), "Needs a refit workshop.")
@@ -81,39 +81,39 @@ class TestRefitPlaces(unittest.TestCase):
 class TestModules(unittest.TestCase):
     def test_remove_and_refit_a_module(self):
         s = at_bench()
-        s = build.remove(CONTENT, s, slot_of(s, "module_tool"))
-        self.assertEqual(last(s), "Removed Tool A.")
-        self.assertEqual([i.item for i in me(s).fitted], ["module_system"])
+        s = build.remove(CONTENT, s, slot_of(s, "module_cutter"))
+        self.assertEqual(last(s), "Removed Cutter.")
+        self.assertEqual([i.item for i in me(s).fitted], ["module_shield"])
         self.assertEqual(stats.budget_used(CONTENT, me(s), "power"), 3)
         self.assertFalse(world.conditions.evaluate(CONTENT, s, Ctx(self_id=PLAYER),
-                                                   freeze({"check": "has_tag", "tag": "tag_a", "source": "fitted", "subject": "self"}))[0])
-        s = build.fit(CONTENT, s, slot_of(s, "module_tool", "inventory"))
-        self.assertEqual(last(s), "Fitted Tool A.")
+                                                   freeze({"check": "has_tag", "tag": "tag_tool", "source": "fitted", "subject": "self"}))[0])
+        s = build.fit(CONTENT, s, slot_of(s, "module_cutter", "inventory"))
+        self.assertEqual(last(s), "Fitted Cutter.")
         self.assertEqual(stats.budget_used(CONTENT, me(s), "power"), 4)
 
     def test_no_free_slot(self):
-        s = effects(at_bench(), {"op": "give_item", "item": "module_system", "count": 1, "subject": "self"})
-        self.assertEqual(build.fit_problem(CONTENT, s, slot_of(s, "module_system", "inventory")),
-                         "No free slot for System A.")
+        s = effects(at_bench(), {"op": "give_item", "item": "module_shield", "count": 1, "subject": "self"})
+        self.assertEqual(build.fit_problem(CONTENT, s, slot_of(s, "module_shield", "inventory")),
+                         "No free slot for Shield.")
 
     def test_power_budget(self):
         s = at_bench()
-        s = build.remove(CONTENT, s, slot_of(s, "module_system"))
+        s = build.remove(CONTENT, s, slot_of(s, "module_shield"))
         s = effects(s, {"op": "modify_stat", "stat": "stat_power", "amount": -4, "subject": "self"})
-        self.assertEqual(build.fit_problem(CONTENT, s, slot_of(s, "module_system", "inventory")),
+        self.assertEqual(build.fit_problem(CONTENT, s, slot_of(s, "module_shield", "inventory")),
                          "Needs 4 Power, has 2.")
 
     def test_heat_load(self):
         s = at_bench()
-        s = build.remove(CONTENT, s, slot_of(s, "module_system"))
+        s = build.remove(CONTENT, s, slot_of(s, "module_shield"))
         s = effects(s, {"op": "modify_stat", "stat": "stat_heat", "amount": -6, "subject": "self"})
-        self.assertEqual(build.fit_problem(CONTENT, s, slot_of(s, "module_system", "inventory")),
+        self.assertEqual(build.fit_problem(CONTENT, s, slot_of(s, "module_shield", "inventory")),
                          "Needs 2 Heat, has 2.")
 
     def test_heat_pool_follows_the_load(self):
         s = at_bench()
         self.assertEqual(me(s).pools["stat_heat"], 2)
-        s = build.remove(CONTENT, s, slot_of(s, "module_system"))
+        s = build.remove(CONTENT, s, slot_of(s, "module_shield"))
         self.assertEqual(me(s).pools["stat_heat"], 0)
 
     def test_frame_comes_off_after_its_modules(self):
@@ -122,22 +122,22 @@ class TestModules(unittest.TestCase):
 
     def test_removing_the_frame_needs_cargo_room(self):
         s = at_bench()
-        s = build.remove(CONTENT, s, slot_of(s, "module_tool"))
-        s = build.remove(CONTENT, s, slot_of(s, "module_system"))
+        s = build.remove(CONTENT, s, slot_of(s, "module_cutter"))
+        s = build.remove(CONTENT, s, slot_of(s, "module_shield"))
         # Without the frame the body carries 2 stacks; the pack holds far more.
-        self.assertEqual(build.remove_problem(CONTENT, s, ("frame", 0)), "No room for Frame A.")
+        self.assertEqual(build.remove_problem(CONTENT, s, ("frame", 0)), "No room for Light suit.")
 
 
 class TestFrameSwap(unittest.TestCase):
     def test_swap_suits_at_the_bay(self):
         s = at_bay()
-        s = effects(s, {"op": "take_item", "item": "consumable_a", "count": 3, "subject": "self"},
-                    {"op": "take_item", "item": "material_a", "count": 12, "subject": "self"},
-                    {"op": "take_item", "item": "misc_key", "count": 1, "subject": "self"})
+        s = effects(s, {"op": "take_item", "item": "consumable_medkit", "count": 3, "subject": "self"},
+                    {"op": "take_item", "item": "material_scrap", "count": 12, "subject": "self"},
+                    {"op": "take_item", "item": "misc_keycard", "count": 1, "subject": "self"})
         self.assertEqual(me(s).inventory, ())
 
         # Strip the light suit and park everything in the bay.
-        for item in ("module_tool", "module_system"):
+        for item in ("module_cutter", "module_shield"):
             s = build.remove(CONTENT, s, slot_of(s, item))
             s = build.store(CONTENT, s, slot_of(s, item, "inventory"))
         s = effects(s, {"op": "restore", "stat": "stat_health", "amount": 99, "subject": "self"})
@@ -146,85 +146,85 @@ class TestFrameSwap(unittest.TestCase):
         # The suit's 20 health go with it, and room B's hazard costs 1 during the turn.
         self.assertEqual(stats.current(CONTENT, me(s), "stat_health"), 30 - 20 - 1)
         self.assertEqual(stats.size(CONTENT, me(s)), 3)                                       # the body
-        s = build.store(CONTENT, s, slot_of(s, "frame_a", "inventory"))
-        self.assertEqual(last(s), "Stored Frame A in Bay.")
+        s = build.store(CONTENT, s, slot_of(s, "frame_light", "inventory"))
+        self.assertEqual(last(s), "Stored Light suit in Suit bay.")
 
         # The heavy suit needs skill A 2.
-        s = build.take(CONTENT, s, stored_index(s, "frame_b"))
-        heavy = slot_of(s, "frame_b", "inventory")
-        self.assertEqual(build.fit_problem(CONTENT, s, heavy), "You can't use Frame B yet.")
-        s = effects(s, {"op": "grant_xp", "skill": "skill_a", "amount": 30, "subject": "self"})
+        s = build.take(CONTENT, s, stored_index(s, "frame_heavy"))
+        heavy = slot_of(s, "frame_heavy", "inventory")
+        self.assertEqual(build.fit_problem(CONTENT, s, heavy), "You can't use Heavy suit yet.")
+        s = effects(s, {"op": "grant_xp", "skill": "skill_salvage", "amount": 30, "subject": "self"})
         s = build.fit(CONTENT, s, heavy)
-        self.assertEqual(me(s).frame.item, "frame_b")
+        self.assertEqual(me(s).frame.item, "frame_heavy")
         self.assertEqual(stats.size(CONTENT, me(s)), 5)
         self.assertEqual(stats.stat(CONTENT, me(s), "stat_health"), 55)                     # body 10 + frame 45
 
         # Its bigger budgets take both modules back.
-        for item in ("module_tool", "module_system"):
+        for item in ("module_cutter", "module_shield"):
             s = build.take(CONTENT, s, stored_index(s, item))
             s = build.fit(CONTENT, s, slot_of(s, item, "inventory"))
-        self.assertEqual([i.item for i in me(s).fitted], ["module_tool", "module_system"])
+        self.assertEqual([i.item for i in me(s).fitted], ["module_cutter", "module_shield"])
         self.assertEqual(stats.stat(CONTENT, me(s), "stat_armor"), 5)                        # frame 3 + module 2
 
         # A size-5 suit can't get back through the door into room A (holds 3).
         s = walk(s, "dww")
-        self.assertEqual(s.focus, ("placement", "pl_b_door_a"))
+        self.assertEqual(s.focus, ("placement", "storage_door"))
         s = world.act(CONTENT, s, "g")
-        self.assertEqual(me(s).location, "room_b")
-        self.assertEqual(last(s), "Frame B doesn't fit Door.")
+        self.assertEqual(me(s).location, "loc_storage")
+        self.assertEqual(last(s), "Heavy suit doesn't fit Door.")
 
     def test_heavy_frame_cant_be_put_on_in_a_small_room(self):
         s = at_bench()
-        s = effects(s, {"op": "take_item", "item": "material_a", "count": 12, "subject": "self"})
-        for item in ("module_tool", "module_system"):
+        s = effects(s, {"op": "take_item", "item": "material_scrap", "count": 12, "subject": "self"})
+        for item in ("module_cutter", "module_shield"):
             s = build.remove(CONTENT, s, slot_of(s, item))
-        s = effects(s, {"op": "take_item", "item": "consumable_a", "count": 3, "subject": "self"},
-                    {"op": "take_item", "item": "module_system", "count": 1, "subject": "self"},
-                    {"op": "take_item", "item": "module_tool", "count": 1, "subject": "self"},
-                    {"op": "take_item", "item": "misc_key", "count": 1, "subject": "self"})
+        s = effects(s, {"op": "take_item", "item": "consumable_medkit", "count": 3, "subject": "self"},
+                    {"op": "take_item", "item": "module_shield", "count": 1, "subject": "self"},
+                    {"op": "take_item", "item": "module_cutter", "count": 1, "subject": "self"},
+                    {"op": "take_item", "item": "misc_keycard", "count": 1, "subject": "self"})
         s = build.remove(CONTENT, s, ("frame", 0))
-        s = effects(s, {"op": "give_item", "item": "frame_b", "count": 1, "subject": "self"},
-                    {"op": "grant_xp", "skill": "skill_a", "amount": 30, "subject": "self"})
-        self.assertEqual(build.fit_problem(CONTENT, s, slot_of(s, "frame_b", "inventory")),
-                         "Frame B doesn't fit Room A.")
+        s = effects(s, {"op": "give_item", "item": "frame_heavy", "count": 1, "subject": "self"},
+                    {"op": "grant_xp", "skill": "skill_salvage", "amount": 30, "subject": "self"})
+        self.assertEqual(build.fit_problem(CONTENT, s, slot_of(s, "frame_heavy", "inventory")),
+                         "Heavy suit doesn't fit Workshop.")
 
 
 class TestImplants(unittest.TestCase):
     def test_fit_an_implant_into_a_body_slot(self):
         s = at_bay()
-        s = effects(s, {"op": "take_item", "item": "material_a", "count": 12, "subject": "self"})
-        s = build.take(CONTENT, s, stored_index(s, "implant_a"))
-        s = build.fit(CONTENT, s, slot_of(s, "implant_a", "inventory"))
-        self.assertEqual([i.item for i in me(s).implants], ["implant_a"])
+        s = effects(s, {"op": "take_item", "item": "material_scrap", "count": 12, "subject": "self"})
+        s = build.take(CONTENT, s, stored_index(s, "implant_eye"))
+        s = build.fit(CONTENT, s, slot_of(s, "implant_eye", "inventory"))
+        self.assertEqual([i.item for i in me(s).implants], ["implant_eye"])
         self.assertEqual(stats.stat(CONTENT, me(s), "stat_initiative"), 1)
-        s = effects(s, {"op": "give_item", "item": "implant_a", "count": 1, "subject": "self"})
-        self.assertEqual(build.fit_problem(CONTENT, s, slot_of(s, "implant_a", "inventory")),
-                         "No free slot for Implant A.")
+        s = effects(s, {"op": "give_item", "item": "implant_eye", "count": 1, "subject": "self"})
+        self.assertEqual(build.fit_problem(CONTENT, s, slot_of(s, "implant_eye", "inventory")),
+                         "No free slot for Eye implant.")
 
 
 class TestStorage(unittest.TestCase):
     def test_storage_limits(self):
         s = walk(new_game(CONTENT, 1), "aaas")               # (3, 1), next to the locker (holds size 2)
-        self.assertEqual(build.storage_here(CONTENT, s), "pl_a_locker")
-        s = effects(s, {"op": "give_item", "item": "frame_a", "count": 1, "subject": "self"})
-        self.assertEqual(build.store_problem(CONTENT, s, slot_of(s, "frame_a", "inventory")),
-                         "Frame A doesn't fit Locker.")
-        s = build.store(CONTENT, s, slot_of(s, "material_a"))
-        locker = build.stored(s, "pl_a_locker")
-        self.assertEqual([(i.item, i.count) for i in locker], [("material_exotic", 1), ("material_a", 10)])  # the whole stack
-        self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "material_a"), 2)
+        self.assertEqual(build.storage_here(CONTENT, s), "workshop_locker")
+        s = effects(s, {"op": "give_item", "item": "frame_light", "count": 1, "subject": "self"})
+        self.assertEqual(build.store_problem(CONTENT, s, slot_of(s, "frame_light", "inventory")),
+                         "Light suit doesn't fit Locker.")
+        s = build.store(CONTENT, s, slot_of(s, "material_scrap"))
+        locker = build.stored(s, "workshop_locker")
+        self.assertEqual([(i.item, i.count) for i in locker], [("material_odd_metal", 1), ("material_scrap", 10)])  # the whole stack
+        self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "material_scrap"), 2)
         s = build.take(CONTENT, s, 1)
-        self.assertEqual([i.item for i in build.stored(s, "pl_a_locker")], ["material_exotic"])
-        self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "material_a"), 12)
+        self.assertEqual([i.item for i in build.stored(s, "workshop_locker")], ["material_odd_metal"])
+        self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "material_scrap"), 12)
 
     def test_the_board_keeps_the_pick_when_numbers_shift(self):
         s = walk(new_game(CONTENT, 1), "aaas")               # next to the locker
         slots = build.pack_slots(CONTENT, s)
-        picked = slots.index(slot_of(s, "material_a"))
+        picked = slots.index(slot_of(s, "material_scrap"))
         s, view, _ = app.handle(CONTENT, s, "o", app.View("pack", picked))      # store it
         stored = build.pack_slots(CONTENT, s)[view.selected]
         self.assertEqual(stored[0], "storage")
-        self.assertEqual(build.entry_at(CONTENT, s, stored).item, "material_a")
+        self.assertEqual(build.entry_at(CONTENT, s, stored).item, "material_scrap")
         s, view, _ = app.handle(CONTENT, s, "k", view)                          # and take it back
         back = build.pack_slots(CONTENT, s)[view.selected]
         self.assertEqual(back[0], "inventory")
@@ -232,27 +232,27 @@ class TestStorage(unittest.TestCase):
 
     def test_the_pick_is_dropped_when_the_item_is_gone(self):
         s = new_game(CONTENT, 1)
-        s = effects(s, {"op": "take_item", "item": "consumable_a", "count": 2, "subject": "self"})
+        s = effects(s, {"op": "take_item", "item": "consumable_medkit", "count": 2, "subject": "self"})
         slots = build.pack_slots(CONTENT, s)
-        picked = slots.index(slot_of(s, "consumable_a"))
+        picked = slots.index(slot_of(s, "consumable_medkit"))
         s, view, _ = app.handle(CONTENT, s, "u", app.View("pack", picked))      # uses the last one
         self.assertIsNone(view.selected)
 
     def test_starting_contents(self):
         s = new_game(CONTENT, 1)
-        self.assertEqual([i.item for i in s.storage["pl_b_bay"]], ["frame_b", "implant_a"])
-        self.assertEqual([i.item for i in s.storage["pl_a_locker"]], ["material_exotic"])
+        self.assertEqual([i.item for i in s.storage["storage_bay"]], ["frame_heavy", "implant_eye"])
+        self.assertEqual([i.item for i in s.storage["workshop_locker"]], ["material_odd_metal"])
 
 
 class TestUsingItems(unittest.TestCase):
     def test_consumable_spends_one(self):
-        s = effects(new_game(CONTENT, 1), {"op": "damage", "amount": 10, "damage_type": "dmg_b", "subject": "self"})
-        slot = slot_of(s, "consumable_a")
+        s = effects(new_game(CONTENT, 1), {"op": "damage", "amount": 10, "damage_type": "dmg_toxic", "subject": "self"})
+        slot = slot_of(s, "consumable_medkit")
         option = build.item_options(CONTENT, s, slot)[0]
         self.assertEqual((option.kind, option.label), ("use", "Use"))
         s = build.item_act(CONTENT, s, slot, option.key)
-        self.assertEqual(s.messages[0].text, "Used Consumable A.")
-        self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "consumable_a"), 2)
+        self.assertEqual(s.messages[0].text, "Used Medkit.")
+        self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "consumable_medkit"), 2)
         self.assertGreater(stats.current(CONTENT, me(s), "stat_health"), 20)
 
 
@@ -261,8 +261,8 @@ class TestScreen(unittest.TestCase):
         s = at_bench()
         frame = ANSI.sub("", render.render(CONTENT, s, 44, 60, panel="pack", selected=1))
         self.assertIn("PWR 4/6", frame)
-        self.assertIn("1 Frame A", frame)
-        self.assertIn("2 Tool A 4/4", frame)
+        self.assertIn("1 Light suit", frame)
+        self.assertIn("2 Cutter 4/4", frame)
         self.assertIn("R Remove", frame)
 
     def test_app_keys_on_the_board(self):
@@ -271,7 +271,7 @@ class TestScreen(unittest.TestCase):
         s, view, _ = app.handle(CONTENT, s, "2", view)
         self.assertEqual(view.selected, 1)
         s, view, _ = app.handle(CONTENT, s, "r", view)
-        self.assertEqual(last(s), "Removed Tool A.")
+        self.assertEqual(last(s), "Removed Cutter.")
         self.assertEqual(view.panel, "pack")
 
 

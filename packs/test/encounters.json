@@ -16,14 +16,14 @@
       ],
       "allies": [
         {
-          "character": "char_npc"
+          "character": "char_juno"
         }
       ],
       "loot": "loot_crate",
       "on_win": [
         {
           "op": "set_flag",
-          "flag": "flag_a",
+          "flag": "flag_power",
           "add": 1
         }
       ],

@@ -28,7 +28,7 @@
             "any": [
               {
                 "check": "has_tag",
-                "tag": "tag_a"
+                "tag": "tag_tool"
               },
               {
                 "check": "size",
@@ -36,7 +36,7 @@
               }
             ]
           },
-          "hint": "Needs a tag A item or a large frame.",
+          "hint": "Needs a tool or a heavy suit.",
           "effects": [
             {
               "op": "set_state",
@@ -120,7 +120,7 @@
                 },
                 {
                   "op": "set_flag",
-                  "flag": "flag_a",
+                  "flag": "flag_power",
                   "add": 1
                 },
                 {
@@ -153,32 +153,32 @@
           "effects": [
             {
               "op": "choose",
-              "prompt": "Pick one.",
+              "prompt": "The screen wakes.",
               "options": [
                 {
-                  "label": "Option A",
+                  "label": "Check the logs",
                   "effects": [
                     {
                       "op": "change_relation",
                       "of": {
-                        "faction": "faction_a"
+                        "faction": "faction_crew"
                       },
                       "amount": 5
                     }
                   ]
                 },
                 {
-                  "label": "Option B",
+                  "label": "Reroute power",
                   "condition": {
                     "check": "flag",
-                    "flag": "flag_a",
+                    "flag": "flag_power",
                     "min": 1
                   },
-                  "hint": "Needs flag A.",
+                  "hint": "Needs the power on.",
                   "effects": [
                     {
                       "op": "set_flag",
-                      "flag": "flag_a",
+                      "flag": "flag_power",
                       "value": 0
                     }
                   ]
@@ -200,7 +200,7 @@
     },
     {
       "id": "obj_bench",
-      "name": "Bench",
+      "name": "Workbench",
       "glyph": "■",
       "solid": true,
       "workshop": {
@@ -211,12 +211,12 @@
           "modify",
           "repair"
         ],
-        "max_grade": "grade_a"
+        "max_grade": "grade_common"
       }
     },
     {
       "id": "obj_bay",
-      "name": "Bay",
+      "name": "Suit bay",
       "glyph": "▣",
       "solid": true,
       "size": 5,
@@ -230,7 +230,7 @@
     },
     {
       "id": "obj_hatch",
-      "name": "Hatch",
+      "name": "Floor hatch",
       "glyph": "⊙",
       "solid": true,
       "interactions": [
@@ -249,19 +249,19 @@
     },
     {
       "id": "obj_trainer",
-      "name": "Training console",
+      "name": "Training sim",
       "glyph": "§",
       "solid": true,
-      "description": "Test only: a shortcut to experience.",
+      "description": "Test only: a shortcut to Salvage experience.",
       "interactions": [
         {
           "id": "train",
-          "label": "Train skill A",
+          "label": "Train Salvage",
           "key": "u",
           "effects": [
             {
               "op": "grant_xp",
-              "skill": "skill_a",
+              "skill": "skill_salvage",
               "amount": 30
             }
           ]

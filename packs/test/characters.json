@@ -12,31 +12,31 @@
         },
         "slots": [
           {
-            "slot_type": "slot_body_a"
+            "slot_type": "slot_head"
           }
         ]
       },
-      "frame": "frame_a",
+      "frame": "frame_light",
       "fitted": [
-        "module_tool",
-        "module_system"
+        "module_cutter",
+        "module_shield"
       ],
       "inventory": [
         {
-          "item": "consumable_a",
+          "item": "consumable_medkit",
           "count": 3
         },
         {
-          "item": "material_a",
+          "item": "material_scrap",
           "count": 12
         },
         {
-          "item": "misc_key",
+          "item": "misc_keycard",
           "count": 1
         }
       ],
       "skills": {
-        "skill_a": 1
+        "skill_salvage": 1
       },
       "on_defeat": [
         {
@@ -46,8 +46,8 @@
         },
         {
           "op": "move_to",
-          "location": "room_a",
-          "entry": "pl_a_crate"
+          "location": "loc_workshop",
+          "entry": "workshop_crate"
         },
         {
           "op": "restore",
@@ -62,11 +62,11 @@
       "designs": []
     },
     {
-      "id": "char_npc",
-      "name": "Npc",
-      "title": "Test NPC",
-      "faction": "faction_a",
-      "location": "room_a",
+      "id": "char_juno",
+      "name": "Juno",
+      "title": "Scrap trader",
+      "faction": "faction_crew",
+      "location": "loc_workshop",
       "at": [
         3,
         3
@@ -79,15 +79,15 @@
         },
         "slots": [
           {
-            "slot_type": "slot_body_a"
+            "slot_type": "slot_head"
           }
         ]
       },
       "implants": [
-        "implant_a"
+        "implant_eye"
       ],
       "wants": [
-        "tag_a"
+        "tag_tool"
       ],
       "views": [
         {
@@ -96,7 +96,7 @@
         },
         {
           "toward": {
-            "faction": "faction_a"
+            "faction": "faction_crew"
           },
           "value": 50
         }
@@ -118,7 +118,7 @@
           "text": "Good to see you."
         },
         {
-          "text": "@greeting"
+          "text": "@str_greeting"
         }
       ],
       "interactions": [
@@ -129,17 +129,17 @@
           "repeat": "once",
           "requires": {
             "check": "has_item",
-            "item": "misc_key"
+            "item": "misc_keycard"
           },
-          "hint": "Wants a key.",
+          "hint": "Wants a keycard.",
           "effects": [
             {
               "op": "take_item",
-              "item": "misc_key"
+              "item": "misc_keycard"
             },
             {
               "op": "give_item",
-              "item": "consumable_a",
+              "item": "consumable_medkit",
               "count": 2
             },
             {
@@ -183,7 +183,7 @@
       "template": true,
       "glyph": "d",
       "tags": [
-        "tag_hazard"
+        "tag_machine"
       ],
       "art": [
         "  ┌─┬─┐  ",
@@ -207,10 +207,10 @@
       "loot": "loot_drone"
     },
     {
-      "id": "char_rival_1",
-      "name": "Rival 1",
+      "id": "char_dov",
+      "name": "Dov",
       "rank": 1,
-      "faction": "faction_a",
+      "faction": "faction_crew",
       "body": {
         "size": 3,
         "stats": {
@@ -225,10 +225,10 @@
       ]
     },
     {
-      "id": "char_rival_2",
-      "name": "Rival 2",
+      "id": "char_ilse",
+      "name": "Ilse",
       "rank": 1,
-      "faction": "faction_a",
+      "faction": "faction_crew",
       "body": {
         "size": 3,
         "stats": {
@@ -243,10 +243,10 @@
       ]
     },
     {
-      "id": "char_rival_3",
-      "name": "Rival 3",
+      "id": "char_tomas",
+      "name": "Tomas",
       "rank": 1,
-      "faction": "faction_a",
+      "faction": "faction_crew",
       "body": {
         "size": 3,
         "stats": {

@@ -2,13 +2,13 @@
   "$schema": "../../schemas/pack.schema.json",
   "id": "test",
   "name": "Test pack",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "schema_version": 1,
   "purpose": "test",
-  "description": "Small generic content for engine development and automated tests. Names are placeholders on purpose.",
+  "description": "Small content for engine development and automated tests: a workshop and a storage room with a gas leak, in plain names.",
   "start": {
-    "location": "room_a",
-    "entry": "pl_a_crate",
+    "location": "loc_workshop",
+    "entry": "workshop_crate",
     "player": "char_player"
   },
   "files": {

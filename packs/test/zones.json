@@ -2,16 +2,16 @@
   "$schema": "../../schemas/world.schema.json",
   "entries": [
     {
-      "id": "zone_a",
-      "name": "Zone A",
-      "region": "region_a",
+      "id": "zone_tunnels",
+      "name": "Tunnels",
+      "region": "reg_station",
       "rooms": {
         "min": 2,
         "max": 4
       },
       "room_pool": [
         {
-          "location": "room_template_a"
+          "location": "loc_side_room"
         }
       ],
       "object_pool": [
@@ -24,7 +24,7 @@
         }
       ],
       "regenerate": "daily",
-      "exit": "pl_a_zone"
+      "exit": "workshop_passage"
     }
   ]
 }

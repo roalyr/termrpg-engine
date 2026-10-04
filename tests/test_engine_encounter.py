@@ -18,7 +18,7 @@ from tui import app, render
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")
-PLAYER, NPC = "char_player", "char_npc"
+PLAYER, NPC = "char_player", "char_juno"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -65,7 +65,7 @@ class TestBegin(unittest.TestCase):
         self.assertEqual(enc.allies, (PLAYER, NPC))
         self.assertEqual(enc.enemies, ("char_drone#1", "char_drone#2"))
         self.assertEqual(enc.spawned, enc.enemies)
-        self.assertEqual(s.characters["char_drone#1"].location, "room_a")
+        self.assertEqual(s.characters["char_drone#1"].location, "loc_workshop")
         self.assertIsNone(s.characters["char_drone#1"].at)              # not on the map
         self.assertEqual(texts(s)[:2], ["Drones!", "Drones close in."])
         self.assertEqual(encounter.intent_line(CONTENT, s, "char_drone#1"), "STRIKE Player")
@@ -80,15 +80,15 @@ class TestBegin(unittest.TestCase):
 class TestOutcomes(unittest.TestCase):
     def test_win(self):
         s = fight(2)
-        xp_before = me(s).xp.get("skill_a", 0)
-        material_before = sum(i.count for i in me(s).inventory if i.item == "material_a")
+        xp_before = me(s).xp.get("skill_salvage", 0)
+        material_before = sum(i.count for i in me(s).inventory if i.item == "material_scrap")
         s, seen = strike_until_over(s)
         self.assertIsNone(s.encounter)
         self.assertIn("Won.", seen)
         self.assertFalse(any(cid.startswith("char_drone#") for cid in s.characters))   # spawned copies leave
-        self.assertGreater(sum(i.count for i in me(s).inventory if i.item == "material_a"), material_before)
-        self.assertGreater(me(s).xp["skill_a"], xp_before)                             # Strike trains skill A
-        self.assertEqual(s.flags["flag_a"], 1)                                          # on_win
+        self.assertGreater(sum(i.count for i in me(s).inventory if i.item == "material_scrap"), material_before)
+        self.assertGreater(me(s).xp["skill_salvage"], xp_before)                             # Strike trains skill A
+        self.assertEqual(s.flags["flag_power"], 1)                                          # on_win
         self.assertEqual(me(s).pools["stat_heat"], 2)                                   # cooled to the constant load
 
     def test_lose(self):
@@ -98,7 +98,7 @@ class TestOutcomes(unittest.TestCase):
         self.assertIn("Lost.", texts(s))
         # on_defeat ran after the encounter: the player is carried home and patched up.
         self.assertIn("You go down.", texts(s))
-        self.assertEqual(me(s).location, "room_a")
+        self.assertEqual(me(s).location, "loc_workshop")
         self.assertFalse(me(s).down)
         self.assertEqual(hp(s), 5)
         self.assertIn("event_rescue", s.event_requests)
@@ -135,7 +135,7 @@ class TestRound(unittest.TestCase):
         s = fight(2)
         s = encounter.take_turn(CONTENT, s, "action_strike", "char_drone#1")
         self.assertEqual(texts(s), ["Drone: Strike on Player.", "Player takes 3 damage.",           # drones are quicker
-                                    "Drone: Strike on Npc.", "Npc takes 5 damage.",
+                                    "Drone: Strike on Juno.", "Juno takes 5 damage.",
                                     "Player: Strike on Drone.", "Drone takes 5 damage."])
         s = encounter.take_turn(CONTENT, s, "action_guard")
         self.assertEqual(texts(s)[0], "Player uses Guard.")                                                # priority 1 goes first
@@ -168,12 +168,12 @@ class TestRound(unittest.TestCase):
 
     def test_charges_and_consumed_items(self):
         s = fight(2)
-        s = run(CONTENT, s, Ctx(self_id=PLAYER), [freeze({"op": "grant_xp", "skill": "skill_a", "amount": 30, "subject": "self"})])
-        material = sum(i.count for i in me(s).inventory if i.item == "material_a")
-        s = encounter.take_turn(CONTENT, s, "action_burst")
-        self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "material_a"), material - 2)
-        self.assertTrue(any(st.status == "status_dot" for st in s.characters["char_drone#1"].statuses))
-        burst = next(t for t in encounter.tiles(CONTENT, s) if t.action == "action_burst")
+        s = run(CONTENT, s, Ctx(self_id=PLAYER), [freeze({"op": "grant_xp", "skill": "skill_salvage", "amount": 30, "subject": "self"})])
+        material = sum(i.count for i in me(s).inventory if i.item == "material_scrap")
+        s = encounter.take_turn(CONTENT, s, "action_burn")
+        self.assertEqual(sum(i.count for i in me(s).inventory if i.item == "material_scrap"), material - 2)
+        self.assertTrue(any(st.status == "status_burning" for st in s.characters["char_drone#1"].statuses))
+        burst = next(t for t in encounter.tiles(CONTENT, s) if t.action == "action_burn")
         self.assertEqual((burst.available, burst.hint), (False, "Used up."))
 
     def test_stunned_fighters_lose_their_action(self):

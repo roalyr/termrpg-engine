@@ -2,17 +2,17 @@
   "$schema": "../../schemas/world.schema.json",
   "entries": [
     {
-      "id": "region_a",
-      "name": "Region A",
+      "id": "reg_station",
+      "name": "Station",
       "map": {
         "x": 0,
         "y": 0
       }
     },
     {
-      "id": "region_a_1",
-      "name": "Region A1",
-      "parent": "region_a",
+      "id": "reg_lower_deck",
+      "name": "Lower deck",
+      "parent": "reg_station",
       "map": {
         "x": 1,
         "y": 0

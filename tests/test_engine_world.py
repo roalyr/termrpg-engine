@@ -25,7 +25,7 @@ UI = default_ui()
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")
-PLAYER, NPC = "char_player", "char_npc"
+PLAYER, NPC = "char_player", "char_juno"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -62,44 +62,44 @@ class TestPlaythrough(unittest.TestCase):
         # Walk to the closed door and open it with the fitted tool, which wears.
         s = keys(s, "aaww")
         self.assertEqual(me(s).at, (0, 2))
-        self.assertEqual(s.focus, ("placement", "pl_a_door_b"))
-        self.assertFalse(option(s, "Go to Room B").available)
-        self.assertEqual(option(s, "Go to Room B").hint, "The door is closed.")
+        self.assertEqual(s.focus, ("placement", "workshop_door"))
+        self.assertFalse(option(s, "Go to Storage").available)
+        self.assertEqual(option(s, "Go to Storage").hint, "The door is closed.")
         s = keys(s, "u")
-        self.assertEqual(s.object_states["pl_a_door_b"], "state_open")
+        self.assertEqual(s.object_states["workshop_door"], "state_open")
         self.assertEqual(me(s).fitted[0].condition, 3)
 
         # Through to room B: the hazard hurts every turn there.
         s = keys(s, "g")
-        self.assertEqual((me(s).location, me(s).at), ("room_b", (0, 3)))
-        self.assertIn("You enter Room B.", texts(s))
+        self.assertEqual((me(s).location, me(s).at), ("loc_storage", (0, 3)))
+        self.assertIn("You enter Storage.", texts(s))
         before = health(s)
         s = keys(s, "s")
         self.assertLess(health(s), before)
 
         # And back.
         s = keys(s, "wg")
-        self.assertEqual(me(s).location, "room_a")
+        self.assertEqual(me(s).location, "loc_workshop")
 
         # The crate is solid: bump it to focus, then search once a day.
         s = keys(s, "sdd")                                      # the second step east bumps it
         self.assertEqual(me(s).at, (1, 3))
-        self.assertEqual(s.focus, ("placement", "pl_a_crate"))
+        self.assertEqual(s.focus, ("placement", "workshop_crate"))
         turn = s.turn
         s = keys(s, "f")
         self.assertEqual(s.turn, turn + 2)                    # searching takes two turns
-        self.assertEqual(s.object_states["pl_a_crate"], "state_used")
+        self.assertEqual(s.object_states["workshop_crate"], "state_used")
         self.assertFalse(option(s, "Search").available)
 
         # The NPC: bump to focus, talk, trade the key, then recruit.
         s = keys(s, "ss")
         self.assertEqual(s.focus, ("character", NPC))
         s = keys(s, "t")
-        self.assertIn("Npc: Hello.", texts(s))
+        self.assertIn("Juno: Hello.", texts(s))
         recruit = option(s, "Recruit")
         self.assertFalse(recruit.available)                   # not trusted yet
         s = keys(s, "b")
-        self.assertIn("Got: Consumable A x2.", texts(s))
+        self.assertIn("Got: Medkit x2.", texts(s))
         s = keys(s, option(s, "Recruit").key)
         self.assertEqual(me(s).id, PLAYER)
         self.assertEqual(s.characters[NPC].leader, PLAYER)
@@ -140,14 +140,14 @@ class TestTurns(unittest.TestCase):
     def test_statuses_tick_and_expire(self):
         s = new_game(CONTENT, 1)
         s = run(CONTENT, s, Ctx(self_id=PLAYER), [freeze(
-            {"op": "apply_status", "status": "status_dot", "subject": "self", "duration": 2, "stacks": 2})])
+            {"op": "apply_status", "status": "status_burning", "subject": "self", "duration": 2, "stacks": 2})])
         start = health(s)
         s = turns.advance(CONTENT, s, 1)
-        self.assertEqual(me(s).statuses, (StatusInst("status_dot", 2, 1),))
+        self.assertEqual(me(s).statuses, (StatusInst("status_burning", 2, 1),))
         self.assertLess(health(s), start)
         s = turns.advance(CONTENT, s, 1)
         self.assertEqual(me(s).statuses, ())
-        self.assertIn("Player: Damage over time ends.", texts(s))
+        self.assertIn("Player: Burning ends.", texts(s))
 
     def test_timed_stat_changes_end(self):
         s = new_game(CONTENT, 1)
@@ -165,7 +165,7 @@ class TestTurns(unittest.TestCase):
 
     def test_phase_and_day_messages(self):
         s = turns.advance(CONTENT, new_game(CONTENT, 1), 30)
-        self.assertIn("Phase B.", texts(s))
+        self.assertIn("Night shift.", texts(s))
         s = turns.advance(CONTENT, s._replace(messages=()), 30)
         self.assertIn("Day 2.", texts(s))
 
@@ -176,7 +176,7 @@ class TestTurns(unittest.TestCase):
         self.assertEqual(option(s, "Search").hint, "Already searched.")
         # The crate's own state keeps it closed until something restocks it; with the state
         # reset by hand, the daily limit alone still blocks it today and frees it tomorrow.
-        s = s._replace(object_states=freeze({**s.object_states, "pl_a_crate": "state_closed"}))
+        s = s._replace(object_states=freeze({**s.object_states, "workshop_crate": "state_closed"}))
         self.assertEqual(option(s, "Search").hint, "Already done.")
         s = turns.advance(CONTENT, s, 60)
         self.assertTrue(option(s, "Search").available)
@@ -214,20 +214,20 @@ class TestScreen(unittest.TestCase):
 
     def test_frame_shows_the_world_in_the_packs_words(self):
         f = self.frame(keys(new_game(CONTENT, 1), "aaww"))
-        for words in ("Room A", "Region A1", "Day 1 · Phase A", "HP", "Door", "Go to Room B", "Inspect", "N Npc"):
+        for words in ("Workshop", "Lower deck", "Day 1 · Day shift", "HP", "Door", "Go to Storage", "Inspect", "J Juno"):
             self.assertIn(words, f)
 
     def test_hazards_shown_in_the_header(self):
         f = self.frame(keys(new_game(CONTENT, 1), "aawwug"))
-        self.assertIn("a hazard", f)
+        self.assertIn("gas leak", f)
 
     def test_panels_and_choices(self):
         s = new_game(CONTENT, 1)
         self.assertIn("Carried:", self.frame(s, panel="pack"))
-        self.assertIn("Skill A 1", self.frame(s, panel="character"))
+        self.assertIn("Salvage 1", self.frame(s, panel="character"))
         s = run(CONTENT, s, Ctx(self_id=PLAYER), CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"])
         f = self.frame(s)
-        self.assertIn("1 Option A", f)
+        self.assertIn("1 Check the logs", f)
         self.assertIn("1-2 choose", f)
 
     def test_too_small(self):
@@ -240,16 +240,16 @@ class TestPlaytestFixes(unittest.TestCase):
                 CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"])
         coloured = render.render(CONTENT, s, 44, 60)
         frame = ANSI.sub("", coloured)
-        self.assertIn("2 Option B - Needs flag A.", frame)      # flag A is 0: unavailable, with its hint
-        self.assertIn(Style(True, UI.tokens["styles"]).role("2 Option B - Needs flag A.", "unavailable"), coloured)   # and greyed
+        self.assertIn("2 Reroute power - Needs the power on.", frame)      # the power on is 0: unavailable, with its hint
+        self.assertIn(Style(True, UI.tokens["styles"]).role("2 Reroute power - Needs the power on.", "unavailable"), coloured)   # and greyed
         self.assertEqual(s.rng, run(CONTENT, new_game(CONTENT, 1), Ctx(self_id=PLAYER),
                                     CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"]).rng)
 
     def test_training_console(self):
         s = keys(new_game(CONTENT, 1), "aaaw")                   # bump the console at (1, 1)
-        self.assertEqual(s.focus, ("placement", "pl_a_trainer"))
+        self.assertEqual(s.focus, ("placement", "workshop_trainer"))
         s = keys(s, "u")
-        self.assertIn("Skill A 2! Unlocks Burst.", texts(s))
+        self.assertIn("Salvage 2! Unlocks Burn.", texts(s))
 
     def test_med_station_heals_the_party_and_revives(self):
         s = new_game(CONTENT, 1)
@@ -258,11 +258,11 @@ class TestPlaytestFixes(unittest.TestCase):
             leader=PLAYER, down=True, pools=freeze({**npc.pools, "stat_health": 0}))}))
         s = keys(s, "aaww")                                      # to the door, with the NPC in tow
         s = keys(s, "ugssaw")                                    # open, go through, to (2, 2), bump the station
-        self.assertEqual(s.focus, ("placement", "pl_b_medbay"))
+        self.assertEqual(s.focus, ("placement", "storage_medbay"))
         s = keys(s, "u")
         self.assertIn("Everyone is patched up.", texts(s))
         self.assertFalse(s.characters[NPC].down)
-        # Healed to 10; then the turn ends and Room B's hazard hits the unsuited NPC once.
+        # Healed to 10; then the turn ends and Storage's hazard hits the unsuited NPC once.
         self.assertEqual(stats.current(CONTENT, s.characters[NPC], "stat_health"), 9)
 
 
@@ -294,7 +294,7 @@ class TestApp(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("Saved.", out.getvalue())
             state = save.load(CONTENT, path)
-            self.assertEqual(state.object_states["pl_a_door_b"], "state_open")
+            self.assertEqual(state.object_states["workshop_door"], "state_open")
 
 
 if __name__ == "__main__":

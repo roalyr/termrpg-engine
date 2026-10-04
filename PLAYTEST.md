@@ -17,12 +17,12 @@ The key hints at the bottom of the screen always show the keys that work right n
 
 ## Where things are
 
-- **Room A** (the start): a door to Room B, a crate, a locker, a bench (a workshop),
-  a training console, the NPC, and a zone passage that isn't active yet.
-- **Room B** (hazardous): a door back, a med station, a suit bay holding a heavy suit
-  and an implant, a terminal, and a hatch that starts a fight. Without something
-  carrying tag B, everyone there loses health every turn.
-- The **training console** and **med station** are test-only shortcuts, so later
+- **Workshop** (the start): a door to the storage room, a crate, a locker, a workbench,
+  a training sim, Juno (a scrap trader), and a tunnel hatch that isn't active yet.
+- **Storage** (a gas leak): a door back, a med station, a suit bay holding a heavy
+  suit and an eye implant, a terminal, and a floor hatch that starts a fight with
+  drones. Without an air filter, everyone there loses health every turn.
+- The **training sim** and **med station** are test-only shortcuts, so later
   features can be reached by hand.
 
 ---
@@ -58,7 +58,7 @@ The key hints at the bottom of the screen always show the keys that work right n
 
 - [ ] Talking shows the most fitting dialogue line; it changes when they travel with
   you.
-- [ ] Trading changes items both ways and improves the NPC's view of you; recruiting
+- [ ] Trading changes items both ways and improves Juno's view of you; recruiting
   is greyed out until they like you enough.
 - [ ] A recruited companion leaves the map, follows you between rooms, shows in the
   status panel, and fights on your side.
@@ -98,21 +98,21 @@ The key hints at the bottom of the screen always show the keys that work right n
 - [ ] **Modify** fills a mod slot for good and shows in the item's name; it's refused
   when no slot is free, when the material is missing, or when the item's grade is
   above the workshop's.
-- [ ] The exotic material's modification changes the item in a fixed way (here it adds
-  an action, heat and tag B, which protects you in Room B).
+- [ ] The odd metal's modification changes the item in a fixed way (here it adds the
+  Burn action, heat, and an air filter, which protects you in the storage room).
 
-## 9. Storage
+## 9. Lockers and bays
 
 - [ ] Next to a locker or bay, its contents appear on the board; take and store move
   whole stacks.
-- [ ] Storage refuses more than it holds.
+- [ ] A locker or bay refuses more than it holds.
 
 ## 10. Hazards and on-arrival events
 
-- [ ] Entering Room B shows the arrival message and an arrival event's text; the
-  hazard is named in the warning colour.
-- [ ] Without protection, health drops every turn there, for you and for companions;
-  with tag B it doesn't.
+- [ ] Entering the storage room shows the arrival message and an arrival event's
+  text ("Machines hum somewhere below."); the gas leak is named in the warning colour.
+- [ ] Without protection, health drops every turn there, for you and for companions
+  with you; with an air filter it doesn't.
 
 ## 11. Choices
 
