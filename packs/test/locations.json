@@ -52,6 +52,7 @@
             2
           ],
           "name": "Tunnel hatch",
+          "description": "A hatch down into the maintenance tunnels. The tunnels aren't open yet.",
           "exit": {
             "zone": "zone_tunnels"
           }

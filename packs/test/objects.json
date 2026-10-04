@@ -4,6 +4,7 @@
     {
       "id": "obj_door",
       "name": "Door",
+      "description": "A sliding pressure door. It opens with a tool, such as a cutter, and prying it open wears the tool a little. A heavy suit can force it, but it won't fit through: the frame only takes someone of person size. Close it behind you if you like.",
       "glyph": "◆",
       "size": 3,
       "holds_size": 3,
@@ -80,6 +81,7 @@
     {
       "id": "obj_crate",
       "name": "Crate",
+      "description": "A battered supply crate, restocked every morning. Searching it takes two turns and works once a day. Half the time there's something inside: scrap, a medkit, now and then a spare part.",
       "glyph": "⊞",
       "size": 2,
       "holds_size": 1,
@@ -143,6 +145,7 @@
     {
       "id": "obj_terminal",
       "name": "Terminal",
+      "description": "A maintenance terminal wired into the station. Checking the logs keeps the crew informed, and they think a little better of you for it. Rerouting power needs the power on, and uses it up until something brings it back.",
       "glyph": "⌸",
       "solid": true,
       "interactions": [
@@ -192,6 +195,7 @@
     {
       "id": "obj_locker",
       "name": "Locker",
+      "description": "A steel locker with room for six stacks of anything up to medium size: tools, materials, spares. Suits don't fit. Stand next to it and use the fitting board to store or take items, a whole stack at a time.",
       "glyph": "▯",
       "size": 3,
       "holds_size": 2,
@@ -201,6 +205,7 @@
     {
       "id": "obj_bench",
       "name": "Workbench",
+      "description": "A proper workbench: vice, cutters, a small furnace. Stand next to it and use the fitting board to put on or take off suits, modules and implants; repair worn gear with scrap; take items apart for materials, and learn how they're made if your Salvage is good enough; make items you know the design of; and modify gear, which fills one of its mod slots for good. It only works on common-grade gear.",
       "glyph": "■",
       "solid": true,
       "workshop": {
@@ -217,6 +222,7 @@
     {
       "id": "obj_bay",
       "name": "Suit bay",
+      "description": "A suit rack with clamps and power lines, big enough for a heavy suit. It stores six stacks, suits included. Stand next to it and use the fitting board to put on or take off suits, modules and implants. It can't repair or make anything.",
       "glyph": "▣",
       "solid": true,
       "size": 5,
@@ -231,6 +237,7 @@
     {
       "id": "obj_hatch",
       "name": "Floor hatch",
+      "description": "A maintenance hatch over the crawlspace. Drones have nested down there. Opening it brings them up for a fight, so be ready before you do.",
       "glyph": "⊙",
       "solid": true,
       "interactions": [
@@ -250,9 +257,9 @@
     {
       "id": "obj_trainer",
       "name": "Training sim",
+      "description": "Test only: a training rig. Each use gives 30 Salvage experience, so the higher Salvage levels (Burn at level 2) are quick to reach by hand.",
       "glyph": "§",
       "solid": true,
-      "description": "Test only: a shortcut to Salvage experience.",
       "interactions": [
         {
           "id": "train",
@@ -271,9 +278,9 @@
     {
       "id": "obj_medbay",
       "name": "Med station",
+      "description": "Test only: an automatic medical bay. Using it heals everyone in your party in full, and gets anyone who went down back on their feet.",
       "glyph": "+",
       "solid": true,
-      "description": "Test only: heals everyone in your party, even someone who went down.",
       "interactions": [
         {
           "id": "heal",

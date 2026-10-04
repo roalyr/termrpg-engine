@@ -202,6 +202,23 @@ class TestSave(unittest.TestCase):
         self.assertEqual(save.from_json(CONTENT, save.to_json(CONTENT, s)), s)
 
 
+class TestInspect(unittest.TestCase):
+    def test_inspect_explains_what_a_thing_does(self):
+        s = world.act(CONTENT, keys(new_game(CONTENT, 1), "ss"), "i")       # the workbench below the start
+        text = texts(s)[-1]
+        for word in ("repair", "take items apart", "make items", "modify", "common-grade"):
+            self.assertIn(word, text)
+
+    def test_inspecting_a_person_gives_name_title_and_description(self):
+        s = world.act(CONTENT, keys(new_game(CONTENT, 1), "as"), "i")       # Juno, below-left
+        self.assertTrue(texts(s)[-1].startswith("Juno - Scrap trader. Deals in"))
+
+    def test_every_object_says_what_it_is(self):
+        for object_id, record in CONTENT.all("object").items():
+            if object_id != "obj_passage":                                 # its placement describes it
+                self.assertGreater(len(record.get("description", "")), 60, object_id)
+
+
 class TestScreen(unittest.TestCase):
     def frame(self, state, columns=44, **kw):
         return ANSI.sub("", render.render(CONTENT, state, columns, 60, **kw))

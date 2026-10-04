@@ -44,7 +44,8 @@ The key hints at the bottom of the screen always show the keys that work right n
   its menu with the right keys. Close it with the close key.
 - [ ] Unavailable options are greyed out with a hint saying what's needed; pressing
   them shows the hint and takes no time.
-- [ ] Inspect shows the thing's name and description.
+- [ ] Inspect explains what a thing does and what it needs (try the workbench, the
+  terminal, the suit bay and Juno).
 
 ## 3. Interactions
 

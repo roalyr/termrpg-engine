@@ -65,6 +65,7 @@
       "id": "char_juno",
       "name": "Juno",
       "title": "Scrap trader",
+      "description": "Deals in whatever the station throws away. Juno will trade two medkits for a keycard, once, and trusts you more after a fair deal. Once Juno trusts you, Juno will join you, fight beside you and follow you from room to room.",
       "faction": "faction_crew",
       "location": "loc_workshop",
       "at": [
