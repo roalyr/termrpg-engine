@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional, Tup
 
 from engine import build, conditions, context, encounter, stats, world
 from engine.content import Content
-from engine.state import GameState, ItemInst, day_of, new_item, phase_of
+from engine.state import GameState, ItemInst, Message, day_of, new_item, phase_of
 from tui.text import ANSI, Style, pad, visible_len, wrap
 from tui.ui import UI
 
@@ -47,7 +47,7 @@ Draw = Callable[[Frame, int, Mapping[str, Any]], List[str]]
 
 # Sub-windows: what's open (Frame.panel) and the widget that shows it. While one is open
 # it is the focus: its zone scrolls, and the log and menu step back.
-SUBWINDOWS = {"inspect": "panel", "item": "panel", "modify": "pick"}
+SUBWINDOWS = {"inspect": "panel", "item": "panel", "modify": "pick", "card": "panel", "history": "panel"}
 # List screens: with no sub-window open, this widget's zone scrolls to keep the pick in view.
 LISTS = {"fitting": "loadout", "character": "skills", "talk": "conversation"}
 FOCUS = "\x00"   # marks the picked line of a list for the layout; never drawn
@@ -280,9 +280,14 @@ def menu(frame: Frame, width: int, options: Mapping) -> List[str]:
 
 
 def choice(frame: Frame, width: int, options: Mapping) -> List[str]:
-    content, state = frame.content, frame.state
-    if state.pending is None:
+    if frame.state.pending is None or frame.panel == "card":      # a card shows it instead
         return []
+    return _choice_lines(frame, width, options.get("hints", True))
+
+
+def _choice_lines(frame: Frame, width: int, hints: bool) -> List[str]:
+    """A waiting question: its prompt, then numbered options, unavailable ones greyed out with their hint."""
+    content, state = frame.content, frame.state
     lines: List[str] = wrap(state.pending.prompt, width) if state.pending.prompt else []
     for i, option in enumerate(state.pending.options, 1):
         # Drawing must not change the game: the state a check returns is thrown away.
@@ -291,7 +296,7 @@ def choice(frame: Frame, width: int, options: Mapping) -> List[str]:
         if ok:
             lines += wrap(text, width)
         else:
-            hint = f" - {content.text(option['hint'])}" if options.get("hints", True) and option.get("hint") else ""
+            hint = f" - {content.text(option['hint'])}" if hints and option.get("hint") else ""
             lines += styled_lines(text + hint, width, frame, "unavailable")
     return lines
 
@@ -350,8 +355,63 @@ def _item_line(content: Content, inst) -> str:
 
 # --- panel -----------------------------------------------------------------------------
 
+def card_shown(ui: UI, content: Content, state: GameState) -> bool:
+    """
+    Whether the world shows a card: a question always does; an event's text does when it's
+    longer than the UI pack's card_min_lines on the narrowest screen (so it's the same on
+    every terminal, and the app can tell without knowing the terminal's size).
+    """
+    if state.pending is not None:
+        return True
+    if state.card is None:
+        return False
+    width = ui.tokens["size"]["min_columns"] - 2 - 2 * ui.tokens["padding"] - 2
+    return len(wrap(state.card.text, width)) > ui.tokens["size"]["card_min_lines"]
+
+
+def _card(frame: Frame, width: int) -> List[str]:
+    """An event's card: its name, its text, then the question and its choices if it asks one."""
+    content, state, style = frame.content, frame.state, frame.style
+    card = state.card
+    title = card.title if card is not None else (world.focus_name(content, state) or "")
+    lines = [style.role(line, "heading") for line in wrap(title, width)] if title else []
+    if card is not None and card.text:
+        if lines:
+            lines.append("")
+        for paragraph in card.text.split("\n"):
+            lines += wrap(paragraph, width) if paragraph else [""]
+    if state.pending is not None:
+        if lines:
+            lines.append("")
+        lines += _choice_lines(frame, width, True)
+    return lines
+
+
+def _history(frame: Frame, width: int) -> List[str]:
+    """The journal, grouped under day and shift headings, newest last (kept in view)."""
+    content, ui, style = frame.content, frame.ui, frame.style
+    lines = [style.role(ui.word("history_title"), "heading")]
+    journal = frame.state.journal
+    if not journal:
+        return lines + styled_lines(ui.word("history_empty"), width, frame, "quiet")
+    shown = None
+    for entry in journal:
+        moment = (day_of(content, entry.turn), phase_of(content, entry.turn))
+        if moment != shown:
+            shown = moment
+            phase = content.get("phase", moment[1])["name"]
+            lines += styled_lines(ui.word("day_phase", day=moment[0], phase=phase), width, frame, "quiet")
+        lines += ["  " + line for line in message_lines(frame, [Message(entry.kind, entry.text)], width - 2)]
+    lines[-1] = FOCUS + lines[-1]                                 # the newest stays in view
+    return lines
+
+
 def panel(frame: Frame, width: int, options: Mapping) -> List[str]:
-    """The shared panel: what Inspect shows about the thing in focus, or a picked item's details."""
+    """The shared panel: what Inspect shows, an item's details, an event's card, or the message history."""
+    if frame.panel == "card":
+        return _card(frame, width)
+    if frame.panel == "history":
+        return _history(frame, width)
     if frame.panel == "item":
         if frame.screen == "fitting":
             row = picked_row(frame)
@@ -1061,6 +1121,10 @@ def hint_context(frame: Frame) -> str:
         return "talk"
     if frame.panel == "inspect":
         return "panel"
+    if frame.panel == "card":
+        return "choice" if state.pending is not None else "card"
+    if frame.panel == "history":
+        return "history"
     if frame.panel == "item":
         return "item"
     if world.menu(frame.content, state, frame.ui.bound_keys) is not None:
@@ -1133,7 +1197,7 @@ def _works(frame: Frame, context: str, actions) -> bool:
     scrolling = set(actions) <= {"move_north", "move_south", "next_page"}
     if context == "fitting" and scrolling:
         return len(picks(frame.content, frame.state)) > 1
-    if context == "talk" and scrolling:
+    if context in ("talk", "card", "choice", "history") and scrolling:
         return frame.scrollable
     if not scrolling or context not in ("panel", "item", "sheet", "pack"):
         return True

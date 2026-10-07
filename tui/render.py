@@ -11,7 +11,7 @@ from engine.state import GameState
 from tui.layout import draw_screen, scroll_limit
 from tui.text import Style
 from tui.ui import UI, default_ui
-from tui.widgets import Frame
+from tui.widgets import Frame, card_shown
 
 
 def render(content: Content, state: GameState, columns: int, rows: int = 60,
@@ -50,6 +50,8 @@ def _frame(content: Content, state: GameState, panel: Optional[str], colour: boo
     else:
         screen = wanted or "world"
     in_world = screen not in ("debrief", "encounter")
+    if screen == "world" and panel is None and card_shown(ui, content, state):
+        panel = "card"                                        # an event's card, or a question
     return Frame(content=content, state=state, ui=ui, style=Style(colour, ui.tokens["styles"]), screen=screen,
                  panel=panel if in_world else None, selected=selected, page=page, scroll=scroll,
                  log=tuple(log) if screen == "talk" else ())

@@ -95,6 +95,19 @@ class Debrief(NamedTuple):
     messages: Tuple[Message, ...]
 
 
+class Entry(NamedTuple):
+    """One line of the journal, the message history kept with the game."""
+    turn: int
+    kind: str          # a Message kind ('danger', 'gain', 'plain', 'quiet', 'heading')
+    text: str
+
+
+class Card(NamedTuple):
+    """An event's text, shown as a card when it's long or asks a question."""
+    title: str         # the event's name
+    text: str
+
+
 class GameState(NamedTuple):
     player: str
     turn: int                                         # turns since day 1 began
@@ -116,6 +129,8 @@ class GameState(NamedTuple):
     triggers: Tuple[str, ...] = ()                    # event trigger moments waiting to be settled
     event_log: Mapping[str, int] = freeze({})         # event -> day it last fired
     debrief: Optional[Debrief] = None                 # shown after an encounter until the player moves on
+    journal: Tuple[Entry, ...] = ()                   # the message history, newest last (engine.journal)
+    card: Optional[Card] = None                       # the last event's text, until the player's next key
 
 
 # --- Time ---------------------------------------------------------------------

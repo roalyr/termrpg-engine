@@ -965,6 +965,20 @@ details for whatever is picked there.
 - close goes back a level: from the details or the modifications to the list, from
   the list to the world. After an action the pick follows the item wherever it went.
 
+**Messages.** Every key's messages also go into the **journal**, the message history
+kept in the game state and saved with it (the last 200 lines, each stamped with its
+turn; a fight's after-action screen included). L opens it in the shared panel, grouped
+under day and shift headings, the newest at the bottom; up and down look back, X or L
+closes it.
+
+**Event cards.** An event that asks a question, or whose text is longer than the UI
+pack's `card_min_lines` on the narrowest screen (3 by default), opens as a card in the
+shared panel: the event's name as the title, its text, then the question and its
+numbered choices. Any question opens this way, titled with the thing's name when it
+isn't an event's (the terminal). A card without a question waits for any key; up and
+down scroll a long one. Shorter event texts stay in the message log. The engine keeps
+the last event's text in the state as `card` until the next key.
+
 **The conversation screen** opens with Talk in a person's menu (talking still takes a
 turn). On top, the speaker's portrait beside their name, title, faction and trust (the
 relation level's name, the number and a bar). Below, the last exchanges ("You:
@@ -1015,11 +1029,11 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `keys` | Key hints for the current context, built from the bindings | all | — |
 
 **Keys.** The input actions are fixed by the engine: `move_north`, `move_west`,
-`move_south`, `move_east`, `wait`, `pack`, `fitting`, `character`, `close`, `quit`, `next_page`.
+`move_south`, `move_east`, `wait`, `pack`, `fitting`, `character`, `history`, `close`, `quit`, `next_page`.
 Number keys 1–9 always pick numbered entries and can't be bound. Bindings are lower
 case (keys match either case). The arrow keys always move and Esc always closes,
 whatever the bindings. `hints` lists, per
-context (`walk`, `menu`, `choice`, `pack`, `fitting`, `modify`, `sheet`, `talk`, `panel`, `item`, `encounter`, `target`,
+context (`walk`, `menu`, `choice`, `card`, `history`, `pack`, `fitting`, `modify`, `sheet`, `talk`, `panel`, `item`, `encounter`, `target`,
 `debrief`), entries that show some actions' keys joined (`WASD`), the arrow keys
 instead for move actions (`arrows`: `↑↓`), or `1-9` (`digits`, shown as the real
 range), then a label from the words file. Hints are generated from the bindings, so

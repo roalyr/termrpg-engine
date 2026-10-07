@@ -240,7 +240,7 @@ Steps, each one playable and tested:
    - X leaves.
 6. **Fights:** action details before use, fighters' statuses, the chosen target
    highlighted, tile names that fit.
-7. **Messages:** message history, and long event texts in the panel. Agreed layout:
+7. ✓ **Messages:** message history, and long event texts in the panel. Agreed layout:
    - **history:** a new key (L by default) opens the messages in the shared panel,
      newest at the bottom, grouped under day and shift headings, scrolling with the
      slider; X closes it. The last ~200 lines are kept in the game state and saved,

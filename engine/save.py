@@ -18,7 +18,7 @@ from engine.frozen import freeze
 
 TYPES = {cls.__name__: cls for cls in (
     st.GameState, st.CharState, st.ItemInst, st.StatMod, st.StatusInst, st.Message, st.Ctx, st.Pending, rng.Rng,
-    st.Debrief,
+    st.Debrief, st.Entry, st.Card,
     encounter.EncounterState)}
 FORMAT = 1
 

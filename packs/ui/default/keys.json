@@ -9,6 +9,7 @@
     "pack": "p",
     "fitting": "f",
     "character": "c",
+    "history": "l",
     "close": "x",
     "quit": "q",
     "next_page": "]"
@@ -50,6 +51,12 @@
       },
       {
         "actions": [
+          "history"
+        ],
+        "label": "hint_history"
+      },
+      {
+        "actions": [
           "quit"
         ],
         "label": "hint_quit"
@@ -79,6 +86,14 @@
       {
         "digits": true,
         "label": "hint_choose"
+      },
+      {
+        "actions": [
+          "move_north",
+          "move_south"
+        ],
+        "arrows": true,
+        "label": "hint_scroll"
       }
     ],
     "pack": [
@@ -234,6 +249,35 @@
           "close"
         ],
         "label": "hint_leave"
+      }
+    ],
+    "card": [
+      {
+        "label": "hint_any_key"
+      },
+      {
+        "actions": [
+          "move_north",
+          "move_south"
+        ],
+        "arrows": true,
+        "label": "hint_scroll"
+      }
+    ],
+    "history": [
+      {
+        "actions": [
+          "move_north",
+          "move_south"
+        ],
+        "arrows": true,
+        "label": "hint_scroll"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_close"
       }
     ]
   }

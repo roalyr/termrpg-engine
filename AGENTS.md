@@ -223,6 +223,9 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 - Relations in cast conditions fall back through factions: a character with no view
   of someone uses their faction's view. Test with `play.py` that the right people get
   cast.
+- An event's `name` is the title of its card. Events that ask a question, or whose
+  `text` runs past about three lines on a 40-column screen, open as a card the
+  player has to read; keep everyday events to a line or two so they stay in the log.
 - `notify: false` events shouldn't use `choose`: the player would get a question about
   something they can't see.
 - Requested events (`trigger_event`) ignore `chance` and `cooldown` but still need a

@@ -30,7 +30,7 @@ from engine import conditions, context, encounter, rng, turns
 from engine.content import Content
 from engine.effects import run
 from engine.frozen import Record, freeze
-from engine.state import Ctx, GameState, Message, day_of
+from engine.state import Card, Ctx, GameState, Message, day_of
 
 MAX_STEPS = 200  # a guard against events that keep triggering each other while no time passes
 
@@ -171,9 +171,13 @@ def _shuffled(state: GameState, items: List[str]) -> Tuple[List[str], GameState]
 def _run(content: Content, state: GameState, event: Record, roles: Dict[str, str]) -> GameState:
     state = state._replace(event_log=freeze({**state.event_log, event["id"]: day_of(content, state.turn)}))
     before = len(state.messages)
+    asked = state.pending is not None
     if event.get("text"):
         state = state._replace(messages=state.messages + (Message("plain", content.text(event["text"])),))
     state = run(content, state, Ctx(self_id=state.player, roles=freeze(roles)), event["effects"])
     if not event.get("notify", True):
-        state = state._replace(messages=state.messages[:before])
+        return state._replace(messages=state.messages[:before])
+    if event.get("text") or (state.pending is not None and not asked):
+        # the UI shows it as a card when it's long or asks a question
+        state = state._replace(card=Card(event["name"], content.text(event["text"]) if event.get("text") else ""))
     return state

@@ -191,6 +191,13 @@
               "maximum": 24,
               "default": 12,
               "description": "Height of the portrait zone, in pixels (two per line of text)."
+            },
+            "card_min_lines": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20,
+              "default": 3,
+              "description": "An event text longer than this many lines on the narrowest screen opens as a card; shorter ones stay in the message log; 0 opens every event text as a card. Questions always open as a card."
             }
           },
           "additionalProperties": false,
@@ -750,6 +757,12 @@
               "default": "c",
               "description": "Open or close the character screen. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
+            "history": {
+              "type": "string",
+              "pattern": "^[^0-9A-Z\\s]$",
+              "default": "l",
+              "description": "Open or close the message history. One key: not a digit, a space or an upper-case letter (keys match either case)."
+            },
             "close": {
               "type": "string",
               "pattern": "^[^0-9A-Z\\s]$",
@@ -796,6 +809,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -846,6 +860,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -896,6 +911,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -946,6 +962,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -996,6 +1013,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -1046,6 +1064,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -1096,6 +1115,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -1146,6 +1166,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -1196,6 +1217,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -1246,6 +1268,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -1296,6 +1319,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -1346,6 +1370,7 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -1396,6 +1421,109 @@
                         "pack",
                         "fitting",
                         "character",
+                        "history",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "card": {
+              "type": "array",
+              "description": "An event's card without a question: any key continues.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "fitting",
+                        "character",
+                        "history",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "history": {
+              "type": "array",
+              "description": "The message history is open.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "fitting",
+                        "character",
+                        "history",
                         "close",
                         "quit",
                         "next_page"
@@ -1725,6 +1853,18 @@
                 "level",
                 "value"
               ]
+            },
+            "history_title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Message history heading. No placeholders.",
+              "x-placeholders": []
+            },
+            "history_empty": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Message history: nothing yet. No placeholders.",
+              "x-placeholders": []
             },
             "talk_title": {
               "type": "string",
@@ -2334,6 +2474,7 @@
               "pack",
               "fitting",
               "character",
+              "history",
               "close",
               "quit",
               "next_page"
@@ -2659,7 +2800,7 @@
     },
     "widget_panel": {
       "type": "object",
-      "description": "The shared panel for details, such as what Inspect shows: a title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it. Allowed on: world, fitting.",
+      "description": "The shared panel for details: what Inspect shows, an item's details, the message history, or an event's card (a question, or a text longer than card_min_lines); questions always open as a card. A title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it. Allowed on: world, fitting.",
       "properties": {
         "widget": {
           "const": "panel"

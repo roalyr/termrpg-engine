@@ -34,7 +34,8 @@ ACTIONS = {
  "move_east": ("d", "Step right."), "wait": (".", "Let a turn pass."),
  "pack": ("p", "Open or close the pack: what you carry, and storage within reach."),
  "fitting": ("f", "Open the fitting screen. It may share its key with Fit, which only works on that screen."),
- "character": ("c", "Open or close the character screen."), "close": ("x", "Close the menu, panel or target choice."),
+ "character": ("c", "Open or close the character screen."),
+ "history": ("l", "Open or close the message history."), "close": ("x", "Close the menu, panel or target choice."),
  "quit": ("q", "Save and quit."), "next_page": ("]", "Next page of the fitting board."),
 }
 CONTEXTS = {
@@ -46,6 +47,8 @@ CONTEXTS = {
  "fitting": "The fitting screen, picking from its list.",
  "modify": "The fitting screen's list of modifications for the picked item.",
  "talk": "A conversation, waiting for a response.",
+ "card": "An event's card without a question: any key continues.",
+ "history": "The message history is open.",
 }
 ROLES = {
  "title": ("white", True, False, "Screen titles: the location, the encounter, the result."),
@@ -81,7 +84,7 @@ WIDGETS = {
      "intent": flag(True, "Show each enemy's intent.")}),
  "art": (["encounter"], "The picture of the enemy in front.", {
      "frame": flag(True, "Draw a frame around it.")}),
- "panel": (["world", "fitting"], "The shared panel for details, such as what Inspect shows: a title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it.", {
+ "panel": (["world", "fitting"], "The shared panel for details: what Inspect shows, an item's details, the message history, or an event's card (a question, or a text longer than card_min_lines); questions always open as a card. A title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it.", {
      "slider": flag(True, "Draw a slider at the right edge when the content is longer than the panel.")}),
  "portrait": (["character", "talk"], "The player's portrait on the character screen, the speaker's in a conversation: pixels drawn with half-block characters, two per text cell. Without one, an empty frame of the same size keeps the place.", {
      "frame": flag(True, "Draw a frame around it.")}),
@@ -131,7 +134,8 @@ size = obj("Sizes, in terminal cells.", {
    "side_min_width": intval(14, 8, 60, "The narrowest the panel beside the grid or the art may get."),
    "page_size": intval(9, 1, 9, "Entries per page of the pack panel (picked with 1-9)."),
    "portrait_width": intval(12, 4, 24, "Width of the portrait zone, in pixels (one text column each)."),
-   "portrait_height": intval(12, 4, 24, "Height of the portrait zone, in pixels (two per line of text).")}, default={})
+   "portrait_height": intval(12, 4, 24, "Height of the portrait zone, in pixels (two per line of text)."),
+   "card_min_lines": intval(3, 0, 20, "An event text longer than this many lines on the narrowest screen opens as a card; shorter ones stay in the message log; 0 opens every event text as a card. Questions always open as a card.")}, default={})
 border = obj("The box-drawing set.", {k: char(v, f"The {k.replace('_', ' ')} piece.", 1) for k, v in (
    ("horizontal", "─"), ("vertical", "│"), ("top_left", "┌"), ("top_right", "┐"), ("bottom_left", "└"),
    ("bottom_right", "┘"), ("join_left", "├"), ("join_right", "┤"))}, default={})
@@ -197,6 +201,8 @@ WORDS = {
  "standing_heading": ("Character screen heading: standing.", []),
  "standing_rank": ("Character screen: your rank.", ["rank"]),
  "standing_view": ("Character screen: how a faction regards you.", ["faction", "level", "value"]),
+ "history_title": ("Message history heading.", []),
+ "history_empty": ("Message history: nothing yet.", []),
  "talk_title": ("Conversation title.", ["name"]),
  "talk_trust": ("Conversation: how the speaker regards you.", ["level", "value"]),
  "talk_says": ("Conversation: the speaker's line.", ["name", "text"]),

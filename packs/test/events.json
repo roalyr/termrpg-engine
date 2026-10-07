@@ -32,7 +32,7 @@
           }
         }
       ],
-      "text": "Someone holds a grudge.",
+      "text": "Someone holds a grudge. One of the crew steps into your way by the lockers: you took the last of the scrap again, and they've been keeping score.",
       "effects": [
         {
           "op": "change_relation",
@@ -129,6 +129,7 @@
       "id": "event_rescue",
       "name": "Rescue",
       "trigger": "manual",
+      "text": "You come to on the workshop floor with a headache and the taste of coolant. Someone dragged you out and left you here, a medkit wrapper under your head. Nobody's around to thank.",
       "effects": [
         {
           "op": "message",

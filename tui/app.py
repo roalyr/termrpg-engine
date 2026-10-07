@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import NamedTuple, Optional
 
-from engine import build, encounter, events, save, turns, world
+from engine import build, encounter, events, journal, save, turns, world
 from engine.content import Content, PackError, load_pack
 from engine.effects import choose_option
 from engine.state import GameState, Message, new_game
@@ -45,8 +45,13 @@ def _digit(key: str) -> Optional[int]:
 
 
 def handle(content: Content, state: GameState, key: str, view: View = View(), ui: Optional[UI] = None):
-    """One key: returns the new state, the view, and whether to quit."""
+    """One key: returns the new state (with what it said added to the journal), the view, and whether to quit."""
     ui = ui or default_ui()
+    after, view, quit_now = _handle(content, state, key, view, ui)
+    return journal.record(state, after), view, quit_now
+
+
+def _handle(content: Content, state: GameState, key: str, view: View, ui: UI):
     action = FIXED_KEYS.get(key) or ui.action_of(key.lower())        # bindings are lower case
     if key in FIXED_KEYS:
         key = ui.bindings.get(action, "")
@@ -55,11 +60,20 @@ def handle(content: Content, state: GameState, key: str, view: View = View(), ui
         return state, view, True
     if state.debrief is not None:                 # any key leaves the after-action screen
         return events.settle(content, state._replace(debrief=None)), View(), False
-    if state.pending is not None:
+    if state.pending is not None:                 # a question, on its card: digits answer, up and down scroll
+        if action in ("move_north", "move_south"):
+            return state, _scroll(action, view), False
         if _digit(key):
-            state = choose_option(content, state, _digit(key) - 1)
+            state = choose_option(content, state._replace(card=None), _digit(key) - 1)
             state = turns.advance(content, state, 0)
+            view = view._replace(scroll=0)
         return events.settle(content, state), view, False
+    if state.card is not None and state.encounter is None:
+        if widgets.card_shown(ui, content, state):     # a card: up and down scroll, any other key continues
+            if action in ("move_north", "move_south"):
+                return state, _scroll(action, view), False
+            return state._replace(card=None), view._replace(scroll=0), False
+        state = state._replace(card=None)              # a short text was read in the log
     if state.encounter is not None:
         state, view = _fight(content, state, key, action, view)
         return events.settle(content, state), view, False
@@ -99,6 +113,10 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
     """
     if view.panel in SCROLLING:
         return state, _scrolling(action, view)
+    if view.panel == "history":
+        return state, _history(action, view)
+    if action == "history" and view.panel is None:
+        return state, View("history")
     if action == "fitting" and view.panel is None:
         return state, View(screen="fitting", selected=0)
     if action == "character" and view.panel is None:
@@ -232,6 +250,24 @@ def _talk(content: Content, state: GameState, key: str, action: Optional[str], v
 
 def option_label(option, ui: UI) -> str:
     return widgets.option_text(ui, option)
+
+
+def _scroll(action: Optional[str], view: View) -> View:
+    """Up and down on a sub-window that scrolls from the top."""
+    if action == "move_north":
+        return view._replace(scroll=max(0, view.scroll - 1))
+    return view._replace(scroll=view.scroll + 1)                  # kept within the content when drawn
+
+
+def _history(action: Optional[str], view: View) -> View:
+    """The message history: up and down look back from the newest; close or its key leave it."""
+    if action in ("close", "history"):
+        return View()
+    if action == "move_north":
+        return view._replace(scroll=view.scroll + 1)
+    if action == "move_south":
+        return view._replace(scroll=max(0, view.scroll - 1))
+    return view
 
 
 def _character(action: Optional[str], view: View) -> View:

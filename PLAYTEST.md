@@ -206,15 +206,25 @@ All of these happen on the fitting screen, next to the workbench.
 - [ ] Waiting passes time: the phase changes mid-day, and a new day is announced.
 - [ ] The crate restocks quietly each morning.
 - [ ] **(chance)** A grudge event casts one of the rivals who resent you and asks what
-  to do; the rest of the morning waits for your answer.
+  to do, on a card titled "Grudge" with its text and choices; the rest of the morning
+  waits for your answer.
 
-## 18. Saving
+## 18. Messages
+
+- [ ] L opens the message history: grouped under day and shift headings, newest at the
+  bottom; up looks back, X closes. It's still there after quitting and resuming.
+- [ ] A fight's result and loot are in the history afterwards.
+- [ ] Short event texts ("Machines hum somewhere below.") stay in the log; long ones
+  (the rescue after losing) open as a card: any key continues, up and down scroll it.
+- [ ] Every question opens as a card, the terminal's titled "Terminal".
+
+## 19. Saving
 
 - [ ] Quitting saves; starting again resumes exactly, even mid-fight or with a choice
   waiting.
 - [ ] `--new` starts over; `--slot` keeps games apart.
 
-## 19. The UI pack
+## 20. The UI pack
 
 - [ ] Copy `packs/ui/default`, change a key binding, a glyph and a word, and play with
   `--ui`: the hints, input and screen follow.

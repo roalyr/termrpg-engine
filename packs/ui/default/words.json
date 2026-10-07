@@ -90,7 +90,9 @@
     "talk_you": "You: {response}",
     "talk_leave": "Leave",
     "talk_give": "You give",
-    "talk_get": "You get"
+    "talk_get": "You get",
+    "history_title": "Messages",
+    "history_empty": "Nothing yet."
   },
   "entries": [
     {
@@ -176,6 +178,10 @@
     {
       "id": "hint_leave",
       "text": "leave"
+    },
+    {
+      "id": "hint_history",
+      "text": "log"
     }
   ]
 }

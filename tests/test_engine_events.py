@@ -77,7 +77,7 @@ class TestFiring(unittest.TestCase):
 
     def test_grudge_asks_the_player(self):
         s = events.fire(CONTENT, new_game(CONTENT, 3), "event_grudge", manual=True)
-        self.assertIn("Someone holds a grudge.", texts(s))
+        self.assertTrue(any(t.startswith("Someone holds a grudge.") for t in texts(s)))
         self.assertIsNotNone(s.pending)
         sore = next(cid for cid in ("char_dov", "char_ilse")
                     if s.pending.ctx.roles.get("sore") == cid)

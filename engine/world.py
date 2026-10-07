@@ -19,7 +19,7 @@ from engine.state import Ctx, GameState, Message, Pos
 
 DIRECTIONS = {"w": (-1, 0), "s": (1, 0), "a": (0, -1), "d": (0, 1)}
 MENU_KEYS = {"go": "g", "talk": "t", "inspect": "i"}   # the engine's own menu options
-STANDARD_BINDINGS = frozenset("wasd.pfcxq]")            # the standard UI pack's keys
+STANDARD_BINDINGS = frozenset("wasd.pfclxq]")           # the standard UI pack's keys
 DIGITS = frozenset("123456789")
 SPARE_KEYS = "ufrbehjklmnoyvz"
 

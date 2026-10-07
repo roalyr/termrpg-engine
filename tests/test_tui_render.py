@@ -10,11 +10,11 @@ import unittest
 from pathlib import Path
 
 from core.pack import validate_pack
-from engine import build, context, encounter, world
+from engine import build, context, encounter, events, journal, save, world
 from engine.content import load_pack
 from engine.effects import run
 from engine.frozen import freeze
-from engine.state import Ctx, Message, new_game
+from engine.state import Ctx, Entry, Message, new_game
 from tui import app, render, widgets
 from tui.text import Style, visible_len
 from tui.ui import UIPackError, default_ui, load_ui, ui_dir_for
@@ -53,6 +53,20 @@ def debrief_state():
     return s
 
 
+def requested(event_id):
+    """A new game with an event fired: its card (and question) waiting."""
+    return events.settle(CONTENT, new_game(CONTENT, 1)._replace(event_requests=(event_id,)))
+
+
+def with_history():
+    s, view = new_game(CONTENT, 1), app.View()
+    for key in "wh" + "." * 40 + "wh":
+        s, view, _ = app.handle(CONTENT, s, key, view, UI)
+        if s.pending is not None:
+            s, view, _ = app.handle(CONTENT, s, "1", view, UI)
+    return s
+
+
 def carrying_a_cutter():
     s = new_game(CONTENT, 1)
     return run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "give_item", "item": "module_cutter", "count": 1, "subject": "self"})])
@@ -77,6 +91,9 @@ def screens():
         ("fitting details", bench_state(), {"screen": "fitting", "selected": 1, "panel": "item"}),
         ("fitting away", new_game(CONTENT, 1), {"screen": "fitting"}),
         ("talk", walk(new_game(CONTENT, 1), "as"), {"screen": "talk"}),
+        ("card question", requested("event_grudge"), {}),
+        ("card text", requested("event_rescue"), {}),
+        ("history", with_history(), {"panel": "history"}),
         ("inspect scrolled", bench_state(), {"panel": "inspect", "scroll": 99}),
         ("encounter", encounter_state(), {}),
         ("target", encounter_state(), {"selected": 0}),
@@ -585,6 +602,118 @@ class TestConversation(unittest.TestCase):
             {"op": "give_item", "item": "material_scrap", "count": 2, "subject": "target"},
             {"op": "message", "text": "Deal."}]}))
         self.assertEqual((gives, gets), (["Keycard", "Scrap x2"], ["Medkit x1-3"]))
+
+
+class TestMessages(unittest.TestCase):
+    """Step 6: the message history, kept with the game, and event cards."""
+
+    def test_every_key_adds_what_it_said_to_the_journal(self):
+        s = with_history()
+        self.assertEqual([e.text for e in s.journal], ["Empty.", "Night shift.", "Already searched."])
+        self.assertEqual(s.journal[0].turn, 2)                          # stamped with the turn
+        s2, _, _ = app.handle(CONTENT, s, "p", app.View(), UI)         # a key that says nothing adds nothing
+        self.assertEqual(s2.journal, s.journal)
+
+    def test_a_fight_ends_in_the_journal(self):
+        s, view = encounter_state(), app.View()
+        for _ in range(40):
+            if s.encounter is None:
+                break
+            s, view, _ = app.handle(CONTENT, s, "1", view, UI)          # Strike, and a target when asked
+        texts = [e.text for e in s.journal]
+        self.assertIn("Won.", texts)
+        self.assertTrue(any(t.startswith("Found:") for t in texts))
+
+    def test_the_journal_is_saved_and_capped(self):
+        s = with_history()
+        self.assertEqual(save.from_json(CONTENT, save.to_json(CONTENT, s)).journal, s.journal)
+        many = s._replace(messages=tuple(Message("plain", f"Line {i}.") for i in range(250)))
+        capped = journal.record(s._replace(messages=()), many)
+        self.assertEqual(len(capped.journal), journal.JOURNAL_SIZE)
+        self.assertEqual(capped.journal[-1].text, "Line 249.")
+
+    def test_the_history_panel(self):
+        s = with_history()
+        _, view, _ = app.handle(CONTENT, s, "l", app.View(), UI)
+        self.assertEqual(view.panel, "history")
+        frame = plain(s, panel="history")
+        for words in ("Messages", "Day 1 · Day shift", "Empty.", "Day 1 · Night shift", "Already searched.", "X close"):
+            self.assertIn(words, frame)
+        self.assertNotIn("WASD move", frame)
+        _, closed, _ = app.handle(CONTENT, s, "x", view, UI)
+        self.assertEqual(closed, app.View())
+        self.assertIn("Nothing yet.", plain(new_game(CONTENT, 1), panel="history"))
+
+    def test_the_history_keeps_the_newest_in_view_and_looks_back(self):
+        s = with_history()._replace(journal=tuple(Entry(1, "plain", f"Line {i}.") for i in range(30)))
+        newest = plain(s, 40, 20, panel="history")
+        self.assertIn("Line 29.", newest)
+        self.assertNotIn("Line 0.", newest)
+        self.assertIn("↑↓ scroll", newest)
+        self.assertIn("Line 0.", plain(s, 40, 20, panel="history", scroll=99))
+        _, view, _ = app.handle(CONTENT, s, "w", app.View("history"), UI)
+        self.assertEqual(view.scroll, 1)
+
+    def test_a_question_opens_as_a_card(self):
+        s = requested("event_grudge")
+        frame = plain(s)
+        for words in ("Grudge", "Someone holds a grudge.", "What do you do?", "1 Apologise", "2 Ignore it", "1-2 choose"):
+            self.assertIn(words, frame)
+        self.assertNotIn("Locker", frame.split("Grudge")[1])            # one focus: the card
+        s, view, _ = app.handle(CONTENT, s, "2", app.View(), UI)
+        self.assertIsNone(s.pending)
+        self.assertIsNone(s.card)
+
+    def test_any_question_is_a_card_titled_with_its_thing(self):
+        s = walk(run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"),
+                     [freeze({"op": "move_to", "location": "loc_storage", "subject": "self"})]), "ssdd")
+        s, _, _ = app.handle(CONTENT, s, "r", app.View(), UI)           # use the terminal
+        self.assertIsNotNone(s.pending)
+        frame = plain(s)
+        self.assertIn("Terminal", frame)
+        self.assertIn("1 Check the logs", frame)
+
+    def test_a_long_text_is_a_card_any_key_continues(self):
+        s = requested("event_rescue")
+        frame = plain(s)
+        self.assertIn("Rescue", frame)
+        self.assertIn("medkit wrapper", frame)
+        self.assertIn("Any key: continue", frame)
+        scrolled, view, _ = app.handle(CONTENT, s, "s", app.View(), UI)  # down scrolls, it doesn't move
+        self.assertEqual((scrolled.card, view.scroll), (s.card, 1))
+        after, view, _ = app.handle(CONTENT, s, "a", app.View(), UI)    # anything else continues
+        self.assertIsNone(after.card)
+        self.assertEqual(after.characters[after.player].at, s.characters[s.player].at)   # and only continues
+
+    def test_a_short_text_stays_in_the_log(self):
+        s = walk(new_game(CONTENT, 1), "aaww")
+        s, _, _ = app.handle(CONTENT, s, "u", app.View(), UI)           # open the door
+        s, _, _ = app.handle(CONTENT, s, "g", app.View(), UI)           # into Storage: the arrival event
+        self.assertEqual(s.card.title, "Arrival")
+        frame = plain(s)
+        self.assertIn("Machines hum somewhere below.", frame)
+        self.assertNotIn("Any key: continue", frame)
+        moved, _, _ = app.handle(CONTENT, s, "s", app.View(), UI)       # the next key just acts
+        self.assertIsNone(moved.card)
+        self.assertNotEqual(moved.characters[s.player].at, s.characters[s.player].at)
+
+    def test_quiet_events_make_no_card(self):
+        s = events.settle(CONTENT, new_game(CONTENT, 1)._replace(event_requests=("event_restock",)))
+        self.assertIsNone(s.card)
+
+    def test_the_card_size_comes_from_the_ui_pack(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        ui_dir = Path(tmp.name) / "mine"
+        shutil.copytree(ui_dir_for("default"), ui_dir)
+        path = ui_dir / "tokens.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data.setdefault("size", {})["card_min_lines"] = 0
+        path.write_text(json.dumps(data), encoding="utf-8")
+        s = walk(new_game(CONTENT, 1), "aaww")
+        s, _, _ = app.handle(CONTENT, s, "u", app.View(), UI)
+        s, _, _ = app.handle(CONTENT, s, "g", app.View(), UI)
+        self.assertIn("Any key: continue", plain(s, ui=load_ui(ui_dir)))   # now even a short text is a card
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):

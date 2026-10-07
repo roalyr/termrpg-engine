@@ -2,7 +2,7 @@
   "$schema": "../../schemas/pack.schema.json",
   "id": "test",
   "name": "Test pack",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "schema_version": 1,
   "purpose": "test",
   "description": "Small content for engine development and automated tests: a workshop and a storage room with a gas leak, in plain names.",
