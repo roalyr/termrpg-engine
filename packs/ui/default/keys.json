@@ -157,6 +157,22 @@
         ],
         "label": "hint_close"
       }
+    ],
+    "item": [
+      {
+        "actions": [
+          "move_north",
+          "move_south"
+        ],
+        "arrows": true,
+        "label": "hint_scroll"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_back"
+      }
     ]
   }
 }

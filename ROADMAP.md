@@ -200,7 +200,7 @@ Steps, each one playable and tested:
 
 1. ✓ **Sub-windows:** the shared panel (scrolling, slider, keys from the UI pack), and
    Inspect for places and people in it.
-2. **Items:** an item detail view (description, stats, power and mass use, tags, mods,
+2. ✓ **Items:** an item detail view (description, stats, power and mass use, tags, mods,
    grade, condition), shown from the pack panel and the fitting screen.
 3. **Fitting screen:** a full screen with the loadout and budgets, spare gear and
    designs, the picked item's details and what it would change, and every building

@@ -935,6 +935,12 @@ and scroll the open one (the pack panel turns its pages) until it's closed. Left
 right do nothing there, and moving never closes a sub-window; only its close key does.
 Closing Inspect returns to the thing's menu.
 
+**Item details.** On the pack panel, a picked item offers I (Details): its name, kind,
+slot and grade, condition, description, then labelled rows for what it uses and
+gives, its mounts, what it counts as, its actions, mod slots, size, stack, what
+wearing it needs, and what taking it apart, making and repairing involve. X goes back
+to the pack panel with the item still picked.
+
 **The fitting board keeps its pick.** Numbers shift when an item is fitted, removed,
 stored, taken or made, because entries are grouped by where they are. After an action
 the board keeps the same item picked at its new number (or drops the pick when the
@@ -957,7 +963,7 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `tiles` | Action tiles | encounter | `per_row` (0 = fit) |
 | `fighters` | Both sides with bars and intents | encounter | `intent` |
 | `art` | The enemy's picture | encounter | `frame` |
-| `panel` | The shared panel: what Inspect shows (name, a person's title or an object's state, description) | world | `slider` |
+| `panel` | The shared panel: what Inspect shows (name, a person's title or an object's state, description), or an item's details | world | `slider` |
 | `keys` | Key hints for the current context, built from the bindings | all | — |
 
 **Keys.** The input actions are fixed by the engine: `move_north`, `move_west`,
@@ -965,7 +971,7 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 Number keys 1–9 always pick numbered entries and can't be bound. Bindings are lower
 case (keys match either case). The arrow keys always move and Esc always closes,
 whatever the bindings. `hints` lists, per
-context (`walk`, `menu`, `choice`, `pack`, `sheet`, `panel`, `encounter`, `target`,
+context (`walk`, `menu`, `choice`, `pack`, `sheet`, `panel`, `item`, `encounter`, `target`,
 `debrief`), entries that show some actions' keys joined (`WASD`), the arrow keys
 instead for move actions (`arrows`: `↑↓`), or `1-9` (`digits`, shown as the real
 range), then a label from the words file. Hints are generated from the bindings, so

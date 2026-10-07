@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional
 
 from engine import build, conditions, context, encounter, stats, world
 from engine.content import Content
-from engine.state import GameState, day_of, phase_of
+from engine.state import GameState, ItemInst, day_of, new_item, phase_of
 from tui.text import ANSI, Style, visible_len, wrap
 from tui.ui import UI
 
@@ -46,7 +46,7 @@ Draw = Callable[[Frame, int, Mapping[str, Any]], List[str]]
 
 # Sub-windows: what's open (Frame.panel) and the widget that shows it. While one is open
 # it is the focus: its zone scrolls, and the log and menu step back.
-SUBWINDOWS = {"inspect": "panel", "character": "sheet"}
+SUBWINDOWS = {"inspect": "panel", "item": "panel", "character": "sheet"}
 
 
 # --- Helpers ---------------------------------------------------------------------------
@@ -309,6 +309,7 @@ def board(frame: Frame, width: int, options: Mapping) -> List[str]:
     if frame.selected is not None and frame.selected < len(slots):
         for option in build.item_options(content, state, slots[frame.selected], ui.bound_keys):
             lines += option_lines(frame, option, width)
+        lines.append(f"{style.key(world.MENU_KEYS['inspect'].upper())} {ui.word('details')}")
     return lines
 
 
@@ -342,7 +343,13 @@ def sheet(frame: Frame, width: int, options: Mapping) -> List[str]:
 # --- panel -----------------------------------------------------------------------------
 
 def panel(frame: Frame, width: int, options: Mapping) -> List[str]:
-    """The shared panel: what Inspect shows about the thing in focus."""
+    """The shared panel: what Inspect shows about the thing in focus, or a picked item's details."""
+    if frame.panel == "item":
+        slots = build.pack_slots(frame.content, frame.state)
+        if frame.selected is None or frame.selected >= len(slots):
+            return []
+        entry = build.entry_at(frame.content, frame.state, slots[frame.selected])
+        return item_details(frame, entry, width) if entry is not None else []
     if frame.panel != "inspect":
         return []
     seen = world.inspect(frame.content, frame.state)
@@ -356,6 +363,130 @@ def panel(frame: Frame, width: int, options: Mapping) -> List[str]:
         for paragraph in seen.text.split("\n"):
             lines += wrap(paragraph, width) if paragraph else [""]
     return lines
+
+
+def item_details(frame: Frame, entry, width: int) -> List[str]:
+    """
+    Everything about one item, for the panel: a held or stored item (ItemInst), or a
+    design (an item id). Name, kind, slot and grade, condition, description, then
+    labelled rows: what it uses and gives, mounts, tags, actions, mod slots, size,
+    stack, needs, and what taking it apart, making and repairing involve.
+    """
+    content, state, ui, style = frame.content, frame.state, frame.ui, frame.style
+    design = not isinstance(entry, ItemInst)
+    inst = new_item(content, entry) if design else entry
+    record = content.get("item", inst.item)
+    view = stats.item_view(content, inst)
+
+    title = view["name"] + (f" x{inst.count}" if inst.count > 1 else "")
+    lines = [style.role(line, "heading") for line in wrap(title, width)]
+    facts = [ui.word(f"kind_{view['kind']}")]
+    if view["slot_type"]:
+        facts.append(ui.word("slot_named", slot=content.get("slot_type", view["slot_type"])["name"]))
+    if record.get("grade"):
+        facts.append(content.get("grade", record["grade"])["name"])
+    lines += styled_lines(" · ".join(facts), width, frame, "quiet")
+    if inst.condition is not None and not design:
+        if stats.is_broken(inst):
+            lines += styled_lines(ui.word("item_broken"), width, frame, "danger")
+        else:
+            lines += wrap(ui.word("item_condition", now=inst.condition, top=view["max_condition"]), width)
+    if record.get("description"):
+        lines.append("")
+        lines += wrap(content.text(record["description"]), width)
+
+    rows = []
+    uses = [f"{_role_short(content, role)} {amount:g}" for role, amount in view["uses"].items() if amount]
+    if uses:
+        rows.append((ui.word("item_uses"), uses))
+    gives = [f"{_stat_short(content, sid)} {amount:+g}" for sid, amount in view["stats"].items() if amount]
+    if gives:
+        rows.append((ui.word("item_gives"), gives))
+    mounts = [content.get("slot_type", m["slot_type"])["name"] + (f" x{m['count']}" if m.get("count", 1) > 1 else "")
+              for m in record.get("slots", ())]
+    if mounts:
+        rows.append((ui.word("item_mounts"), ", ".join(mounts)))
+    if view["tags"]:
+        rows.append((ui.word("item_tags"), ", ".join(content.get("tag", t)["name"] for t in view["tags"])))
+    if view["actions"]:
+        rows.append((ui.word("item_actions"), ", ".join(content.get("action", a)["name"] for a in view["actions"])))
+    if record.get("mod_slots"):
+        names = [content.get("modification", m)["name"] for m in inst.mods]
+        free = ui.word("item_mods_free", free=record["mod_slots"] - len(names), total=record["mod_slots"])
+        rows.append((ui.word("item_mods"), ", ".join(names + [free])))
+    rows.append((ui.word("item_size"), content.sizes[view["size"]]["name"] if view["size"] in content.sizes
+                 else str(view["size"])))
+    if view["stack"] > 1:
+        rows.append((ui.word("item_stack"), ui.word("item_stack_count", count=view["stack"])))
+    needs = _needs(content, record.get("fit_requires"))
+    if needs:
+        rows.append((ui.word("item_needs"), needs))
+    if record.get("salvage"):
+        rows.append((ui.word("item_salvage"), _counts(content, record["salvage"]["yields"])))
+    if record.get("fabricate"):
+        known = record["id"] in state.characters[state.player].designs
+        rows.append((ui.word("item_fabricate"), [_counts(content, record["fabricate"]["inputs"]),
+                                                 ui.word("design_known" if known else "design_unknown")]))
+    if record.get("repair") and record.get("condition"):
+        rows.append((ui.word("item_repair"), ui.word("item_repair_amount", items=_counts(content, record["repair"]["inputs"]),
+                                                     amount=record["repair"].get("amount", 1))))
+    if rows:
+        lines.append("")
+        lines += _label_rows(frame, rows, width)
+    return lines
+
+
+def _label_rows(frame: Frame, rows, width: int) -> List[str]:
+    """
+    Rows of 'label  value' with the values in one column. A value is text, or a list of
+    entries ('PWR 1', 'MAS 2') that wrap only between entries, never inside one.
+    """
+    column = min(max(len(label) for label, _ in rows), max(4, width // 3))
+    lines = []
+    for label, value in rows:
+        wrapped = _pack(value, max(1, width - column - 2)) if isinstance(value, list) \
+            else wrap(value, max(1, width - column - 2)) or [""]
+        lines.append(frame.style.role(label[:column].ljust(column), "quiet") + "  " + wrapped[0])
+        lines += [" " * (column + 2) + more for more in wrapped[1:]]
+    return lines
+
+
+def _pack(entries: List[str], width: int, gap: str = "  ") -> List[str]:
+    """Entries on as few lines as fit, separated by 'gap'; an entry wider than a line wraps alone."""
+    lines: List[str] = []
+    for entry in entries:
+        if lines and visible_len(lines[-1]) + len(gap) + visible_len(entry) <= width:
+            lines[-1] += gap + entry
+        else:
+            lines += wrap(entry, width)
+    return lines or [""]
+
+
+def _stat_short(content: Content, stat_id: str) -> str:
+    record = content.get("stat", stat_id)
+    return record.get("short") or record["name"]
+
+
+def _role_short(content: Content, role: str) -> str:
+    stat_id = content.stat_roles.get(role)
+    return _stat_short(content, stat_id) if stat_id else role
+
+
+def _counts(content: Content, entries) -> str:
+    return ", ".join(content.get("item", e["item"])["name"] + (f" x{e['count']}" if e.get("count", 1) > 1 else "")
+                     for e in entries)
+
+
+def _needs(content: Content, condition) -> Optional[str]:
+    """A fit requirement in words, for the simple cases (skill levels, all of them); otherwise None."""
+    if not condition:
+        return None
+    if condition.get("check") == "skill":
+        return f"{content.get('skill', condition['skill'])['name']} {condition['min']}"
+    if "all" in condition:
+        parts = [_needs(content, part) for part in condition["all"]]
+        return ", ".join(parts) if all(parts) else None
+    return None
 
 
 # --- encounter widgets -----------------------------------------------------------------
@@ -459,6 +590,8 @@ def hint_context(frame: Frame) -> str:
         return "sheet"
     if frame.panel == "inspect":
         return "panel"
+    if frame.panel == "item":
+        return "item"
     if world.menu(frame.content, state, frame.ui.bound_keys) is not None:
         return "menu"
     return "walk"
@@ -519,7 +652,7 @@ def _key_name(frame: Frame, action: str, arrows: bool) -> str:
 def _works(frame: Frame, context: str, actions) -> bool:
     """Whether a hint's keys do anything right now: scrolling needs something to scroll, paging more pages."""
     scrolling = set(actions) <= {"move_north", "move_south", "next_page"}
-    if not scrolling or context not in ("panel", "sheet", "pack"):
+    if not scrolling or context not in ("panel", "item", "sheet", "pack"):
         return True
     if context == "pack":
         return len(build.pack_slots(frame.content, frame.state)) > frame.size["page_size"]

@@ -5,6 +5,7 @@
       "id": "frame_light",
       "kind": "frame",
       "name": "Light suit",
+      "description": "A light work suit with two hand mounts and one on the back. Easy to move in and it fits through any door, but it won't stop much.",
       "size": 3,
       "grade": "grade_common",
       "stats": {
@@ -29,6 +30,7 @@
       "id": "frame_heavy",
       "kind": "frame",
       "name": "Heavy suit",
+      "description": "A sealed heavy suit with its own air filter and thick plating. Too big for the station's doors, so it stays in the room where you put it on. Handling it takes some Salvage experience.",
       "size": 5,
       "grade": "grade_fine",
       "tags": [
@@ -62,6 +64,7 @@
       "id": "module_cutter",
       "kind": "module",
       "name": "Cutter",
+      "description": "A hand cutter for opening doors and hulls, and a decent weapon in a pinch. It wears down with use; scrap at a workbench fixes it.",
       "size": 1,
       "tags": [
         "tag_tool"
@@ -111,6 +114,7 @@
       "id": "module_shield",
       "kind": "module",
       "name": "Shield",
+      "description": "A back-mounted shield plate. It adds armour, and in a fight you can brace behind it.",
       "size": 2,
       "grade": "grade_fine",
       "slot_type": "slot_back",
@@ -131,6 +135,7 @@
       "id": "implant_eye",
       "kind": "implant",
       "name": "Eye implant",
+      "description": "A small eye implant that sharpens your reactions. You act a little sooner in a fight.",
       "size": 0,
       "slot_type": "slot_head",
       "stats": {
@@ -141,6 +146,7 @@
       "id": "material_scrap",
       "kind": "material",
       "name": "Scrap",
+      "description": "Bent plate, wire and fittings. A workbench turns it into repairs, parts and new tools.",
       "size": 1,
       "stack": 10,
       "value": 2,
@@ -150,6 +156,7 @@
       "id": "consumable_medkit",
       "kind": "consumable",
       "name": "Medkit",
+      "description": "Bandages, sealant and a painkiller. Using one patches up a few points of health.",
       "size": 0,
       "stack": 5,
       "interactions": [
@@ -173,6 +180,7 @@
       "id": "misc_keycard",
       "kind": "misc",
       "name": "Keycard",
+      "description": "An old crew keycard. It springs a door's lock as well as any tool, and Juno wants one.",
       "size": 0,
       "tags": [
         "tag_tool"
@@ -182,6 +190,7 @@
       "id": "material_odd_metal",
       "kind": "material",
       "name": "Odd metal",
+      "description": "A sliver of metal that stays cool in your hand and won't take a scratch. Nobody can say what it is. Worked into a hand tool, it does strange things.",
       "size": 0,
       "stack": 5,
       "grade": "grade_fine"

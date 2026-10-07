@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from engine import encounter, world
+from engine import build, encounter, world
 from engine.content import load_pack
 from engine.effects import run
 from engine.frozen import freeze
@@ -17,7 +17,7 @@ from engine.state import Ctx, new_game
 from tui import app, render
 from tui.text import Style, visible_len
 from tui.ui import UIPackError, default_ui, load_ui, ui_dir_for
-from tui.widgets import option_text
+from tui.widgets import Frame, item_details, option_text
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")
@@ -264,6 +264,69 @@ class TestSubWindows(unittest.TestCase):
             self.assertIn("↑↓ scroll", frame)                      # it still scrolls
         finally:
             tmp.cleanup()
+
+
+class TestItemDetails(unittest.TestCase):
+    """Step 2: an item's details, from the pack panel, in the shared panel."""
+
+    def pick(self, state, item_id, group=None):
+        slots = build.pack_slots(CONTENT, state)
+        return next(i for i, slot in enumerate(slots)
+                    if (group is None or slot[0] == group)
+                    and getattr(build.entry_at(CONTENT, state, slot), "item", build.entry_at(CONTENT, state, slot)) == item_id)
+
+    def test_details_open_from_a_picked_item_and_go_back(self):
+        s = new_game(CONTENT, 1)
+        picked = self.pick(s, "module_cutter")
+        self.assertIn("I Details", plain(s, panel="pack", selected=picked))
+        _, view, _ = app.handle(CONTENT, s, "i", app.View("pack", picked), UI)
+        self.assertEqual((view.panel, view.selected), ("item", picked))
+        frame = plain(s, panel="item", selected=picked)
+        for words in ("Cutter", "Module · Hand slot", "Condition 4/4", "A hand cutter", "Uses", "PWR 1  MAS 2",
+                      "Counts as", "a tool", "Strike", "1 free of 1", "Takes apart", "Scrap x2", "design not known",
+                      "Scrap for +2", "X back"):
+            self.assertIn(words, frame)
+        self.assertNotIn("R Remove", frame)                     # one focus: the board steps back
+        _, back, _ = app.handle(CONTENT, s, "x", view, UI)
+        self.assertEqual(back, app.View("pack", picked, 0))
+        _, closed, _ = app.handle(CONTENT, s, "p", view, UI)
+        self.assertEqual(closed, app.View())
+
+    def test_stored_gear_shows_what_it_needs(self):
+        s = walk(run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"),
+                     [freeze({"op": "move_to", "location": "loc_storage", "subject": "self"})]), "ssa")
+        frame = plain(s, panel="item", selected=self.pick(s, "frame_heavy", "storage"))
+        for words in ("Heavy suit", "Suit · Fine", "Needs", "Salvage 2", "an air filter", "Hand x2, Back x3", "large"):
+            self.assertIn(words, frame)
+
+    def test_mods_designs_and_broken_items(self):
+        s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"), [
+            freeze({"op": "learn_design", "item": "module_cutter", "subject": "self"}),
+            freeze({"op": "wear", "pick": {"item": "module_cutter"}, "amount": 99, "subject": "self"})])
+        me = s.characters[s.player]
+        modded = me.frame._replace(mods=("mod_reinforced",))
+        s = s._replace(characters=freeze({**s.characters, s.player: me._replace(frame=modded)}))
+        frame = plain(s, panel="item", selected=self.pick(s, "frame_light"))
+        self.assertIn("Light suit (Reinforced)", frame)
+        self.assertIn("Reinforced, 1 free of 2", frame)
+        self.assertIn("ARM +1", frame)
+        cutter = plain(s, panel="item", selected=self.pick(s, "module_cutter"))
+        self.assertIn("Broken", cutter)
+        self.assertIn("design known", cutter)
+
+    def test_every_item_has_details_that_fit(self):
+        frame = Frame(CONTENT, new_game(CONTENT, 1), UI, Style(False, UI.tokens["styles"]), "world", panel="item")
+        for item_id in CONTENT.all("item"):
+            with self.subTest(item=item_id):
+                self.assertTrue(CONTENT.get("item", item_id).get("description"))
+                lines = item_details(frame, item_id, 34)          # as a design: no instance needed
+                self.assertTrue(all(visible_len(line) <= 34 for line in lines))
+
+    def test_long_details_scroll(self):
+        s = new_game(CONTENT, 1)
+        picked = self.pick(s, "module_cutter")
+        self.assertGreater(render.max_scroll(CONTENT, s, 40, 20, "item", picked), 0)
+        self.assertIn("↑↓ scroll", plain(s, 40, 20, panel="item", selected=picked))
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):

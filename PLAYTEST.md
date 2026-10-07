@@ -75,6 +75,11 @@ The key hints at the bottom of the screen always show the keys that work right n
 - [ ] The board shows power, mass and cargo budgets, then fitted, carried, stored
   (next to storage) and designs, numbered; picking a number shows that item's options.
 - [ ] Using a consumable spends one from the stack.
+- [ ] A picked item offers I Details: the panel shows its kind, slot, grade,
+  condition, description, and rows for what it uses and gives, mounts, tags, actions,
+  mod slots, size, stack, needs, taking apart, making and repairing. Try the cutter,
+  the light suit, a medkit, and the heavy suit in the suit bay. X goes back with the
+  item still picked; P closes everything.
 - [ ] After an action the same item stays picked at its new number (store an item, then
   take it back without picking it again); it's unpicked when the item is gone.
 - [ ] Removing or fitting gear away from a refit workshop is refused with a hint.

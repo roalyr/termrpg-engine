@@ -102,6 +102,8 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
             return state, View("pack", None, (view.page + step) % pages)
         if action in MOVES:
             return state, view
+        if view.selected is not None and view.selected < len(slots) and key == world.MENU_KEYS["inspect"]:
+            return state, View("item", view.selected, view.page)       # the picked item's details
         if _digit(key) and _digit(key) <= page_size:
             index = (view.page % pages) * page_size + _digit(key) - 1
             return state, view._replace(selected=index if index < len(slots) else None)
@@ -126,7 +128,7 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
 
 
 # Sub-windows that scroll line by line, and the key that closes each besides 'close'.
-SCROLLING = {"inspect": None, "character": "character"}
+SCROLLING = {"inspect": None, "character": "character", "item": "pack"}
 
 
 def _scrolling(action: Optional[str], view: View) -> View:
@@ -134,6 +136,8 @@ def _scrolling(action: Optional[str], view: View) -> View:
         return view._replace(scroll=max(0, view.scroll - 1))
     if action == "move_south":
         return view._replace(scroll=view.scroll + 1)          # kept within the content when drawn
+    if action == "close" and view.panel == "item":             # back to the pack, the item still picked
+        return View("pack", view.selected, view.page)
     if action == "close" or (action is not None and action == SCROLLING[view.panel]):
         return View()
     return view

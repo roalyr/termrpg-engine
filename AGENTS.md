@@ -544,6 +544,8 @@ good.
   and technobabble are not.
 - **No emoji.** Map glyphs are single characters.
 - **Hints say what's needed,** in plain words: "Needs a cutter or a heavier frame."
+- **Give every object, person and item a `description`.** Inspect and the item details
+  show it. Say what the thing is and what it's for; the numbers are shown already.
 - Keep names short enough for a 40-column screen.
 
 ## When the schema can't express something

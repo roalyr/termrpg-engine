@@ -4,6 +4,7 @@
     {
       "id": "mod_reinforced",
       "name": "Reinforced",
+      "description": "Extra plating and bracing, made from scrap: tougher, and slower to wear down.",
       "material": "material_scrap",
       "count": 2,
       "applies_to": {
@@ -22,6 +23,7 @@
     {
       "id": "mod_odd_metal",
       "name": "Odd metal",
+      "description": "Odd metal worked into a hand tool. It burns whatever it cuts and filters the air around you, but it runs a little hot.",
       "material": "material_odd_metal",
       "applies_to": {
         "kinds": [

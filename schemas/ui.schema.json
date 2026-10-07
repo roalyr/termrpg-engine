@@ -1189,6 +1189,55 @@
                 ]
               },
               "default": []
+            },
+            "item": {
+              "type": "array",
+              "description": "An item's details are open, from the pack panel.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
             }
           },
           "additionalProperties": false,
@@ -1416,6 +1465,181 @@
                 "columns",
                 "rows"
               ]
+            },
+            "details": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Board: open the picked item's details. No placeholders.",
+              "x-placeholders": []
+            },
+            "kind_frame": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: what a frame is called. No placeholders.",
+              "x-placeholders": []
+            },
+            "kind_module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: what a module is called. No placeholders.",
+              "x-placeholders": []
+            },
+            "kind_implant": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: what an implant is called. No placeholders.",
+              "x-placeholders": []
+            },
+            "kind_material": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: what a material is called. No placeholders.",
+              "x-placeholders": []
+            },
+            "kind_consumable": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: what a consumable is called. No placeholders.",
+              "x-placeholders": []
+            },
+            "kind_misc": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: any other item. No placeholders.",
+              "x-placeholders": []
+            },
+            "slot_named": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: the slot an item fits. Placeholders: {slot}.",
+              "x-placeholders": [
+                "slot"
+              ]
+            },
+            "item_condition": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: its condition. Placeholders: {now}, {top}.",
+              "x-placeholders": [
+                "now",
+                "top"
+              ]
+            },
+            "item_broken": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: a broken item's condition. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_uses": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: power, mass and heat it spends. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_gives": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: stats it adds. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_mounts": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: a frame's slots. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_tags": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: what it counts as. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_actions": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: actions it gives. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_mods": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: its mod slots. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_mods_free": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: free mod slots. Placeholders: {free}, {total}.",
+              "x-placeholders": [
+                "free",
+                "total"
+              ]
+            },
+            "item_size": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: its size. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_stack": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: how many fit in one stack. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_stack_count": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: the stack limit. Placeholders: {count}.",
+              "x-placeholders": [
+                "count"
+              ]
+            },
+            "item_needs": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: what wearing or fitting it needs. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_salvage": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: what taking it apart gives. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_fabricate": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: what making one costs. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_repair": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: what a repair costs. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_repair_amount": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: what a repair restores. Placeholders: {items}, {amount}.",
+              "x-placeholders": [
+                "items",
+                "amount"
+              ]
+            },
+            "design_known": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: you know how to make it. No placeholders.",
+              "x-placeholders": []
+            },
+            "design_unknown": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details: you don't know how to make it yet. No placeholders.",
+              "x-placeholders": []
             }
           },
           "additionalProperties": false,
