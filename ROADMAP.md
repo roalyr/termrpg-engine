@@ -225,7 +225,19 @@ Steps, each one playable and tested:
    statuses, party and standing, and a portrait zone: characters may have a pixel
    `portrait`, drawn with half-block characters (an empty frame keeps the place
    without one).
-5. **People:** a dialogue window; trades showing what you give and get.
+5. **People:** a dialogue window; trades showing what you give and get. Agreed
+   layout:
+   - a full conversation screen, opened by Talk from the person's menu (the menu
+     stays as it is for objects and people; Talk still takes a turn);
+   - on top, the speaker's portrait beside their name, title, faction and how they
+     regard you (the level's name, the number and a bar);
+   - below, the conversation: the last few exchanges (your response, their reply,
+     what changed hands), scrolling with the slider, reset when it ends; then their
+     current line;
+   - your responses: their interactions, numbered (digits answer), unavailable ones
+     greyed out with the pack's hint, and Leave last; a trade shows "You give" and
+     "You get", read from its own take_item and give_item effects;
+   - X leaves.
 6. **Fights:** action details before use, fighters' statuses, the chosen target
    highlighted, tile names that fit.
 7. **Messages:** message history, and long event texts in the panel.
