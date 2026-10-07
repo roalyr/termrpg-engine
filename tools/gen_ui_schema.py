@@ -24,11 +24,14 @@ SCHEMA_REF = {"type": "string", "description": "Path to this file's schema, for 
 OUT = Path(__file__).resolve().parent.parent / "schemas" / "ui.schema.json"
 
 PALETTE = ["grey", "white", "green", "cyan", "blue", "violet", "yellow", "orange", "red"]
-SCREENS = {"world": "Walking around.", "encounter": "A fight.", "debrief": "The after-action screen at the end of a fight."}
+SCREENS = {"world": "Walking around.", "encounter": "A fight.", "debrief": "The after-action screen at the end of a fight.",
+           "fitting": "The fitting screen: the loadout, spare gear and designs, and building."}
 ACTIONS = {
  "move_north": ("w", "Step up; scrolls an open sub-window up."), "move_west": ("a", "Step left."),
  "move_south": ("s", "Step down; scrolls an open sub-window down."),
- "move_east": ("d", "Step right."), "wait": (".", "Let a turn pass."), "pack": ("p", "Open or close the fitting board."),
+ "move_east": ("d", "Step right."), "wait": (".", "Let a turn pass."),
+ "pack": ("p", "Open or close the pack: what you carry, and storage within reach."),
+ "fitting": ("f", "Open the fitting screen. It may share its key with Fit, which only works on that screen."),
  "character": ("c", "Open or close the character sheet."), "close": ("x", "Close the menu, panel or target choice."),
  "quit": ("q", "Save and quit."), "next_page": ("]", "Next page of the fitting board."),
 }
@@ -37,7 +40,9 @@ CONTEXTS = {
  "pack": "The fitting board is open.", "sheet": "The character sheet is open.", "encounter": "Picking an action tile.",
  "target": "Picking a target for an action.", "debrief": "The after-action screen.",
  "panel": "The shared panel is open (what Inspect shows).",
- "item": "An item's details are open, from the pack panel.",
+ "item": "An item's details are open.",
+ "fitting": "The fitting screen, picking from its list.",
+ "modify": "The fitting screen's list of modifications for the picked item.",
 }
 ROLES = {
  "title": ("white", True, False, "Screen titles: the location, the encounter, the result."),
@@ -74,8 +79,11 @@ WIDGETS = {
      "intent": flag(True, "Show each enemy's intent.")}),
  "art": (["encounter"], "The picture of the enemy in front.", {
      "frame": flag(True, "Draw a frame around it.")}),
- "panel": (["world"], "The shared panel for details, such as what Inspect shows: a title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it.", {
+ "panel": (["world", "fitting"], "The shared panel for details, such as what Inspect shows: a title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it.", {
      "slider": flag(True, "Draw a slider at the right edge when the content is longer than the panel.")}),
+ "budgets": (["fitting"], "Power, mass, heat and cargo as bars: used of what the loadout provides.", {}),
+ "loadout": (["fitting"], "The fitting screen's list: what's worn by slot (empty slots too), spare gear, designs. Up and down move the pick; the list scrolls to keep it in view.", {}),
+ "pick": (["fitting"], "The picked entry: what it is, what its action would change, and its action keys; or the modifications that apply to it.", {}),
  "keys": (list(SCREENS), "The key hints for the current context, built from the key bindings.", {}),
 }
 
@@ -122,6 +130,7 @@ glyphs = obj("Characters the widgets draw with.", {
    "intent": char("⚠", "Before an enemy's intent.", 2), "cost": char("▲", "Before an action tile's heat cost.", 1),
    "mark_danger": char("! ", "Before warning messages.", 3), "mark_gain": char("+ ", "Before gain messages.", 3),
    "separator": char(" · ", "Between entries on one line (the legend).", 3),
+   "cursor": char("▸", "Marks the picked line of a list, so the pick shows without colour too.", 1),
    "slider_track": char("│", "The slider's track, beside a scrolling panel.", 1),
    "slider_thumb": char("█", "The slider's thumb: where the visible part is.", 1),
    "arrows": obj("The arrow keys as shown in key hints.", {
@@ -192,6 +201,22 @@ WORDS = {
  "item_repair_amount": ("Item details: what a repair restores.", ["items", "amount"]),
  "design_known": ("Item details: you know how to make it.", []),
  "design_unknown": ("Item details: you don't know how to make it yet.", []),
+ "fitting_title": ("Fitting screen title.", ["frame"]),
+ "fitting_no_frame": ("Fitting screen title without a frame worn.", []),
+ "fitting_at": ("Fitting screen: the workshop within reach.", ["place"]),
+ "fitting_planning": ("Fitting screen: no workshop within reach.", []),
+ "fitting_worn": ("Fitting list heading: worn and fitted.", []), "fitting_spare": ("Fitting list heading: spare gear.", []),
+ "fitting_designs": ("Fitting list heading: known designs.", []), "fitting_empty": ("Fitting list: an empty slot.", []),
+ "fitting_frame_slot": ("Fitting list: the frame's own line when none is worn.", []),
+ "fitting_carried": ("Fitting list: where a spare item is.", []),
+ "fitting_in": ("Fitting list: a stored spare item's place.", ["container"]),
+ "fitting_fitted": ("Picked entry: it's worn or fitted.", []), "fitting_design": ("Picked entry: a design.", []),
+ "fitting_change": ("Picked entry: what an action would change.", ["action", "changes"]),
+ "modify_menu": ("Picked entry: open the modifications list.", []),
+ "modify_title": ("Modifications list heading.", ["item"]),
+ "modify_none": ("Modifications list: none apply.", []),
+ "mod_condition": ("Modifications list: what one adds to the maximum condition.", ["amount"]),
+ "mod_uses": ("Modifications list: how one changes what an item uses.", ["stat", "amount"]),
 }
 words = obj("The UI's own words: labels, headings and hint labels. The game's voice (what happens, hints, dialogue) stays in the game pack's strings.", {
    "$schema": SCHEMA_REF,

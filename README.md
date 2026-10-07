@@ -374,7 +374,7 @@ Rules the engine follows that the schemas alone don't spell out:
   it: its interactions (`shown_if` hides, `requires` greys out with the hint), "go"
   for exits, "talk" for characters with dialogue, and "inspect" (keys G, T and I; the
   UI pack words them). Keys come from each interaction's `key`; the UI pack's key
-  bindings (by default `w a s d . p c x q ]`), `g t i` and the digits are reserved, so
+  bindings (by default `w a s d . p f c x q ]`), `g t i` and the digits are reserved, so
   a clash gets a spare letter.
 - **Repeats.** `once` interactions are used up for good, `daily` ones until the next
   day; the count is per placement or character.
@@ -394,7 +394,13 @@ Rules the engine follows that the schemas alone don't spell out:
   location. A frame comes off only after its modules. Removed items go to the
   inventory, which must still fit in cargo afterwards (a frame often provides cargo).
   When a pool's maximum changes, its current value moves with it, never below 1, so
-  putting on a suit adds its health.
+  putting on a suit adds its health. Gear in storage within reach can be fitted
+  straight from there (it's taken and fitted in one go).
+- **Where it happens.** The pack panel is for carrying: what you carry and storage
+  within reach, with take, store and use. The fitting screen is for building: the
+  loadout by slot, spare gear and designs, with fit, remove and the workshop
+  services. It opens anywhere for planning; its actions work only next to a workshop
+  offering them, and elsewhere they're greyed out with the reason.
 - **Size at exits.** Going through an exit needs the traveller's size to fit the exit
   placement's `holds_size` and the destination's.
 - **Storage.** Objects with `storage` within reach take and give whole stacks;
@@ -871,8 +877,7 @@ How the engine runs them:
 - **Dismantle** takes one carried item. Its design is learned when `salvage.learn`
   is on and `learn_requires` holds; otherwise the player is told it's beyond them.
 - **Fabricate** needs the design, `fabricate.requires`, and the inputs carried; it
-  takes `fabricate.time` turns. Known designs are listed on the fitting board when a
-  fabricating workshop is within reach.
+  takes `fabricate.time` turns. Known designs are listed on the fitting screen.
 - **Modify** works on carried or fitted items that match `applies_to` and have a free
   mod slot; the material must be carried. Modifying a fitted item must leave the
   loadout within its budgets.
@@ -909,7 +914,7 @@ win key by key; word entries add up):
 | Kind | Holds |
 |---|---|
 | `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, fitting-board page size), `padding`, `glyphs` (the border set, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
-| `screens` | Each screen (`world`, `encounter`, `debrief`) as zones, top to bottom |
+| `screens` | Each screen (`world`, `encounter`, `debrief`, `fitting`) as zones, top to bottom |
 | `keys` | `bindings` (action → key) and `hints` (what each context shows) |
 | `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |
 
@@ -939,12 +944,29 @@ Closing Inspect returns to the thing's menu.
 slot and grade, condition, description, then labelled rows for what it uses and
 gives, its mounts, what it counts as, its actions, mod slots, size, stack, what
 wearing it needs, and what taking it apart, making and repairing involve. X goes back
-to the pack panel with the item still picked.
+to the pack panel with the item still picked. The fitting screen offers the same
+details for whatever is picked there.
 
-**The fitting board keeps its pick.** Numbers shift when an item is fitted, removed,
-stored, taken or made, because entries are grouped by where they are. After an action
-the board keeps the same item picked at its new number (or drops the pick when the
-item is gone), so its next action is one key away.
+**The fitting screen** (F) is a full screen for planning and building:
+- the title names the worn suit and where you are ("At: Workbench", or "Planning
+  only");
+- `budgets` shows power, mass, heat and cargo as bars;
+- `loadout` lists what's worn by slot (the frame, each of its slots, the body's
+  implant slots; empty ones as "· empty", never picked), spare gear carried or in
+  storage within reach, and known designs with their costs. Up and down move the pick
+  (the list scrolls to keep it in view, with the slider), digits 1-9 jump to an entry,
+  and the pick is marked with the `cursor` glyph so it shows without colour too;
+- `pick` shows the picked entry: what it is, what its action would change ("Remove:
+  PWR 4→3/6"), shown when the action can happen or when the budgets are why it can't
+  (over-budget numbers in the warning colour), and its keys. M lists the
+  modifications that apply, each with its cost, what it adds and what it would
+  change; a digit applies one. I opens the item's details;
+- close goes back a level: from the details or the modifications to the list, from
+  the list to the world. After an action the pick follows the item wherever it went.
+
+**The pack panel keeps its pick.** Numbers shift when an item is stored or taken,
+because entries are grouped by where they are. After an action the panel keeps the
+same item picked at its new number (or drops the pick when the item is gone).
 
 **Widgets** are a fixed catalogue owned by the engine; each has a few options and is
 allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
@@ -958,20 +980,23 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `log` | Messages in order | all | `round_heading` |
 | `menu` | What can be done with the thing in focus | world | `hints` |
 | `choice` | A choice waiting for an answer | world, encounter | `hints` |
-| `board` | The fitting board | world | `budgets` |
+| `board` | The pack panel: what you carry and storage within reach | world | `budgets` |
 | `sheet` | The character sheet | world | — |
 | `tiles` | Action tiles | encounter | `per_row` (0 = fit) |
 | `fighters` | Both sides with bars and intents | encounter | `intent` |
 | `art` | The enemy's picture | encounter | `frame` |
 | `panel` | The shared panel: what Inspect shows (name, a person's title or an object's state, description), or an item's details | world | `slider` |
+| `budgets` | Power, mass, heat and cargo as bars | fitting | — |
+| `loadout` | The fitting list: worn by slot, spare gear, designs | fitting | — |
+| `pick` | The picked entry, what its action would change, its keys; or its modifications | fitting | — |
 | `keys` | Key hints for the current context, built from the bindings | all | — |
 
 **Keys.** The input actions are fixed by the engine: `move_north`, `move_west`,
-`move_south`, `move_east`, `wait`, `pack`, `character`, `close`, `quit`, `next_page`.
+`move_south`, `move_east`, `wait`, `pack`, `fitting`, `character`, `close`, `quit`, `next_page`.
 Number keys 1–9 always pick numbered entries and can't be bound. Bindings are lower
 case (keys match either case). The arrow keys always move and Esc always closes,
 whatever the bindings. `hints` lists, per
-context (`walk`, `menu`, `choice`, `pack`, `sheet`, `panel`, `item`, `encounter`, `target`,
+context (`walk`, `menu`, `choice`, `pack`, `fitting`, `modify`, `sheet`, `panel`, `item`, `encounter`, `target`,
 `debrief`), entries that show some actions' keys joined (`WASD`), the arrow keys
 instead for move actions (`arrows`: `↑↓`), or `1-9` (`digits`, shown as the real
 range), then a label from the words file. Hints are generated from the bindings, so
@@ -982,8 +1007,9 @@ they can't disagree with the real keys, and a hint whose keys do nothing right n
 file against the schema, then:
 
 - each widget only on the screens that allow it, at most once per screen;
-- no two actions on one key, and none on a key the engine's menus use (`g t i` and the
-  fitting board's `f r o k v e b`);
+- no two actions on one key, and none on a key the engine's menus use (`g t i`, the
+  item keys `f r o k v e b` and `m` for modify), except that the fitting screen's key
+  may share `f` with Fit, since the two are never active at once;
 - hint labels that exist, and a hint shows actions or digits, not both;
 - words with only their own placeholders;
 - the world screen fits the minimum width: outer borders + the largest room in its

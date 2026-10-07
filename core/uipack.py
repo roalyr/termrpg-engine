@@ -30,7 +30,13 @@ def _engine_keys() -> Dict[str, str]:
     from engine import build, world
     keys = dict(world.MENU_KEYS)
     keys.update({kind: key for kind, key in build.ITEM_KEYS.items() if key})
+    keys["modify"] = build.MODIFY_KEY
     return keys
+
+
+# A binding may share an engine key when the two are never active at once: the fitting
+# screen's key opens it from the world, while Fit only works on that screen.
+SHARED_KEYS = {("fitting", "fit")}
 
 
 def is_ui_pack(folder: Path) -> bool:
@@ -127,7 +133,7 @@ def _check_keys(keys: Dict[str, Any], errors: List[str]) -> None:
     for key, actions in by_key.items():
         if len(actions) > 1:
             errors.append(f"keys: '{key}' is bound to {' and '.join(actions)}")
-        if key.lower() in engine_keys:
+        if key.lower() in engine_keys and not all((a, engine_keys[key.lower()]) in SHARED_KEYS for a in actions):
             errors.append(f"keys: '{key}' ({' and '.join(actions)}) is the engine's key for "
                           f"'{engine_keys[key.lower()]}'; pick another")
     for context, hints in keys.get("hints", {}).items():

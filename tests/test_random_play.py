@@ -63,7 +63,7 @@ class TestRandomPlay(unittest.TestCase):
                     columns, rows = SIZES[step % len(SIZES)]
                     try:
                         frame = render.render(CONTENT, state, columns, rows, view.panel, True, view.selected,
-                                              view.page, UI)
+                                              view.page, UI, view.scroll, view.screen)
                     except Exception as error:
                         self.fail(f"{name} seed {seed} step {step}: drawing raised {error!r}")
                     lines = frame.rstrip("\n").split("\n")

@@ -257,22 +257,37 @@ class TestUsingItems(unittest.TestCase):
 
 
 class TestScreen(unittest.TestCase):
-    def test_pack_panel_is_the_fitting_board(self):
+    def test_the_fitting_screen_shows_the_loadout(self):
         s = at_bench()
-        frame = ANSI.sub("", render.render(CONTENT, s, 44, 60, panel="pack", selected=1))
-        self.assertIn("PWR 4/6", frame)
-        self.assertIn("1 Light suit", frame)
-        self.assertIn("2 Cutter 4/4", frame)
-        self.assertIn("R Remove", frame)
+        frame = ANSI.sub("", render.render(CONTENT, s, 44, 60, selected=1, screen="fitting"))
+        for words in ("Fitting · Light suit", "At: Workbench", "4/6", "1 Light suit", "2 Cutter 4/4",
+                      "Hand  · empty", "R Remove", "Remove: PWR 4→3/6", "I Details"):
+            self.assertIn(words, frame)
 
-    def test_app_keys_on_the_board(self):
+    def test_the_pack_panel_is_for_carrying(self):
         s = at_bench()
-        s, view, _ = app.handle(CONTENT, s, "p")
-        s, view, _ = app.handle(CONTENT, s, "2", view)
+        frame = ANSI.sub("", render.render(CONTENT, s, 44, 60, panel="pack", selected=0))
+        self.assertIn("CRG 4/6", frame)
+        self.assertIn("1 Medkit x3", frame)
+        self.assertIn("U Use", frame)
+        self.assertNotIn("Light suit", frame)                    # the loadout is on the fitting screen
+        self.assertNotIn("Remove", frame)
+
+    def test_app_keys_on_the_fitting_screen(self):
+        s = at_bench()
+        s, view, _ = app.handle(CONTENT, s, "f")
+        self.assertEqual((view.screen, view.selected), ("fitting", 0))
+        s, view, _ = app.handle(CONTENT, s, "s", view)           # down moves the pick
         self.assertEqual(view.selected, 1)
         s, view, _ = app.handle(CONTENT, s, "r", view)
         self.assertEqual(last(s), "Removed Cutter.")
-        self.assertEqual(view.panel, "pack")
+        row = build.fitting_rows(CONTENT, s)[[i for i, r in enumerate(build.fitting_rows(CONTENT, s))
+                                              if r.slot is not None][view.selected]]
+        self.assertEqual((row.group, build.entry_at(CONTENT, s, row.slot).item), ("spare", "module_cutter"))
+        s, view, _ = app.handle(CONTENT, s, "f", view)           # F fits the picked spare item again
+        self.assertEqual(last(s), "Fitted Cutter.")
+        s, view, _ = app.handle(CONTENT, s, "x", view)
+        self.assertEqual(view, app.View())
 
 
 if __name__ == "__main__":

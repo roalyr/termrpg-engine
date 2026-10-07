@@ -86,7 +86,7 @@ class TestPlaythrough(unittest.TestCase):
         self.assertEqual(me(s).at, (1, 3))
         self.assertEqual(s.focus, ("placement", "workshop_crate"))
         turn = s.turn
-        s = keys(s, "f")
+        s = keys(s, "h")
         self.assertEqual(s.turn, turn + 2)                    # searching takes two turns
         self.assertEqual(s.object_states["workshop_crate"], "state_used")
         self.assertFalse(option(s, "Search").available)
@@ -172,7 +172,7 @@ class TestTurns(unittest.TestCase):
     def test_daily_interactions_come_back(self):
         s = keys(new_game(CONTENT, 1), "w")                  # focus the crate
         s = s._replace(object_states=freeze({**s.object_states}))
-        s = keys(s, "f")
+        s = keys(s, "h")
         self.assertEqual(option(s, "Search").hint, "Already searched.")
         # The crate's own state keeps it closed until something restocks it; with the state
         # reset by hand, the daily limit alone still blocks it today and frees it tomorrow.

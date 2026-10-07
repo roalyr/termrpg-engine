@@ -126,7 +126,7 @@ class TestTriggers(unittest.TestCase):
     def test_the_crate_restocks_each_morning(self):
         s = new_game(CONTENT, 1)
         s = world.move(CONTENT, s, "w")
-        s = world.act(CONTENT, s, "f")
+        s = world.act(CONTENT, s, "h")
         self.assertEqual(s.object_states["workshop_crate"], "state_used")
         s = next_day(s)
         while s.pending is not None:                                       # answer any morning grudge

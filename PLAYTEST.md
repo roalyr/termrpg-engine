@@ -70,11 +70,23 @@ The key hints at the bottom of the screen always show the keys that work right n
 - [ ] A recruited companion leaves the map, follows you between rooms, shows in the
   status panel, and fights on your side.
 
-## 5. The fitting board and the character sheet
+## 5. The pack, the fitting screen and the character sheet
 
-- [ ] The board shows power, mass and cargo budgets, then fitted, carried, stored
-  (next to storage) and designs, numbered; picking a number shows that item's options.
+- [ ] The pack panel (P) shows cargo, then what you carry and, next to storage, what's
+  stored, numbered; picking a number shows take, store and use. No fitting there.
 - [ ] Using a consumable spends one from the stack.
+- [ ] The fitting screen (F) shows the worn suit and where you are ("At: Workbench",
+  or "Planning only"), the budgets as bars, then Worn by slot (empty slots as
+  "· empty"), Spare and Designs. Up and down move the pick, skipping empty slots, and
+  the list scrolls to keep it in view; digits jump. The pick shows with colour off too.
+- [ ] The picked entry says what its action would change ("Remove: PWR 4→3/6").
+  Something that would go over a budget shows the number in the warning colour and is
+  greyed out with the reason; something blocked for another reason shows no preview.
+- [ ] Away from a workshop every action is greyed out with "Needs a refit workshop."
+- [ ] At the suit bay, the heavy suit and the eye implant are listed as spare "in Suit
+  bay" and fit straight from there.
+- [ ] M lists the modifications that apply, with cost, what each adds and why not; a
+  digit applies one. I opens the details; X goes back a level each time.
 - [ ] A picked item offers I Details: the panel shows its kind, slot, grade,
   condition, description, and rows for what it uses and gives, mounts, tags, actions,
   mod slots, size, stack, needs, taking apart, making and repairing. Try the cutter,
@@ -100,6 +112,8 @@ The key hints at the bottom of the screen always show the keys that work right n
   (a new action, or a stat bonus visible in the sheet).
 
 ## 8. Crafting at a workshop
+
+All of these happen on the fitting screen, next to the workbench.
 
 - [ ] **Repair** restores a worn item's condition for materials; an undamaged item says
   so.
@@ -141,6 +155,7 @@ The key hints at the bottom of the screen always show the keys that work right n
 
 - [ ] At the bay (a refit workshop): taking off the worn frame needs its modules
   removed first; a new frame needs the old one off first.
+- [ ] All of this happens on the fitting screen.
 - [ ] Health, budgets and cargo follow the loadout: they drop when a suit comes off
   and rise when a heavier one goes on.
 - [ ] Fitting is refused when it would go over a budget or has no free slot.
@@ -173,8 +188,8 @@ The key hints at the bottom of the screen always show the keys that work right n
 
 ## 16. Paging
 
-- [ ] With more than nine board entries, the board shows "Page 1/2" and the next-page
-  key shows the rest; numbers start at 1 again on each page.
+- [ ] With more than nine entries, the pack panel shows "Page 1/2" and up and down (or
+  the next-page key) turn pages; numbers start at 1 again on each page.
 
 ## 17. Time and the living world
 

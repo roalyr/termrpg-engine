@@ -17,18 +17,20 @@ A frame never overflows the terminal.
 An open sub-window (Inspect, the character sheet) changes this: its zone is flexible.
 Low-priority zones still make room for it first; then it takes every row the other
 zones leave, shows the part at the scroll offset, and draws a slider at its right edge
-when its content is longer than that.
+when its content is longer than that. On a list screen (fitting) with no sub-window
+open, the list's zone is the flexible one, and it scrolls to keep the pick in view.
 """
 from typing import Any, List, Mapping, NamedTuple, Optional, Tuple
 
 from tui.text import pad
-from tui.widgets import NATURAL_WIDTH, SUBWINDOWS, WIDGETS, Frame
+from tui.widgets import FOCUS, LISTS, NATURAL_WIDTH, SUBWINDOWS, WIDGETS, Frame
 
 
 class Band(NamedTuple):
     zone: Mapping[str, Any]
     lines: List[str]
-    flexible: bool = False     # the open sub-window: windowed and scrolled
+    flexible: bool = False     # the open sub-window or the list: windowed and scrolled
+    focus: Optional[int] = None  # the list's picked line, kept in view
 
 
 class Arranged(NamedTuple):
@@ -90,7 +92,7 @@ def _side(frame: Frame, layout: Mapping[str, Any], width: int, padding: int, box
 
 
 def _holds_subwindow(frame: Frame, zone: Mapping[str, Any]) -> bool:
-    widget = SUBWINDOWS.get(frame.panel)
+    widget = SUBWINDOWS.get(frame.panel) if frame.panel is not None else LISTS.get(frame.screen)
     return widget is not None and widget in _widgets(zone["content"])
 
 
@@ -105,7 +107,8 @@ def _zone_lines(frame: Frame, zone: Mapping[str, Any], inner: int, flexible: boo
         return draw_layout(frame, content, inner)
     if flexible:
         text_width = max(1, inner - 2 * padding - 2)
-        return [" " * padding + pad(line, text_width) for line in draw_layout(frame, content, text_width)]
+        return [(FOCUS if line.startswith(FOCUS) else "") + " " * padding + pad(line.lstrip(FOCUS), text_width)
+                for line in draw_layout(frame, content, text_width)]
     text_width = max(1, inner - 2 * padding)
     return [" " * padding + pad(line, text_width) + " " * padding
             for line in draw_layout(frame, content, text_width)]
@@ -128,7 +131,9 @@ def _fit(frame: Frame, zones: List[Mapping[str, Any]], inner: int, rows: int) ->
             if zone.get("hide_when_empty", True):
                 continue
             lines = [""]                                   # kept in place, empty
-        bands.append(Band(zone, lines, flexible))
+        focus = next((i for i, line in enumerate(lines) if line.startswith(FOCUS)), None)
+        lines = [line.lstrip(FOCUS) for line in lines]
+        bands.append(Band(zone, lines, flexible, focus))
     while _height(bands) > rows:                           # make room, for a sub-window too
         droppable = [i for i, b in enumerate(bands) if b.zone.get("priority", 0) > 0]
         if not droppable:
@@ -160,7 +165,8 @@ def arrange(frame: Frame, zones: List[Mapping[str, Any]], columns: int, rows: in
     band = bands[flexible]
     window = max(1, rows - (_height(bands) - len(band.lines)))
     limit = max(0, len(band.lines) - window)
-    scroll = max(0, min(frame.scroll, limit))
+    wanted = band.focus - window // 2 if band.focus is not None else frame.scroll   # a list follows its pick
+    scroll = max(0, min(wanted, limit))
     visible = band.lines[scroll:scroll + window]
     bands[flexible] = band._replace(lines=[line + _slider(frame, band.zone, i, window, scroll, limit, len(band.lines))
                                            for i, line in enumerate(visible)])

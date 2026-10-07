@@ -94,7 +94,7 @@
         {
           "id": "search",
           "label": "Search",
-          "key": "f",
+          "key": "h",
           "repeat": "daily",
           "time": 2,
           "requires": {

@@ -203,7 +203,7 @@ Steps, each one playable and tested:
    Inspect for places and people in it.
 2. ✓ **Items:** an item detail view (description, stats, power and mass use, tags, mods,
    grade, condition), shown from the pack panel and the fitting screen.
-3. **Fitting screen:** a full screen with the loadout and budgets, spare gear and
+3. ✓ **Fitting screen:** a full screen with the loadout and budgets, spare gear and
    designs, the picked item's details and what it would change, and every building
    action (fit, remove, repair, take apart, make, modify, with what designs need and
    what modifications add). The pack panel loses its fitting and crafting options.

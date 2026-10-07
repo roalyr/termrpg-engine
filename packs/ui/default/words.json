@@ -50,7 +50,26 @@
     "item_repair": "Repairs",
     "item_repair_amount": "{items} for +{amount}",
     "design_known": "design known",
-    "design_unknown": "design not known"
+    "design_unknown": "design not known",
+    "fitting_title": "Fitting · {frame}",
+    "fitting_no_frame": "Fitting · no suit",
+    "fitting_at": "At: {place}",
+    "fitting_planning": "Planning only",
+    "fitting_worn": "Worn",
+    "fitting_spare": "Spare",
+    "fitting_designs": "Designs",
+    "fitting_empty": "· empty",
+    "fitting_frame_slot": "Suit",
+    "fitting_carried": "carried",
+    "fitting_in": "in {container}",
+    "fitting_fitted": "Fitted",
+    "fitting_design": "Design",
+    "fitting_change": "{action}: {changes}",
+    "modify_menu": "Modify",
+    "modify_title": "Modify: {item}",
+    "modify_none": "No modification fits this item.",
+    "mod_condition": "condition {amount}",
+    "mod_uses": "{stat} use {amount}"
   },
   "entries": [
     {
@@ -116,6 +135,18 @@
     {
       "id": "hint_any_key",
       "text": "Any key: continue"
+    },
+    {
+      "id": "hint_fitting",
+      "text": "fitting"
+    },
+    {
+      "id": "hint_jump",
+      "text": "jump"
+    },
+    {
+      "id": "hint_apply",
+      "text": "apply"
     }
   ]
 }

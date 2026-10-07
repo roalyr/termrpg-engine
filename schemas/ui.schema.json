@@ -313,6 +313,13 @@
               "default": " · ",
               "description": "Between entries on one line (the legend)."
             },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1,
+              "default": "▸",
+              "description": "Marks the picked line of a list, so the pick shows without colour too."
+            },
             "slider_track": {
               "type": "string",
               "minLength": 1,
@@ -715,7 +722,13 @@
               "type": "string",
               "pattern": "^[^0-9A-Z\\s]$",
               "default": "p",
-              "description": "Open or close the fitting board. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Open or close the pack: what you carry, and storage within reach. One key: not a digit, a space or an upper-case letter (keys match either case)."
+            },
+            "fitting": {
+              "type": "string",
+              "pattern": "^[^0-9A-Z\\s]$",
+              "default": "f",
+              "description": "Open the fitting screen. It may share its key with Fit, which only works on that screen. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "character": {
               "type": "string",
@@ -767,6 +780,7 @@
                         "move_east",
                         "wait",
                         "pack",
+                        "fitting",
                         "character",
                         "close",
                         "quit",
@@ -816,6 +830,7 @@
                         "move_east",
                         "wait",
                         "pack",
+                        "fitting",
                         "character",
                         "close",
                         "quit",
@@ -865,6 +880,7 @@
                         "move_east",
                         "wait",
                         "pack",
+                        "fitting",
                         "character",
                         "close",
                         "quit",
@@ -914,6 +930,7 @@
                         "move_east",
                         "wait",
                         "pack",
+                        "fitting",
                         "character",
                         "close",
                         "quit",
@@ -963,6 +980,7 @@
                         "move_east",
                         "wait",
                         "pack",
+                        "fitting",
                         "character",
                         "close",
                         "quit",
@@ -1012,6 +1030,7 @@
                         "move_east",
                         "wait",
                         "pack",
+                        "fitting",
                         "character",
                         "close",
                         "quit",
@@ -1061,6 +1080,7 @@
                         "move_east",
                         "wait",
                         "pack",
+                        "fitting",
                         "character",
                         "close",
                         "quit",
@@ -1110,6 +1130,7 @@
                         "move_east",
                         "wait",
                         "pack",
+                        "fitting",
                         "character",
                         "close",
                         "quit",
@@ -1159,6 +1180,7 @@
                         "move_east",
                         "wait",
                         "pack",
+                        "fitting",
                         "character",
                         "close",
                         "quit",
@@ -1192,7 +1214,7 @@
             },
             "item": {
               "type": "array",
-              "description": "An item's details are open, from the pack panel.",
+              "description": "An item's details are open.",
               "items": {
                 "type": "object",
                 "description": "One key hint: the keys of some actions (or 1-9), then a label.",
@@ -1208,6 +1230,107 @@
                         "move_east",
                         "wait",
                         "pack",
+                        "fitting",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "fitting": {
+              "type": "array",
+              "description": "The fitting screen, picking from its list.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "fitting",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "modify": {
+              "type": "array",
+              "description": "The fitting screen's list of modifications for the picked item.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "fitting",
                         "character",
                         "close",
                         "quit",
@@ -1283,13 +1406,22 @@
             "$ref": "#/$defs/zone"
           },
           "minItems": 1
+        },
+        "fitting": {
+          "type": "array",
+          "description": "The fitting screen: the loadout, spare gear and designs, and building.",
+          "items": {
+            "$ref": "#/$defs/zone"
+          },
+          "minItems": 1
         }
       },
       "additionalProperties": false,
       "required": [
         "world",
         "encounter",
-        "debrief"
+        "debrief",
+        "fitting"
       ]
     },
     "words_file": {
@@ -1640,6 +1772,136 @@
               "minLength": 1,
               "description": "Item details: you don't know how to make it yet. No placeholders.",
               "x-placeholders": []
+            },
+            "fitting_title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting screen title. Placeholders: {frame}.",
+              "x-placeholders": [
+                "frame"
+              ]
+            },
+            "fitting_no_frame": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting screen title without a frame worn. No placeholders.",
+              "x-placeholders": []
+            },
+            "fitting_at": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting screen: the workshop within reach. Placeholders: {place}.",
+              "x-placeholders": [
+                "place"
+              ]
+            },
+            "fitting_planning": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting screen: no workshop within reach. No placeholders.",
+              "x-placeholders": []
+            },
+            "fitting_worn": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting list heading: worn and fitted. No placeholders.",
+              "x-placeholders": []
+            },
+            "fitting_spare": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting list heading: spare gear. No placeholders.",
+              "x-placeholders": []
+            },
+            "fitting_designs": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting list heading: known designs. No placeholders.",
+              "x-placeholders": []
+            },
+            "fitting_empty": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting list: an empty slot. No placeholders.",
+              "x-placeholders": []
+            },
+            "fitting_frame_slot": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting list: the frame's own line when none is worn. No placeholders.",
+              "x-placeholders": []
+            },
+            "fitting_carried": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting list: where a spare item is. No placeholders.",
+              "x-placeholders": []
+            },
+            "fitting_in": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Fitting list: a stored spare item's place. Placeholders: {container}.",
+              "x-placeholders": [
+                "container"
+              ]
+            },
+            "fitting_fitted": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Picked entry: it's worn or fitted. No placeholders.",
+              "x-placeholders": []
+            },
+            "fitting_design": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Picked entry: a design. No placeholders.",
+              "x-placeholders": []
+            },
+            "fitting_change": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Picked entry: what an action would change. Placeholders: {action}, {changes}.",
+              "x-placeholders": [
+                "action",
+                "changes"
+              ]
+            },
+            "modify_menu": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Picked entry: open the modifications list. No placeholders.",
+              "x-placeholders": []
+            },
+            "modify_title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Modifications list heading. Placeholders: {item}.",
+              "x-placeholders": [
+                "item"
+              ]
+            },
+            "modify_none": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Modifications list: none apply. No placeholders.",
+              "x-placeholders": []
+            },
+            "mod_condition": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Modifications list: what one adds to the maximum condition. Placeholders: {amount}.",
+              "x-placeholders": [
+                "amount"
+              ]
+            },
+            "mod_uses": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Modifications list: how one changes what an item uses. Placeholders: {stat}, {amount}.",
+              "x-placeholders": [
+                "stat",
+                "amount"
+              ]
             }
           },
           "additionalProperties": false,
@@ -1798,6 +2060,15 @@
           "$ref": "#/$defs/widget_panel"
         },
         {
+          "$ref": "#/$defs/widget_budgets"
+        },
+        {
+          "$ref": "#/$defs/widget_loadout"
+        },
+        {
+          "$ref": "#/$defs/widget_pick"
+        },
+        {
           "$ref": "#/$defs/widget_keys"
         }
       ]
@@ -1817,6 +2088,7 @@
               "move_east",
               "wait",
               "pack",
+              "fitting",
               "character",
               "close",
               "quit",
@@ -1879,7 +2151,7 @@
     },
     "widget_title": {
       "type": "object",
-      "description": "The screen's title line: the location and region with hazards, the encounter and its round, or the fight's result. Allowed on: world, encounter, debrief.",
+      "description": "The screen's title line: the location and region with hazards, the encounter and its round, or the fight's result. Allowed on: world, encounter, debrief, fitting.",
       "properties": {
         "widget": {
           "const": "title"
@@ -1892,7 +2164,8 @@
       "x-screens": [
         "world",
         "encounter",
-        "debrief"
+        "debrief",
+        "fitting"
       ]
     },
     "widget_grid": {
@@ -1985,7 +2258,7 @@
     },
     "widget_log": {
       "type": "object",
-      "description": "Messages, in the order they happened. Allowed on: world, encounter, debrief.",
+      "description": "Messages, in the order they happened. Allowed on: world, encounter, debrief, fitting.",
       "properties": {
         "widget": {
           "const": "log"
@@ -2003,7 +2276,8 @@
       "x-screens": [
         "world",
         "encounter",
-        "debrief"
+        "debrief",
+        "fitting"
       ]
     },
     "widget_menu": {
@@ -2153,7 +2427,7 @@
     },
     "widget_panel": {
       "type": "object",
-      "description": "The shared panel for details, such as what Inspect shows: a title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it. Allowed on: world.",
+      "description": "The shared panel for details, such as what Inspect shows: a title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it. Allowed on: world, fitting.",
       "properties": {
         "widget": {
           "const": "panel"
@@ -2169,12 +2443,61 @@
         "widget"
       ],
       "x-screens": [
-        "world"
+        "world",
+        "fitting"
+      ]
+    },
+    "widget_budgets": {
+      "type": "object",
+      "description": "Power, mass, heat and cargo as bars: used of what the loadout provides. Allowed on: fitting.",
+      "properties": {
+        "widget": {
+          "const": "budgets"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "fitting"
+      ]
+    },
+    "widget_loadout": {
+      "type": "object",
+      "description": "The fitting screen's list: what's worn by slot (empty slots too), spare gear, designs. Up and down move the pick; the list scrolls to keep it in view. Allowed on: fitting.",
+      "properties": {
+        "widget": {
+          "const": "loadout"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "fitting"
+      ]
+    },
+    "widget_pick": {
+      "type": "object",
+      "description": "The picked entry: what it is, what its action would change, and its action keys; or the modifications that apply to it. Allowed on: fitting.",
+      "properties": {
+        "widget": {
+          "const": "pick"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "fitting"
       ]
     },
     "widget_keys": {
       "type": "object",
-      "description": "The key hints for the current context, built from the key bindings. Allowed on: world, encounter, debrief.",
+      "description": "The key hints for the current context, built from the key bindings. Allowed on: world, encounter, debrief, fitting.",
       "properties": {
         "widget": {
           "const": "keys"
@@ -2187,7 +2510,8 @@
       "x-screens": [
         "world",
         "encounter",
-        "debrief"
+        "debrief",
+        "fitting"
       ]
     }
   }

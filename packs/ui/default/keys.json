@@ -7,6 +7,7 @@
     "move_east": "d",
     "wait": ".",
     "pack": "p",
+    "fitting": "f",
     "character": "c",
     "close": "x",
     "quit": "q",
@@ -34,6 +35,12 @@
           "pack"
         ],
         "label": "hint_pack"
+      },
+      {
+        "actions": [
+          "fitting"
+        ],
+        "label": "hint_fitting"
       },
       {
         "actions": [
@@ -166,6 +173,41 @@
         ],
         "arrows": true,
         "label": "hint_scroll"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_back"
+      }
+    ],
+    "fitting": [
+      {
+        "actions": [
+          "move_north",
+          "move_south"
+        ],
+        "arrows": true,
+        "label": "hint_pick"
+      },
+      {
+        "digits": true,
+        "label": "hint_jump"
+      },
+      {
+        "label": "hint_keys_act"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_close"
+      }
+    ],
+    "modify": [
+      {
+        "digits": true,
+        "label": "hint_apply"
       },
       {
         "actions": [

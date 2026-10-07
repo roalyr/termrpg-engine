@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional
 from engine import build, conditions, context, encounter, stats, world
 from engine.content import Content
 from engine.state import GameState, ItemInst, day_of, new_item, phase_of
-from tui.text import ANSI, Style, visible_len, wrap
+from tui.text import ANSI, Style, pad, visible_len, wrap
 from tui.ui import UI
 
 
@@ -46,7 +46,10 @@ Draw = Callable[[Frame, int, Mapping[str, Any]], List[str]]
 
 # Sub-windows: what's open (Frame.panel) and the widget that shows it. While one is open
 # it is the focus: its zone scrolls, and the log and menu step back.
-SUBWINDOWS = {"inspect": "panel", "item": "panel", "character": "sheet"}
+SUBWINDOWS = {"inspect": "panel", "item": "panel", "character": "sheet", "modify": "pick"}
+# List screens: with no sub-window open, this widget's zone scrolls to keep the pick in view.
+LISTS = {"fitting": "loadout"}
+FOCUS = "\x00"   # marks the picked line of a list for the layout; never drawn
 
 
 # --- Helpers ---------------------------------------------------------------------------
@@ -99,6 +102,16 @@ def title(frame: Frame, width: int, options: Mapping) -> List[str]:
     if frame.screen == "debrief":
         debrief = state.debrief
         return [style.role(debrief.title, "danger" if debrief.result == "lost" else "title")]
+    if frame.screen == "fitting":
+        me = state.characters[state.player]
+        name = frame.ui.word("fitting_title", frame=stats.item_view(content, me.frame)["name"]) if me.frame \
+            else frame.ui.word("fitting_no_frame")
+        shop = build.workshop_here(content, state)
+        place = frame.ui.word("fitting_at", place=content.get("placement", shop)["name"]) if shop \
+            else frame.ui.word("fitting_planning")
+        if visible_len(name) + 1 + visible_len(place) > width:
+            return [style.role(name, "title")] + styled_lines(place, width, frame, "quiet")
+        return [style.role(name, "title") + " " * (width - visible_len(name) - visible_len(place)) + place]
     if frame.screen == "encounter":
         record = content.get("encounter", state.encounter.id)
         return [style.role(frame.ui.word("encounter_round", encounter=record["name"], round=state.encounter.round),
@@ -277,9 +290,7 @@ def board(frame: Frame, width: int, options: Mapping) -> List[str]:
     lines: List[str] = []
     if options.get("budgets", True):
         budgets = []
-        for role, used in (("power", stats.budget_used(content, player, "power")),
-                           ("mass", stats.budget_used(content, player, "mass")),
-                           ("cargo", len(player.inventory))):
+        for role, used in (("cargo", len(player.inventory)),):
             stat_id = content.stat_roles.get(role)
             if stat_id:
                 short = content.get("stat", stat_id).get("short") or content.get("stat", stat_id)["name"]
@@ -307,7 +318,7 @@ def board(frame: Frame, width: int, options: Mapping) -> List[str]:
     if pages > 1:
         lines += styled_lines(ui.word("pack_more", page=page + 1, pages=pages), width, frame, "hint")
     if frame.selected is not None and frame.selected < len(slots):
-        for option in build.item_options(content, state, slots[frame.selected], ui.bound_keys):
+        for option in build.item_options(content, state, slots[frame.selected], ui.bound_keys, "pack"):
             lines += option_lines(frame, option, width)
         lines.append(f"{style.key(world.MENU_KEYS['inspect'].upper())} {ui.word('details')}")
     return lines
@@ -345,10 +356,13 @@ def sheet(frame: Frame, width: int, options: Mapping) -> List[str]:
 def panel(frame: Frame, width: int, options: Mapping) -> List[str]:
     """The shared panel: what Inspect shows about the thing in focus, or a picked item's details."""
     if frame.panel == "item":
-        slots = build.pack_slots(frame.content, frame.state)
-        if frame.selected is None or frame.selected >= len(slots):
-            return []
-        entry = build.entry_at(frame.content, frame.state, slots[frame.selected])
+        if frame.screen == "fitting":
+            row = picked_row(frame)
+            slot = row.slot if row is not None else None
+        else:
+            slots = build.pack_slots(frame.content, frame.state)
+            slot = slots[frame.selected] if frame.selected is not None and frame.selected < len(slots) else None
+        entry = build.entry_at(frame.content, frame.state, slot) if slot is not None else None
         return item_details(frame, entry, width) if entry is not None else []
     if frame.panel != "inspect":
         return []
@@ -489,6 +503,212 @@ def _needs(content: Content, condition) -> Optional[str]:
     return None
 
 
+# --- the fitting screen ----------------------------------------------------------------
+
+def picks(content: Content, state: GameState) -> List[int]:
+    """The fitting list's rows that can be picked (not empty slots), as indexes into fitting_rows()."""
+    return [i for i, row in enumerate(build.fitting_rows(content, state)) if row.slot is not None]
+
+
+def picked_row(frame: Frame):
+    rows = build.fitting_rows(frame.content, frame.state)
+    pickable = [i for i, row in enumerate(rows) if row.slot is not None]
+    if not pickable:
+        return None
+    return rows[pickable[max(0, min(frame.selected or 0, len(pickable) - 1))]]
+
+
+def budgets(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """Power, mass, heat and cargo as bars: what the loadout uses of what it provides."""
+    content, me = frame.content, frame.state.characters[frame.state.player]
+    parts = []
+    for role in ("power", "mass", "heat", "cargo"):
+        if role not in content.stat_roles:
+            continue
+        used = len(me.inventory) if role == "cargo" else stats.budget_used(content, me, role)
+        top = stats.budget_provided(content, me, role)
+        text = f"{_role_short(content, role):<4}{bar(frame, used, top, frame.size['bar_length'])} {used:g}/{top:g}"
+        over = used > top or (role == "heat" and used and used >= top)
+        parts.append(frame.style.role(text, "danger") if over else text)
+    return _pack(parts, width, "   ")
+
+
+def loadout(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The fitting list: worn by slot (empty slots too), spare gear, designs; the pick highlighted."""
+    content, state, style, ui = frame.content, frame.state, frame.style, frame.ui
+    if frame.screen != "fitting" or frame.panel is not None:
+        return []
+    rows = build.fitting_rows(content, state)
+    pickable = [i for i, row in enumerate(rows) if row.slot is not None]
+    chosen = pickable[max(0, min(frame.selected or 0, len(pickable) - 1))] if pickable else None
+    slot_names = [content.get("slot_type", r.slot_type)["name"] for r in rows
+                  if r.group == "worn" and r.slot_type not in (None, "frame")]
+    name_width = max((len(n) for n in slot_names), default=0)
+    lines: List[str] = []
+    group = None
+    cursor = frame.glyphs["cursor"]
+    width -= 1                                         # a gutter for the cursor
+    for index, row in enumerate(rows):
+        if row.group != group:
+            group = row.group
+            lines.append(" " + style.role(ui.word(f"fitting_{group}"), "heading"))
+        number = f"{pickable.index(index) + 1} " if row.slot is not None else ""
+        entry = build.entry_at(content, state, row.slot) if row.slot is not None else None
+        right = ""
+        if row.group == "worn" and row.slot_type == "frame":
+            left = number + (_item_line(content, entry) if entry is not None else ui.word("fitting_empty"))
+            right = ui.word("fitting_frame_slot")
+        elif row.group == "worn":
+            label = content.get("slot_type", row.slot_type)["name"].ljust(name_width)
+            left = "   " + label + "  " + (number + _item_line(content, entry) if entry is not None
+                                           else style.role(ui.word("fitting_empty"), "quiet"))
+        elif row.group == "spare":
+            left = number + _item_line(content, entry)
+            right = ui.word("fitting_in", container=content.get("placement", row.where)["name"]) if row.where \
+                else ui.word("fitting_carried")
+        else:
+            left = number + content.get("item", entry)["name"]
+            right = _counts(content, content.get("item", entry).get("fabricate", {}).get("inputs", ()))
+        line = _right(left, style.role(right, "quiet") if right else "", width)
+        if index == chosen:
+            line = FOCUS + cursor + style.key(pad(_plain(line), width))
+        else:
+            line = " " + line
+        lines.append(line)
+    return lines
+
+
+def _plain(text: str) -> str:
+    return ANSI.sub("", text)
+
+
+def _right(left: str, right: str, width: int) -> str:
+    """'left' with 'right' at the end of the line, when both fit; otherwise just 'left'."""
+    room = width - visible_len(left) - visible_len(right)
+    if right and room >= 2:
+        return left + " " * room + right
+    return left if visible_len(left) <= width else _plain(left)[:width]
+
+
+def pick(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The picked entry: what it is, what its action would change, and its keys; or its modifications."""
+    content, state, style, ui = frame.content, frame.state, frame.style, frame.ui
+    if frame.screen != "fitting" or frame.panel not in (None, "modify"):
+        return []
+    row = picked_row(frame)
+    if row is None:
+        return []
+    entry = build.entry_at(content, state, row.slot)
+    item_id = entry if isinstance(entry, str) else entry.item
+    record = content.get("item", item_id)
+    opts = build.item_options(content, state, row.slot, ui.bound_keys, "fitting")
+    if frame.panel == "modify":
+        return _modify_list(frame, row, entry, [o for o in opts if o.kind == "modify"], width)
+    view = stats.item_view(content, new_item(content, entry) if isinstance(entry, str) else entry)
+    facts = [ui.word(f"kind_{view['kind']}")]
+    if view["slot_type"]:
+        facts.append(ui.word("slot_named", slot=content.get("slot_type", view["slot_type"])["name"]))
+    if record.get("grade"):
+        facts.append(content.get("grade", record["grade"])["name"])
+    lines = [style.role(_item_line(content, entry) if not isinstance(entry, str) else record["name"], "heading")]
+    lines += styled_lines(" · ".join(facts), width, frame, "quiet")
+    status = {"worn": ui.word("fitting_fitted"), "designs": ui.word("fitting_design")}.get(row.group) or (
+        ui.word("fitting_in", container=content.get("placement", row.where)["name"]) if row.where
+        else ui.word("fitting_carried"))
+    lines += styled_lines(status, width, frame, "quiet")
+    main = next((o for o in opts if o.kind in ("fit", "remove")), None)
+    if main is not None:
+        after = build.preview(content, state, row.slot, main.kind)
+        # what it would change, when it can happen, or when the budgets are why it can't
+        if after is not None and (main.available or main.hint == build.budget_problem(content, after)):
+            lines += _change_line(frame, option_text(ui, main), state.characters[state.player], after, width)
+    for option in opts:
+        if option.kind != "modify":
+            lines += option_lines(frame, option, width)
+    mods = [o for o in opts if o.kind == "modify"]
+    if mods:
+        menu = SimpleOption(build.MODIFY_KEY, ui.word("modify_menu"), any(o.available for o in mods),
+                            next((o.hint for o in mods if o.hint), None))
+        lines += option_lines(frame, menu, width)
+    lines.append(f"{style.key(world.MENU_KEYS['inspect'].upper())} {ui.word('details')}")
+    return lines
+
+
+class SimpleOption(NamedTuple):
+    """An option the UI adds itself (Modify, Details), drawn like the engine's."""
+    key: str
+    label: str
+    available: bool
+    hint: Optional[str]
+    kind: str = "ui"
+    params: Mapping[str, str] = {}
+
+
+def _change_line(frame: Frame, action: str, before, after, width: int) -> List[str]:
+    """'Fit: PWR 4→5/6  MAS 5→7/10', over-budget numbers in the warning colour; nothing if nothing changes."""
+    content = frame.content
+    parts = []
+    for role in ("health", "power", "mass", "heat", "cargo"):
+        if role not in content.stat_roles:
+            continue
+        if role == "health":
+            hb, ha = stats.stat(content, before, content.stat_roles[role]), stats.stat(content, after, content.stat_roles[role])
+            if hb != ha:
+                parts.append(f"{_role_short(content, role)} {hb:g}→{ha:g}")
+            continue
+        ub, ua = (len(before.inventory), len(after.inventory)) if role == "cargo" else \
+            (stats.budget_used(content, before, role), stats.budget_used(content, after, role))
+        pb, pa = stats.budget_provided(content, before, role), stats.budget_provided(content, after, role)
+        if (ub, pb) == (ua, pa):
+            continue
+        text = f"{_role_short(content, role)} {ub:g}→{ua:g}/{pa:g}" if pb == pa else \
+            f"{_role_short(content, role)} {ub:g}/{pb:g}→{ua:g}/{pa:g}"
+        over = ua > pa or (role == "heat" and ua and ua >= pa)
+        parts.append(frame.style.role(text, "danger") if over else text)
+    if not parts:
+        return []
+    head = frame.ui.word("fitting_change", action=action, changes="").rstrip()
+    return _pack([head + " " + parts[0]] + parts[1:], width, "  ")
+
+
+def _modify_list(frame: Frame, row, entry, mods, width: int) -> List[str]:
+    """The modifications that apply to the picked item, numbered, each with its cost, what it adds and why not."""
+    content, state, style, ui = frame.content, frame.state, frame.style, frame.ui
+    lines = [style.role(ui.word("modify_title", item=_item_line(content, entry)), "heading")]
+    if not mods:
+        return lines + styled_lines(ui.word("modify_none"), width, frame, "quiet")
+    me = state.characters[state.player]
+    for number, option in enumerate(mods, 1):
+        mod = content.get("modification", option.modification)
+        cost = content.get("item", mod["material"])["name"] + (f" x{mod['count']}" if mod.get("count", 1) > 1 else "")
+        head = _right(f"{number} {mod['name']}", cost, width)
+        adds = _adds(frame, mod["adds"])
+        after = build.preview(content, state, row.slot, "modify", option.modification)
+        change = _change_line(frame, mod["name"], me, after, width - 3) if after is not None else []
+        body = _pack(adds, width - 3) + change
+        if option.available:
+            lines.append(head)
+            lines += ["   " + line for line in body]
+        else:
+            lines.append(style.role(_plain(head), "unavailable"))
+            lines += ["   " + style.role(_plain(line), "unavailable") for line in body]
+            if option.hint:
+                lines += ["   " + line for line in styled_lines(option.hint, width - 3, frame, "unavailable")]
+    return lines
+
+
+def _adds(frame: Frame, adds: Mapping) -> List[str]:
+    """What a modification adds, as short entries: 'ARM +1', '+ Burn', '+ an air filter', 'HT use +1'."""
+    content, ui = frame.content, frame.ui
+    parts = [f"{_stat_short(content, sid)} {v:+g}" for sid, v in adds.get("stats", {}).items()]
+    if adds.get("max_condition"):
+        parts.append(ui.word("mod_condition", amount=f"{adds['max_condition']:+g}"))
+    parts += [f"+ {content.get('action', a)['name']}" for a in adds.get("actions", ())]
+    parts += [f"+ {content.get('tag', t)['name']}" for t in adds.get("tags", ())]
+    parts += [ui.word("mod_uses", stat=_role_short(content, role), amount=f"{v:+g}") for role, v in adds.get("uses", {}).items()]
+    return parts
+
+
 # --- encounter widgets -----------------------------------------------------------------
 
 def art_width(frame: Frame, options: Mapping) -> int:
@@ -580,6 +800,8 @@ def hint_context(frame: Frame) -> str:
     state = frame.state
     if frame.screen == "debrief":
         return "debrief"
+    if frame.screen == "fitting":
+        return {"item": "item", "modify": "modify"}.get(frame.panel, "fitting")
     if state.pending is not None:
         return "choice"
     if frame.screen == "encounter":
@@ -607,6 +829,12 @@ def _numbered(frame: Frame, context: str) -> int:
     if context == "target":
         tile = encounter.tiles(content, state)[frame.selected]
         return len(encounter.targets(content, state, state.player, tile.action))
+    if context == "fitting":
+        return min(9, len(picks(content, state)))
+    if context == "modify":
+        row = picked_row(frame)
+        return len([o for o in build.item_options(content, state, row.slot, frame.ui.bound_keys, "fitting")
+                    if o.kind == "modify"]) if row else 0
     if context == "pack":
         slots, size = len(build.pack_slots(content, state)), frame.size["page_size"]
         pages = max(1, -(-slots // size))
@@ -652,6 +880,8 @@ def _key_name(frame: Frame, action: str, arrows: bool) -> str:
 def _works(frame: Frame, context: str, actions) -> bool:
     """Whether a hint's keys do anything right now: scrolling needs something to scroll, paging more pages."""
     scrolling = set(actions) <= {"move_north", "move_south", "next_page"}
+    if context == "fitting" and scrolling:
+        return len(picks(frame.content, frame.state)) > 1
     if not scrolling or context not in ("panel", "item", "sheet", "pack"):
         return True
     if context == "pack":
@@ -662,7 +892,7 @@ def _works(frame: Frame, context: str, actions) -> bool:
 WIDGETS: Dict[str, Draw] = {
     "title": title, "grid": grid, "status": status, "legend": legend, "log": log, "menu": menu,
     "choice": choice, "board": board, "sheet": sheet, "tiles": tiles, "fighters": fighters,
-    "art": art, "keys": keys, "panel": panel,
+    "art": art, "keys": keys, "panel": panel, "budgets": budgets, "loadout": loadout, "pick": pick,
 }
 
 # Widgets with a natural width of their own (the rest take the width they're given).

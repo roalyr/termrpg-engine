@@ -153,8 +153,8 @@ class TestModifyingFittedGear(unittest.TestCase):
 class TestPaging(unittest.TestCase):
     def test_more_than_nine_entries(self):
         from tui import app
-        s = effects(at_bench(), {"op": "learn_design", "item": "module_cutter"},
-                    {"op": "give_item", "item": "misc_keycard", "count": 2})
+        s = at_bench()
+        s = s._replace(characters=freeze({**s.characters, s.player: me(s)._replace(inventory=me(s).inventory * 3)}))
         slots = build.pack_slots(CONTENT, s)
         self.assertGreater(len(slots), 9)
         frame = ANSI.sub("", render.render(CONTENT, s, 44, 80, panel="pack"))
@@ -162,25 +162,30 @@ class TestPaging(unittest.TestCase):
         s, view, _ = app.handle(CONTENT, s, "p")
         s, view, _ = app.handle(CONTENT, s, "]", view)
         s, view, _ = app.handle(CONTENT, s, "1", view)
-        self.assertEqual(slots[view.selected], ("design", 0))      # the tenth entry
+        self.assertEqual(slots[view.selected], ("inventory", 9))   # the tenth entry
         frame = ANSI.sub("", render.render(CONTENT, s, 44, 80, panel="pack", selected=view.selected, page=view.page))
-        self.assertIn("1 Cutter", frame)
+        self.assertIn("1 Scrap x10", frame)
         self.assertIn("Page 2/2", frame)
 
 
 class TestScreen(unittest.TestCase):
-    def test_designs_and_crafting_options_on_the_board(self):
+    def test_designs_and_crafting_options_on_the_fitting_screen(self):
         s = effects(at_bench(), {"op": "learn_design", "item": "module_cutter"},
                     {"op": "give_item", "item": "module_cutter", "count": 1})
-        slots = build.pack_slots(CONTENT, s)
-        self.assertEqual(slots[-1], ("design", 0))
-        frame = ANSI.sub("", render.render(CONTENT, s, 44, 80, panel="pack", selected=len(slots) - 1))
-        self.assertIn("Designs:", frame)
+        rows = build.fitting_rows(CONTENT, s)
+        pickable = [r.slot for r in rows if r.slot is not None]
+        self.assertEqual(pickable[-1], ("design", 0))
+        frame = ANSI.sub("", render.render(CONTENT, s, 44, 80, selected=len(pickable) - 1, screen="fitting"))
+        self.assertIn("Designs", frame)
+        self.assertIn("Scrap x3", frame)
         self.assertIn("B Fabricate", frame)
-        tool = slots.index(carried(s, "module_cutter"))
-        frame = ANSI.sub("", render.render(CONTENT, s, 44, 80, panel="pack", selected=tool))
+        tool = pickable.index(carried(s, "module_cutter"))
+        frame = ANSI.sub("", render.render(CONTENT, s, 44, 80, selected=tool, screen="fitting"))
         self.assertIn("V Dismantle", frame)
-        self.assertIn("Modify: Reinforced", frame)
+        self.assertIn("M Modify", frame)
+        frame = ANSI.sub("", render.render(CONTENT, s, 44, 80, panel="modify", selected=tool, screen="fitting"))
+        self.assertIn("1 Reinforced", frame)
+        self.assertIn("ARM +1", frame)
 
 
 if __name__ == "__main__":

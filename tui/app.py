@@ -17,7 +17,7 @@ from engine import build, encounter, events, save, turns, world
 from engine.content import Content, PackError, load_pack
 from engine.effects import choose_option
 from engine.state import GameState, new_game
-from tui import render, text
+from tui import render, text, widgets
 from tui.ui import UI, UIPackError, default_ui, load_ui, ui_dir_for
 
 # The engine's step directions, by input action.
@@ -35,6 +35,8 @@ class View(NamedTuple):
                                      # encounter the action tile waiting for a target
     page: int = 0                    # the board's page
     scroll: int = 0                  # how far a scrolling sub-window (inspect, character) is scrolled
+    screen: Optional[str] = None     # a full screen of the world: 'fitting'; its pick is 'selected'
+                                     # (an index into its pickable rows) and 'panel' its sub-window
 
 
 def _digit(key: str) -> Optional[int]:
@@ -60,7 +62,10 @@ def handle(content: Content, state: GameState, key: str, view: View = View(), ui
     if state.encounter is not None:
         state, view = _fight(content, state, key, action, view)
         return events.settle(content, state), view, False
-    state, view = _world(content, state, key, action, view, ui)
+    if view.screen == "fitting":
+        state, view = _fitting(content, state, key, action, view, ui)
+    else:
+        state, view = _world(content, state, key, action, view, ui)
     return events.settle(content, state), view, False
 
 
@@ -89,6 +94,8 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
     """
     if view.panel in SCROLLING:
         return state, _scrolling(action, view)
+    if action == "fitting" and view.panel is None:
+        return state, View(screen="fitting", selected=0)
     if action in ("pack", "character"):
         return state, View() if view.panel == action else View(action)
     if action == "close":
@@ -125,6 +132,62 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
     if current is not None and any(o.key == key and o.kind == "inspect" for o in current.options):
         return state, View("inspect")                      # Inspect opens the panel; it takes no time
     return world.act(content, state, key, ui.bound_keys), View()
+
+
+def _fitting(content: Content, state: GameState, key: str, action: Optional[str], view: View, ui: UI):
+    """
+    The fitting screen. Up and down move the pick, digits jump to an entry, the picked
+    entry's letters act on it (fit, remove, repair, take apart, make), M lists its
+    modifications, I opens its details, and close goes back a level.
+    """
+    pickable = widgets.picks(content, state)
+    rows = build.fitting_rows(content, state)
+    selected = max(0, min(view.selected or 0, len(pickable) - 1)) if pickable else 0
+    slot = rows[pickable[selected]].slot if pickable else None
+    if view.panel == "item":                                  # the details: scroll, or back to the list
+        if action == "close":
+            return state, view._replace(panel=None, scroll=0)
+        if action in ("move_north", "move_south"):
+            return state, _scrolling(action, view)
+        return state, view
+    if view.panel == "modify":                                # the modifications: a digit applies one
+        if action == "close":
+            return state, view._replace(panel=None)
+        mods = [o for o in build.item_options(content, state, slot, ui.bound_keys, "fitting") if o.kind == "modify"]
+        if slot is not None and _digit(key) and _digit(key) <= len(mods):
+            after = build.item_act(content, state, slot, mods[_digit(key) - 1].key, ui.bound_keys, "fitting")
+            return after, view._replace(panel=None, selected=_follow_pick(content, state, after, slot, selected))
+        return state, view
+    if slot is not None:
+        options = build.item_options(content, state, slot, ui.bound_keys, "fitting")
+        option = next((o for o in options if o.key == key and o.kind != "modify"), None)
+        if option is not None:
+            after = build.item_act(content, state, slot, key, ui.bound_keys, "fitting")
+            return after, view._replace(selected=_follow_pick(content, state, after, slot, selected))
+        if key == world.MENU_KEYS["inspect"]:
+            return state, view._replace(panel="item", scroll=0)
+        if key == build.MODIFY_KEY and any(o.kind == "modify" for o in options):
+            return state, view._replace(panel="modify")
+    if action == "close":
+        return state, View()
+    if action == "move_north":
+        return state, view._replace(selected=max(0, selected - 1))
+    if action == "move_south":
+        return state, view._replace(selected=min(len(pickable) - 1, selected + 1) if pickable else 0)
+    if _digit(key) and _digit(key) <= len(pickable):
+        return state, view._replace(selected=_digit(key) - 1)
+    return state, view
+
+
+def _follow_pick(content: Content, before: GameState, after: GameState, slot, selected: int) -> int:
+    """The pick after an action: the same item wherever it went (fitted, removed, taken), else the same place."""
+    old = build.entry_at(content, before, slot)
+    rows = build.fitting_rows(content, after)
+    pickable = [i for i, row in enumerate(rows) if row.slot is not None]
+    for number, index in enumerate(pickable):
+        if old is not None and build.entry_at(content, after, rows[index].slot) == old:
+            return number
+    return max(0, min(selected, len(pickable) - 1))
 
 
 # Sub-windows that scroll line by line, and the key that closes each besides 'close'.
@@ -165,10 +228,11 @@ def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = 
         if interactive:
             text.clear()
         columns, rows = text.terminal_size()
-        limit = render.max_scroll(content, state, columns, rows, view.panel, view.selected, view.page, ui)
+        limit = render.max_scroll(content, state, columns, rows, view.panel, view.selected, view.page, ui,
+                                  view.screen)
         view = view._replace(scroll=min(view.scroll, limit))
         sys.stdout.write(render.render(content, state, columns, rows, view.panel, colour, view.selected,
-                                       view.page, ui, view.scroll))
+                                       view.page, ui, view.scroll, view.screen))
         sys.stdout.flush()
         key = text.read_key()
         if key in ("", "\x03", "\x04"):

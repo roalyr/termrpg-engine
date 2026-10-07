@@ -117,5 +117,44 @@
         "widget": "keys"
       }
     }
+  ],
+  "fitting": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "widget": "budgets"
+      }
+    },
+    {
+      "content": {
+        "widget": "loadout"
+      },
+      "hide_when_empty": true
+    },
+    {
+      "content": {
+        "stack": [
+          {
+            "widget": "log"
+          },
+          {
+            "widget": "pick"
+          },
+          {
+            "widget": "panel"
+          }
+        ]
+      },
+      "hide_when_empty": false
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
   ]
 }

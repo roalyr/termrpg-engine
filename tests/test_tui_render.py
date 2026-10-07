@@ -14,7 +14,7 @@ from engine.content import load_pack
 from engine.effects import run
 from engine.frozen import freeze
 from engine.state import Ctx, new_game
-from tui import app, render
+from tui import app, render, widgets
 from tui.text import Style, visible_len
 from tui.ui import UIPackError, default_ui, load_ui, ui_dir_for
 from tui.widgets import Frame, item_details, option_text
@@ -52,6 +52,11 @@ def debrief_state():
     return s
 
 
+def carrying_a_cutter():
+    s = new_game(CONTENT, 1)
+    return run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "give_item", "item": "module_cutter", "count": 1, "subject": "self"})])
+
+
 def bench_state():
     return walk(new_game(CONTENT, 1), "ss")               # the workbench in focus, below the start
 
@@ -66,6 +71,10 @@ def screens():
         ("board picked", new_game(CONTENT, 1), {"panel": "pack", "selected": 3}),
         ("sheet", new_game(CONTENT, 1), {"panel": "character"}),
         ("inspect", bench_state(), {"panel": "inspect"}),
+        ("fitting", bench_state(), {"screen": "fitting", "selected": 1}),
+        ("fitting modify", bench_state(), {"screen": "fitting", "selected": 1, "panel": "modify"}),
+        ("fitting details", bench_state(), {"screen": "fitting", "selected": 1, "panel": "item"}),
+        ("fitting away", new_game(CONTENT, 1), {"screen": "fitting"}),
         ("inspect scrolled", bench_state(), {"panel": "inspect", "scroll": 99}),
         ("encounter", encounter_state(), {}),
         ("target", encounter_state(), {"selected": 0}),
@@ -103,7 +112,7 @@ class TestEveryScreen(unittest.TestCase):
             "walk": ["Workshop", "Lower deck", "Day 1", "WASD move", "P pack"],
             "menu": ["Door", "G Go to Storage - The door is closed.", "I Inspect", "X close"],
             "choice": ["The screen wakes.", "1 Check the logs", "1-2 choose"],
-            "board": ["Fitted:", "Carried:", "1 Light suit", "1-7 pick", "P close"],
+            "board": ["Carried:", "1 Medkit x3", "CRG 4/6", "1-4 pick", "P close"],
             "sheet": ["Salvage 1", "C close"],
             "encounter": ["Drones · round 1", "1 Strike", "⚠ STRIKE", "1-3 act", "Q quit"],
             "target": ["1-2 target", "X back"],
@@ -128,11 +137,13 @@ class TestFitting(unittest.TestCase):
 
     def test_scroll_zones_keep_their_last_lines(self):
         s = new_game(CONTENT, 1)
-        tall, short = plain(s, 40, 60, panel="pack", selected=3), plain(s, 40, 20, panel="pack", selected=3)
-        self.assertIn("Fitted:", tall)
-        self.assertNotIn("Fitted:", short)                    # the top scrolled away
+        me = s.characters[s.player]
+        s = s._replace(characters=freeze({**s.characters, s.player: me._replace(inventory=me.inventory * 2)}))
+        tall, short = plain(s, 40, 60, panel="pack", selected=4), plain(s, 40, 20, panel="pack", selected=4)
+        self.assertIn("Carried:", tall)
+        self.assertNotIn("Carried:", short)                   # the top scrolled away
         self.assertIn("U Use", short)                         # the picked item's options stay
-        self.assertIn("1-7 pick", short)                      # and the key hints
+        self.assertIn("1-8 pick", short)                      # and the key hints
 
     def test_encounter_title_drops_on_short_terminals(self):
         s = encounter_state()
@@ -142,9 +153,10 @@ class TestFitting(unittest.TestCase):
 
 
     def test_hints_wrap_between_entries(self):
-        lines = plain(new_game(CONTENT, 1), 44, 60).splitlines()
-        self.assertIn("│ Q quit", "\n".join(lines))                  # moved whole to the next line
-        self.assertFalse(any(line.rstrip(" │").endswith(" Q") for line in lines))
+        lines = plain(new_game(CONTENT, 1), 44, 60).splitlines()[-4:]
+        self.assertGreater(len([line for line in lines if line.startswith("│ ")]), 1)   # the hints wrap
+        for hint in ("WASD move", ". wait", "P pack", "F fitting", "C char", "Q quit"):
+            self.assertTrue(any(hint in line for line in lines), hint)               # each one whole
 
     def test_kept_zones_stay_when_empty(self):
         lines = plain(new_game(CONTENT, 1), 44, 60).splitlines()
@@ -276,7 +288,7 @@ class TestItemDetails(unittest.TestCase):
                     and getattr(build.entry_at(CONTENT, state, slot), "item", build.entry_at(CONTENT, state, slot)) == item_id)
 
     def test_details_open_from_a_picked_item_and_go_back(self):
-        s = new_game(CONTENT, 1)
+        s = carrying_a_cutter()
         picked = self.pick(s, "module_cutter")
         self.assertIn("I Details", plain(s, panel="pack", selected=picked))
         _, view, _ = app.handle(CONTENT, s, "i", app.View("pack", picked), UI)
@@ -286,7 +298,7 @@ class TestItemDetails(unittest.TestCase):
                       "Counts as", "a tool", "Strike", "1 free of 1", "Takes apart", "Scrap x2", "design not known",
                       "Scrap for +2", "X back"):
             self.assertIn(words, frame)
-        self.assertNotIn("R Remove", frame)                     # one focus: the board steps back
+        self.assertNotIn("I Details", frame)                    # one focus: the board steps back
         _, back, _ = app.handle(CONTENT, s, "x", view, UI)
         self.assertEqual(back, app.View("pack", picked, 0))
         _, closed, _ = app.handle(CONTENT, s, "p", view, UI)
@@ -306,11 +318,11 @@ class TestItemDetails(unittest.TestCase):
         me = s.characters[s.player]
         modded = me.frame._replace(mods=("mod_reinforced",))
         s = s._replace(characters=freeze({**s.characters, s.player: me._replace(frame=modded)}))
-        frame = plain(s, panel="item", selected=self.pick(s, "frame_light"))
+        frame = plain(s, panel="item", selected=0, screen="fitting")      # fitted gear: from the fitting screen
         self.assertIn("Light suit (Reinforced)", frame)
         self.assertIn("Reinforced, 1 free of 2", frame)
         self.assertIn("ARM +1", frame)
-        cutter = plain(s, panel="item", selected=self.pick(s, "module_cutter"))
+        cutter = plain(s, panel="item", selected=1, screen="fitting")
         self.assertIn("Broken", cutter)
         self.assertIn("design known", cutter)
 
@@ -323,10 +335,89 @@ class TestItemDetails(unittest.TestCase):
                 self.assertTrue(all(visible_len(line) <= 34 for line in lines))
 
     def test_long_details_scroll(self):
-        s = new_game(CONTENT, 1)
+        s = carrying_a_cutter()
         picked = self.pick(s, "module_cutter")
         self.assertGreater(render.max_scroll(CONTENT, s, 40, 20, "item", picked), 0)
         self.assertIn("↑↓ scroll", plain(s, 40, 20, panel="item", selected=picked))
+
+
+class TestFittingScreen(unittest.TestCase):
+    """Step 3: the fitting screen, where planning and building happen."""
+
+    def open(self, state):
+        _, view, _ = app.handle(CONTENT, state, "f", app.View(), UI)
+        return view
+
+    def test_empty_slots_are_listed_but_never_picked(self):
+        s = bench_state()
+        frame = plain(s, screen="fitting")
+        self.assertEqual(frame.count("· empty"), 2)                 # a free hand slot, the free head slot
+        view = self.open(s)
+        seen = []
+        for _ in range(6):
+            row = build.fitting_rows(CONTENT, s)[widgets.picks(CONTENT, s)[view.selected]]
+            seen.append(row.slot)
+            _, view, _ = app.handle(CONTENT, s, "s", view, UI)
+        self.assertNotIn(None, seen)
+        self.assertEqual(view.selected, len(widgets.picks(CONTENT, s)) - 1)   # stops at the last
+
+    def test_away_from_a_workshop_it_is_for_planning(self):
+        s = new_game(CONTENT, 1)
+        frame = plain(s, screen="fitting", selected=1)
+        self.assertIn("Planning only", frame)
+        self.assertIn("R Remove - Needs a refit workshop.", frame)
+        after, _, _ = app.handle(CONTENT, s, "r", app.View(screen="fitting", selected=1), UI)
+        self.assertEqual(after.characters[s.player].fitted, s.characters[s.player].fitted)
+
+    def test_gear_fits_straight_from_storage(self):
+        s = walk(run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"),
+                     [freeze({"op": "move_to", "location": "loc_storage", "subject": "self"})]), "ssa")
+        rows = build.fitting_rows(CONTENT, s)
+        pickable = widgets.picks(CONTENT, s)
+        eye = next(n for n, i in enumerate(pickable) if rows[i].where and
+                   build.entry_at(CONTENT, s, rows[i].slot).item == "implant_eye")
+        self.assertIn("in Suit bay", plain(s, screen="fitting", selected=eye))
+        s, view, _ = app.handle(CONTENT, s, "f", app.View(screen="fitting", selected=eye), UI)
+        self.assertIn("Fitted Eye implant.", [m.text for m in s.messages])
+        self.assertEqual([i.item for i in s.storage["storage_bay"]], ["frame_heavy"])
+        row = build.fitting_rows(CONTENT, s)[widgets.picks(CONTENT, s)[view.selected]]
+        self.assertEqual((row.group, row.slot_type), ("worn", "slot_head"))   # the pick followed it
+
+    def test_what_an_action_would_change_and_why_not(self):
+        s = run(CONTENT, bench_state(), Ctx(self_id="char_player"), [
+            freeze({"op": "give_item", "item": "module_cutter", "count": 1, "subject": "self"}),
+            freeze({"op": "modify_stat", "stat": "stat_power", "amount": -2, "subject": "self"})])
+        spare = len(widgets.picks(CONTENT, s)) - 1
+        frame = plain(s, screen="fitting", selected=spare)
+        self.assertIn("Fit: PWR 4→5/4", frame)
+        self.assertIn("F Fit - ", frame)                              # greyed out, with the reason
+        coloured = render.render(CONTENT, s, 44, 60, screen="fitting", selected=spare, ui=UI)
+        self.assertIn(Style(True, UI.tokens["styles"]).role("PWR 4→5/4", "danger"), coloured)
+
+    def test_modify_applies_with_a_digit(self):
+        s = bench_state()
+        view = self.open(s)._replace(selected=1)                      # the cutter
+        _, view, _ = app.handle(CONTENT, s, "m", view, UI)
+        self.assertEqual(view.panel, "modify")
+        self.assertIn("1 Reinforced", plain(s, screen="fitting", selected=1, panel="modify"))
+        s, view, _ = app.handle(CONTENT, s, "1", view, UI)
+        self.assertIsNone(view.panel)
+        self.assertEqual(s.characters[s.player].fitted[0].mods, ("mod_reinforced",))
+
+    def test_details_and_back(self):
+        s = bench_state()
+        view = self.open(s)._replace(selected=1)
+        _, view, _ = app.handle(CONTENT, s, "i", view, UI)
+        self.assertEqual((view.screen, view.panel), ("fitting", "item"))
+        self.assertIn("A hand cutter", plain(s, screen="fitting", selected=1, panel="item"))
+        _, view, _ = app.handle(CONTENT, s, "x", view, UI)
+        self.assertEqual((view.screen, view.panel, view.selected), ("fitting", None, 1))
+        _, view, _ = app.handle(CONTENT, s, "x", view, UI)
+        self.assertEqual(view, app.View())
+
+    def test_the_pick_shows_without_colour(self):
+        frame = render.render(CONTENT, bench_state(), 44, 60, colour=False, screen="fitting", selected=1, ui=UI)
+        self.assertIn(UI.tokens["glyphs"]["cursor"] + "   Hand  2 Cutter", frame)
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):
@@ -373,12 +464,12 @@ class TestCustomUIPack(unittest.TestCase):
         path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
     def test_rebound_keys_change_the_hints_and_the_input(self):
-        self.change("keys.json", lambda d: d.setdefault("bindings", {}).update(pack="m", move_west="j"))
+        self.change("keys.json", lambda d: d.setdefault("bindings", {}).update(pack="n", move_west="j"))
         ui = load_ui(self.dir)
         s = new_game(CONTENT, 1)
-        self.assertIn("M pack", plain(s, ui=ui))
+        self.assertIn("N pack", plain(s, ui=ui))
         self.assertIn("WJSD move", plain(s, ui=ui))
-        _, view, _ = app.handle(CONTENT, s, "m", app.View(), ui)
+        _, view, _ = app.handle(CONTENT, s, "n", app.View(), ui)
         self.assertEqual(view.panel, "pack")
         _, view, _ = app.handle(CONTENT, s, "p", app.View(), ui)
         self.assertIsNone(view.panel)
