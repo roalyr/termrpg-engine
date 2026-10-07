@@ -198,7 +198,7 @@ Decided:
 
 Steps, each one playable and tested:
 
-1. **Sub-windows:** the shared panel (scrolling, slider, keys from the UI pack), and
+1. ✓ **Sub-windows:** the shared panel (scrolling, slider, keys from the UI pack), and
    Inspect for places and people in it.
 2. **Items:** an item detail view (description, stats, power and mass use, tags, mods,
    grade, condition), shown from the pack panel and the fitting screen.

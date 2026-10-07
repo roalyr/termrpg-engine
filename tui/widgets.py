@@ -26,6 +26,8 @@ class Frame(NamedTuple):
     selected: Optional[int] = None
     page: int = 0
     compact: bool = False         # the screen is short: widgets with a compact form use it
+    scroll: int = 0               # how far the open sub-window is scrolled
+    scrollable: bool = False      # the open sub-window is longer than its space
 
     @property
     def tokens(self) -> Mapping[str, Any]:
@@ -41,6 +43,10 @@ class Frame(NamedTuple):
 
 
 Draw = Callable[[Frame, int, Mapping[str, Any]], List[str]]
+
+# Sub-windows: what's open (Frame.panel) and the widget that shows it. While one is open
+# it is the focus: its zone scrolls, and the log and menu step back.
+SUBWINDOWS = {"inspect": "panel", "character": "sheet"}
 
 
 # --- Helpers ---------------------------------------------------------------------------
@@ -221,6 +227,8 @@ def log(frame: Frame, width: int, options: Mapping) -> List[str]:
     else:
         heading = state.encounter.log_round if state.encounter is not None else 0
         messages = state.messages
+    if frame.panel in SUBWINDOWS:                    # one focus at a time
+        return []
     lines: List[str] = []
     if heading and messages and options.get("round_heading", True) and frame.screen != "world":
         lines.append(frame.style.role(frame.ui.word("round_log", round=heading), "heading"))
@@ -331,6 +339,25 @@ def sheet(frame: Frame, width: int, options: Mapping) -> List[str]:
     return lines
 
 
+# --- panel -----------------------------------------------------------------------------
+
+def panel(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The shared panel: what Inspect shows about the thing in focus."""
+    if frame.panel != "inspect":
+        return []
+    seen = world.inspect(frame.content, frame.state)
+    if seen is None:
+        return []
+    lines = [frame.style.role(line, "heading") for line in wrap(seen.title, width)]
+    if seen.subtitle:
+        lines += styled_lines(seen.subtitle, width, frame, "quiet")
+    if seen.text:
+        lines.append("")
+        for paragraph in seen.text.split("\n"):
+            lines += wrap(paragraph, width) if paragraph else [""]
+    return lines
+
+
 # --- encounter widgets -----------------------------------------------------------------
 
 def art_width(frame: Frame, options: Mapping) -> int:
@@ -430,6 +457,8 @@ def hint_context(frame: Frame) -> str:
         return "pack"
     if frame.panel == "character":
         return "sheet"
+    if frame.panel == "inspect":
+        return "panel"
     if world.menu(frame.content, state, frame.ui.bound_keys) is not None:
         return "menu"
     return "walk"
@@ -464,7 +493,9 @@ def keys(frame: Frame, width: int, options: Mapping) -> List[str]:
             if count:
                 parts.append(f"{'1' if count == 1 else f'1-{count}'} {label}")
         elif hint.get("actions"):
-            parts.append("".join(ui.bindings[a].upper() for a in hint["actions"]) + f" {label}")
+            if _works(frame, context, hint["actions"]):
+                parts.append("".join(_key_name(frame, a, hint.get("arrows", False)) for a in hint["actions"])
+                             + f" {label}")
         else:
             parts.append(label)
     lines: List[str] = []
@@ -476,10 +507,29 @@ def keys(frame: Frame, width: int, options: Mapping) -> List[str]:
     return [frame.style.role(line, "hint") for line in lines]
 
 
+ARROWS = {"move_north": "north", "move_south": "south", "move_west": "west", "move_east": "east"}
+
+
+def _key_name(frame: Frame, action: str, arrows: bool) -> str:
+    if arrows and action in ARROWS:
+        return frame.glyphs["arrows"][ARROWS[action]]
+    return frame.ui.bindings[action].upper()
+
+
+def _works(frame: Frame, context: str, actions) -> bool:
+    """Whether a hint's keys do anything right now: scrolling needs something to scroll, paging more pages."""
+    scrolling = set(actions) <= {"move_north", "move_south", "next_page"}
+    if not scrolling or context not in ("panel", "sheet", "pack"):
+        return True
+    if context == "pack":
+        return len(build.pack_slots(frame.content, frame.state)) > frame.size["page_size"]
+    return frame.scrollable
+
+
 WIDGETS: Dict[str, Draw] = {
     "title": title, "grid": grid, "status": status, "legend": legend, "log": log, "menu": menu,
     "choice": choice, "board": board, "sheet": sheet, "tiles": tiles, "fighters": fighters,
-    "art": art, "keys": keys,
+    "art": art, "keys": keys, "panel": panel,
 }
 
 # Widgets with a natural width of their own (the rest take the width they're given).

@@ -905,7 +905,7 @@ win key by key; word entries add up):
 
 | Kind | Holds |
 |---|---|
-| `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, fitting-board page size), `padding`, `glyphs` (the border set, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
+| `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, fitting-board page size), `padding`, `glyphs` (the border set, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
 | `screens` | Each screen (`world`, `encounter`, `debrief`) as zones, top to bottom |
 | `keys` | `bindings` (action → key) and `hints` (what each context shows) |
 | `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |
@@ -921,6 +921,16 @@ view). When even that doesn't fit, the screen is drawn again with the widgets'
 compact forms (action tiles as a list, fighters without the gap between the sides,
 the enemy's picture without its frame), and as a last resort the tallest zones lose
 their last lines: a frame never overflows the terminal.
+
+**Sub-windows.** Inspect (the `panel` widget) and the character sheet open as
+sub-windows in their zone, and while one is open it is the only focus: the log and
+the menu step back. Its zone is flexible: low-priority zones are still dropped to
+make room for it, then it takes every row the other zones leave. When its content is
+longer, it shows the part at the scroll offset with a slider at its right edge.
+**Up and down are contextual:** they move the player while no sub-window is open,
+and scroll the open one (the pack panel turns its pages) until it's closed. Left and
+right do nothing there, and moving never closes a sub-window; only its close key does.
+Closing Inspect returns to the thing's menu.
 
 **The fitting board keeps its pick.** Numbers shift when an item is fitted, removed,
 stored, taken or made, because entries are grouped by where they are. After an action
@@ -944,6 +954,7 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `tiles` | Action tiles | encounter | `per_row` (0 = fit) |
 | `fighters` | Both sides with bars and intents | encounter | `intent` |
 | `art` | The enemy's picture | encounter | `frame` |
+| `panel` | The shared panel: what Inspect shows (name, a person's title or an object's state, description) | world | `slider` |
 | `keys` | Key hints for the current context, built from the bindings | all | — |
 
 **Keys.** The input actions are fixed by the engine: `move_north`, `move_west`,
@@ -951,10 +962,12 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 Number keys 1–9 always pick numbered entries and can't be bound. Bindings are lower
 case (keys match either case). The arrow keys always move and Esc always closes,
 whatever the bindings. `hints` lists, per
-context (`walk`, `menu`, `choice`, `pack`, `sheet`, `encounter`, `target`,
-`debrief`), entries that show some actions' keys joined (`WASD`) or `1-9` (`digits`),
-then a label from the words file. Hints are generated from the bindings, so they can't
-disagree with the real keys.
+context (`walk`, `menu`, `choice`, `pack`, `sheet`, `panel`, `encounter`, `target`,
+`debrief`), entries that show some actions' keys joined (`WASD`), the arrow keys
+instead for move actions (`arrows`: `↑↓`), or `1-9` (`digits`, shown as the real
+range), then a label from the words file. Hints are generated from the bindings, so
+they can't disagree with the real keys, and a hint whose keys do nothing right now
+(scrolling what fits, paging a single page) isn't shown.
 
 **The UI validator** (`python3 -m core.packtool check packs/ui/<id>`) checks every
 file against the schema, then:

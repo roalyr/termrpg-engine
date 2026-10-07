@@ -81,8 +81,10 @@
       },
       {
         "actions": [
-          "next_page"
+          "move_north",
+          "move_south"
         ],
+        "arrows": true,
         "label": "hint_page"
       },
       {
@@ -98,18 +100,17 @@
     "sheet": [
       {
         "actions": [
-          "character"
+          "move_north",
+          "move_south"
         ],
-        "label": "hint_close"
+        "arrows": true,
+        "label": "hint_scroll"
       },
       {
         "actions": [
-          "move_north",
-          "move_west",
-          "move_south",
-          "move_east"
+          "character"
         ],
-        "label": "hint_move"
+        "label": "hint_close"
       }
     ],
     "encounter": [
@@ -139,6 +140,22 @@
     "debrief": [
       {
         "label": "hint_any_key"
+      }
+    ],
+    "panel": [
+      {
+        "actions": [
+          "move_north",
+          "move_south"
+        ],
+        "arrows": true,
+        "label": "hint_scroll"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_close"
       }
     ]
   }

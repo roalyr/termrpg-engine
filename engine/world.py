@@ -279,15 +279,38 @@ def _say(state: GameState, kind: str, text: str) -> GameState:
     return state._replace(messages=state.messages + (Message(kind, text),))
 
 
-def _description(content: Content, state: GameState) -> str:
+class Inspection(NamedTuple):
+    """What Inspect shows about the thing in focus."""
+    title: str                 # its name
+    subtitle: Optional[str]    # a person's title, or an object's current state
+    text: Optional[str]        # its description
+
+
+def inspect(content: Content, state: GameState) -> Optional[Inspection]:
+    """What the player learns by looking closely at the thing in focus; None with nothing in focus."""
+    if state.focus is None:
+        return None
     kind, ref = state.focus
     if kind == "placement":
         record = content.get("placement", ref)
-        return content.text(record.get("description") or record["name"])
+        current = state.object_states.get(ref)
+        subtitle = content.get("object_state", current)["name"] if current else None
+        return Inspection(record["name"], subtitle, content.text(record["description"]) if record.get("description") else None)
     record = content.get("character", state.characters[ref].source)
-    parts = [record["name"]] + ([content.text(record["title"])] if record.get("title") else [])
-    text = " - ".join(parts)
-    return f"{text}. {content.text(record['description'])}" if record.get("description") else text
+    return Inspection(record["name"], content.text(record["title"]) if record.get("title") else None,
+                      content.text(record["description"]) if record.get("description") else None)
+
+
+def _description(content: Content, state: GameState) -> str:
+    """Inspect as one message line (the engine's own use; the UI shows inspect() in a panel)."""
+    seen = inspect(content, state)
+    if seen.subtitle and not state.focus[0] == "placement":
+        head = f"{seen.title} - {seen.subtitle}"
+    else:
+        head = seen.title
+    if state.focus[0] == "placement":
+        return seen.text or seen.title
+    return f"{head}. {seen.text}" if seen.text else head
 
 
 def _interact(content: Content, state: GameState, interaction: Record) -> GameState:

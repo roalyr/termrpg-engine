@@ -4,17 +4,37 @@ The layout engine: turns a screen's zones into bordered lines.
 A zone is one bordered band; its content is a widget, a row of two layouts side by side
 (the 'fixed' side keeps its natural width, the other gets the rest), or a stack of
 layouts one after another. Zones with nothing to show are skipped when
-hide_when_empty is on. When the screen is taller than the terminal, zones are dropped
-highest priority first (priority 0 is never dropped); if it still doesn't fit, scroll
-zones keep only their last lines (at least one). If even that is too tall, the screen
-is drawn again with the widgets' compact forms (tiles as a list, no gaps, no art frame),
-and as a last resort the tallest zones lose their last lines, so a frame never
-overflows the terminal.
+hide_when_empty is on.
+
+Fitting the terminal's height, in order:
+1. zones are dropped highest priority first (priority 0 is never dropped);
+2. scroll zones keep only their last lines (at least one);
+3. the screen is drawn again with the widgets' compact forms (tiles as a list, no gaps,
+   no art frame);
+4. as a last resort the tallest zones lose their last lines.
+A frame never overflows the terminal.
+
+An open sub-window (Inspect, the character sheet) changes this: its zone is flexible.
+Low-priority zones still make room for it first; then it takes every row the other
+zones leave, shows the part at the scroll offset, and draws a slider at its right edge
+when its content is longer than that.
 """
-from typing import Any, List, Mapping, Optional, Tuple
+from typing import Any, List, Mapping, NamedTuple, Optional, Tuple
 
 from tui.text import pad
-from tui.widgets import NATURAL_WIDTH, WIDGETS, Frame
+from tui.widgets import NATURAL_WIDTH, SUBWINDOWS, WIDGETS, Frame
+
+
+class Band(NamedTuple):
+    zone: Mapping[str, Any]
+    lines: List[str]
+    flexible: bool = False     # the open sub-window: windowed and scrolled
+
+
+class Arranged(NamedTuple):
+    bands: List[Band]
+    scroll: int                # the sub-window's offset, within its limits
+    limit: int                 # the largest offset; 0 when it all fits
 
 
 def draw_layout(frame: Frame, layout: Mapping[str, Any], width: int) -> List[str]:
@@ -24,6 +44,12 @@ def draw_layout(frame: Frame, layout: Mapping[str, Any], width: int) -> List[str
     if "stack" in layout:
         return [line for part in layout["stack"] for line in draw_layout(frame, part, width)]
     return _row(frame, layout, width)
+
+
+def _widgets(layout: Mapping[str, Any]) -> List[str]:
+    if "widget" in layout:
+        return [layout["widget"]]
+    return [w for part in layout.get("row", layout.get("stack", [])) for w in _widgets(part)]
 
 
 def _natural(frame: Frame, layout: Mapping[str, Any]) -> Optional[int]:
@@ -63,60 +89,121 @@ def _side(frame: Frame, layout: Mapping[str, Any], width: int, padding: int, box
     return [" " * padding + pad(line, inner) for line in draw_layout(frame, layout, inner)]
 
 
-def _zone_lines(frame: Frame, zone: Mapping[str, Any], inner: int) -> List[str]:
-    """A zone's lines between the side borders, without the borders themselves."""
+def _holds_subwindow(frame: Frame, zone: Mapping[str, Any]) -> bool:
+    widget = SUBWINDOWS.get(frame.panel)
+    return widget is not None and widget in _widgets(zone["content"])
+
+
+def _zone_lines(frame: Frame, zone: Mapping[str, Any], inner: int, flexible: bool) -> List[str]:
+    """
+    A zone's lines between the side borders, without the borders themselves. A flexible
+    zone's lines leave the last 2 + padding columns free for the slider.
+    """
     content = zone["content"]
     padding = frame.tokens["padding"]
     if "row" in content:
         return draw_layout(frame, content, inner)
+    if flexible:
+        text_width = max(1, inner - 2 * padding - 2)
+        return [" " * padding + pad(line, text_width) for line in draw_layout(frame, content, text_width)]
     text_width = max(1, inner - 2 * padding)
     return [" " * padding + pad(line, text_width) + " " * padding
             for line in draw_layout(frame, content, text_width)]
 
 
-def draw_screen(frame: Frame, zones: List[Mapping[str, Any]], columns: int, rows: int) -> str:
-    """A whole screen at the terminal's size: zones in bordered bands, fitted to the terminal's height."""
-    border = frame.glyphs["border"]
-    inner = columns - 2
-    bands = _fit(frame, zones, inner, rows)
-    if _height(bands) > rows and not frame.compact:
-        bands = _fit(frame._replace(compact=True), zones, inner, rows)
-    while _height(bands) > rows:                             # last resort: clip the tallest zone
-        i = max(range(len(bands)), key=lambda j: len(bands[j][1]))
-        if len(bands[i][1]) <= 1:
-            break
-        bands[i] = (bands[i][0], bands[i][1][:-1])
-    horizontal = border["horizontal"] * inner
-    out = [border["top_left"] + horizontal + border["top_right"]]
-    for index, (_, lines) in enumerate(bands):
-        if index:
-            out.append(border["join_left"] + horizontal + border["join_right"])
-        out += [border["vertical"] + pad(line, inner) + border["vertical"] for line in lines]
-    out.append(border["bottom_left"] + horizontal + border["bottom_right"])
-    return "\n".join(out) + "\n"
+def _height(bands: List[Band], flexible_as: Optional[int] = None) -> int:
+    """Lines the bands take with their borders; a flexible band counts as 'flexible_as' lines if given."""
+    total = sum(min(len(b.lines), flexible_as) if b.flexible and flexible_as is not None else len(b.lines)
+                for b in bands)
+    return total + len(bands) + 1
 
 
-def _fit(frame: Frame, zones: List[Mapping[str, Any]], inner: int, rows: int) -> List[Tuple[Mapping[str, Any], List[str]]]:
+def _fit(frame: Frame, zones: List[Mapping[str, Any]], inner: int, rows: int) -> List[Band]:
     """The zones' bands, with low-priority zones dropped and scroll zones scrolled to fit."""
-    bands: List[Tuple[Mapping[str, Any], List[str]]] = []
+    bands: List[Band] = []
     for zone in zones:
-        lines = _zone_lines(frame, zone, inner)
+        flexible = _holds_subwindow(frame, zone)
+        lines = _zone_lines(frame, zone, inner, flexible)
         if not lines:
             if zone.get("hide_when_empty", True):
                 continue
             lines = [""]                                   # kept in place, empty
-        bands.append((zone, lines))
-    while _height(bands) > rows:
-        droppable = [i for i, (zone, _) in enumerate(bands) if zone.get("priority", 0) > 0]
+        bands.append(Band(zone, lines, flexible))
+    while _height(bands) > rows:                           # make room, for a sub-window too
+        droppable = [i for i, b in enumerate(bands) if b.zone.get("priority", 0) > 0]
         if not droppable:
             break
-        bands.pop(max(droppable, key=lambda i: (bands[i][0]["priority"], i)))
-    for i, (zone, lines) in enumerate(bands):
-        excess = _height(bands) - rows
-        if excess > 0 and zone.get("scroll") and len(lines) > 1:
-            bands[i] = (zone, lines[min(excess, len(lines) - 1):])
+        bands.pop(max(droppable, key=lambda i: (bands[i].zone["priority"], i)))
+    for i, band in enumerate(bands):
+        excess = _height(bands, flexible_as=1) - rows
+        if excess > 0 and band.zone.get("scroll") and not band.flexible and len(band.lines) > 1:
+            bands[i] = band._replace(lines=band.lines[min(excess, len(band.lines) - 1):])
     return bands
 
 
-def _height(bands: List[Tuple[Mapping[str, Any], List[str]]]) -> int:
-    return sum(len(lines) for _, lines in bands) + len(bands) + 1
+def arrange(frame: Frame, zones: List[Mapping[str, Any]], columns: int, rows: int) -> Arranged:
+    """The bands that fit the terminal, and where the open sub-window is scrolled to."""
+    inner = columns - 2
+    bands = _fit(frame, zones, inner, rows)
+    if _height(bands, flexible_as=1) > rows and not frame.compact:
+        frame = frame._replace(compact=True)
+        bands = _fit(frame, zones, inner, rows)
+    while _height(bands, flexible_as=1) > rows:              # last resort: clip the tallest zone
+        i = max((j for j in range(len(bands)) if not bands[j].flexible),
+                key=lambda j: len(bands[j].lines), default=None)
+        if i is None or len(bands[i].lines) <= 1:
+            break
+        bands[i] = bands[i]._replace(lines=bands[i].lines[:-1])
+    flexible = next((i for i, b in enumerate(bands) if b.flexible), None)
+    if flexible is None:
+        return Arranged(bands, 0, 0)
+    band = bands[flexible]
+    window = max(1, rows - (_height(bands) - len(band.lines)))
+    limit = max(0, len(band.lines) - window)
+    scroll = max(0, min(frame.scroll, limit))
+    visible = band.lines[scroll:scroll + window]
+    bands[flexible] = band._replace(lines=[line + _slider(frame, band.zone, i, window, scroll, limit, len(band.lines))
+                                           for i, line in enumerate(visible)])
+    return Arranged(bands, scroll, limit)
+
+
+def _slider(frame: Frame, zone: Mapping[str, Any], row: int, window: int, scroll: int, limit: int, total: int) -> str:
+    """The slider's column on one visible row of a sub-window: a gap, the track or thumb, the padding."""
+    padding = " " * frame.tokens["padding"]
+    shows = limit > 0 and _slider_wanted(frame, zone)
+    if not shows:
+        return "  " + padding
+    thumb = max(1, round(window * window / total))
+    start = round(scroll * (window - thumb) / limit)
+    glyph = frame.glyphs["slider_thumb"] if start <= row < start + thumb else frame.glyphs["slider_track"]
+    return " " + glyph + padding
+
+
+def _slider_wanted(frame: Frame, layout: Mapping[str, Any]) -> bool:
+    """The sub-window widget's 'slider' option (on by default)."""
+    if "widget" in layout:
+        return layout.get("slider", True) if layout["widget"] == SUBWINDOWS.get(frame.panel) else True
+    if "content" in layout:
+        return _slider_wanted(frame, layout["content"])
+    return all(_slider_wanted(frame, part) for part in layout.get("row", layout.get("stack", [])))
+
+
+def draw_screen(frame: Frame, zones: List[Mapping[str, Any]], columns: int, rows: int) -> str:
+    """A whole screen at the terminal's size: zones in bordered bands, fitted to the terminal's height."""
+    arranged = arrange(frame, zones, columns, rows)
+    if arranged.limit and not frame.scrollable:           # the hints can now offer scrolling
+        arranged = arrange(frame._replace(scrollable=True), zones, columns, rows)
+    border = frame.glyphs["border"]
+    horizontal = border["horizontal"] * (columns - 2)
+    out = [border["top_left"] + horizontal + border["top_right"]]
+    for index, band in enumerate(arranged.bands):
+        if index:
+            out.append(border["join_left"] + horizontal + border["join_right"])
+        out += [border["vertical"] + pad(line, columns - 2) + border["vertical"] for line in band.lines]
+    out.append(border["bottom_left"] + horizontal + border["bottom_right"])
+    return "\n".join(out) + "\n"
+
+
+def scroll_limit(frame: Frame, zones: List[Mapping[str, Any]], columns: int, rows: int) -> int:
+    """How far the open sub-window can scroll at this terminal size (0 when it all fits)."""
+    return arrange(frame, zones, columns, rows).limit

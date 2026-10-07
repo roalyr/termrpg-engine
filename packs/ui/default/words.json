@@ -71,6 +71,10 @@
       "text": "page"
     },
     {
+      "id": "hint_scroll",
+      "text": "scroll"
+    },
+    {
       "id": "hint_act",
       "text": "act"
     },

@@ -29,11 +29,12 @@ FIXED_KEYS = {"\x1b[A": "move_north", "\x1b[B": "move_south", "\x1b[C": "move_ea
 
 
 class View(NamedTuple):
-    """What the screen shows besides the world: an open panel and a picked entry."""
-    panel: Optional[str] = None      # 'pack' or 'character'
+    """What the screen shows besides the world: an open sub-window and a picked entry."""
+    panel: Optional[str] = None      # 'pack', 'character' or 'inspect'
     selected: Optional[int] = None   # a board item (index into build.pack_slots()), or in an
                                      # encounter the action tile waiting for a target
     page: int = 0                    # the board's page
+    scroll: int = 0                  # how far a scrolling sub-window (inspect, character) is scrolled
 
 
 def _digit(key: str) -> Optional[int]:
@@ -82,18 +83,25 @@ def _fight(content: Content, state: GameState, key: str, action: Optional[str], 
 
 
 def _world(content: Content, state: GameState, key: str, action: Optional[str], view: View, ui: UI):
+    """
+    While a sub-window is open it has the keys: up and down scroll it (the pack panel
+    turns pages), left and right do nothing, and only its close key closes it.
+    """
+    if view.panel in SCROLLING:
+        return state, _scrolling(action, view)
     if action in ("pack", "character"):
         return state, View() if view.panel == action else View(action)
-    if action in MOVES:
-        return world.move(content, state, MOVES[action]), View()
     if action == "close":
         return state._replace(focus=None, messages=()), View()
     if view.panel == "pack":
         slots = build.pack_slots(content, state)
         page_size = ui.tokens["size"]["page_size"]
         pages = max(1, -(-len(slots) // page_size))
-        if action == "next_page":
-            return state, View("pack", None, (view.page + 1) % pages)
+        if action in ("next_page", "move_south", "move_north"):
+            step = -1 if action == "move_north" else 1
+            return state, View("pack", None, (view.page + step) % pages)
+        if action in MOVES:
+            return state, view
         if _digit(key) and _digit(key) <= page_size:
             index = (view.page % pages) * page_size + _digit(key) - 1
             return state, view._replace(selected=index if index < len(slots) else None)
@@ -107,9 +115,28 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
             page = selected // page_size if selected is not None else view.page
             return after, View("pack", selected, page)
         return state, view
+    if action in MOVES:
+        return world.move(content, state, MOVES[action]), View()
     if action == "wait":
         return world.wait(content, state), View()
+    current = world.menu(content, state, ui.bound_keys)
+    if current is not None and any(o.key == key and o.kind == "inspect" for o in current.options):
+        return state, View("inspect")                      # Inspect opens the panel; it takes no time
     return world.act(content, state, key, ui.bound_keys), View()
+
+
+# Sub-windows that scroll line by line, and the key that closes each besides 'close'.
+SCROLLING = {"inspect": None, "character": "character"}
+
+
+def _scrolling(action: Optional[str], view: View) -> View:
+    if action == "move_north":
+        return view._replace(scroll=max(0, view.scroll - 1))
+    if action == "move_south":
+        return view._replace(scroll=view.scroll + 1)          # kept within the content when drawn
+    if action == "close" or (action is not None and action == SCROLLING[view.panel]):
+        return View()
+    return view
 
 
 def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = True,
@@ -134,8 +161,10 @@ def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = 
         if interactive:
             text.clear()
         columns, rows = text.terminal_size()
+        limit = render.max_scroll(content, state, columns, rows, view.panel, view.selected, view.page, ui)
+        view = view._replace(scroll=min(view.scroll, limit))
         sys.stdout.write(render.render(content, state, columns, rows, view.panel, colour, view.selected,
-                                       view.page, ui))
+                                       view.page, ui, view.scroll))
         sys.stdout.flush()
         key = text.read_key()
         if key in ("", "\x03", "\x04"):

@@ -44,8 +44,14 @@ The key hints at the bottom of the screen always show the keys that work right n
   its menu with the right keys. Close it with the close key.
 - [ ] Unavailable options are greyed out with a hint saying what's needed; pressing
   them shows the hint and takes no time.
-- [ ] Inspect explains what a thing does and what it needs (try the workbench, the
-  terminal, the suit bay and Juno).
+- [ ] Inspect opens a panel explaining what a thing does and what it needs (try the
+  workbench, the terminal, the suit bay and Juno); a door shows whether it's open.
+- [ ] While the panel is open, up and down (arrows or W/S) scroll it instead of
+  moving; on a short terminal a slider shows where you are, and "↑↓ scroll" appears
+  only when there's more to see. Left and right do nothing. X closes it and returns
+  to the menu; then up and down move again.
+- [ ] The same holds for the character sheet (C closes it) and the pack panel, where
+  up and down turn pages when there's more than one.
 
 ## 3. Interactions
 

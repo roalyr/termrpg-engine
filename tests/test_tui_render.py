@@ -52,6 +52,10 @@ def debrief_state():
     return s
 
 
+def bench_state():
+    return walk(new_game(CONTENT, 1), "ss")               # the workbench in focus, below the start
+
+
 def screens():
     """Every screen and panel, as (name, state, render options)."""
     return [
@@ -61,6 +65,8 @@ def screens():
         ("board", new_game(CONTENT, 1), {"panel": "pack"}),
         ("board picked", new_game(CONTENT, 1), {"panel": "pack", "selected": 3}),
         ("sheet", new_game(CONTENT, 1), {"panel": "character"}),
+        ("inspect", bench_state(), {"panel": "inspect"}),
+        ("inspect scrolled", bench_state(), {"panel": "inspect", "scroll": 99}),
         ("encounter", encounter_state(), {}),
         ("target", encounter_state(), {"selected": 0}),
         ("debrief", debrief_state(), {}),
@@ -97,7 +103,7 @@ class TestEveryScreen(unittest.TestCase):
             "walk": ["Workshop", "Lower deck", "Day 1", "WASD move", "P pack"],
             "menu": ["Door", "G Go to Storage - The door is closed.", "I Inspect", "X close"],
             "choice": ["The screen wakes.", "1 Check the logs", "1-2 choose"],
-            "board": ["Fitted:", "Carried:", "1 Light suit", "] page"],
+            "board": ["Fitted:", "Carried:", "1 Light suit", "1-7 pick", "P close"],
             "sheet": ["Salvage 1", "C close"],
             "encounter": ["Drones · round 1", "1 Strike", "⚠ STRIKE", "1-3 act", "Q quit"],
             "target": ["1-2 target", "X back"],
@@ -157,6 +163,107 @@ class TestFitting(unittest.TestCase):
         self.assertIn("1 Strike ▲1  2 Guard ▲1", short)           # a list when there isn't
         self.assertIn("4 Retreat", short)
         self.assertIn("2 Drone", short)                          # every fighter still shown
+
+
+class TestSubWindows(unittest.TestCase):
+    """The shared panel: Inspect in it, contextual up and down, scrolling with a slider."""
+
+    def open_inspect(self, state):
+        _, view, _ = app.handle(CONTENT, state, "i", app.View(), UI)
+        return view
+
+    def test_inspect_opens_the_panel(self):
+        s = bench_state()
+        view = self.open_inspect(s)
+        self.assertEqual(view.panel, "inspect")
+        frame = plain(s, 44, 60, panel="inspect")
+        self.assertIn("Workbench", frame)
+        self.assertIn("A proper workbench", frame)
+        self.assertNotIn("I Inspect", frame)                       # one focus: the menu steps back
+        self.assertIn("X close", frame)
+        self.assertNotIn("scroll", frame)                          # it all fits: nothing to scroll
+
+    def test_inspect_shows_a_state_and_a_title(self):
+        door = walk(new_game(CONTENT, 1), "aaww")
+        self.assertIn("closed", plain(door, panel="inspect"))
+        juno = walk(new_game(CONTENT, 1), "as")
+        frame = plain(juno, panel="inspect")
+        self.assertIn("Scrap trader", frame)
+        self.assertIn("Deals in whatever", frame)
+
+    def test_long_pages_scroll_with_a_slider(self):
+        s = bench_state()
+        limit = render.max_scroll(CONTENT, s, 40, 20, "inspect")
+        self.assertGreater(limit, 0)
+        top, bottom = plain(s, 40, 20, panel="inspect"), plain(s, 40, 20, panel="inspect", scroll=limit)
+        self.assertIn("↑↓ scroll", top)
+        self.assertIn("A proper workbench", top)
+        self.assertNotIn("common-grade gear", top)
+        self.assertIn("common-grade gear", bottom)
+        self.assertNotIn("A proper workbench", bottom)
+        self.assertEqual(plain(s, 40, 20, panel="inspect", scroll=999), bottom)   # kept within the content
+        thumb, track = UI.tokens["glyphs"]["slider_thumb"], UI.tokens["glyphs"]["slider_track"]
+        rows = [line for line in top.splitlines() if line.endswith(thumb + " │") or line.endswith(track + " │")]
+        self.assertGreaterEqual(len(rows), 3)
+        self.assertTrue(rows[0].endswith(thumb + " │"))            # at the top, the thumb is at the top
+        self.assertTrue(rows[-1].endswith(track + " │"))
+
+    def test_up_and_down_scroll_until_closed(self):
+        s = bench_state()
+        view = self.open_inspect(s)
+        for key in ("s", "\x1b[B", "s"):                         # down: W/S and the arrows
+            moved, view, _ = app.handle(CONTENT, s, key, view, UI)
+            self.assertEqual(moved.characters[s.player].at, s.characters[s.player].at)
+        self.assertEqual(view.scroll, 3)
+        _, view, _ = app.handle(CONTENT, s, "w", view, UI)
+        self.assertEqual(view.scroll, 2)
+        _, same, _ = app.handle(CONTENT, s, "a", view, UI)        # left and right do nothing
+        self.assertEqual(same, view)
+        after, view, _ = app.handle(CONTENT, s, "x", view, UI)    # close: back to the thing's menu
+        self.assertEqual(view, app.View())
+        self.assertEqual(after.focus, s.focus)
+        self.assertIn("I Inspect", plain(after))
+        moved, _, _ = app.handle(CONTENT, after, "w", view, UI)   # closed: up moves again
+        self.assertNotEqual(moved.characters[s.player].at, s.characters[s.player].at)
+
+    def test_the_character_sheet_scrolls_and_closes_with_its_key(self):
+        s = new_game(CONTENT, 1)
+        _, view, _ = app.handle(CONTENT, s, "c", app.View(), UI)
+        moved, view, _ = app.handle(CONTENT, s, "s", view, UI)
+        self.assertEqual((moved.characters[s.player].at, view.panel), (s.characters[s.player].at, "character"))
+        _, view, _ = app.handle(CONTENT, s, "c", view, UI)
+        self.assertIsNone(view.panel)
+
+    def test_the_pack_panel_turns_pages_with_up_and_down(self):
+        s = new_game(CONTENT, 1)
+        me = s.characters[s.player]
+        s = s._replace(characters=freeze({**s.characters, s.player: me._replace(
+            inventory=me.inventory * 3)}))                       # more than a page of entries
+        self.assertIn("↑↓ page", plain(s, panel="pack"))
+        view = app.View("pack")
+        moved, view, _ = app.handle(CONTENT, s, "s", view, UI)
+        self.assertEqual((view.panel, view.page), ("pack", 1))
+        self.assertEqual(moved.characters[s.player].at, s.characters[s.player].at)
+        _, view, _ = app.handle(CONTENT, s, "w", view, UI)
+        self.assertEqual(view.page, 0)
+
+    def test_a_pack_can_turn_the_slider_off(self):
+        tmp = tempfile.TemporaryDirectory()
+        try:
+            ui_dir = Path(tmp.name) / "mine"
+            shutil.copytree(ui_dir_for("default"), ui_dir)
+            path = ui_dir / "screens.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for zone in data["world"]:
+                for part in zone["content"].get("stack", []):
+                    if part.get("widget") == "panel":
+                        part["slider"] = False
+            path.write_text(json.dumps(data), encoding="utf-8")
+            frame = plain(bench_state(), 40, 20, ui=load_ui(ui_dir), panel="inspect")
+            self.assertNotIn(UI.tokens["glyphs"]["slider_thumb"] + " │", frame)
+            self.assertIn("↑↓ scroll", frame)                      # it still scrolls
+        finally:
+            tmp.cleanup()
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):

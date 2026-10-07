@@ -288,8 +288,11 @@ class TestApp(unittest.TestCase):
         s = new_game(CONTENT, 1)
         s, view, quit_now = app.handle(CONTENT, s, "p")
         self.assertEqual((view.panel, quit_now), ("pack", False))
-        s, view, _ = app.handle(CONTENT, s, "a", view)
+        moved, view, _ = app.handle(CONTENT, s, "a", view)      # moving never closes a sub-window
+        self.assertEqual((view.panel, moved.characters[PLAYER].at), ("pack", s.characters[PLAYER].at))
+        s, view, _ = app.handle(CONTENT, s, "p", view)           # its own key does
         self.assertIsNone(view.panel)
+        s, _, _ = app.handle(CONTENT, s, "a", view)
         s, _, _ = app.handle(CONTENT, s, ".")
         self.assertEqual(s.turn, 2)
         _, _, quit_now = app.handle(CONTENT, s, "q")

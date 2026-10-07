@@ -312,6 +312,56 @@
               "maxLength": 3,
               "default": " · ",
               "description": "Between entries on one line (the legend)."
+            },
+            "slider_track": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1,
+              "default": "│",
+              "description": "The slider's track, beside a scrolling panel."
+            },
+            "slider_thumb": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1,
+              "default": "█",
+              "description": "The slider's thumb: where the visible part is."
+            },
+            "arrows": {
+              "type": "object",
+              "description": "The arrow keys as shown in key hints.",
+              "properties": {
+                "north": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "↑",
+                  "description": "Up."
+                },
+                "south": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "↓",
+                  "description": "Down."
+                },
+                "west": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "←",
+                  "description": "Left."
+                },
+                "east": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1,
+                  "default": "→",
+                  "description": "Right."
+                }
+              },
+              "additionalProperties": false,
+              "default": {}
             }
           },
           "additionalProperties": false,
@@ -635,7 +685,7 @@
               "type": "string",
               "pattern": "^[^0-9A-Z\\s]$",
               "default": "w",
-              "description": "Step up. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Step up; scrolls an open sub-window up. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "move_west": {
               "type": "string",
@@ -647,7 +697,7 @@
               "type": "string",
               "pattern": "^[^0-9A-Z\\s]$",
               "default": "s",
-              "description": "Step down. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Step down; scrolls an open sub-window down. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "move_east": {
               "type": "string",
@@ -730,6 +780,11 @@
                     "default": false,
                     "description": "Show '1-9' (the number keys) instead of action keys."
                   },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
                   "label": {
                     "$ref": "common.schema.json#/$defs/id",
                     "x-ref": "word",
@@ -773,6 +828,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
                   },
                   "label": {
                     "$ref": "common.schema.json#/$defs/id",
@@ -818,6 +878,11 @@
                     "default": false,
                     "description": "Show '1-9' (the number keys) instead of action keys."
                   },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
                   "label": {
                     "$ref": "common.schema.json#/$defs/id",
                     "x-ref": "word",
@@ -861,6 +926,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
                   },
                   "label": {
                     "$ref": "common.schema.json#/$defs/id",
@@ -906,6 +976,11 @@
                     "default": false,
                     "description": "Show '1-9' (the number keys) instead of action keys."
                   },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
                   "label": {
                     "$ref": "common.schema.json#/$defs/id",
                     "x-ref": "word",
@@ -949,6 +1024,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
                   },
                   "label": {
                     "$ref": "common.schema.json#/$defs/id",
@@ -994,6 +1074,11 @@
                     "default": false,
                     "description": "Show '1-9' (the number keys) instead of action keys."
                   },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
                   "label": {
                     "$ref": "common.schema.json#/$defs/id",
                     "x-ref": "word",
@@ -1037,6 +1122,60 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "panel": {
+              "type": "array",
+              "description": "The shared panel is open (what Inspect shows).",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
                   },
                   "label": {
                     "$ref": "common.schema.json#/$defs/id",
@@ -1432,6 +1571,9 @@
           "$ref": "#/$defs/widget_art"
         },
         {
+          "$ref": "#/$defs/widget_panel"
+        },
+        {
           "$ref": "#/$defs/widget_keys"
         }
       ]
@@ -1463,6 +1605,11 @@
           "type": "boolean",
           "default": false,
           "description": "Show '1-9' (the number keys) instead of action keys."
+        },
+        "arrows": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
         },
         "label": {
           "$ref": "common.schema.json#/$defs/id",
@@ -1778,6 +1925,27 @@
       ],
       "x-screens": [
         "encounter"
+      ]
+    },
+    "widget_panel": {
+      "type": "object",
+      "description": "The shared panel for details, such as what Inspect shows: a title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it. Allowed on: world.",
+      "properties": {
+        "widget": {
+          "const": "panel"
+        },
+        "slider": {
+          "type": "boolean",
+          "default": true,
+          "description": "Draw a slider at the right edge when the content is longer than the panel."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "world"
       ]
     },
     "widget_keys": {
