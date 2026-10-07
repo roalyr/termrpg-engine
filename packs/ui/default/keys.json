@@ -215,6 +215,26 @@
         ],
         "label": "hint_back"
       }
+    ],
+    "talk": [
+      {
+        "digits": true,
+        "label": "hint_answer"
+      },
+      {
+        "actions": [
+          "move_north",
+          "move_south"
+        ],
+        "arrows": true,
+        "label": "hint_scroll"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_leave"
+      }
     ]
   }
 }

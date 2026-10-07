@@ -548,6 +548,9 @@ good.
   and technobabble are not.
 - **No emoji.** Map glyphs are single characters.
 - **Hints say what's needed,** in plain words: "Needs a cutter or a heavier frame."
+- **Write trades as top-level `take_item` and `give_item` effects** of an interaction
+  (not inside an `if`): the conversation screen reads them to show "You give" and
+  "You get". `self` is the player, `target` the person.
 - **Give every object, person and item a `description`.** Inspect and the item details
   show it. Say what the thing is and what it's for; the numbers are shown already.
 - Keep names short enough for a 40-column screen.

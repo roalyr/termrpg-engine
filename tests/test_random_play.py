@@ -10,7 +10,7 @@ import random
 import unittest
 from pathlib import Path
 
-from engine import encounter, save
+from engine import encounter, save, world
 from engine.content import load_pack
 from engine.effects import run
 from engine.frozen import freeze
@@ -25,7 +25,7 @@ UI = default_ui()
 STEPS = int(os.environ.get("RANDOM_PLAY_STEPS", "250"))
 SEEDS = range(1, 7)
 SIZES = ((40, 20), (44, 30), (72, 50))
-STARTS = ("start", "loc_storage", "fight", "choice")
+STARTS = ("start", "loc_storage", "fight", "choice", "juno")
 # Every bound key except quit, the digits, and letters menus and the board use.
 KEYS = sorted((UI.bound_keys - {UI.bindings["quit"]}) | set("123456789") | set("ufrbehjklmnoyvzgtio"))
 
@@ -36,6 +36,8 @@ def start(name, seed):
         return run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "move_to", "location": "loc_storage"})])
     if name == "fight":
         return encounter.begin(CONTENT, s._replace(encounter_request="enc_drones"))
+    if name == "juno":                                       # next to Juno, ready to talk
+        return world.move(CONTENT, world.move(CONTENT, s, "a"), "s")
     if name == "choice":                                     # the terminal's question, waiting
         return run(CONTENT, s, Ctx(self_id=s.player), CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"])
     return s
@@ -63,7 +65,7 @@ class TestRandomPlay(unittest.TestCase):
                     columns, rows = SIZES[step % len(SIZES)]
                     try:
                         frame = render.render(CONTENT, state, columns, rows, view.panel, True, view.selected,
-                                              view.page, UI, view.scroll, view.screen)
+                                              view.page, UI, view.scroll, view.screen, view.log)
                     except Exception as error:
                         self.fail(f"{name} seed {seed} step {step}: drawing raised {error!r}")
                     lines = frame.rstrip("\n").split("\n")

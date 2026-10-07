@@ -915,7 +915,7 @@ win key by key; word entries add up):
 | Kind | Holds |
 |---|---|
 | `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the portrait's width and height in pixels), `padding`, `glyphs` (the border set, the list cursor, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
-| `screens` | Each screen (`world`, `encounter`, `debrief`, `fitting`, `character`) as zones, top to bottom |
+| `screens` | Each screen (`world`, `encounter`, `debrief`, `fitting`, `character`, `talk`) as zones, top to bottom |
 | `keys` | `bindings` (action → key) and `hints` (what each context shows) |
 | `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |
 
@@ -965,6 +965,17 @@ details for whatever is picked there.
 - close goes back a level: from the details or the modifications to the list, from
   the list to the world. After an action the pick follows the item wherever it went.
 
+**The conversation screen** opens with Talk in a person's menu (talking still takes a
+turn). On top, the speaker's portrait beside their name, title, faction and trust (the
+relation level's name, the number and a bar). Below, the last exchanges ("You:
+Trade", then what followed, such as what changed hands), the speaker's current line,
+and your responses: their interactions, numbered, unavailable ones greyed out with
+their hint, and Leave last. A trade shows "You give" and "You get", read from the
+interaction's own top-level `take_item` and `give_item` effects. The conversation
+keeps its newest lines in view; up and down look back. It ends with Leave or X, or
+when something takes over (a fight, a question, the speaker out of reach). On short
+terminals the portrait row gives way (priority 1 in the default UI pack).
+
 **The character screen** (C) is a full screen: the title, the portrait beside the
 identity (name, title, faction and rank, health and heat), then a body that scrolls
 with up and down: skills with their progress and next level, stats, conditions,
@@ -991,8 +1002,9 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `tiles` | Action tiles | encounter | `per_row` (0 = fit) |
 | `fighters` | Both sides with bars and intents | encounter | `intent` |
 | `art` | The enemy's picture | encounter | `frame` |
-| `portrait` | The player's portrait in half-block pixels; an empty frame of the same size without one | character | `frame` |
-| `identity` | Name, title, faction and rank, the pool bars | character | — |
+| `portrait` | The player's portrait (the speaker's in a conversation) in half-block pixels; an empty frame of the same size without one | character, talk | `frame` |
+| `identity` | Name, title, faction and rank, the pool bars; in a conversation the speaker and their trust | character, talk | — |
+| `conversation` | The last exchanges, the speaker's line, numbered responses with what trades give and take, Leave | talk | `trades` |
 | `skills` | Each skill: level, a bar to the next level, what the next level brings | character | — |
 | `stats` | Derived stats in columns; conditions with the turns they have left | character | — |
 | `people` | The party with their health; your rank and how factions regard you | character | — |
@@ -1007,7 +1019,7 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 Number keys 1–9 always pick numbered entries and can't be bound. Bindings are lower
 case (keys match either case). The arrow keys always move and Esc always closes,
 whatever the bindings. `hints` lists, per
-context (`walk`, `menu`, `choice`, `pack`, `fitting`, `modify`, `sheet`, `panel`, `item`, `encounter`, `target`,
+context (`walk`, `menu`, `choice`, `pack`, `fitting`, `modify`, `sheet`, `talk`, `panel`, `item`, `encounter`, `target`,
 `debrief`), entries that show some actions' keys joined (`WASD`), the arrow keys
 instead for move actions (`arrows`: `↑↓`), or `1-9` (`digits`, shown as the real
 range), then a label from the words file. Hints are generated from the bindings, so

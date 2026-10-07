@@ -341,6 +341,20 @@ def _go(content: Content, state: GameState) -> GameState:
     return turns.advance(content, state, exit_["time"])
 
 
+def talk_line(content: Content, state: GameState, speaker: str) -> Optional[Record]:
+    """
+    The dialogue line a character would say to the player now: the first whose 'when'
+    holds. Pure: its effects run only when it's actually said (Talk).
+    """
+    record = content.get("character", state.characters[speaker].source)
+    ctx = Ctx(self_id=speaker, target=state.player)
+    for line in record.get("talk", ()):
+        ok, _ = conditions.holds(content, state, ctx, line.get("when"))
+        if ok:
+            return line
+    return None
+
+
 def _talk(content: Content, state: GameState) -> GameState:
     speaker = state.focus[1]
     record = content.get("character", state.characters[speaker].source)

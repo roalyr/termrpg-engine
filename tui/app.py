@@ -16,7 +16,7 @@ from typing import NamedTuple, Optional
 from engine import build, encounter, events, save, turns, world
 from engine.content import Content, PackError, load_pack
 from engine.effects import choose_option
-from engine.state import GameState, new_game
+from engine.state import GameState, Message, new_game
 from tui import render, text, widgets
 from tui.ui import UI, UIPackError, default_ui, load_ui, ui_dir_for
 
@@ -35,8 +35,9 @@ class View(NamedTuple):
                                      # encounter the action tile waiting for a target
     page: int = 0                    # the board's page
     scroll: int = 0                  # how far a scrolling sub-window (inspect, character) is scrolled
-    screen: Optional[str] = None     # a full screen of the world: 'fitting'; its pick is 'selected'
-                                     # (an index into its pickable rows) and 'panel' its sub-window
+    screen: Optional[str] = None     # a full screen of the world: 'fitting', 'character' or 'talk'; on the
+                                     # fitting screen 'selected' is the pick and 'panel' its sub-window
+    log: tuple = ()                  # a conversation's history: what you said and what followed
 
 
 def _digit(key: str) -> Optional[int]:
@@ -66,6 +67,8 @@ def handle(content: Content, state: GameState, key: str, view: View = View(), ui
         state, view = _fitting(content, state, key, action, view, ui)
     elif view.screen == "character":
         state, view = state, _character(action, view)
+    elif view.screen == "talk":
+        state, view = _talk(content, state, key, action, view, ui)
     else:
         state, view = _world(content, state, key, action, view, ui)
     return events.settle(content, state), view, False
@@ -135,6 +138,8 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
     current = world.menu(content, state, ui.bound_keys)
     if current is not None and any(o.key == key and o.kind == "inspect" for o in current.options):
         return state, View("inspect")                      # Inspect opens the panel; it takes no time
+    if current is not None and any(o.key == key and o.kind == "talk" and o.available for o in current.options):
+        return world.act(content, state, key, ui.bound_keys), View(screen="talk")   # Talk opens the conversation
     return world.act(content, state, key, ui.bound_keys), View()
 
 
@@ -194,6 +199,41 @@ def _follow_pick(content: Content, before: GameState, after: GameState, slot, se
     return max(0, min(selected, len(pickable) - 1))
 
 
+HISTORY = 40   # conversation lines kept
+
+
+def _talk(content: Content, state: GameState, key: str, action: Optional[str], view: View, ui: UI):
+    """
+    A conversation: a digit answers with one of the speaker's interactions (the last one
+    leaves), up and down look back through what was said, close leaves. Anything that
+    takes over (a fight, a question, the speaker out of reach) ends it.
+    """
+    current = world.menu(content, state, ui.bound_keys)
+    answers = [o for o in current.options if o.kind == "interaction"] if current else []
+    if action == "close" or current is None:
+        return state, View()
+    if action == "move_north":
+        return state, view._replace(scroll=view.scroll + 1)          # back through the history
+    if action == "move_south":
+        return state, view._replace(scroll=max(0, view.scroll - 1))
+    number = _digit(key)
+    if not number or number > len(answers) + 1:
+        return state, view
+    if number == len(answers) + 1:
+        return state, View()
+    option = answers[number - 1]
+    after = world.act(content, state, option.key, ui.bound_keys)
+    log = (view.log + (Message("response", option_label(option, ui)),) + after.messages)[-HISTORY:]
+    if after.encounter_request or after.encounter is not None or after.pending is not None \
+            or world.menu(content, after, ui.bound_keys) is None:
+        return after, View()
+    return after, view._replace(log=log, scroll=0)
+
+
+def option_label(option, ui: UI) -> str:
+    return widgets.option_text(ui, option)
+
+
 def _character(action: Optional[str], view: View) -> View:
     """The character screen: up and down scroll it; close or its own key leave it."""
     if action in ("close", "character"):
@@ -244,10 +284,10 @@ def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = 
             text.clear()
         columns, rows = text.terminal_size()
         limit = render.max_scroll(content, state, columns, rows, view.panel, view.selected, view.page, ui,
-                                  view.screen)
+                                  view.screen, view.log)
         view = view._replace(scroll=min(view.scroll, limit))
         sys.stdout.write(render.render(content, state, columns, rows, view.panel, colour, view.selected,
-                                       view.page, ui, view.scroll, view.screen))
+                                       view.page, ui, view.scroll, view.screen, view.log))
         sys.stdout.flush()
         key = text.read_key()
         if key in ("", "\x03", "\x04"):

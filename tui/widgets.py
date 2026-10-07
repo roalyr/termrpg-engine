@@ -28,6 +28,7 @@ class Frame(NamedTuple):
     compact: bool = False         # the screen is short: widgets with a compact form use it
     scroll: int = 0               # how far the open sub-window is scrolled
     scrollable: bool = False      # the open sub-window is longer than its space
+    log: Tuple = ()               # a conversation's history: Messages ('response' for what you said)
 
     @property
     def tokens(self) -> Mapping[str, Any]:
@@ -48,7 +49,7 @@ Draw = Callable[[Frame, int, Mapping[str, Any]], List[str]]
 # it is the focus: its zone scrolls, and the log and menu step back.
 SUBWINDOWS = {"inspect": "panel", "item": "panel", "modify": "pick"}
 # List screens: with no sub-window open, this widget's zone scrolls to keep the pick in view.
-LISTS = {"fitting": "loadout", "character": "skills"}
+LISTS = {"fitting": "loadout", "character": "skills", "talk": "conversation"}
 FOCUS = "\x00"   # marks the picked line of a list for the layout; never drawn
 
 
@@ -105,6 +106,10 @@ def title(frame: Frame, width: int, options: Mapping) -> List[str]:
     if frame.screen == "character":
         me = state.characters[state.player]
         return [style.role(frame.ui.word("character_title", name=content.get("character", me.source)["name"]), "title")]
+    if frame.screen == "talk":
+        name = frame.ui.word("talk_title", name=content.get("character", state.characters[speaker_of(frame)].source)["name"])
+        place = content.get("location", state.characters[state.player].location)["name"]
+        return [_right(style.role(name, "title"), style.role(place, "quiet"), width)]
     if frame.screen == "fitting":
         me = state.characters[state.player]
         name = frame.ui.word("fitting_title", frame=stats.item_view(content, me.frame)["name"]) if me.frame \
@@ -715,8 +720,8 @@ def portrait_width(frame: Frame, options: Mapping) -> int:
 def portrait(frame: Frame, width: int, options: Mapping) -> List[str]:
     """The player's portrait in half-block pixels, centred in a fixed zone; an empty frame without one."""
     content, style = frame.content, frame.style
-    me = frame.state.characters[frame.state.player]
-    record = content.get("character", me.source)
+    whose = speaker_of(frame) if frame.screen == "talk" else frame.state.player
+    record = content.get("character", frame.state.characters[whose].source)
     pw, ph = portrait_size(frame)
     grid = [[None] * pw for _ in range(ph)]                    # colour code per pixel, None = see-through
     picture = record.get("portrait")
@@ -761,8 +766,10 @@ def _colour_code(colour) -> int:
 
 
 def identity(frame: Frame, width: int, options: Mapping) -> List[str]:
-    """Name, title, faction and rank, then the pool bars."""
+    """Name, title, faction and rank, then the pool bars; in a conversation, the speaker and their trust."""
     content, state, ui = frame.content, frame.state, frame.ui
+    if frame.screen == "talk":
+        return _speaker(frame, width)
     me = state.characters[state.player]
     record = content.get("character", me.source)
     lines = [frame.style.role(line, "heading") for line in wrap(record["name"], width)]
@@ -776,6 +783,89 @@ def identity(frame: Frame, width: int, options: Mapping) -> List[str]:
     lines.append("")
     pools = [sid for sid, rec in content.all("stat").items() if rec.get("kind") == "pool"]
     return lines + _pool_lines(frame, me, pools)
+
+
+def speaker_of(frame: Frame) -> str:
+    """Who the player is talking to: the character in focus."""
+    focus = frame.state.focus
+    return focus[1] if focus and focus[0] == "character" else frame.state.player
+
+
+def _speaker(frame: Frame, width: int) -> List[str]:
+    """The speaker's name, title and faction, then how they regard you: the level, the number and a bar."""
+    content, state, ui, style = frame.content, frame.state, frame.ui, frame.style
+    who = speaker_of(frame)
+    record = content.get("character", state.characters[who].source)
+    lines = [style.role(line, "heading") for line in wrap(record["name"], width)]
+    if record.get("title"):
+        lines += styled_lines(content.text(record["title"]), width, frame, "quiet")
+    if record.get("faction"):
+        lines += styled_lines(content.get("faction", record["faction"])["name"], width, frame, "quiet")
+    from engine.state import char_key
+    value = context.relation(content, state, char_key(who), char_key(state.player))
+    low, high = content.settings.get("relation_min", -100), content.settings.get("relation_max", 100)
+    lines.append("")
+    lines += wrap(ui.word("talk_trust", level=_relation_name(content, value), value=value), width)
+    lines.append(bar(frame, value - low, high - low, frame.size["bar_length"]))
+    return lines
+
+
+def conversation(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The last exchanges, the speaker's current line, your numbered responses with what trades give and take, Leave."""
+    content, state, ui, style = frame.content, frame.state, frame.ui, frame.style
+    if frame.screen != "talk":
+        return []
+    who = speaker_of(frame)
+    lines: List[str] = []
+    for message in frame.log:
+        if message.kind == "response":
+            lines += styled_lines(ui.word("talk_you", response=message.text), width, frame, "heading")
+        else:
+            lines += message_lines(frame, [message], width)
+    if lines:
+        lines.append("")
+    line = world.talk_line(content, state, who)
+    if line is not None:
+        name = content.get("character", state.characters[who].source)["name"]
+        lines += styled_lines(ui.word("talk_says", name=name, text=content.text(line["text"])), width, frame, "quiet")
+        lines.append("")
+    for number, option in enumerate(responses(frame), 1):
+        text = f"{number} {option_text(ui, option)}"
+        if option.available:
+            lines += wrap(text, width)
+        else:
+            lines += styled_lines(text + (f" - {option.hint}" if option.hint else ""), width, frame, "unavailable")
+        if options.get("trades", True) and option.interaction is not None:
+            gives, gets = exchange(content, option.interaction)
+            rows = ([(ui.word("talk_give"), gives)] if gives else []) + ([(ui.word("talk_get"), gets)] if gets else [])
+            if rows:
+                lines += ["    " + row for row in _label_rows(frame, rows, width - 4)]
+    leave = f"{len(responses(frame)) + 1} {ui.word('talk_leave')}"
+    lines.append(FOCUS + leave)                      # the newest lines stay in view
+    return lines
+
+
+def responses(frame: Frame) -> List:
+    """What the player can answer: the speaker's interactions, as the menu offers them."""
+    current = world.menu(frame.content, frame.state, frame.ui.bound_keys)
+    return [o for o in current.options if o.kind == "interaction"] if current else []
+
+
+def exchange(content: Content, interaction: Mapping) -> Tuple[List[str], List[str]]:
+    """
+    What an interaction takes from you and gives you, read from its own take_item and
+    give_item effects (in a character's interactions 'self' is you, 'target' them).
+    """
+    gives, gets = [], []
+    for effect in interaction.get("effects", ()):
+        if effect["op"] not in ("take_item", "give_item") or "item" not in effect:
+            continue
+        mine = effect.get("subject", "self") == "self"
+        count = effect.get("count", 1)
+        amount = f"{count['min']}-{count['max']}" if isinstance(count, Mapping) and "min" in count else count
+        text = content.get("item", effect["item"])["name"] + (f" x{amount}" if amount != 1 else "")
+        (gives if (effect["op"] == "take_item") == mine else gets).append(text)
+    return gives, gets
 
 
 def _rank_name(content: Content, rank: int) -> str:
@@ -967,6 +1057,8 @@ def hint_context(frame: Frame) -> str:
         return "pack"
     if frame.screen == "character":
         return "sheet"
+    if frame.screen == "talk":
+        return "talk"
     if frame.panel == "inspect":
         return "panel"
     if frame.panel == "item":
@@ -988,6 +1080,8 @@ def _numbered(frame: Frame, context: str) -> int:
         return len(encounter.targets(content, state, state.player, tile.action))
     if context == "fitting":
         return min(9, len(picks(content, state)))
+    if context == "talk":
+        return min(9, len(responses(frame)) + 1)
     if context == "modify":
         row = picked_row(frame)
         return len([o for o in build.item_options(content, state, row.slot, frame.ui.bound_keys, "fitting")
@@ -1039,6 +1133,8 @@ def _works(frame: Frame, context: str, actions) -> bool:
     scrolling = set(actions) <= {"move_north", "move_south", "next_page"}
     if context == "fitting" and scrolling:
         return len(picks(frame.content, frame.state)) > 1
+    if context == "talk" and scrolling:
+        return frame.scrollable
     if not scrolling or context not in ("panel", "item", "sheet", "pack"):
         return True
     if context == "pack":
@@ -1051,6 +1147,7 @@ WIDGETS: Dict[str, Draw] = {
     "choice": choice, "board": board, "tiles": tiles, "fighters": fighters,
     "art": art, "keys": keys, "panel": panel, "budgets": budgets, "loadout": loadout, "pick": pick,
     "portrait": portrait, "identity": identity, "skills": skills, "stats": stats_widget, "people": people,
+    "conversation": conversation,
 }
 
 # Widgets with a natural width of their own (the rest take the width they're given).

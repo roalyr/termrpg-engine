@@ -165,7 +165,8 @@ def arrange(frame: Frame, zones: List[Mapping[str, Any]], columns: int, rows: in
     band = bands[flexible]
     window = max(1, rows - (_height(bands) - len(band.lines)))
     limit = max(0, len(band.lines) - window)
-    wanted = band.focus - window // 2 if band.focus is not None else frame.scroll   # a list follows its pick
+    # a list follows its pick (scrolling counts back from there); anything else scrolls from the top
+    wanted = band.focus - window // 2 - frame.scroll if band.focus is not None else frame.scroll
     scroll = max(0, min(wanted, limit))
     visible = band.lines[scroll:scroll + window]
     bands[flexible] = band._replace(lines=[line + _slider(frame, band.zone, i, window, scroll, limit, len(band.lines))

@@ -63,10 +63,16 @@ The key hints at the bottom of the screen always show the keys that work right n
 
 ## 4. People
 
+- [ ] Talk opens the conversation screen (one turn passes): Juno's portrait, name,
+  title, faction and trust as words, a number and a bar; Juno's line; numbered
+  responses with Leave last. 1-3 answer, X leaves back to the menu.
+- [ ] Trade shows "You give Keycard" and "You get Medkit x2" before you answer. After
+  it, the history shows "You: Trade" and what changed hands, trust rises, and
+  Recruit stops being greyed out.
 - [ ] Talking shows the most fitting dialogue line; it changes when they travel with
-  you.
-- [ ] Trading changes items both ways and improves Juno's view of you; recruiting
-  is greyed out until they like you enough.
+  you ("Lead on." after recruiting, and the conversation goes on).
+- [ ] On a short terminal the portrait row gives way; up and down look back through
+  a long conversation.
 - [ ] A recruited companion leaves the map, follows you between rooms, shows in the
   status panel, and fights on your side.
 

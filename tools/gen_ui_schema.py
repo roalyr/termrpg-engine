@@ -26,7 +26,8 @@ OUT = Path(__file__).resolve().parent.parent / "schemas" / "ui.schema.json"
 PALETTE = ["grey", "white", "green", "cyan", "blue", "violet", "yellow", "orange", "red"]
 SCREENS = {"world": "Walking around.", "encounter": "A fight.", "debrief": "The after-action screen at the end of a fight.",
            "fitting": "The fitting screen: the loadout, spare gear and designs, and building.",
-           "character": "The character screen: who you are, skills, stats, conditions, party and standing."}
+           "character": "The character screen: who you are, skills, stats, conditions, party and standing.",
+           "talk": "A conversation: the speaker, what was said, and your responses."}
 ACTIONS = {
  "move_north": ("w", "Step up; scrolls an open sub-window up."), "move_west": ("a", "Step left."),
  "move_south": ("s", "Step down; scrolls an open sub-window down."),
@@ -44,6 +45,7 @@ CONTEXTS = {
  "item": "An item's details are open.",
  "fitting": "The fitting screen, picking from its list.",
  "modify": "The fitting screen's list of modifications for the picked item.",
+ "talk": "A conversation, waiting for a response.",
 }
 ROLES = {
  "title": ("white", True, False, "Screen titles: the location, the encounter, the result."),
@@ -81,9 +83,11 @@ WIDGETS = {
      "frame": flag(True, "Draw a frame around it.")}),
  "panel": (["world", "fitting"], "The shared panel for details, such as what Inspect shows: a title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it.", {
      "slider": flag(True, "Draw a slider at the right edge when the content is longer than the panel.")}),
- "portrait": (["character"], "The character's portrait: pixels drawn with half-block characters, two per text cell. Without one, an empty frame of the same size keeps the place.", {
+ "portrait": (["character", "talk"], "The player's portrait on the character screen, the speaker's in a conversation: pixels drawn with half-block characters, two per text cell. Without one, an empty frame of the same size keeps the place.", {
      "frame": flag(True, "Draw a frame around it.")}),
- "identity": (["character"], "Name, title, faction and rank, and the pool bars.", {}),
+ "identity": (["character", "talk"], "Name, title, faction and rank, and the pool bars; in a conversation, the speaker's name, title, faction and trust.", {}),
+ "conversation": (["talk"], "The conversation: the last exchanges, the speaker's current line, and your numbered responses (trades show what you give and get), Leave last. It keeps its newest lines in view; up and down look back.", {
+     "trades": flag(True, "Show what a trade gives and takes, read from its take_item and give_item effects.")}),
  "skills": (["character"], "Each skill with its level, progress to the next, and what the next level brings.", {}),
  "stats": (["character"], "The derived stats, and conditions (statuses) with the turns they have left.", {}),
  "people": (["character"], "Who travels with you, with their health, and how the factions regard you.", {}),
@@ -193,6 +197,13 @@ WORDS = {
  "standing_heading": ("Character screen heading: standing.", []),
  "standing_rank": ("Character screen: your rank.", ["rank"]),
  "standing_view": ("Character screen: how a faction regards you.", ["faction", "level", "value"]),
+ "talk_title": ("Conversation title.", ["name"]),
+ "talk_trust": ("Conversation: how the speaker regards you.", ["level", "value"]),
+ "talk_says": ("Conversation: the speaker's line.", ["name", "text"]),
+ "talk_you": ("Conversation history: the response you gave.", ["response"]),
+ "talk_leave": ("Conversation: the response that ends it.", []),
+ "talk_give": ("Conversation: what a trade takes from you.", []),
+ "talk_get": ("Conversation: what a trade gives you.", []),
  "day_phase": ("Status: the day and part of the day.", ["day", "phase"]),
  "party": ("Status: who travels with the player.", ["names"]),
  "encounter_round": ("Encounter title with the round about to be played.", ["encounter", "round"]),

@@ -225,7 +225,7 @@ Steps, each one playable and tested:
    statuses, party and standing, and a portrait zone: characters may have a pixel
    `portrait`, drawn with half-block characters (an empty frame keeps the place
    without one).
-5. **People:** a dialogue window; trades showing what you give and get. Agreed
+5. ✓ **People:** a dialogue window; trades showing what you give and get. Agreed
    layout:
    - a full conversation screen, opened by Talk from the person's menu (the menu
      stays as it is for objects and people; Talk still takes a turn);

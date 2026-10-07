@@ -83,7 +83,14 @@
     "party_down": "down",
     "standing_heading": "Standing",
     "standing_rank": "Rank: {rank}",
-    "standing_view": "{faction}: {level} ({value})"
+    "standing_view": "{faction}: {level} ({value})",
+    "talk_title": "Talking · {name}",
+    "talk_trust": "Trust: {level} ({value})",
+    "talk_says": "{name}: “{text}”",
+    "talk_you": "You: {response}",
+    "talk_leave": "Leave",
+    "talk_give": "You give",
+    "talk_get": "You get"
   },
   "entries": [
     {
@@ -161,6 +168,14 @@
     {
       "id": "hint_apply",
       "text": "apply"
+    },
+    {
+      "id": "hint_answer",
+      "text": "answer"
+    },
+    {
+      "id": "hint_leave",
+      "text": "leave"
     }
   ]
 }

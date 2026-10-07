@@ -10,11 +10,11 @@ import unittest
 from pathlib import Path
 
 from core.pack import validate_pack
-from engine import build, encounter, world
+from engine import build, context, encounter, world
 from engine.content import load_pack
 from engine.effects import run
 from engine.frozen import freeze
-from engine.state import Ctx, new_game
+from engine.state import Ctx, Message, new_game
 from tui import app, render, widgets
 from tui.text import Style, visible_len
 from tui.ui import UIPackError, default_ui, load_ui, ui_dir_for
@@ -76,6 +76,7 @@ def screens():
         ("fitting modify", bench_state(), {"screen": "fitting", "selected": 1, "panel": "modify"}),
         ("fitting details", bench_state(), {"screen": "fitting", "selected": 1, "panel": "item"}),
         ("fitting away", new_game(CONTENT, 1), {"screen": "fitting"}),
+        ("talk", walk(new_game(CONTENT, 1), "as"), {"screen": "talk"}),
         ("inspect scrolled", bench_state(), {"panel": "inspect", "scroll": 99}),
         ("encounter", encounter_state(), {}),
         ("target", encounter_state(), {"selected": 0}),
@@ -512,6 +513,78 @@ class TestCharacterScreen(unittest.TestCase):
         frame = plain(new_game(CONTENT, 1), ui=load_ui(ui_dir), screen="character")
         self.assertIn("┌" + "─" * 16 + "┐", frame)
         self.assertEqual(len([line for line in frame.splitlines() if line.startswith("││")]), 7)
+
+
+class TestConversation(unittest.TestCase):
+    """Step 5: talking to someone on the conversation screen."""
+
+    def talking(self):
+        s = walk(new_game(CONTENT, 1), "as")                   # Juno in focus
+        turn = s.turn
+        s, view, _ = app.handle(CONTENT, s, "t", app.View(), UI)
+        self.assertEqual(s.turn, turn + 1)                     # talking takes a turn
+        return s, view
+
+    def frame(self, s, view, columns=44, rows=60):
+        return plain(s, columns, rows, screen=view.screen, log=view.log, scroll=view.scroll)
+
+    def test_talk_opens_the_conversation(self):
+        s, view = self.talking()
+        self.assertEqual(view.screen, "talk")
+        frame = self.frame(s, view)
+        for words in ("Talking · Juno", "Workshop", "Scrap trader", "Trust: neutral (10)", "Juno: “Hello.”",
+                      "1 Trade", "You give  Keycard", "You get   Medkit x2",
+                      "2 Recruit - Doesn't trust you enough.", "3 Leave", "1-3 answer", "X leave"):
+            self.assertIn(words, frame)
+        coloured = render.render(CONTENT, s, 44, 60, screen="talk", ui=UI)
+        self.assertIn(Style(True, UI.tokens["styles"]).pixels("█", 130, None), coloured)   # Juno's hair
+
+    def test_answers_are_kept_with_what_changed_hands(self):
+        s, view = self.talking()
+        s, view, _ = app.handle(CONTENT, s, "1", view, UI)
+        self.assertEqual(view.screen, "talk")
+        frame = self.frame(s, view)
+        for words in ("You: Trade", "Lost: Keycard.", "Got: Medkit x2.", "Trust: neutral (30)", "2 Recruit\n"):
+            self.assertIn(words.rstrip("\n"), frame)
+        self.assertNotIn("Doesn't trust you enough", frame)
+
+    def test_a_recruit_keeps_talking(self):
+        s, view = self.talking()
+        s, view, _ = app.handle(CONTENT, s, "1", view, UI)
+        s, view, _ = app.handle(CONTENT, s, "2", view, UI)
+        self.assertIn("char_juno", context.party_of(s, s.player))
+        frame = self.frame(s, view)
+        for words in ("You: Recruit", "Juno joins Player.", "Juno: “Lead on.”", "2 Leave"):
+            self.assertIn(words, frame)
+        self.assertNotIn("Recruit -", frame)
+
+    def test_leaving(self):
+        s, view = self.talking()
+        _, left, _ = app.handle(CONTENT, s, "3", view, UI)
+        self.assertEqual(left, app.View())
+        after, left, _ = app.handle(CONTENT, s, "x", view, UI)
+        self.assertEqual(left, app.View())
+        self.assertEqual(after.focus, s.focus)                 # back to Juno's menu
+
+    def test_looking_back_through_a_long_conversation(self):
+        s, view = self.talking()
+        history = tuple(Message("plain", f"Line {i}.") for i in range(30))
+        newest = plain(s, 40, 20, screen="talk", log=history)
+        self.assertIn("3 Leave", newest)
+        self.assertNotIn("Line 0.", newest)
+        self.assertIn("↑↓ scroll", newest)
+        oldest = plain(s, 40, 20, screen="talk", log=history, scroll=99)
+        self.assertIn("Line 0.", oldest)
+        _, back, _ = app.handle(CONTENT, s, "w", view._replace(log=history), UI)
+        self.assertEqual(back.scroll, 1)
+
+    def test_what_a_trade_gives_and_takes(self):
+        gives, gets = widgets.exchange(CONTENT, freeze({"effects": [
+            {"op": "take_item", "item": "misc_keycard", "count": 1},
+            {"op": "give_item", "item": "consumable_medkit", "count": {"min": 1, "max": 3}},
+            {"op": "give_item", "item": "material_scrap", "count": 2, "subject": "target"},
+            {"op": "message", "text": "Deal."}]}))
+        self.assertEqual((gives, gets), (["Keycard", "Scrap x2"], ["Medkit x1-3"]))
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):

@@ -1375,6 +1375,56 @@
                 ]
               },
               "default": []
+            },
+            "talk": {
+              "type": "array",
+              "description": "A conversation, waiting for a response.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "fitting",
+                        "character",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
             }
           },
           "additionalProperties": false,
@@ -1436,6 +1486,14 @@
             "$ref": "#/$defs/zone"
           },
           "minItems": 1
+        },
+        "talk": {
+          "type": "array",
+          "description": "A conversation: the speaker, what was said, and your responses.",
+          "items": {
+            "$ref": "#/$defs/zone"
+          },
+          "minItems": 1
         }
       },
       "additionalProperties": false,
@@ -1444,7 +1502,8 @@
         "encounter",
         "debrief",
         "fitting",
-        "character"
+        "character",
+        "talk"
       ]
     },
     "words_file": {
@@ -1666,6 +1725,58 @@
                 "level",
                 "value"
               ]
+            },
+            "talk_title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Conversation title. Placeholders: {name}.",
+              "x-placeholders": [
+                "name"
+              ]
+            },
+            "talk_trust": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Conversation: how the speaker regards you. Placeholders: {level}, {value}.",
+              "x-placeholders": [
+                "level",
+                "value"
+              ]
+            },
+            "talk_says": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Conversation: the speaker's line. Placeholders: {name}, {text}.",
+              "x-placeholders": [
+                "name",
+                "text"
+              ]
+            },
+            "talk_you": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Conversation history: the response you gave. Placeholders: {response}.",
+              "x-placeholders": [
+                "response"
+              ]
+            },
+            "talk_leave": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Conversation: the response that ends it. No placeholders.",
+              "x-placeholders": []
+            },
+            "talk_give": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Conversation: what a trade takes from you. No placeholders.",
+              "x-placeholders": []
+            },
+            "talk_get": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Conversation: what a trade gives you. No placeholders.",
+              "x-placeholders": []
             },
             "day_phase": {
               "type": "string",
@@ -2181,6 +2292,9 @@
           "$ref": "#/$defs/widget_identity"
         },
         {
+          "$ref": "#/$defs/widget_conversation"
+        },
+        {
           "$ref": "#/$defs/widget_skills"
         },
         {
@@ -2281,7 +2395,7 @@
     },
     "widget_title": {
       "type": "object",
-      "description": "The screen's title line: the location and region with hazards, the encounter and its round, or the fight's result. Allowed on: world, encounter, debrief, fitting, character.",
+      "description": "The screen's title line: the location and region with hazards, the encounter and its round, or the fight's result. Allowed on: world, encounter, debrief, fitting, character, talk.",
       "properties": {
         "widget": {
           "const": "title"
@@ -2296,7 +2410,8 @@
         "encounter",
         "debrief",
         "fitting",
-        "character"
+        "character",
+        "talk"
       ]
     },
     "widget_grid": {
@@ -2389,7 +2504,7 @@
     },
     "widget_log": {
       "type": "object",
-      "description": "Messages, in the order they happened. Allowed on: world, encounter, debrief, fitting, character.",
+      "description": "Messages, in the order they happened. Allowed on: world, encounter, debrief, fitting, character, talk.",
       "properties": {
         "widget": {
           "const": "log"
@@ -2409,7 +2524,8 @@
         "encounter",
         "debrief",
         "fitting",
-        "character"
+        "character",
+        "talk"
       ]
     },
     "widget_menu": {
@@ -2565,7 +2681,7 @@
     },
     "widget_portrait": {
       "type": "object",
-      "description": "The character's portrait: pixels drawn with half-block characters, two per text cell. Without one, an empty frame of the same size keeps the place. Allowed on: character.",
+      "description": "The player's portrait on the character screen, the speaker's in a conversation: pixels drawn with half-block characters, two per text cell. Without one, an empty frame of the same size keeps the place. Allowed on: character, talk.",
       "properties": {
         "widget": {
           "const": "portrait"
@@ -2581,12 +2697,13 @@
         "widget"
       ],
       "x-screens": [
-        "character"
+        "character",
+        "talk"
       ]
     },
     "widget_identity": {
       "type": "object",
-      "description": "Name, title, faction and rank, and the pool bars. Allowed on: character.",
+      "description": "Name, title, faction and rank, and the pool bars; in a conversation, the speaker's name, title, faction and trust. Allowed on: character, talk.",
       "properties": {
         "widget": {
           "const": "identity"
@@ -2597,7 +2714,29 @@
         "widget"
       ],
       "x-screens": [
-        "character"
+        "character",
+        "talk"
+      ]
+    },
+    "widget_conversation": {
+      "type": "object",
+      "description": "The conversation: the last exchanges, the speaker's current line, and your numbered responses (trades show what you give and get), Leave last. It keeps its newest lines in view; up and down look back. Allowed on: talk.",
+      "properties": {
+        "widget": {
+          "const": "conversation"
+        },
+        "trades": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show what a trade gives and takes, read from its take_item and give_item effects."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "talk"
       ]
     },
     "widget_skills": {
@@ -2698,7 +2837,7 @@
     },
     "widget_keys": {
       "type": "object",
-      "description": "The key hints for the current context, built from the key bindings. Allowed on: world, encounter, debrief, fitting, character.",
+      "description": "The key hints for the current context, built from the key bindings. Allowed on: world, encounter, debrief, fitting, character, talk.",
       "properties": {
         "widget": {
           "const": "keys"
@@ -2713,7 +2852,8 @@
         "encounter",
         "debrief",
         "fitting",
-        "character"
+        "character",
+        "talk"
       ]
     }
   }

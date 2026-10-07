@@ -193,5 +193,36 @@
         "widget": "keys"
       }
     }
+  ],
+  "talk": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "row": [
+          {
+            "widget": "portrait"
+          },
+          {
+            "widget": "identity"
+          }
+        ],
+        "fixed": "left"
+      },
+      "priority": 1
+    },
+    {
+      "content": {
+        "widget": "conversation"
+      }
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
   ]
 }
