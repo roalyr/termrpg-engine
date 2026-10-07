@@ -240,7 +240,15 @@ Steps, each one playable and tested:
    - X leaves.
 6. **Fights:** action details before use, fighters' statuses, the chosen target
    highlighted, tile names that fit.
-7. **Messages:** message history, and long event texts in the panel.
+7. **Messages:** message history, and long event texts in the panel. Agreed layout:
+   - **history:** a new key (L by default) opens the messages in the shared panel,
+     newest at the bottom, grouped under day and shift headings, scrolling with the
+     slider; X closes it. The last ~200 lines are kept in the game state and saved,
+     so they survive quitting; replays stay identical;
+   - **event cards:** an event that asks a question, or whose text is longer than a
+     few lines (a UI pack size, 3 lines by default), opens as a card in the panel:
+     the event's name as the title, its text, then the question and numbered
+     choices (or a key to continue). Short event texts stay in the message log.
 8. **Around the game:** a start screen (new game, continue, save slots), a help and
    keys screen, quit confirmation.
 9. **Polish pass:** item names coloured by grade, small-screen behaviour, consistent
