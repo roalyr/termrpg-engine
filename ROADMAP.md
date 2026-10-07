@@ -166,10 +166,24 @@ work and content work are cleanly separated: after this milestone, the game pack
 should need content only. The test pack grows as each step needs it (item
 descriptions, statuses on enemies, an ally, a long event text, richer dialogue).
 
+**The guiding principle is visual clarity.** Every step is checked against it:
+- one clear focus at a time: what you're looking at or choosing stands out, the rest
+  steps back;
+- a plain hierarchy: a title, then sections with headings, then entries; aligned
+  columns for numbers;
+- no cut-off words: text wraps or the layout adapts; long names get short forms;
+- colour means something (danger, gain, unavailable, grade), never decoration, and
+  everything still reads without colour;
+- the keys that work right now are always shown.
+
 Decided:
 - **One shared panel** for sub-windows (inspect, item details, dialogue, help, message
-  history): it takes over the lower area, the map stays visible above. Up and down
-  scroll it, a small slider shows where you are, close leaves it.
+  history): it takes over the lower area, the map stays visible above.
+- **Up and down are contextual.** They move the player while no sub-window is open;
+  while one is open they scroll it, until it is closed. Left and right do nothing
+  there, and moving never closes a sub-window: only the close key does.
+- **Long pages get a vertical slider** at their right edge, showing where you are; up
+  and down move it.
 - **Start, help and quit screens** are part of the milestone.
 - **Trading stays pack-written interactions**; the UI only shows them more clearly.
   No trade screen or prices.
