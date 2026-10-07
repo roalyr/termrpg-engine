@@ -896,6 +896,9 @@ widget catalogue and `tui/layout.py` lays out the zones. `python3 play.py --ui
 ("go", "talk", "inspect", "fit", "dismantle"…) carry a kind and parameters, and the
 UI pack's words turn them into text.
 
+`schemas/ui.schema.json` is generated: edit `tools/gen_ui_schema.py` and run
+`python3 tools/gen_ui_schema.py`; a test fails when the two drift apart.
+
 **Every field has a default, and the defaults are the standard look.** A UI pack only
 writes what it changes; an empty file of a kind means "all standard".
 

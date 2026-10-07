@@ -13,6 +13,16 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_UI = ROOT / "packs" / "ui" / "default"
 
 
+class TestSchemaGenerator(unittest.TestCase):
+    def test_the_committed_schema_is_generated(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("gen_ui_schema", ROOT / "tools" / "gen_ui_schema.py")
+        gen = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gen)
+        committed = (ROOT / "schemas" / "ui.schema.json").read_text(encoding="utf-8")
+        self.assertEqual(gen.text(), committed, "edit tools/gen_ui_schema.py and run it, not the schema")
+
+
 class TestDefaultUi(unittest.TestCase):
     def test_default_ui_pack_is_valid(self):
         report = uipack.validate_ui_pack(DEFAULT_UI)
