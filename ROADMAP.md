@@ -16,8 +16,11 @@ says how to work on the project.
 - [x] Milestone 4: encounters
 - [x] Milestone 5: crafting
 - [x] Milestone 6: living world
-- [ ] Milestone 7: first game pack
-- [ ] **Version 1.0**: the first clean version of the game, after milestone 7
+- [x] UI packs: the look, layout, keys and the UI's words as data
+- [x] Hardening: random play, a code review and its fixes, plain names in the test pack
+- [ ] Milestone 7: UI overhaul
+- [ ] Milestone 8: first game pack
+- [ ] **Version 1.0**: the first clean version of the game, after milestone 8
 
 ## Principles
 
@@ -156,7 +159,40 @@ Every milestone ends with something that runs and is tested, and with two chores
   and a one-time event. `tests/test_engine_events.py` covers casting, firing,
   triggers, limits and saves.
 
-### 7. First game pack → version 1.0
+### 7. UI overhaul
+
+Polish every screen, menu and sub-window before writing a real game pack, so engine
+work and content work are cleanly separated: after this milestone, the game pack
+should need content only. The test pack grows as each step needs it (item
+descriptions, statuses on enemies, an ally, a long event text, richer dialogue).
+
+Decided:
+- **One shared panel** for sub-windows (inspect, item details, dialogue, help, message
+  history): it takes over the lower area, the map stays visible above. Up and down
+  scroll it, a small slider shows where you are, close leaves it.
+- **Start, help and quit screens** are part of the milestone.
+- **Trading stays pack-written interactions**; the UI only shows them more clearly.
+  No trade screen or prices.
+
+Steps, each one playable and tested:
+
+1. **Sub-windows:** the shared panel (scrolling, slider, keys from the UI pack), and
+   Inspect for places and people in it.
+2. **Items:** an item detail view from the fitting board and storage (description,
+   stats, power and mass use, tags, mods, grade, condition); what designs need and
+   what modifications add before they're applied.
+3. **Character sheet:** loadout and budgets, statuses, skills with their next level,
+   party and standing.
+4. **People:** a dialogue window; trades showing what you give and get.
+5. **Fights:** action details before use, fighters' statuses, the chosen target
+   highlighted, tile names that fit.
+6. **Messages:** message history, and long event texts in the panel.
+7. **Around the game:** a start screen (new game, continue, save slots), a help and
+   keys screen, quit confirmation.
+8. **Polish pass:** item names coloured by grade, small-screen behaviour, consistent
+   wording, UI pack docs, the playtest.
+
+### 8. First game pack → version 1.0
 
 - Write Station A, the shuttle and the Moon as `packs/game`, in the new format and
   to the new design.
