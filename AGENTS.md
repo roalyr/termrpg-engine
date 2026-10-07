@@ -234,6 +234,10 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 
 - Labels (`name`, `label`) are at most 32 characters. An action's `short` is at
   most 8. `art` is at most 10 lines of 21 characters.
+- A `portrait` is pixel letters plus a palette: every row the same length, every
+  letter in the palette, a space or `.` for see-through; up to 24 by 24 pixels. The
+  default character screen shows 12 by 12 (6 lines), centred. Draw for the shape
+  first: without colour only the silhouette shows.
 - A text that is exactly `@` plus an id shows that entry from `strings.json`.
 - Engine messages in `strings.json` may only use their own placeholders:
   `explain engine` lists them. Write all of them: a missing one shows as its key.

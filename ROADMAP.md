@@ -221,8 +221,10 @@ Steps, each one playable and tested:
      before one is applied;
    - up and down move the pick through the list (empty slots skipped); digits jump
      to an entry; the list pages past nine entries.
-4. **Character screen:** a full screen with skills and their next levels, stats,
-   statuses, party and standing.
+4. ✓ **Character screen:** a full screen with skills and their next levels, stats,
+   statuses, party and standing, and a portrait zone: characters may have a pixel
+   `portrait`, drawn with half-block characters (an empty frame keeps the place
+   without one).
 5. **People:** a dialogue window; trades showing what you give and get.
 6. **Fights:** action details before use, fighters' statuses, the chosen target
    highlighted, tile names that fit.

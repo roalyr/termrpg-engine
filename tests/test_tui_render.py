@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from core.pack import validate_pack
 from engine import build, encounter, world
 from engine.content import load_pack
 from engine.effects import run
@@ -69,7 +70,7 @@ def screens():
         ("choice", choice_state(), {}),
         ("board", new_game(CONTENT, 1), {"panel": "pack"}),
         ("board picked", new_game(CONTENT, 1), {"panel": "pack", "selected": 3}),
-        ("sheet", new_game(CONTENT, 1), {"panel": "character"}),
+        ("sheet", new_game(CONTENT, 1), {"screen": "character"}),
         ("inspect", bench_state(), {"panel": "inspect"}),
         ("fitting", bench_state(), {"screen": "fitting", "selected": 1}),
         ("fitting modify", bench_state(), {"screen": "fitting", "selected": 1, "panel": "modify"}),
@@ -242,9 +243,10 @@ class TestSubWindows(unittest.TestCase):
         s = new_game(CONTENT, 1)
         _, view, _ = app.handle(CONTENT, s, "c", app.View(), UI)
         moved, view, _ = app.handle(CONTENT, s, "s", view, UI)
-        self.assertEqual((moved.characters[s.player].at, view.panel), (s.characters[s.player].at, "character"))
+        self.assertEqual((moved.characters[s.player].at, view.screen, view.scroll),
+                         (s.characters[s.player].at, "character", 1))
         _, view, _ = app.handle(CONTENT, s, "c", view, UI)
-        self.assertIsNone(view.panel)
+        self.assertEqual(view, app.View())
 
     def test_the_pack_panel_turns_pages_with_up_and_down(self):
         s = new_game(CONTENT, 1)
@@ -418,6 +420,98 @@ class TestFittingScreen(unittest.TestCase):
     def test_the_pick_shows_without_colour(self):
         frame = render.render(CONTENT, bench_state(), 44, 60, colour=False, screen="fitting", selected=1, ui=UI)
         self.assertIn(UI.tokens["glyphs"]["cursor"] + "   Hand  2 Cutter", frame)
+
+
+class TestCharacterScreen(unittest.TestCase):
+    """Step 4: the character screen, with its portrait zone."""
+
+    def frame(self, state, columns=44, rows=60, **kw):
+        return plain(state, columns, rows, screen="character", **kw)
+
+    def pack_copy(self, change):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        folder = Path(tmp.name) / "test"
+        shutil.copytree(ROOT / "packs" / "test", folder)
+        path = folder / "characters.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        change(next(e for e in data["entries"] if e["id"] == "char_player"))
+        path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        return folder
+
+    def test_the_portrait_is_drawn_in_half_block_pixels(self):
+        s = new_game(CONTENT, 1)
+        coloured = render.render(CONTENT, s, 44, 60, screen="character", ui=UI)
+        style = Style(True, UI.tokens["styles"])
+        self.assertIn(style.pixels("▀", 31, 255), coloured)          # visor over its glint: two colours in one cell
+        self.assertIn(style.pixels("█", 166, None), coloured)        # the suit: both halves the same colour
+        frame = self.frame(s)
+        self.assertIn("▄██████▄", frame)                              # without colour, the shape
+        width = UI.tokens["size"]["portrait_width"] + 2
+        self.assertIn("┌" + "─" * (width - 2) + "┐", frame)
+
+    def test_without_a_portrait_the_zone_is_kept(self):
+        content = load_pack(self.pack_copy(lambda player: player.pop("portrait")))
+        frame = ANSI.sub("", render.render(content, new_game(content, 1), 44, 60, screen="character", ui=UI))
+        lines = frame.splitlines()
+        box = [line for line in lines if line.startswith("││")]
+        self.assertEqual(len(box), UI.tokens["size"]["portrait_height"] // 2)
+        self.assertTrue(any("P" in line[:16] for line in box))       # the initial, in the middle
+
+    def test_the_checker_reads_portraits(self):
+        def broken(player):
+            player["portrait"]["rows"][0] += "x"
+        errors = validate_pack(self.pack_copy(broken)).errors
+        self.assertTrue(any("rows have different lengths" in e for e in errors), errors)
+        self.assertTrue(any("not in the palette: x" in e for e in errors), errors)
+
+    def test_skills_show_progress_and_what_comes_next(self):
+        s = new_game(CONTENT, 1)
+        frame = self.frame(s)
+        self.assertIn("Salvage 1", frame)
+        self.assertIn("0/30", frame)
+        self.assertIn("next, 2: Unlocks Burn.", frame)
+        s = run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "grant_xp", "skill": "skill_salvage", "amount": 45,
+                                                             "subject": "self"})])
+        frame = self.frame(s)
+        self.assertIn("Salvage 2", frame)
+        self.assertIn("45/90", frame)
+        self.assertIn("next, 3: Tougher.", frame)
+
+    def test_stats_conditions_party_and_standing(self):
+        s = new_game(CONTENT, 1)
+        s = run(CONTENT, s, Ctx(self_id=s.player), [
+            freeze({"op": "apply_status", "status": "status_burning", "duration": 3, "subject": "self"})])
+        s = run(CONTENT, s, Ctx(self_id="char_juno"), [freeze({"op": "join_party", "subject": "self"})])
+        frame = self.frame(s)
+        for words in ("ARM 2", "INI 0", "Burning", "3 turns left", "Juno", "Rank: Newcomer",
+                      "Station crew: neutral (0)"):
+            self.assertIn(words, frame)
+        self.assertNotIn("Travelling alone", frame)
+        s = run(CONTENT, s, Ctx(self_id="char_juno"), [
+            freeze({"op": "damage", "amount": 999, "damage_type": "dmg_impact", "subject": "self"})])
+        self.assertIn("down", self.frame(s))
+
+    def test_it_scrolls_on_small_screens(self):
+        s = new_game(CONTENT, 1)
+        limit = render.max_scroll(CONTENT, s, 40, 20, screen="character")
+        self.assertGreater(limit, 0)
+        self.assertIn("↑↓ scroll", self.frame(s, 40, 20))
+        self.assertIn("Station crew", self.frame(s, 40, 20, scroll=limit))
+        self.assertNotIn("Station crew", self.frame(s, 40, 20))
+
+    def test_the_portrait_size_comes_from_the_ui_pack(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        ui_dir = Path(tmp.name) / "mine"
+        shutil.copytree(ui_dir_for("default"), ui_dir)
+        path = ui_dir / "tokens.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data.setdefault("size", {}).update(portrait_width=16, portrait_height=14)
+        path.write_text(json.dumps(data), encoding="utf-8")
+        frame = plain(new_game(CONTENT, 1), ui=load_ui(ui_dir), screen="character")
+        self.assertIn("┌" + "─" * 16 + "┐", frame)
+        self.assertEqual(len([line for line in frame.splitlines() if line.startswith("││")]), 7)
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):

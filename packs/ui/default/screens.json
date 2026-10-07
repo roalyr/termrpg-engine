@@ -37,9 +37,6 @@
             "widget": "board"
           },
           {
-            "widget": "sheet"
-          },
-          {
             "widget": "menu"
           },
           {
@@ -150,6 +147,46 @@
         ]
       },
       "hide_when_empty": false
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
+  ],
+  "character": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "row": [
+          {
+            "widget": "portrait"
+          },
+          {
+            "widget": "identity"
+          }
+        ],
+        "fixed": "left"
+      }
+    },
+    {
+      "content": {
+        "stack": [
+          {
+            "widget": "skills"
+          },
+          {
+            "widget": "stats"
+          },
+          {
+            "widget": "people"
+          }
+        ]
+      }
     },
     {
       "content": {

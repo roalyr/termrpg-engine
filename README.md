@@ -692,6 +692,7 @@ One record serves the player's character, NPCs, companions and enemies.
 |---|---|
 | `name`, `title`, `description`, `glyph` | The glyph defaults to the first letter of the name |
 | `art` | A picture of up to 10 lines of 21 characters, shown during encounters |
+| `portrait` | A small pixel picture for the character screen: `rows` of pixel letters (all the same length, up to 24 by 24; a space or `.` is see-through) and a `palette` from each letter to a palette colour or a 256-colour number. Two pixel rows share a line (half-block characters); without colour only the shape shows. The checker makes sure rows match and every letter is in the palette |
 | `tags`, `faction`, `rank` | |
 | `template` | Generic character that encounters and zones spawn copies of; has no location |
 | `location`, `at` | Where a unique character starts; `at` must be a free floor tile |
@@ -913,8 +914,8 @@ win key by key; word entries add up):
 
 | Kind | Holds |
 |---|---|
-| `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, fitting-board page size), `padding`, `glyphs` (the border set, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
-| `screens` | Each screen (`world`, `encounter`, `debrief`, `fitting`) as zones, top to bottom |
+| `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the portrait's width and height in pixels), `padding`, `glyphs` (the border set, the list cursor, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
+| `screens` | Each screen (`world`, `encounter`, `debrief`, `fitting`, `character`) as zones, top to bottom |
 | `keys` | `bindings` (action → key) and `hints` (what each context shows) |
 | `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |
 
@@ -930,7 +931,7 @@ compact forms (action tiles as a list, fighters without the gap between the side
 the enemy's picture without its frame), and as a last resort the tallest zones lose
 their last lines: a frame never overflows the terminal.
 
-**Sub-windows.** Inspect (the `panel` widget) and the character sheet open as
+**Sub-windows.** Inspect and the item details (the `panel` widget) open as
 sub-windows in their zone, and while one is open it is the only focus: the log and
 the menu step back. Its zone is flexible: low-priority zones are still dropped to
 make room for it, then it takes every row the other zones leave. When its content is
@@ -964,6 +965,12 @@ details for whatever is picked there.
 - close goes back a level: from the details or the modifications to the list, from
   the list to the world. After an action the pick follows the item wherever it went.
 
+**The character screen** (C) is a full screen: the title, the portrait beside the
+identity (name, title, faction and rank, health and heat), then a body that scrolls
+with up and down: skills with their progress and next level, stats, conditions,
+party and standing. The portrait zone always keeps its place, sized by the UI pack's
+`portrait_width` and `portrait_height`.
+
 **The pack panel keeps its pick.** Numbers shift when an item is stored or taken,
 because entries are grouped by where they are. After an action the panel keeps the
 same item picked at its new number (or drops the pick when the item is gone).
@@ -981,10 +988,14 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `menu` | What can be done with the thing in focus | world | `hints` |
 | `choice` | A choice waiting for an answer | world, encounter | `hints` |
 | `board` | The pack panel: what you carry and storage within reach | world | `budgets` |
-| `sheet` | The character sheet | world | — |
 | `tiles` | Action tiles | encounter | `per_row` (0 = fit) |
 | `fighters` | Both sides with bars and intents | encounter | `intent` |
 | `art` | The enemy's picture | encounter | `frame` |
+| `portrait` | The player's portrait in half-block pixels; an empty frame of the same size without one | character | `frame` |
+| `identity` | Name, title, faction and rank, the pool bars | character | — |
+| `skills` | Each skill: level, a bar to the next level, what the next level brings | character | — |
+| `stats` | Derived stats in columns; conditions with the turns they have left | character | — |
+| `people` | The party with their health; your rank and how factions regard you | character | — |
 | `panel` | The shared panel: what Inspect shows (name, a person's title or an object's state, description), or an item's details | world | `slider` |
 | `budgets` | Power, mass, heat and cargo as bars | fitting | — |
 | `loadout` | The fitting list: worn by slot, spare gear, designs | fitting | — |

@@ -50,7 +50,7 @@ The key hints at the bottom of the screen always show the keys that work right n
   moving; on a short terminal a slider shows where you are, and "↑↓ scroll" appears
   only when there's more to see. Left and right do nothing. X closes it and returns
   to the menu; then up and down move again.
-- [ ] The same holds for the character sheet (C closes it) and the pack panel, where
+- [ ] The same holds for the character screen (C closes it) and the pack panel, where
   up and down turn pages when there's more than one.
 
 ## 3. Interactions
@@ -70,7 +70,7 @@ The key hints at the bottom of the screen always show the keys that work right n
 - [ ] A recruited companion leaves the map, follows you between rooms, shows in the
   status panel, and fights on your side.
 
-## 5. The pack, the fitting screen and the character sheet
+## 5. The pack, the fitting screen and the character screen
 
 - [ ] The pack panel (P) shows cargo, then what you carry and, next to storage, what's
   stored, numbered; picking a number shows take, store and use. No fitting there.
@@ -95,8 +95,12 @@ The key hints at the bottom of the screen always show the keys that work right n
 - [ ] After an action the same item stays picked at its new number (store an item, then
   take it back without picking it again); it's unpicked when the item is gone.
 - [ ] Removing or fitting gear away from a refit workshop is refused with a hint.
-- [ ] The character sheet shows skills with experience progress and the derived
-  stats.
+- [ ] The character screen (C) shows your portrait in half-block pixels beside your
+  name, rank and health and heat bars; then skills with a progress bar and what the
+  next level brings, stats in columns, conditions with turns left, the party with
+  health (or "down"), your rank and how the station crew regards you. Up and down
+  scroll it on a short terminal; C or X closes it. With colour off the portrait is a
+  silhouette.
 
 ## 6. Doors and exits
 

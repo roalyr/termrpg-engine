@@ -17,7 +17,7 @@
     "pack_stored": "In {container}:",
     "pack_designs": "Designs:",
     "pack_more": "Page {page}/{pages}",
-    "character_title": "{name}",
+    "character_title": "Character · {name}",
     "day_phase": "Day {day} · {phase}",
     "party": "With: {names}",
     "encounter_round": "{encounter} · round {round}",
@@ -69,7 +69,21 @@
     "modify_title": "Modify: {item}",
     "modify_none": "No modification fits this item.",
     "mod_condition": "condition {amount}",
-    "mod_uses": "{stat} use {amount}"
+    "mod_uses": "{stat} use {amount}",
+    "skills_heading": "Skills",
+    "skill_next": "next, {level}: {text}",
+    "skill_top": "top level",
+    "skills_none": "No skills yet.",
+    "stats_heading": "Stats",
+    "conditions_heading": "Conditions",
+    "conditions_none": "None",
+    "condition_turns": "{turns} turns left",
+    "party_heading": "Party",
+    "party_alone": "Travelling alone",
+    "party_down": "down",
+    "standing_heading": "Standing",
+    "standing_rank": "Rank: {rank}",
+    "standing_view": "{faction}: {level} ({value})"
   },
   "entries": [
     {

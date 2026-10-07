@@ -25,19 +25,20 @@ OUT = Path(__file__).resolve().parent.parent / "schemas" / "ui.schema.json"
 
 PALETTE = ["grey", "white", "green", "cyan", "blue", "violet", "yellow", "orange", "red"]
 SCREENS = {"world": "Walking around.", "encounter": "A fight.", "debrief": "The after-action screen at the end of a fight.",
-           "fitting": "The fitting screen: the loadout, spare gear and designs, and building."}
+           "fitting": "The fitting screen: the loadout, spare gear and designs, and building.",
+           "character": "The character screen: who you are, skills, stats, conditions, party and standing."}
 ACTIONS = {
  "move_north": ("w", "Step up; scrolls an open sub-window up."), "move_west": ("a", "Step left."),
  "move_south": ("s", "Step down; scrolls an open sub-window down."),
  "move_east": ("d", "Step right."), "wait": (".", "Let a turn pass."),
  "pack": ("p", "Open or close the pack: what you carry, and storage within reach."),
  "fitting": ("f", "Open the fitting screen. It may share its key with Fit, which only works on that screen."),
- "character": ("c", "Open or close the character sheet."), "close": ("x", "Close the menu, panel or target choice."),
+ "character": ("c", "Open or close the character screen."), "close": ("x", "Close the menu, panel or target choice."),
  "quit": ("q", "Save and quit."), "next_page": ("]", "Next page of the fitting board."),
 }
 CONTEXTS = {
  "walk": "Walking with nothing in focus.", "menu": "A menu is open.", "choice": "A choice waits for an answer.",
- "pack": "The fitting board is open.", "sheet": "The character sheet is open.", "encounter": "Picking an action tile.",
+ "pack": "The pack panel is open.", "sheet": "The character screen is open.", "encounter": "Picking an action tile.",
  "target": "Picking a target for an action.", "debrief": "The after-action screen.",
  "panel": "The shared panel is open (what Inspect shows).",
  "item": "An item's details are open.",
@@ -72,7 +73,6 @@ WIDGETS = {
      "hints": flag(True, "Show why unavailable options can't be picked.")}),
  "board": (["world"], "The fitting board: budgets, items by where they are, the picked item's options.", {
      "budgets": flag(True, "Show the power, mass and cargo line.")}),
- "sheet": (["world"], "The character sheet: skills with experience, and stats.", {}),
  "tiles": (["encounter"], "The player's action tiles.", {
      "per_row": intval(0, 0, 9, "Tiles per row; 0 fits as many as the width allows.")}),
  "fighters": (["encounter"], "Both sides with health bars, and the enemies' intents.", {
@@ -81,6 +81,12 @@ WIDGETS = {
      "frame": flag(True, "Draw a frame around it.")}),
  "panel": (["world", "fitting"], "The shared panel for details, such as what Inspect shows: a title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it.", {
      "slider": flag(True, "Draw a slider at the right edge when the content is longer than the panel.")}),
+ "portrait": (["character"], "The character's portrait: pixels drawn with half-block characters, two per text cell. Without one, an empty frame of the same size keeps the place.", {
+     "frame": flag(True, "Draw a frame around it.")}),
+ "identity": (["character"], "Name, title, faction and rank, and the pool bars.", {}),
+ "skills": (["character"], "Each skill with its level, progress to the next, and what the next level brings.", {}),
+ "stats": (["character"], "The derived stats, and conditions (statuses) with the turns they have left.", {}),
+ "people": (["character"], "Who travels with you, with their health, and how the factions regard you.", {}),
  "budgets": (["fitting"], "Power, mass, heat and cargo as bars: used of what the loadout provides.", {}),
  "loadout": (["fitting"], "The fitting screen's list: what's worn by slot (empty slots too), spare gear, designs. Up and down move the pick; the list scrolls to keep it in view.", {}),
  "pick": (["fitting"], "The picked entry: what it is, what its action would change, and its action keys; or the modifications that apply to it.", {}),
@@ -119,7 +125,9 @@ size = obj("Sizes, in terminal cells.", {
    "bar_length": intval(8, 3, 16, "Length of a pool bar in the status panel."),
    "fighter_bar_length": intval(6, 3, 16, "Length of a health bar in the fighters panel."),
    "side_min_width": intval(14, 8, 60, "The narrowest the panel beside the grid or the art may get."),
-   "page_size": intval(9, 1, 9, "Entries per page of the fitting board (picked with 1-9).")}, default={})
+   "page_size": intval(9, 1, 9, "Entries per page of the pack panel (picked with 1-9)."),
+   "portrait_width": intval(12, 4, 24, "Width of the portrait zone, in pixels (one text column each)."),
+   "portrait_height": intval(12, 4, 24, "Height of the portrait zone, in pixels (two per line of text).")}, default={})
 border = obj("The box-drawing set.", {k: char(v, f"The {k.replace('_', ' ')} piece.", 1) for k, v in (
    ("horizontal", "─"), ("vertical", "│"), ("top_left", "┌"), ("top_right", "┐"), ("bottom_left", "└"),
    ("bottom_right", "┘"), ("join_left", "├"), ("join_right", "┤"))}, default={})
@@ -170,7 +178,21 @@ WORDS = {
  "pack_stored": ("Board heading: storage within reach.", ["container"]),
  "pack_designs": ("Board heading: known designs, near a fabricating workshop.", []),
  "pack_more": ("Board: more pages.", ["page", "pages"]),
- "character_title": ("Sheet heading.", ["name"]),
+ "character_title": ("Character screen title.", ["name"]),
+ "skills_heading": ("Character screen heading: skills.", []),
+ "skill_next": ("Character screen: what the next level of a skill brings.", ["level", "text"]),
+ "skill_top": ("Character screen: a skill at its top level.", []),
+ "skills_none": ("Character screen: no skills yet.", []),
+ "stats_heading": ("Character screen heading: stats.", []),
+ "conditions_heading": ("Character screen heading: conditions (statuses).", []),
+ "conditions_none": ("Character screen: no conditions.", []),
+ "condition_turns": ("Character screen: turns a condition has left.", ["turns"]),
+ "party_heading": ("Character screen heading: the party.", []),
+ "party_alone": ("Character screen: travelling alone.", []),
+ "party_down": ("Character screen: a companion who is down.", []),
+ "standing_heading": ("Character screen heading: standing.", []),
+ "standing_rank": ("Character screen: your rank.", ["rank"]),
+ "standing_view": ("Character screen: how a faction regards you.", ["faction", "level", "value"]),
  "day_phase": ("Status: the day and part of the day.", ["day", "phase"]),
  "party": ("Status: who travels with the player.", ["names"]),
  "encounter_round": ("Encounter title with the round about to be played.", ["encounter", "round"]),

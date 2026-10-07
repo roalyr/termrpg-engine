@@ -64,6 +64,8 @@ def handle(content: Content, state: GameState, key: str, view: View = View(), ui
         return events.settle(content, state), view, False
     if view.screen == "fitting":
         state, view = _fitting(content, state, key, action, view, ui)
+    elif view.screen == "character":
+        state, view = state, _character(action, view)
     else:
         state, view = _world(content, state, key, action, view, ui)
     return events.settle(content, state), view, False
@@ -96,6 +98,8 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
         return state, _scrolling(action, view)
     if action == "fitting" and view.panel is None:
         return state, View(screen="fitting", selected=0)
+    if action == "character" and view.panel is None:
+        return state, View(screen="character")
     if action in ("pack", "character"):
         return state, View() if view.panel == action else View(action)
     if action == "close":
@@ -190,8 +194,19 @@ def _follow_pick(content: Content, before: GameState, after: GameState, slot, se
     return max(0, min(selected, len(pickable) - 1))
 
 
+def _character(action: Optional[str], view: View) -> View:
+    """The character screen: up and down scroll it; close or its own key leave it."""
+    if action in ("close", "character"):
+        return View()
+    if action == "move_north":
+        return view._replace(scroll=max(0, view.scroll - 1))
+    if action == "move_south":
+        return view._replace(scroll=view.scroll + 1)              # kept within the content when drawn
+    return view
+
+
 # Sub-windows that scroll line by line, and the key that closes each besides 'close'.
-SCROLLING = {"inspect": None, "character": "character", "item": "pack"}
+SCROLLING = {"inspect": None, "item": "pack"}
 
 
 def _scrolling(action: Optional[str], view: View) -> View:

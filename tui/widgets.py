@@ -6,7 +6,7 @@ lines. Widgets without anything to show return no lines.
 Words come from two places: the game's voice from the content pack, the UI's labels and
 headings from the UI pack. Sizes, glyphs and styles come from the UI pack's tokens.
 """
-from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional
+from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional, Tuple
 
 from engine import build, conditions, context, encounter, stats, world
 from engine.content import Content
@@ -46,9 +46,9 @@ Draw = Callable[[Frame, int, Mapping[str, Any]], List[str]]
 
 # Sub-windows: what's open (Frame.panel) and the widget that shows it. While one is open
 # it is the focus: its zone scrolls, and the log and menu step back.
-SUBWINDOWS = {"inspect": "panel", "item": "panel", "character": "sheet", "modify": "pick"}
+SUBWINDOWS = {"inspect": "panel", "item": "panel", "modify": "pick"}
 # List screens: with no sub-window open, this widget's zone scrolls to keep the pick in view.
-LISTS = {"fitting": "loadout"}
+LISTS = {"fitting": "loadout", "character": "skills"}
 FOCUS = "\x00"   # marks the picked line of a list for the layout; never drawn
 
 
@@ -102,6 +102,9 @@ def title(frame: Frame, width: int, options: Mapping) -> List[str]:
     if frame.screen == "debrief":
         debrief = state.debrief
         return [style.role(debrief.title, "danger" if debrief.result == "lost" else "title")]
+    if frame.screen == "character":
+        me = state.characters[state.player]
+        return [style.role(frame.ui.word("character_title", name=content.get("character", me.source)["name"]), "title")]
     if frame.screen == "fitting":
         me = state.characters[state.player]
         name = frame.ui.word("fitting_title", frame=stats.item_view(content, me.frame)["name"]) if me.frame \
@@ -184,14 +187,7 @@ def status(frame: Frame, width: int, options: Mapping) -> List[str]:
     else:
         shown = [content.stat_roles[r] for r in pools if r in content.stat_roles
                  and content.get("stat", content.stat_roles[r]).get("kind") == "pool"]
-    length = frame.size["bar_length"]
-    for stat_id in shown:
-        record = content.get("stat", stat_id)
-        top, now = stats.stat(content, player, stat_id), stats.current(content, player, stat_id)
-        label = record.get("short") or record["name"][:3]
-        line = f"{label:<4}{bar(frame, now, top, length)} {int(now)}/{int(top)}"
-        low = (record.get("role") == "health" and now <= top / 3) or (record.get("role") == "heat" and now >= top * 0.8)
-        lines.append(style.role(line, "danger") if low else line)
+    lines += _pool_lines(frame, player, shown)
     if options.get("statuses", True):
         for inst in player.statuses:
             record = content.get("status", inst.status)
@@ -201,6 +197,21 @@ def status(frame: Frame, width: int, options: Mapping) -> List[str]:
     if party and options.get("party", True):
         names = ", ".join(content.get("character", state.characters[c].source)["name"] for c in party)
         lines += wrap(frame.ui.word("party", names=names), width)
+    return lines
+
+
+def _pool_lines(frame: Frame, cs, shown: List[str]) -> List[str]:
+    """One bar per pool stat: 'HP  ████████ 30/30', low health or high heat in the warning colour."""
+    content, lines = frame.content, []
+    for stat_id in shown:
+        record = content.get("stat", stat_id)
+        top, now = stats.stat(content, cs, stat_id), stats.current(content, cs, stat_id)
+        if top <= 0:
+            continue
+        label = record.get("short") or record["name"][:3]
+        line = f"{label:<4}{bar(frame, now, top, frame.size['bar_length'])} {int(now)}/{int(top)}"
+        low = (record.get("role") == "health" and now <= top / 3) or (record.get("role") == "heat" and now >= top * 0.8)
+        lines.append(frame.style.role(line, "danger") if low else line)
     return lines
 
 
@@ -330,25 +341,6 @@ def _item_line(content: Content, inst) -> str:
     if inst.condition is not None:
         text += f" {inst.condition}/{view['max_condition']}"
     return text
-
-
-def sheet(frame: Frame, width: int, options: Mapping) -> List[str]:
-    content, state = frame.content, frame.state
-    if frame.panel != "character" or state.pending is not None:
-        return []
-    player = state.characters[state.player]
-    lines = [frame.style.role(frame.ui.word("character_title", name=content.get("character", player.source)["name"]),
-                              "heading")]
-    top = content.settings["skill_max_level"]
-    for skill_id, level in player.skills.items():
-        skill = content.get("skill", skill_id)
-        following = [lv["xp"] for lv in skill["levels"] if level < lv["level"] <= top]
-        progress = f" ({player.xp.get(skill_id, 0)}/{min(following)})" if following else ""
-        lines += wrap(f"  {skill['name']} {level}{progress}", width)
-    for stat_id, stat in content.all("stat").items():
-        if stat.get("kind") != "pool":
-            lines += wrap(f"  {stat.get('short') or stat['name']} {stats.stat(content, player, stat_id):g}", width)
-    return lines
 
 
 # --- panel -----------------------------------------------------------------------------
@@ -709,6 +701,171 @@ def _adds(frame: Frame, adds: Mapping) -> List[str]:
     return parts
 
 
+# --- the character screen --------------------------------------------------------------
+
+def portrait_size(frame: Frame) -> Tuple[int, int]:
+    """The portrait zone in pixels: width (one column each) and height (two per line, rounded to even)."""
+    return frame.size["portrait_width"], frame.size["portrait_height"] + frame.size["portrait_height"] % 2
+
+
+def portrait_width(frame: Frame, options: Mapping) -> int:
+    return portrait_size(frame)[0] + (2 if options.get("frame", True) else 0)
+
+
+def portrait(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The player's portrait in half-block pixels, centred in a fixed zone; an empty frame without one."""
+    content, style = frame.content, frame.style
+    me = frame.state.characters[frame.state.player]
+    record = content.get("character", me.source)
+    pw, ph = portrait_size(frame)
+    grid = [[None] * pw for _ in range(ph)]                    # colour code per pixel, None = see-through
+    picture = record.get("portrait")
+    if picture:
+        rows = list(picture["rows"])[:ph]
+        top, left = (ph - len(rows)) // 2, (pw - max(len(r) for r in rows)) // 2
+        for y, row in enumerate(rows):
+            for x, letter in enumerate(row):
+                if letter not in " ." and 0 <= left + x < pw:
+                    grid[top + y][left + x] = _colour_code(picture["palette"][letter])
+    lines = []
+    for y in range(0, ph, 2):
+        cells = []
+        for x in range(pw):
+            upper, lower = grid[y][x], grid[y + 1][x]
+            if upper is None and lower is None:
+                cells.append(" ")
+            elif not style.colour:                              # the shape only
+                cells.append("█" if upper is not None and lower is not None else "▀" if upper is not None else "▄")
+            elif upper is None:
+                cells.append(style.pixels("▄", lower, None))
+            elif lower is None or lower == upper:
+                cells.append(style.pixels("█" if lower == upper else "▀", upper, None))
+            else:
+                cells.append(style.pixels("▀", upper, lower))
+        lines.append("".join(cells))
+    if not picture:                                             # the place kept: the initial in the middle
+        middle = len(lines) // 2
+        lines[middle] = pad(" " * ((pw - 1) // 2) + record["name"][0], pw)
+    if not options.get("frame", True):
+        return lines
+    border = frame.glyphs["border"]
+    edge = border["horizontal"] * pw
+    return ([border["top_left"] + edge + border["top_right"]]
+            + [border["vertical"] + line + border["vertical"] for line in lines]
+            + [border["bottom_left"] + edge + border["bottom_right"]])
+
+
+def _colour_code(colour) -> int:
+    from tui.text import PALETTE
+    return colour if isinstance(colour, int) else PALETTE.get(colour, PALETTE["white"])
+
+
+def identity(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """Name, title, faction and rank, then the pool bars."""
+    content, state, ui = frame.content, frame.state, frame.ui
+    me = state.characters[state.player]
+    record = content.get("character", me.source)
+    lines = [frame.style.role(line, "heading") for line in wrap(record["name"], width)]
+    if record.get("title"):
+        lines += styled_lines(content.text(record["title"]), width, frame, "quiet")
+    facts = []
+    if record.get("faction"):
+        facts.append(content.get("faction", record["faction"])["name"])
+    facts.append(_rank_name(content, me.rank))
+    lines += styled_lines(" · ".join(facts), width, frame, "quiet")
+    lines.append("")
+    pools = [sid for sid, rec in content.all("stat").items() if rec.get("kind") == "pool"]
+    return lines + _pool_lines(frame, me, pools)
+
+
+def _rank_name(content: Content, rank: int) -> str:
+    return next((r["name"] for r in content.ranks if r["rank"] == rank), str(rank))
+
+
+def skills(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """Each skill: level, progress to the next level as a bar, and what the next level brings."""
+    content, state, style, ui = frame.content, frame.state, frame.style, frame.ui
+    me = state.characters[state.player]
+    lines = [style.role(ui.word("skills_heading"), "heading")]
+    if not me.skills:
+        return lines + styled_lines(ui.word("skills_none"), width, frame, "quiet")
+    top = content.settings["skill_max_level"]
+    for skill_id, level in me.skills.items():
+        skill = content.get("skill", skill_id)
+        xp = me.xp.get(skill_id, 0)
+        ahead = sorted((lv for lv in skill["levels"] if level < lv["level"] <= top), key=lambda lv: lv["level"])
+        reached = max((lv["xp"] for lv in skill["levels"] if lv["level"] <= level), default=0)
+        name = f"{skill['name']} {level}"
+        if ahead:
+            goal = ahead[0]["xp"]
+            progress = f"{bar(frame, xp - reached, goal - reached, frame.size['bar_length'])} {xp}/{goal}"
+            lines.append(_right(name, progress, width))
+            nxt = ui.word("skill_next", level=ahead[0]["level"], text=content.text(ahead[0]["text"]))
+            lines += ["  " + line for line in styled_lines(nxt, width - 2, frame, "quiet")]
+        else:
+            lines.append(_right(name, style.role(ui.word("skill_top"), "quiet"), width))
+    return lines
+
+
+def stats_widget(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The derived stats in columns, then conditions with the turns they have left."""
+    content, state, style, ui = frame.content, frame.state, frame.style, frame.ui
+    me = state.characters[state.player]
+    lines = ["", style.role(ui.word("stats_heading"), "heading")]
+    entries = [f"{_stat_short(content, sid)} {stats.stat(content, me, sid):g}"
+               for sid, rec in content.all("stat").items() if rec.get("kind") != "pool"]
+    cell = max((len(e) for e in entries), default=0) + 2      # aligned columns
+    lines += [line.rstrip() for line in _pack([e.ljust(cell) for e in entries], width, "")] if entries else []
+    lines.append("")
+    lines.append(style.role(ui.word("conditions_heading"), "heading"))
+    if not me.statuses:
+        return lines + styled_lines(ui.word("conditions_none"), width, frame, "quiet")
+    for inst in me.statuses:
+        record = content.get("status", inst.status)
+        name = record["name"] + (f" x{inst.stacks}" if inst.stacks > 1 else "")
+        left = ui.word("condition_turns", turns=inst.turns_left) if inst.turns_left is not None else ""
+        line = _right(name, style.role(left, "quiet") if left else "", width)
+        lines.append(style.role(_plain(line), "danger") if record.get("harmful", True) else line)
+    return lines
+
+
+def people(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """Who travels with you, with their health; then your rank and how the factions regard you."""
+    content, state, style, ui = frame.content, frame.state, frame.style, frame.ui
+    lines = ["", style.role(ui.word("party_heading"), "heading")]
+    party = context.party_of(state, state.player)[1:]
+    if not party:
+        lines += styled_lines(ui.word("party_alone"), width, frame, "quiet")
+    health = content.stat_roles.get("health")
+    for cid in party:
+        cs = state.characters[cid]
+        name = content.get("character", cs.source)["name"]
+        if cs.down:
+            lines.append(_right(name, style.role(ui.word("party_down"), "danger"), width))
+        elif health:
+            now, top = stats.current(content, cs, health), stats.stat(content, cs, health)
+            lines.append(_right(name, f"{bar(frame, now, top, frame.size['bar_length'])} {int(now)}/{int(top)}", width))
+    lines.append("")
+    lines.append(style.role(ui.word("standing_heading"), "heading"))
+    me = state.characters[state.player]
+    lines += wrap(ui.word("standing_rank", rank=_rank_name(content, me.rank)), width)
+    from engine.state import char_key, faction_key
+    for faction_id, faction in content.all("faction").items():
+        value = context.relation(content, state, faction_key(faction_id), char_key(state.player))
+        lines += wrap(ui.word("standing_view", faction=faction["name"], level=_relation_name(content, value),
+                              value=value), width)
+    return lines
+
+
+def _relation_name(content: Content, value: int) -> str:
+    levels = content.relation_levels
+    name = levels[0]["name"] if levels else ""
+    for level in levels:
+        if value >= level["min"]:
+            name = level["name"]
+    return name
+
+
 # --- encounter widgets -----------------------------------------------------------------
 
 def art_width(frame: Frame, options: Mapping) -> int:
@@ -808,7 +965,7 @@ def hint_context(frame: Frame) -> str:
         return "target" if frame.selected is not None else "encounter"
     if frame.panel == "pack":
         return "pack"
-    if frame.panel == "character":
+    if frame.screen == "character":
         return "sheet"
     if frame.panel == "inspect":
         return "panel"
@@ -891,9 +1048,11 @@ def _works(frame: Frame, context: str, actions) -> bool:
 
 WIDGETS: Dict[str, Draw] = {
     "title": title, "grid": grid, "status": status, "legend": legend, "log": log, "menu": menu,
-    "choice": choice, "board": board, "sheet": sheet, "tiles": tiles, "fighters": fighters,
+    "choice": choice, "board": board, "tiles": tiles, "fighters": fighters,
     "art": art, "keys": keys, "panel": panel, "budgets": budgets, "loadout": loadout, "pick": pick,
+    "portrait": portrait, "identity": identity, "skills": skills, "stats": stats_widget, "people": people,
 }
 
 # Widgets with a natural width of their own (the rest take the width they're given).
-NATURAL_WIDTH: Dict[str, Callable[[Frame, Mapping], int]] = {"grid": grid_width, "art": art_width}
+NATURAL_WIDTH: Dict[str, Callable[[Frame, Mapping], int]] = {"grid": grid_width, "art": art_width,
+                                                              "portrait": portrait_width}

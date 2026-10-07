@@ -241,7 +241,7 @@ class TestScreen(unittest.TestCase):
     def test_panels_and_choices(self):
         s = new_game(CONTENT, 1)
         self.assertIn("Carried:", self.frame(s, panel="pack"))
-        self.assertIn("Salvage 1", self.frame(s, panel="character"))
+        self.assertIn("Salvage 1", self.frame(s, screen="character"))
         s = run(CONTENT, s, Ctx(self_id=PLAYER), CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"])
         f = self.frame(s)
         self.assertIn("1 Check the logs", f)

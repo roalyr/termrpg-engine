@@ -41,6 +41,11 @@ class Style:
     def inverse(self, text: str) -> str:
         return f"\x1b[7m{text}{RESET}" if text else text
 
+    def pixels(self, text: str, fg: Optional[int], bg: Optional[int]) -> str:
+        """Half-block pixels: 'fg' and 'bg' are 256-colour codes (None for none). Plain without colour."""
+        codes = ([f"38;5;{fg}"] if fg is not None else []) + ([f"48;5;{bg}"] if bg is not None else [])
+        return self._wrap(text, ";".join(codes)) if codes else text
+
     def key(self, text: str) -> str:
         """A key letter in a menu: inverse, in the 'key' role's style. Plain without colour."""
         return self.role(text, "key", "7")

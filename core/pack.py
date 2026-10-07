@@ -415,6 +415,15 @@ def _check_character_rules(manifest: dict, entries: Entries, vocab: Dict[str, An
             _check_standing(char, char_id, label, locations, occupied, errors)
         _check_leader_chain(char_id, characters, label, errors)
 
+        portrait = char.get("portrait")
+        if isinstance(portrait, dict) and isinstance(portrait.get("rows"), list):
+            rows = [r for r in portrait["rows"] if isinstance(r, str)]
+            if len({len(r) for r in rows}) > 1:
+                errors.append(f"{label}.portrait: rows have different lengths ({', '.join(str(len(r)) for r in rows)})")
+            palette = portrait.get("palette") if isinstance(portrait.get("palette"), dict) else {}
+            unknown = sorted({c for r in rows for c in r if c not in " ." and c not in palette})
+            if unknown:
+                errors.append(f"{label}.portrait: pixel letters not in the palette: {', '.join(unknown)}")
         body = char.get("body", {}) if isinstance(char.get("body"), dict) else {}
         body_slots: Dict[str, int] = {}
         for slot in body.get("slots", []) or []:

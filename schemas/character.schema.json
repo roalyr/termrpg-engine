@@ -57,6 +57,9 @@
           },
           "maxItems": 10
         },
+        "portrait": {
+          "$ref": "#/$defs/portrait"
+        },
         "tags": {
           "$ref": "common.schema.json#/$defs/tags"
         },
@@ -335,6 +338,61 @@
         "maxLength": 21
       },
       "maxItems": 10
+    },
+    "portrait": {
+      "type": "object",
+      "description": "A small picture in pixels, shown on the character screen. Each letter in 'rows' is one pixel in the palette's colour for that letter; a space or '.' is see-through. Two pixel rows share one line of text (half-block characters), so 12 rows take 6 lines. Without colour only the shape shows.",
+      "properties": {
+        "rows": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 24,
+          "description": "Pixel rows, top to bottom, all the same length; at most 24 by 24. The character screen shows up to the UI pack's portrait size, centred.",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9. ]*$",
+            "minLength": 1,
+            "maxLength": 24
+          }
+        },
+        "palette": {
+          "type": "object",
+          "description": "Pixel letter to colour: a palette colour, or a 256-colour terminal number.",
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9]$"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "enum": [
+                  "grey",
+                  "white",
+                  "green",
+                  "cyan",
+                  "blue",
+                  "violet",
+                  "yellow",
+                  "orange",
+                  "red"
+                ]
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            ]
+          }
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "rows",
+        "palette"
+      ]
     }
   }
 }
