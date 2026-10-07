@@ -184,6 +184,14 @@ Decided:
   there, and moving never closes a sub-window: only the close key does.
 - **Long pages get a vertical slider** at their right edge, showing where you are; up
   and down move it.
+- **Character and fitting are full screens of their own**, with their own zones: the
+  tactical screens where planning and building happen. The fitting screen holds the
+  loadout and budgets, spare gear and designs, the picked item's details, and every
+  building action: fit, remove, and the workshop's repair, take apart, make and
+  modify. It opens anywhere for planning; its actions work only next to a workshop
+  offering them, and are greyed out with a hint elsewhere.
+- **The pack panel keeps the everyday inventory work** as it is now: what you carry,
+  storage within reach, taking, storing and using items.
 - **Start, help and quit screens** are part of the milestone.
 - **Trading stays pack-written interactions**; the UI only shows them more clearly.
   No trade screen or prices.
@@ -192,18 +200,21 @@ Steps, each one playable and tested:
 
 1. **Sub-windows:** the shared panel (scrolling, slider, keys from the UI pack), and
    Inspect for places and people in it.
-2. **Items:** an item detail view from the fitting board and storage (description,
-   stats, power and mass use, tags, mods, grade, condition); what designs need and
-   what modifications add before they're applied.
-3. **Character sheet:** loadout and budgets, statuses, skills with their next level,
-   party and standing.
-4. **People:** a dialogue window; trades showing what you give and get.
-5. **Fights:** action details before use, fighters' statuses, the chosen target
+2. **Items:** an item detail view (description, stats, power and mass use, tags, mods,
+   grade, condition), shown from the pack panel and the fitting screen.
+3. **Fitting screen:** a full screen with the loadout and budgets, spare gear and
+   designs, the picked item's details and what it would change, and every building
+   action (fit, remove, repair, take apart, make, modify, with what designs need and
+   what modifications add). The pack panel loses its fitting and crafting options.
+4. **Character screen:** a full screen with skills and their next levels, stats,
+   statuses, party and standing.
+5. **People:** a dialogue window; trades showing what you give and get.
+6. **Fights:** action details before use, fighters' statuses, the chosen target
    highlighted, tile names that fit.
-6. **Messages:** message history, and long event texts in the panel.
-7. **Around the game:** a start screen (new game, continue, save slots), a help and
+7. **Messages:** message history, and long event texts in the panel.
+8. **Around the game:** a start screen (new game, continue, save slots), a help and
    keys screen, quit confirmation.
-8. **Polish pass:** item names coloured by grade, small-screen behaviour, consistent
+9. **Polish pass:** item names coloured by grade, small-screen behaviour, consistent
    wording, UI pack docs, the playtest.
 
 ### 8. First game pack → version 1.0
