@@ -180,7 +180,8 @@ Decided:
 - **One shared panel** for sub-windows (inspect, item details, dialogue, help, message
   history): it takes over the lower area, the map stays visible above.
 - **Up and down are contextual.** They move the player while no sub-window is open;
-  while one is open they scroll it, until it is closed. Left and right do nothing
+  while one is open they scroll it, until it is closed. On list screens (fitting,
+  and later others) they move the pick instead. Left and right do nothing
   there, and moving never closes a sub-window: only the close key does.
 - **Long pages get a vertical slider** at their right edge, showing where you are; up
   and down move it.
@@ -206,6 +207,20 @@ Steps, each one playable and tested:
    designs, the picked item's details and what it would change, and every building
    action (fit, remove, repair, take apart, make, modify, with what designs need and
    what modifications add). The pack panel loses its fitting and crafting options.
+   Agreed layout, stacked on every terminal:
+   - title: "Fitting · <frame>" and where you are ("At: Workbench", or "Planning
+     only" away from a workshop, with the actions greyed out and a hint);
+   - budgets as bars (power, mass, heat, cargo);
+   - the list: Worn (the frame, then each of its slots and the body's implant slots,
+     empty ones shown as "· empty" and not numbered), Spare (gear carried or in
+     storage within reach, labelled where it is), Designs (when known, with costs);
+   - the picked entry: a short summary, what its action would change ("Fit: PWR
+     4→5/6", over-budget numbers in the warning colour and the action greyed out with
+     the reason), and its action keys; I opens the full item details in the panel;
+   - modify lists the modifications that apply, each with what it adds and needs,
+     before one is applied;
+   - up and down move the pick through the list (empty slots skipped); digits jump
+     to an entry; the list pages past nine entries.
 4. **Character screen:** a full screen with skills and their next levels, stats,
    statuses, party and standing.
 5. **People:** a dialogue window; trades showing what you give and get.
@@ -244,5 +259,8 @@ Standard widgets and layout variables in a separate UI pack, shared by game pack
   [AGENTS.md](AGENTS.md).
 - Engine changes are small and incremental, and follow the schema-first workflow:
   schema → test pack → engine with tests → game pack.
+- **Layouts for wide terminals** (lists and details side by side) are a milestone of
+  their own, since every screen and window would need them. Until then there is one
+  stacked layout for every terminal.
 - Reserved features wait for their own design: procedural zones, ships as moving
   regions, mods (`extends`).
