@@ -175,8 +175,14 @@ All of these happen on the fitting screen, next to the workbench.
 
 - [ ] The fight opens with its intro; the encounter screen shows the round, the enemy's
   picture, both sides with health bars (and your heat), each enemy's intent, and the
-  action tiles with their costs.
-- [ ] An action with several possible targets asks for one; the close key backs out.
+  action tiles: the number in the top border, the whole name inside ("Retreat"),
+  costs as symbols (▲ heat, ⟳ cooldown, × uses left).
+- [ ] A digit picks a tile (heavy border) and shows its details in place of the log:
+  costs and what it does in words, or why it can't be used. The same digit uses it,
+  another picks another, X lets go. It still fits a 40×20 terminal.
+- [ ] An action with several possible targets marks them ▸ in the fighters column; a
+  digit picks one, X goes back to the tile. The names don't move.
+- [ ] Each fighter shows their statuses with rounds left (Burning 3).
 - [ ] Each round's log is headed "Round N:" and lists what happened in order:
   quicker fighters first, priority actions (Guard) before everyone.
 - [ ] Armor reduces damage; heat rises with actions and cools after the fight.

@@ -92,7 +92,31 @@
     "talk_give": "You give",
     "talk_get": "You get",
     "history_title": "Messages",
-    "history_empty": "Nothing yet."
+    "history_empty": "Nothing yet.",
+    "cost_heat": "heat {amount}",
+    "cost_cooldown": "ready again after {rounds}",
+    "cost_charges": "{left} of {total} uses left",
+    "cost_consumes": "uses {items}",
+    "cost_free": "no cost",
+    "act_early": "acts early",
+    "act_late": "acts late",
+    "act_damage": "{amount} {type} damage to {target}",
+    "act_status": "{status} on {target} for {rounds}",
+    "act_stat": "{stat} {amount} on {target} for {rounds}",
+    "act_stat_lasting": "{stat} {amount} on {target}",
+    "act_restore": "restores {amount} {stat} to {target}",
+    "act_end_status": "ends {status} on {target}",
+    "act_escape": "you get away and the fight ends",
+    "act_end": "the fight ends",
+    "act_chance": "{percent}% chance: {then}",
+    "target_enemy": "one enemy",
+    "target_all_enemies": "every enemy",
+    "target_ally": "one ally",
+    "target_all_allies": "your whole side",
+    "target_self": "yourself",
+    "action_unusable": "Can't use it now: {why}",
+    "rounds_one": "1 round",
+    "rounds_many": "{count} rounds"
   },
   "entries": [
     {
@@ -182,6 +206,10 @@
     {
       "id": "hint_history",
       "text": "log"
+    },
+    {
+      "id": "hint_use",
+      "text": "again: use"
     }
   ]
 }

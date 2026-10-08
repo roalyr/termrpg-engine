@@ -251,7 +251,8 @@ class TestEncounterScreen(unittest.TestCase):
     def test_frame(self):
         s = fight(2)
         frame = ANSI.sub("", render.render(CONTENT, s, 44, 60))
-        for words in ("Drones · round 1", "1 Drone", "⚠ STRIKE Player", "1 Strike", "2 Guard", "══╡▓▓▓╞══", "1-3 act"):
+        for words in ("Drones · round 1", "1 Drone", "⚠ STRIKE Player", "┌1───────┐", "│Strike  │", "│Guard   │",
+                      "══╡▓▓▓╞══", "1-3 pick"):
             self.assertIn(words, frame)
         for line in frame.splitlines():
             self.assertEqual(len(line), 44, line)
@@ -259,8 +260,12 @@ class TestEncounterScreen(unittest.TestCase):
     def test_keys_pick_tile_then_target(self):
         s = fight(2)
         s, view, _ = app.handle(CONTENT, s, "1")
-        self.assertEqual(view.selected, 0)                    # two drones: waiting for a target
-        self.assertIn("1-2 target", ANSI.sub("", render.render(CONTENT, s, 44, 60, selected=view.selected)))
+        self.assertEqual((view.selected, view.panel), (0, None))   # picked: its details show
+        self.assertIn("1 again: use", ANSI.sub("", render.render(CONTENT, s, 44, 60, selected=0)))
+        self.assertEqual(s.encounter.round, 1)                     # nothing used yet
+        s, view, _ = app.handle(CONTENT, s, "1", view)
+        self.assertEqual((view.selected, view.panel), (0, "target"))   # two drones: waiting for a target
+        self.assertIn("1-2 target", ANSI.sub("", render.render(CONTENT, s, 44, 60, "target", selected=0)))
         s, view, _ = app.handle(CONTENT, s, "2", view)
         self.assertIsNone(view.selected)
         self.assertEqual(s.encounter.round, 2)

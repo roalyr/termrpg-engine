@@ -8,9 +8,9 @@ hide_when_empty is on.
 
 Fitting the terminal's height, in order:
 1. zones are dropped highest priority first (priority 0 is never dropped);
-2. scroll zones keep only their last lines (at least one);
-3. the screen is drawn again with the widgets' compact forms (tiles as a list, no gaps,
-   no art frame);
+2. the screen is drawn again with the widgets' compact forms (tiles as a list, no gaps,
+   no art frame), so text doesn't have to be cut;
+3. scroll zones keep only their last lines (at least one);
 4. as a last resort the tallest zones lose their last lines.
 A frame never overflows the terminal.
 
@@ -122,7 +122,7 @@ def _height(bands: List[Band], flexible_as: Optional[int] = None) -> int:
 
 
 def _fit(frame: Frame, zones: List[Mapping[str, Any]], inner: int, rows: int) -> List[Band]:
-    """The zones' bands, with low-priority zones dropped and scroll zones scrolled to fit."""
+    """The zones' bands, with low-priority zones dropped to fit."""
     bands: List[Band] = []
     for zone in zones:
         flexible = _holds_subwindow(frame, zone)
@@ -139,6 +139,11 @@ def _fit(frame: Frame, zones: List[Mapping[str, Any]], inner: int, rows: int) ->
         if not droppable:
             break
         bands.pop(max(droppable, key=lambda i: (bands[i].zone["priority"], i)))
+    return bands
+
+
+def _scroll_zones(bands: List[Band], rows: int) -> List[Band]:
+    """Scroll zones keep only their last lines (at least one) while the screen is too tall."""
     for i, band in enumerate(bands):
         excess = _height(bands, flexible_as=1) - rows
         if excess > 0 and band.zone.get("scroll") and not band.flexible and len(band.lines) > 1:
@@ -150,9 +155,10 @@ def arrange(frame: Frame, zones: List[Mapping[str, Any]], columns: int, rows: in
     """The bands that fit the terminal, and where the open sub-window is scrolled to."""
     inner = columns - 2
     bands = _fit(frame, zones, inner, rows)
-    if _height(bands, flexible_as=1) > rows and not frame.compact:
+    if _height(bands, flexible_as=1) > rows and not frame.compact:    # compact widgets before cutting text
         frame = frame._replace(compact=True)
         bands = _fit(frame, zones, inner, rows)
+    bands = _scroll_zones(bands, rows)
     while _height(bands, flexible_as=1) > rows:              # last resort: clip the tallest zone
         i = max((j for j in range(len(bands)) if not bands[j].flexible),
                 key=lambda j: len(bands[j].lines), default=None)

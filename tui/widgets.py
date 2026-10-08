@@ -258,6 +258,8 @@ def log(frame: Frame, width: int, options: Mapping) -> List[str]:
         messages = state.messages
     if frame.panel in SUBWINDOWS:                    # one focus at a time
         return []
+    if frame.screen == "encounter" and frame.selected is not None and frame.panel != "target":
+        return []                                    # the picked action's details take its place
     lines: List[str] = []
     if heading and messages and options.get("round_heading", True) and frame.screen != "world":
         lines.append(frame.style.role(frame.ui.word("round_log", round=heading), "heading"))
@@ -1042,14 +1044,29 @@ def art(frame: Frame, width: int, options: Mapping) -> List[str]:
 
 
 def fighters(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """
+    Both sides with health bars and statuses (rounds left), and the enemies' intents.
+    While picking a target, the possible targets carry the cursor glyph and their number.
+    """
     content, state, style = frame.content, frame.state, frame.style
     health = content.stat_roles["health"]
     length = frame.size["fighter_bar_length"]
+    aims = _targets(frame)
+    cursor = frame.glyphs["cursor"]
+
+    def mark(cid: str, number: str) -> str:
+        """The number column: a space for the cursor, so picking a target doesn't move the layout."""
+        if aims is None or cid not in aims:
+            return " " + number if aims is None else " " * (len(number) + 1)
+        return f"{cursor}{aims.index(cid) + 1}"
+
     lines = []
     for cid in encounter.living(state, "allies"):
         cs = state.characters[cid]
         name = content.get("character", cs.source)["name"][:10]
-        lines.append(f"{name:<10} {bar(frame, stats.current(content, cs, health), stats.stat(content, cs, health), length)}")
+        prefix = f"{cursor}{aims.index(cid) + 1} " if aims and cid in aims else ""
+        lines.append(f"{prefix}{name:<10} {bar(frame, stats.current(content, cs, health), stats.stat(content, cs, health), length)}")
+        lines += _status_line(frame, cs, width, None)
     heat = content.stat_roles["heat"]
     me = state.characters[state.player]
     if stats.stat(content, me, heat) > 0:
@@ -1061,22 +1078,69 @@ def fighters(frame: Frame, width: int, options: Mapping) -> List[str]:
         cs = state.characters[cid]
         name = content.get("character", cs.source)["name"][:8]
         now, top = stats.current(content, cs, health), stats.stat(content, cs, health)
-        lines.append(f"{number} {name:<8} {bar(frame, now, top, length)} {int(now)}")
+        line = f"{mark(cid, str(number))} {name:<8} {bar(frame, now, top, length)} {int(now)}"
+        lines.append(line)
         intent = encounter.intent_line(content, state, cid) if options.get("intent", True) else None
-        if intent:
-            lines.append(style.role(f"  {frame.glyphs['intent']} {intent}"[:width], "danger"))
+        lines += _status_line(frame, cs, width, intent)
     return [line[:width] if visible_len(line) == len(line) else line for line in lines]
 
 
-def tiles(frame: Frame, width: int, options: Mapping) -> List[str]:
-    """Action tiles as boxes; compact, as a wrapped list ('1 Strike ▲1  2 Guard ▲1')."""
+def _targets(frame: Frame) -> Optional[List[str]]:
+    """While picking a target: who the picked action can be aimed at, in number order; otherwise None."""
+    if frame.screen != "encounter" or frame.panel != "target" or frame.selected is None:
+        return None
     tile_list = encounter.tiles(frame.content, frame.state)
+    if frame.selected >= len(tile_list):
+        return None
+    return encounter.targets(frame.content, frame.state, frame.state.player, tile_list[frame.selected].action)
+
+
+def _status_line(frame: Frame, cs, width: int, intent: Optional[str]) -> List[str]:
+    """'Burning 2 · ⚠ STRIKE Juno' under a fighter: statuses with rounds left, then the intent."""
+    content, style = frame.content, frame.style
+    parts = []
+    for inst in cs.statuses:
+        record = content.get("status", inst.status)
+        text = record["name"] + (f" x{inst.stacks}" if inst.stacks > 1 else "") + \
+            (f" {inst.turns_left}" if inst.turns_left is not None else "")
+        parts.append(style.role(text, "danger") if record.get("harmful", True) else text)
+    if intent:
+        parts.append(style.role(f"{frame.glyphs['intent']} {intent}", "danger"))
+    if not parts:
+        return []
+    line = "  " + frame.glyphs["separator"].join(parts)
+    return [line] if visible_len(line) <= width else ["  " + part for part in parts]
+
+
+def _tile_cost(frame: Frame, tile) -> str:
+    """'▲3-4 ⟳2 ×1': heat, cooldown, and uses left this fight."""
+    action = frame.content.get("action", tile.action)
+    cost = action.get("cost", {})
+    parts = [f"{frame.glyphs['cost']}{tile.cost}"] if tile.cost else []
+    if cost.get("cooldown"):
+        parts.append(f"{frame.glyphs['cooldown']}{cost['cooldown']}")
+    if cost.get("charges"):
+        used = frame.state.encounter.charges.get(frame.state.player, {}).get(tile.action, 0)
+        parts.append(f"{frame.glyphs['charges']}{max(0, cost['charges'] - used)}")
+    return " ".join(parts)
+
+
+def tiles(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """
+    Action tiles as boxes: the number in the top border, the name inside, costs as symbols;
+    the picked tile with the heavy border. Compact, a wrapped list ('1 Strike ▲1  2 Guard ▲1').
+    """
+    tile_list = encounter.tiles(frame.content, frame.state)
+    picked = frame.selected if frame.screen == "encounter" else None
     if frame.compact:
         lines: List[str] = []
-        for tile in tile_list:
-            cost = f" {frame.glyphs['cost']}{tile.cost}" if tile.cost else ""
-            entry = f"{tile.key} {tile.label}{cost}"[:width]
-            entry = entry if tile.available else frame.style.role(entry, "unavailable")
+        for index, tile in enumerate(tile_list):
+            cost = _tile_cost(frame, tile)
+            mark = frame.glyphs["cursor"] if index == picked else ""
+            entry = f"{mark}{tile.key} {tile.label}" + (f" {cost}" if cost else "")
+            entry = entry[:width] if tile.available else frame.style.role(entry[:width], "unavailable")
+            if index == picked:
+                entry = frame.style.key(_plain(entry))
             if lines and visible_len(lines[-1]) + 2 + visible_len(entry) <= width:
                 lines[-1] += "  " + entry
             else:
@@ -1085,20 +1149,120 @@ def tiles(frame: Frame, width: int, options: Mapping) -> List[str]:
     tile_width = frame.size["tile_width"]
     per_row = options.get("per_row", 0) or max(1, width // tile_width)
     per_row = min(per_row, max(1, width // tile_width))
-    border = frame.glyphs["border"]
     inner = tile_width - 2
-    lines: List[str] = []
+    lines = []
     for start in range(0, len(tile_list), per_row):
         parts: List[List[str]] = [[], [], [], []]
-        for tile in tile_list[start:start + per_row]:
+        for index, tile in enumerate(tile_list[start:start + per_row], start):
+            box = frame.glyphs["border_picked"] if index == picked else frame.glyphs["border"]
             paint = (lambda t: t) if tile.available else (lambda t: frame.style.role(t, "unavailable"))
-            cost = f"{frame.glyphs['cost']}{tile.cost}" if tile.cost else ""
-            parts[0].append(border["top_left"] + border["horizontal"] * inner + border["top_right"])
-            parts[1].append(paint(border["vertical"] + f"{tile.key} {tile.label}"[:inner].ljust(inner) + border["vertical"]))
-            parts[2].append(paint(border["vertical"] + cost[:inner].ljust(inner) + border["vertical"]))
-            parts[3].append(border["bottom_left"] + border["horizontal"] * inner + border["bottom_right"])
+            if index == picked:
+                paint = (lambda t: frame.style.key(t)) if tile.available else paint
+            top = box["horizontal"] * inner
+            top = (tile.key + top)[:inner]                     # the number sits in the top border
+            parts[0].append(box["top_left"] + top + box["top_right"])
+            parts[1].append(paint(box["vertical"] + tile.label[:inner].ljust(inner) + box["vertical"]))
+            parts[2].append(paint(box["vertical"] + _tile_cost(frame, tile)[:inner].ljust(inner) + box["vertical"]))
+            parts[3].append(box["bottom_left"] + box["horizontal"] * inner + box["bottom_right"])
         lines += ["".join(p) for p in parts]
     return lines
+
+
+def action(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The picked action's details: name, costs, what it does in words, and why it can't be used if it can't."""
+    content, state, style, ui = frame.content, frame.state, frame.style, frame.ui
+    if frame.screen != "encounter" or frame.selected is None or frame.panel == "target":
+        return []
+    tile_list = encounter.tiles(content, state)
+    if frame.selected >= len(tile_list):
+        return []
+    tile = tile_list[frame.selected]
+    record = content.get("action", tile.action)
+    lines = [style.role(line, "heading") for line in wrap(record["name"], width)]
+    costs = _action_costs(frame, record, tile)
+    lines += [style.role(line, "quiet") for line in _pack(costs, width, " · ")]
+    if record.get("description"):
+        lines += wrap(content.text(record["description"]), width)
+    said = _describe(frame, record["effects"], record.get("target", "enemy"))
+    if said:
+        text = "; ".join(said)
+        lines += wrap(text[0].upper() + text[1:] + ".", width)
+    if not tile.available:
+        lines += styled_lines(ui.word("action_unusable", why=tile.hint or ""), width, frame, "danger")
+    return lines
+
+
+def _action_costs(frame: Frame, record: Mapping, tile) -> List[str]:
+    content, ui = frame.content, frame.ui
+    cost = record.get("cost", {})
+    parts = []
+    if tile.cost:
+        parts.append(ui.word("cost_heat", amount=tile.cost))
+    if cost.get("cooldown"):
+        parts.append(ui.word("cost_cooldown", rounds=_rounds(ui, cost["cooldown"])))
+    if cost.get("charges"):
+        used = frame.state.encounter.charges.get(frame.state.player, {}).get(tile.action, 0)
+        parts.append(ui.word("cost_charges", left=max(0, cost["charges"] - used), total=cost["charges"]))
+    consumes = cost.get("consumes")
+    if consumes:
+        what = content.get("item", consumes["item"])["name"] if consumes.get("item") else content.get("tag", consumes["tag"])["name"]
+        parts.append(ui.word("cost_consumes", items=what + (f" x{consumes['count']}" if consumes.get("count", 1) > 1 else "")))
+    if record.get("priority", 0) > 0:
+        parts.append(ui.word("act_early"))
+    elif record.get("priority", 0) < 0:
+        parts.append(ui.word("act_late"))
+    return parts or [ui.word("cost_free")]
+
+
+def _rounds(ui: UI, count) -> str:
+    """'1 round', '3 rounds'."""
+    return ui.word("rounds_one") if count == 1 else ui.word("rounds_many", count=count)
+
+
+def _amount_words(content: Content, amount) -> str:
+    """A number, a range '2-4', or a scaled value '0.5×PWR+2' / '2×Salvage'."""
+    if isinstance(amount, (int, float)):
+        return f"{amount:g}"
+    if "min" in amount:
+        return f"{amount['min']:g}-{amount['max']:g}"
+    source = _stat_short(content, amount["stat"]) if amount.get("stat") else content.get("skill", amount["skill"])["name"]
+    times, plus = amount.get("times", 1), amount.get("plus", 0)
+    return f"{times:g}×{source}" + (f"+{plus:g}" if plus else "")
+
+
+def _describe(frame: Frame, effects, target_kind: str) -> List[str]:
+    """What effects do, in words: damage, statuses, stat changes, restoring, ending the fight, chances."""
+    content, ui = frame.content, frame.ui
+    said = []
+    for effect in effects:
+        op = effect["op"]
+        aimed = effect.get("subject", "target" if op in ("damage", "apply_status") else "self")
+        who = ui.word("target_self") if aimed == "self" else ui.word(f"target_{target_kind}") \
+            if target_kind != "self" else ui.word("target_self")
+        if op == "damage":
+            said.append(ui.word("act_damage", amount=_amount_words(content, effect["amount"]),
+                                type=content.get("damage_type", effect["damage_type"])["name"].lower(), target=who))
+        elif op == "apply_status":
+            said.append(ui.word("act_status", status=content.get("status", effect["status"])["name"],
+                                rounds=_rounds(ui, effect.get("duration", "?")), target=who))
+        elif op == "modify_stat":
+            amount = _amount_words(content, effect["amount"])
+            amount = amount if amount.startswith("-") else "+" + amount
+            stat = _stat_short(content, effect["stat"])
+            said.append(ui.word("act_stat", stat=stat, amount=amount, rounds=_rounds(ui, effect["duration"]), target=who)
+                        if effect.get("duration") else ui.word("act_stat_lasting", stat=stat, amount=amount, target=who))
+        elif op == "restore":
+            said.append(ui.word("act_restore", stat=_stat_short(content, effect["stat"]),
+                                amount=_amount_words(content, effect["amount"]), target=who))
+        elif op == "remove_status":
+            said.append(ui.word("act_end_status", status=content.get("status", effect["status"])["name"], target=who))
+        elif op == "end_encounter":
+            said.append(ui.word("act_escape") if effect.get("result") == "escaped" else ui.word("act_end"))
+        elif op == "if" and effect["if"].get("check") == "chance":
+            then = _describe(frame, effect.get("then", ()), target_kind)
+            if then:
+                said.append(ui.word("act_chance", percent=round(effect["if"]["p"] * 100), then=", ".join(then)))
+    return said
 
 
 # --- keys ------------------------------------------------------------------------------
@@ -1112,7 +1276,9 @@ def hint_context(frame: Frame) -> str:
     if state.pending is not None:
         return "choice"
     if frame.screen == "encounter":
-        return "target" if frame.selected is not None else "encounter"
+        if frame.panel == "target":
+            return "target"
+        return "picked" if frame.selected is not None else "encounter"
     if frame.panel == "pack":
         return "pack"
     if frame.screen == "character":
@@ -1137,7 +1303,7 @@ def _numbered(frame: Frame, context: str) -> int:
     content, state = frame.content, frame.state
     if context == "choice":
         return len(state.pending.options)
-    if context == "encounter":
+    if context in ("encounter", "picked"):
         return len(encounter.tiles(content, state))
     if context == "target":
         tile = encounter.tiles(content, state)[frame.selected]
@@ -1164,7 +1330,10 @@ def keys(frame: Frame, width: int, options: Mapping) -> List[str]:
     parts = []
     for hint in ui.hints.get(context, []):
         label = ui.labels.get(hint["label"], hint["label"])
-        if hint.get("digits"):
+        if hint.get("picked"):
+            if frame.selected is not None:
+                parts.append(f"{frame.selected + 1} {label}")
+        elif hint.get("digits"):
             count = _numbered(frame, context)
             if count:
                 parts.append(f"{'1' if count == 1 else f'1-{count}'} {label}")
@@ -1211,7 +1380,7 @@ WIDGETS: Dict[str, Draw] = {
     "choice": choice, "board": board, "tiles": tiles, "fighters": fighters,
     "art": art, "keys": keys, "panel": panel, "budgets": budgets, "loadout": loadout, "pick": pick,
     "portrait": portrait, "identity": identity, "skills": skills, "stats": stats_widget, "people": people,
-    "conversation": conversation,
+    "conversation": conversation, "action": action,
 }
 
 # Widgets with a natural width of their own (the rest take the width they're given).

@@ -238,7 +238,7 @@ Steps, each one playable and tested:
      greyed out with the pack's hint, and Leave last; a trade shows "You give" and
      "You get", read from its own take_item and give_item effects;
    - X leaves.
-6. **Fights:** action details before use, fighters' statuses, the chosen target
+6. ✓ **Fights:** action details before use, fighters' statuses, the chosen target
    highlighted, tile names that fit.
    Agreed layout:
    - tiles carry their number in the top border, so the inside fits an 8-letter name

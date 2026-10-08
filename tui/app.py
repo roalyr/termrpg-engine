@@ -89,20 +89,31 @@ def _handle(content: Content, state: GameState, key: str, view: View, ui: UI):
 
 
 def _fight(content: Content, state: GameState, key: str, action: Optional[str], view: View):
-    """A digit picks a tile; when it needs a target, a second digit picks one."""
+    """
+    A digit picks a tile and shows its details; the same digit again uses it, another
+    digit picks another, close lets go. An action with several possible targets then asks
+    for one in the fighters column: a digit picks it, close goes back to the tile.
+    """
     tiles = encounter.tiles(content, state)
-    if view.selected is not None:
+    number = _digit(key)
+    if view.panel == "target" and view.selected is not None:
         if action == "close":
-            return state, View()
+            return state, view._replace(panel=None)
         options = encounter.targets(content, state, state.player, tiles[view.selected].action)
-        if _digit(key) and _digit(key) <= len(options):
-            return encounter.take_turn(content, state, tiles[view.selected].action, options[_digit(key) - 1]), View()
+        if number and number <= len(options):
+            return encounter.take_turn(content, state, tiles[view.selected].action, options[number - 1]), View()
         return state, view
-    if not _digit(key) or _digit(key) > len(tiles):
+    if action == "close":
+        return state, View()
+    if not number or number > len(tiles):
         return state, view
-    tile = tiles[_digit(key) - 1]
-    if tile.available and len(encounter.targets(content, state, state.player, tile.action)) > 1:
-        return state, View(selected=_digit(key) - 1)
+    if view.selected != number - 1:                           # pick it: its details show
+        return state, View(selected=number - 1)
+    tile = tiles[number - 1]                                  # the same number again: use it
+    if not tile.available:
+        return state, view
+    if len(encounter.targets(content, state, state.player, tile.action)) > 1:
+        return state, View(selected=number - 1, panel="target")
     return encounter.take_turn(content, state, tile.action), View()
 
 

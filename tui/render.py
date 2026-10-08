@@ -49,7 +49,7 @@ def _frame(content: Content, state: GameState, panel: Optional[str], colour: boo
         screen = "encounter"
     else:
         screen = wanted or "world"
-    in_world = screen not in ("debrief", "encounter")
+    in_world = screen != "debrief"                            # fights have a target choice
     if screen == "world" and panel is None and card_shown(ui, content, state):
         panel = "card"                                        # an event's card, or a question
     return Frame(content=content, state=state, ui=ui, style=Style(colour, ui.tokens["styles"]), screen=screen,

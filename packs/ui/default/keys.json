@@ -138,7 +138,7 @@
     "encounter": [
       {
         "digits": true,
-        "label": "hint_act"
+        "label": "hint_pick"
       },
       {
         "actions": [
@@ -278,6 +278,22 @@
           "close"
         ],
         "label": "hint_close"
+      }
+    ],
+    "picked": [
+      {
+        "picked": true,
+        "label": "hint_use"
+      },
+      {
+        "digits": true,
+        "label": "hint_pick"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_back"
       }
     ]
   }

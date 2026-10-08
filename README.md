@@ -914,7 +914,7 @@ win key by key; word entries add up):
 
 | Kind | Holds |
 |---|---|
-| `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the portrait's width and height in pixels), `padding`, `glyphs` (the border set, the list cursor, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
+| `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the portrait's width and height in pixels), `padding`, `glyphs` (the border set, the list cursor, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints, the picked action tile's heavy border, the cooldown and charges marks) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
 | `screens` | Each screen (`world`, `encounter`, `debrief`, `fitting`, `character`, `talk`) as zones, top to bottom |
 | `keys` | `bindings` (action → key) and `hints` (what each context shows) |
 | `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |
@@ -926,7 +926,7 @@ has a `priority` (when the screen is taller than the terminal, zones with the hi
 priority are dropped first; 0 is never dropped), `hide_when_empty` (when off, an empty
 zone keeps one blank line) and `scroll` (when the screen still doesn't fit, the zone
 shows only its last lines, at least one, so the newest messages and the menu stay in
-view). When even that doesn't fit, the screen is drawn again with the widgets'
+view). Before that, the screen is drawn again with the widgets'
 compact forms (action tiles as a list, fighters without the gap between the sides,
 the enemy's picture without its frame), and as a last resort the tallest zones lose
 their last lines: a frame never overflows the terminal.
@@ -996,6 +996,15 @@ with up and down: skills with their progress and next level, stats, conditions,
 party and standing. The portrait zone always keeps its place, sized by the UI pack's
 `portrait_width` and `portrait_height`.
 
+**Fights.** A digit picks an action tile: it's drawn with the heavy border and its
+details take the round log's place (costs; what it does in words, worked out from its
+effects: damage and what it scales with, statuses and their rounds, stat changes,
+restoring, chances; and why it can't be used, if it can't). The same digit again uses
+it, another digit picks another, X lets go. An action with several possible targets
+then marks them `▸` in the fighters column; a digit picks one, X goes back to the
+tile. On short terminals the screen switches to the widgets' compact forms before it
+cuts any text.
+
 **The pack panel keeps its pick.** Numbers shift when an item is stored or taken,
 because entries are grouped by where they are. After an action the panel keeps the
 same item picked at its new number (or drops the pick when the item is gone).
@@ -1013,8 +1022,9 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `menu` | What can be done with the thing in focus | world | `hints` |
 | `choice` | A choice waiting for an answer | world, encounter | `hints` |
 | `board` | The pack panel: what you carry and storage within reach | world | `budgets` |
-| `tiles` | Action tiles | encounter | `per_row` (0 = fit) |
-| `fighters` | Both sides with bars and intents | encounter | `intent` |
+| `tiles` | Action tiles: the number in the top border, the name inside, costs as symbols (`▲` heat, `⟳` cooldown, `×` uses left); the picked one with a heavy border | encounter | `per_row` (0 = fit) |
+| `fighters` | Both sides with bars, statuses (rounds left) and intents; while aiming, the targets marked `▸` and numbered | encounter | `intent` |
+| `action` | The picked action's details in words: costs, what it does, why it can't be used | encounter | — |
 | `art` | The enemy's picture | encounter | `frame` |
 | `portrait` | The player's portrait (the speaker's in a conversation) in half-block pixels; an empty frame of the same size without one | character, talk | `frame` |
 | `identity` | Name, title, faction and rank, the pool bars; in a conversation the speaker and their trust | character, talk | — |
@@ -1035,7 +1045,8 @@ case (keys match either case). The arrow keys always move and Esc always closes,
 whatever the bindings. `hints` lists, per
 context (`walk`, `menu`, `choice`, `card`, `history`, `pack`, `fitting`, `modify`, `sheet`, `talk`, `panel`, `item`, `encounter`, `target`,
 `debrief`), entries that show some actions' keys joined (`WASD`), the arrow keys
-instead for move actions (`arrows`: `↑↓`), or `1-9` (`digits`, shown as the real
+instead for move actions (`arrows`: `↑↓`), the picked action tile's number
+(`picked`: "3 again: use"), or `1-9` (`digits`, shown as the real
 range), then a label from the words file. Hints are generated from the bindings, so
 they can't disagree with the real keys, and a hint whose keys do nothing right now
 (scrolling what fits, paging a single page) isn't shown.

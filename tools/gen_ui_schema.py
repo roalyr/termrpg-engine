@@ -49,6 +49,7 @@ CONTEXTS = {
  "talk": "A conversation, waiting for a response.",
  "card": "An event's card without a question: any key continues.",
  "history": "The message history is open.",
+ "picked": "An action tile is picked: its details show, the same number uses it.",
 }
 ROLES = {
  "title": ("white", True, False, "Screen titles: the location, the encounter, the result."),
@@ -78,9 +79,9 @@ WIDGETS = {
      "hints": flag(True, "Show why unavailable options can't be picked.")}),
  "board": (["world"], "The fitting board: budgets, items by where they are, the picked item's options.", {
      "budgets": flag(True, "Show the power, mass and cargo line.")}),
- "tiles": (["encounter"], "The player's action tiles.", {
+ "tiles": (["encounter"], "The player's action tiles: the number in the top border, the name inside (the action's short name when it's longer than the tile), costs as symbols; the picked tile drawn with the heavy border.", {
      "per_row": intval(0, 0, 9, "Tiles per row; 0 fits as many as the width allows.")}),
- "fighters": (["encounter"], "Both sides with health bars, and the enemies' intents.", {
+ "fighters": (["encounter"], "Both sides with health bars, their statuses with rounds left, and the enemies' intents; while picking a target, the possible targets marked with the cursor glyph and numbered.", {
      "intent": flag(True, "Show each enemy's intent.")}),
  "art": (["encounter"], "The picture of the enemy in front.", {
      "frame": flag(True, "Draw a frame around it.")}),
@@ -97,6 +98,7 @@ WIDGETS = {
  "budgets": (["fitting"], "Power, mass, heat and cargo as bars: used of what the loadout provides.", {}),
  "loadout": (["fitting"], "The fitting screen's list: what's worn by slot (empty slots too), spare gear, designs. Up and down move the pick; the list scrolls to keep it in view.", {}),
  "pick": (["fitting"], "The picked entry: what it is, what its action would change, and its action keys; or the modifications that apply to it.", {}),
+ "action": (["encounter"], "The picked action's details, in place of the log: its costs and what it does in words, and why it can't be used when it can't.", {}),
  "keys": (list(SCREENS), "The key hints for the current context, built from the key bindings.", {}),
 }
 
@@ -147,6 +149,11 @@ glyphs = obj("Characters the widgets draw with.", {
    "mark_danger": char("! ", "Before warning messages.", 3), "mark_gain": char("+ ", "Before gain messages.", 3),
    "separator": char(" · ", "Between entries on one line (the legend).", 3),
    "cursor": char("▸", "Marks the picked line of a list, so the pick shows without colour too.", 1),
+   "border_picked": obj("The box-drawing set for a picked action tile.", {k: char(v, f"The {k.replace('_', ' ')} piece.", 1) for k, v in (
+       ("horizontal", "━"), ("vertical", "┃"), ("top_left", "┏"), ("top_right", "┓"), ("bottom_left", "┗"),
+       ("bottom_right", "┛"))}, default={}),
+   "cooldown": char("⟳", "Before an action tile's cooldown.", 1),
+   "charges": char("×", "Before an action tile's uses left this fight.", 1),
    "slider_track": char("│", "The slider's track, beside a scrolling panel.", 1),
    "slider_thumb": char("█", "The slider's thumb: where the visible part is.", 1),
    "arrows": obj("The arrow keys as shown in key hints.", {
@@ -166,6 +173,7 @@ hint = obj("One key hint: the keys of some actions (or 1-9), then a label.", {
    "actions": arr({"enum": list(ACTIONS)}, "Actions whose keys are shown, joined, e.g. WASD.", uniqueItems=True),
    "digits": flag(False, "Show '1-9' (the number keys) instead of action keys."),
    "arrows": flag(False, "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."),
+   "picked": flag(False, "Show the picked action tile's number, then the label ('3 again: use')."),
    "label": {"$ref": C + "id", "x-ref": "word", "description": "Id of a text in the words file."}}, ("label",))
 keys = obj("Key bindings and the hints each context shows. Number keys 1-9 always pick numbered entries and can't be bound.", {
    "$schema": SCHEMA_REF,
@@ -201,6 +209,28 @@ WORDS = {
  "standing_heading": ("Character screen heading: standing.", []),
  "standing_rank": ("Character screen: your rank.", ["rank"]),
  "standing_view": ("Character screen: how a faction regards you.", ["faction", "level", "value"]),
+ "cost_heat": ("Action details: heat it adds.", ["amount"]),
+ "cost_cooldown": ("Action details: rounds before it can be used again.", ["rounds"]),
+ "cost_charges": ("Action details: uses left this fight.", ["left", "total"]),
+ "cost_consumes": ("Action details: items used up.", ["items"]),
+ "cost_free": ("Action details: no cost.", []),
+ "rounds_one": ("A count of one round, used in other words.", []),
+ "rounds_many": ("A count of rounds, used in other words.", ["count"]),
+ "act_early": ("Action details: acts before initiative.", []),
+ "act_late": ("Action details: acts after initiative.", []),
+ "act_damage": ("Action details: damage.", ["amount", "type", "target"]),
+ "act_status": ("Action details: a status put on someone.", ["status", "rounds", "target"]),
+ "act_stat": ("Action details: a stat changed for some rounds.", ["stat", "amount", "rounds", "target"]),
+ "act_stat_lasting": ("Action details: a stat changed for good.", ["stat", "amount", "target"]),
+ "act_restore": ("Action details: a pool restored.", ["stat", "amount", "target"]),
+ "act_end_status": ("Action details: a status ended.", ["status", "target"]),
+ "act_escape": ("Action details: the fight ends with you getting away.", []),
+ "act_end": ("Action details: the fight ends.", []),
+ "act_chance": ("Action details: something that happens by chance.", ["percent", "then"]),
+ "target_enemy": ("Action details: one enemy.", []), "target_all_enemies": ("Action details: every enemy.", []),
+ "target_ally": ("Action details: one ally.", []), "target_all_allies": ("Action details: your whole side.", []),
+ "target_self": ("Action details: the user.", []),
+ "action_unusable": ("Action details: why it can't be used now.", ["why"]),
  "history_title": ("Message history heading.", []),
  "history_empty": ("Message history: nothing yet.", []),
  "talk_title": ("Conversation title.", ["name"]),

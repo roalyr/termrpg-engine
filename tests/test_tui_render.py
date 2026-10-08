@@ -96,7 +96,8 @@ def screens():
         ("history", with_history(), {"panel": "history"}),
         ("inspect scrolled", bench_state(), {"panel": "inspect", "scroll": 99}),
         ("encounter", encounter_state(), {}),
-        ("target", encounter_state(), {"selected": 0}),
+        ("picked", encounter_state(), {"selected": 1}),
+        ("target", encounter_state(), {"selected": 0, "panel": "target"}),
         ("debrief", debrief_state(), {}),
     ]
 
@@ -133,7 +134,8 @@ class TestEveryScreen(unittest.TestCase):
             "choice": ["The screen wakes.", "1 Check the logs", "1-2 choose"],
             "board": ["Carried:", "1 Medkit x3", "CRG 4/6", "1-4 pick", "P close"],
             "sheet": ["Salvage 1", "C close"],
-            "encounter": ["Drones · round 1", "1 Strike", "⚠ STRIKE", "1-3 act", "Q quit"],
+            "encounter": ["Drones · round 1", "┌1───────┐", "Strike", "⚠ STRIKE", "1-3 pick", "Q quit"],
+            "picked": ["┏2━━━━━━━┓", "Guard", "ARM +4 on yourself for 1 round.", "2 again: use", "X back"],
             "target": ["1-2 target", "X back"],
             "debrief": ["Won.", "Round", "Any key: continue"],
         }
@@ -168,7 +170,7 @@ class TestFitting(unittest.TestCase):
         s = encounter_state()
         self.assertIn("Drones · round 1", plain(s, 40, 30))
         self.assertNotIn("Drones · round 1", plain(s, 40, 20))
-        self.assertIn("1 Strike", plain(s, 40, 20))
+        self.assertIn("Strike", plain(s, 40, 20))
 
 
     def test_hints_wrap_between_entries(self):
@@ -189,7 +191,7 @@ class TestFitting(unittest.TestCase):
         s = encounter.begin(CONTENT, s._replace(encounter_request="enc_drones"))
         self.assertEqual(len(encounter.tiles(CONTENT, s)), 4)
         roomy, short = plain(s, 40, 40), plain(s, 40, 20)
-        self.assertIn("┌────────┐", roomy)                       # boxed tiles when there's room
+        self.assertIn("┌1───────┐", roomy)                       # boxed tiles when there's room
         self.assertLessEqual(len(short.splitlines()), 20)
         self.assertIn("1 Strike ▲1  2 Guard ▲1", short)           # a list when there isn't
         self.assertIn("4 Retreat", short)
@@ -714,6 +716,81 @@ class TestMessages(unittest.TestCase):
         s, _, _ = app.handle(CONTENT, s, "u", app.View(), UI)
         s, _, _ = app.handle(CONTENT, s, "g", app.View(), UI)
         self.assertIn("Any key: continue", plain(s, ui=load_ui(ui_dir)))   # now even a short text is a card
+
+
+class TestFightScreen(unittest.TestCase):
+    """Step 6: picking an action, its details in words, targets in the fighters column."""
+
+    def burn_ready(self):
+        s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"),
+                [freeze({"op": "grant_xp", "skill": "skill_salvage", "amount": 30, "subject": "self"})])
+        return encounter.begin(CONTENT, s._replace(encounter_request="enc_drones"))
+
+    def test_a_digit_picks_the_same_digit_uses(self):
+        s = encounter_state()
+        s1, view, _ = app.handle(CONTENT, s, "2", app.View(), UI)
+        self.assertEqual((view.selected, s1.encounter.round), (1, 1))           # picked, not used
+        _, other, _ = app.handle(CONTENT, s1, "3", view, UI)
+        self.assertEqual(other.selected, 2)                                     # another digit picks another
+        _, gone, _ = app.handle(CONTENT, s1, "x", view, UI)
+        self.assertEqual(gone, app.View())                                      # X lets go
+        s2, view, _ = app.handle(CONTENT, s1, "2", view, UI)
+        self.assertEqual((view, s2.encounter.round), (app.View(), 2))           # the same digit uses it
+
+    def test_an_unusable_action_says_why(self):
+        s = encounter_state()
+        s, view, _ = app.handle(CONTENT, s, "2", app.View(), UI)
+        s, view, _ = app.handle(CONTENT, s, "2", view, UI)                      # Guard: now cooling down
+        frame = plain(s, selected=1)
+        self.assertIn("Can't use it now: Ready in 2.", frame)
+        same, view, _ = app.handle(CONTENT, s, "2", app.View(selected=1), UI)
+        self.assertEqual((same.encounter.round, view.selected), (s.encounter.round, 1))
+
+    def test_details_in_words(self):
+        s = self.burn_ready()
+        strike = plain(s, selected=0)
+        self.assertIn("heat 1", strike)
+        self.assertIn("0.5×PWR+2 impact damage to one enemy.", strike)
+        burn = plain(s, selected=2)
+        for words in ("heat 3-4", "1 of 1 uses left", "uses Scrap x2", "2×Salvage toxic damage to every enemy",
+                      "Burning on every enemy for 3 rounds."):
+            self.assertIn(words, burn)
+        retreat = plain(s, 72, 60, selected=3)
+        self.assertIn("acts late", retreat)
+        self.assertIn("60% chance: you get away and the fight ends.", retreat)
+
+    def test_tile_names_fit(self):
+        s = self.burn_ready()
+        frame = plain(s)
+        self.assertIn("│Retreat │", frame)
+        self.assertTrue(all(len(t.label) <= UI.tokens["size"]["tile_width"] - 2 for t in encounter.tiles(CONTENT, s)))
+        self.assertIn("▲3-4 ×1", frame)                                          # heat and uses left
+        self.assertIn("▲1 ⟳2", frame)                                            # heat and cooldown
+
+    def test_fighters_show_their_statuses(self):
+        s = encounter_state()
+        drone = encounter.living(s, "enemies")[0]
+        s = run(CONTENT, s, Ctx(self_id=drone), [freeze({"op": "apply_status", "status": "status_burning",
+                                                         "duration": 3, "subject": "self"})])
+        self.assertIn("Burning 3", plain(s))
+
+    def test_targets_are_marked_and_nothing_moves(self):
+        s = encounter_state()
+        normal, aiming = plain(s, selected=0), plain(s, selected=0, panel="target")
+        self.assertIn("▸1 Drone", aiming)
+        self.assertIn("▸2 Drone", aiming)
+        self.assertIn("1-2 target", aiming)
+        column = lambda frame: next(line.index("Drone") for line in frame.splitlines() if "Drone " in line)
+        self.assertEqual(column(normal), column(aiming))
+
+    def test_the_pick_shows_without_colour(self):
+        frame = render.render(CONTENT, encounter_state(), 44, 60, colour=False, selected=1, ui=UI)
+        self.assertIn("┏2━━━━━━━┓", frame)
+
+    def test_details_fit_the_smallest_screen(self):
+        frame = plain(encounter_state(), 40, 20, selected=1)
+        self.assertIn("ARM +4 on yourself for 1 round.", frame)
+        self.assertIn("2 again: use", frame)
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):
