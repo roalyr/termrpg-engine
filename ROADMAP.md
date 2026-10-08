@@ -240,6 +240,17 @@ Steps, each one playable and tested:
    - X leaves.
 6. **Fights:** action details before use, fighters' statuses, the chosen target
    highlighted, tile names that fit.
+   Agreed layout:
+   - tiles carry their number in the top border, so the inside fits an 8-letter name
+     (longer ones use the action's `short`); costs as symbols (`▲` heat, `⟳` cooldown,
+     `×` charges left);
+   - pressing a digit picks a tile (highlighted) and shows its details in place of the
+     round log: its costs and what it does, in words (damage type and what it scales
+     with, statuses and their rounds, stat changes, items used), and why it can't be
+     used if it can't; the same digit again uses it, another digit picks another;
+   - targets are chosen in the fighters column: possible targets marked with `▸`,
+     digits pick, X goes back;
+   - each fighter shows their statuses (with rounds left) beside their intent.
 7. ✓ **Messages:** message history, and long event texts in the panel. Agreed layout:
    - **history:** a new key (L by default) opens the messages in the shared panel,
      newest at the bottom, grouped under day and shift headings, scrolling with the
