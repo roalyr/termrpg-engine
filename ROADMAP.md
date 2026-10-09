@@ -18,7 +18,7 @@ says how to work on the project.
 - [x] Milestone 6: living world
 - [x] UI packs: the look, layout, keys and the UI's words as data
 - [x] Hardening: random play, a code review and its fixes, plain names in the test pack
-- [ ] Milestone 7: UI overhaul
+- [x] Milestone 7: UI overhaul
 - [ ] Milestone 8: first game pack
 - [ ] **Version 1.0**: the first clean version of the game, after milestone 8
 
@@ -159,7 +159,7 @@ Every milestone ends with something that runs and is tested, and with two chores
   and a one-time event. `tests/test_engine_events.py` covers casting, firing,
   triggers, limits and saves.
 
-### 7. UI overhaul
+### 7. UI overhaul ✓
 
 Polish every screen, menu and sub-window before writing a real game pack, so engine
 work and content work are cleanly separated: after this milestone, the game pack
@@ -275,7 +275,7 @@ Steps, each one playable and tested:
      manifest;
    - **quit:** Q in the game asks "Quit to the start screen? Y/N" (the game is
      saved after every turn); Quit on the start screen leaves the program.
-9. **Polish pass:** item names coloured by grade, small-screen behaviour, consistent
+9. ✓ **Polish pass:** item names coloured by grade, small-screen behaviour, consistent
    wording, UI pack docs, the playtest.
 
 ### 8. First game pack → version 1.0
