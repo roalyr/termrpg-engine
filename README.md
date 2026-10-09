@@ -898,13 +898,12 @@ game pack keeps the game's voice (what happens, hints, dialogue, results).
 
 The renderer (`tui/`) draws everything from the UI pack: `tui/ui.py` loads and
 validates it (an invalid UI pack is refused at start), `tui/widgets.py` holds the
-widget catalogue and `tui/layout.py` lays out the zones. `python3 play.py --ui
-<folder>` plays with another UI pack. The engine never words the UI: built-in options
-("go", "talk", "inspect", "fit", "dismantle"…) carry a kind and parameters, and the
-UI pack's words turn them into text.
-
-`schemas/ui.schema.json` is generated: edit `tools/gen_ui_schema.py` and run
-`python3 tools/gen_ui_schema.py`; a test fails when the two drift apart.
+widget catalogue, `tui/layout.py` lays out the zones and `tui/shell.py` handles the
+screens before a game is loaded. `python3 play.py --ui <folder>` plays with another
+UI pack. The engine never words the UI: built-in options ("go", "talk", "inspect",
+"fit", "dismantle"…) carry a kind and parameters, and the UI pack's words turn them
+into text. `schemas/ui.schema.json` is generated: edit `tools/gen_ui_schema.py` and
+run `python3 tools/gen_ui_schema.py`; a test fails when the two drift apart.
 
 **Every field has a default, and the defaults are the standard look.** A UI pack only
 writes what it changes; an empty file of a kind means "all standard".
@@ -915,160 +914,208 @@ win key by key; word entries add up):
 
 | Kind | Holds |
 |---|---|
-| `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the portrait's width and height in pixels), `padding`, `glyphs` (the border set, the list cursor, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints, the picked action tile's heavy border, the cooldown and charges marks) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
-| `screens` | Each screen (`world`, `encounter`, `debrief`, `fitting`, `character`, `talk`, `start`, `slots`, `help`, `quit`) as zones, top to bottom |
+| `tokens` | Layout variables. `size`: minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the portrait's width and height in pixels, `save_slots`, `card_min_lines`. `padding`. `glyphs`: the border set, the picked action tile's heavy border, the list cursor, bar steps, the player cursor, the intent, cost, cooldown and charges marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints. `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`): a palette colour, bold, dim |
+| `screens` | Each screen as zones, top to bottom |
 | `keys` | `bindings` (action → key) and `hints` (what each context shows) |
 | `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |
 
-**Zones and layouts.** A zone is one bordered band of a screen. Its `content` is a
-widget, a `row` of two layouts side by side (`fixed` says which side keeps its natural
-width), or a `stack` of layouts one after another (empty ones take no space). A zone
-has a `priority` (when the screen is taller than the terminal, zones with the highest
-priority are dropped first; 0 is never dropped), `hide_when_empty` (when off, an empty
-zone keeps one blank line) and `scroll` (when the screen still doesn't fit, the zone
-shows only its last lines, at least one, so the newest messages and the menu stay in
-view). Before that, the screen is drawn again with the widgets'
-compact forms (action tiles as a list, fighters without the gap between the sides,
-the enemy's picture without its frame), and as a last resort the tallest zones lose
-their last lines: a frame never overflows the terminal.
+#### The screens
 
-**Sub-windows.** Inspect and the item details (the `panel` widget) open as
-sub-windows in their zone, and while one is open it is the only focus: the log and
-the menu step back. Its zone is flexible: low-priority zones are still dropped to
-make room for it, then it takes every row the other zones leave. When its content is
-longer, it shows the part at the scroll offset with a slider at its right edge.
-**Up and down are contextual:** they move the player while no sub-window is open,
-and scroll the open one (the pack panel turns its pages) until it's closed. Left and
-right do nothing there, and moving never closes a sub-window; only its close key does.
-Closing Inspect returns to the thing's menu.
+| Screen | What it is | Opened by |
+|---|---|---|
+| `start` | The game's name and version; Continue, New game, Load, Help, Quit; the pack's description | Starting `play.py`; Y on the quit question |
+| `slots` | The save slots, to load a game or start a new one in | Load; New game when every slot is used |
+| `help` | The keys, how the interface works, the game's own help | Help |
+| `world` | The room, status, legend, messages and menus; the pack panel and the shared panel (Inspect, item details, the message log, cards) open in its message zone | Playing |
+| `fitting` | The loadout by slot, spare gear and designs, and building | F |
+| `character` | The portrait, identity, skills, stats, conditions, party and standing | C |
+| `talk` | A conversation: the speaker, what was said, your responses | Talk in a person's menu |
+| `encounter` | A fight: the enemy's picture, both sides, action tiles, the round log | A fight starting |
+| `debrief` | The after-action screen: the result, the last round, the loot | A fight ending |
+| `quit` | Quit to the start screen? | Q, from anywhere in a game |
 
-**Item details.** On the pack panel, a picked item offers I (Details): its name, kind,
-slot and grade, condition, description, then labelled rows for what it uses and
-gives, its mounts, what it counts as, its actions, mod slots, size, stack, what
-wearing it needs, and what taking it apart, making and repairing involve. X goes back
-to the pack panel with the item still picked. The fitting screen offers the same
-details for whatever is picked there.
+#### Zones, layouts and fitting the terminal
 
-**The fitting screen** (F) is a full screen for planning and building:
+A zone is one bordered band of a screen. Its `content` is a widget, a `row` of two
+layouts side by side (`fixed` says which side keeps its natural width), or a `stack`
+of layouts one after another (empty ones take no space). A zone has a `priority`,
+`hide_when_empty` (when off, an empty zone keeps one blank line) and `scroll`.
+
+When a screen is taller than the terminal, in order:
+1. zones are dropped, highest `priority` first (0 is never dropped);
+2. the screen is drawn again with the widgets' compact forms (action tiles as a list,
+   fighters without the gap between the sides, the enemy's picture without its frame,
+   the fitting screen's picked entry without its kind and status lines);
+3. `scroll` zones keep only their last lines (at least one), so the newest messages
+   and the menu stay in view;
+4. as a last resort the tallest zones lose their last lines.
+
+A frame never overflows the terminal. An open sub-window, and on a list screen the
+list, is **flexible**: low-priority zones still make room for it, the other steps
+leave it at least 3 lines, and it then takes every row the others leave, showing the
+part in view with a slider at its right edge when it's longer. A list keeps its pick
+in view; a conversation and the message log keep their newest lines; a question card
+keeps its question.
+
+#### Keys that work the same everywhere
+
+- **Up and down are contextual:** they move the player while nothing is open; on an
+  open sub-window or full screen they scroll it, move its pick, or (pack panel) turn
+  its pages, until it's closed. Left and right do nothing there, and moving never
+  closes anything: only its close key does. The arrow keys always work as up and
+  down, and Esc always closes.
+- **Digits pick numbered entries:** choices, list entries, responses, targets. They
+  can't be bound. In a fight a digit picks an action tile and shows its details; the
+  same digit again uses it.
+- **Close goes back one level:** from details to their list, from a list to the
+  world. Q asks before quitting.
+
+#### The world and its sub-windows
+
+**The shared panel** (the `panel` widget) opens in the world's message zone and is
+the only focus while open (the log and the menu step back):
+- **Inspect**: the thing's name, a person's title or an object's state, and its
+  description. Close returns to its menu.
+- **Item details** (I on a picked item): name, kind, slot and grade, condition,
+  description, then labelled rows: what it uses and gives, mounts, what it counts as,
+  actions, mod slots, size, stack, what wearing it needs, and what taking it apart,
+  making and repairing involve. X goes back to the list with the item still picked.
+- **The message log** (L): the journal, the message history kept in the game state
+  and saved with it (the last 200 lines, each stamped with its turn; a fight's
+  after-action screen included), grouped under day and shift headings, newest at the
+  bottom.
+- **Cards**: an event that asks a question, or whose text is longer than
+  `card_min_lines` on the narrowest screen, opens as a card: the event's name, its
+  text, the question and its numbered choices. Any question opens this way, titled
+  with the thing's name when it isn't an event's (the terminal). A card without a
+  question waits for any key. Shorter texts stay in the message log. The engine
+  keeps the last event's text in the state as `card` until the next key.
+
+**The pack panel** (P) is for carrying: what you carry and storage within reach,
+numbered and paged, with the cargo budget. A picked item shows its options (take,
+store, use, details) right under it. After an action the panel keeps the same item
+picked at its new number, or drops the pick when it's gone; the message log above it
+says what happened.
+
+#### The fitting screen (F)
+
+A full screen for planning and building:
 - the title names the worn suit and where you are ("At: Workbench", or "Planning
-  only");
+  only": actions then greyed out with the reason);
 - `budgets` shows power, mass, heat and cargo as bars;
 - `loadout` lists what's worn by slot (the frame, each of its slots, the body's
   implant slots; empty ones as "· empty", never picked), spare gear carried or in
-  storage within reach, and known designs with their costs. Up and down move the pick
-  (the list scrolls to keep it in view, with the slider), digits 1-9 jump to an entry,
-  and the pick is marked with the `cursor` glyph so it shows without colour too;
-- `pick` shows the picked entry: what it is, what its action would change ("Remove:
-  PWR 4→3/6"), shown when the action can happen or when the budgets are why it can't
-  (over-budget numbers in the warning colour), and its keys. M lists the
-  modifications that apply, each with its cost, what it adds and what it would
-  change; a digit applies one. I opens the item's details;
-- close goes back a level: from the details or the modifications to the list, from
-  the list to the world. After an action the pick follows the item wherever it went.
+  storage within reach, and known designs with their costs. Up and down move the
+  pick, digits 1-9 jump, and the `cursor` glyph marks it so it shows without colour;
+- `pick` shows the picked entry: what its action would change ("Remove: PWR
+  4→3/6"), when the action can happen or when the budgets are why it can't (over
+  budget in the warning colour), and its keys. M lists the modifications that apply,
+  each with its cost, what it adds and what it would change; a digit applies one;
+- after an action the pick follows the item wherever it went.
 
-**Around the game.** `python3 play.py` opens the **start screen**: the game pack's
-name and version, then Continue (the slot saved last, with its place and day), New
-game, Load, Help and Quit, picked with up and down and Enter, or a number. Games live
-in a few numbered **slots** (the UI pack's `save_slots`, 3 by default) in
-`saves/<pack folder>/slotN.json`; New game takes an empty one, or asks which to
-replace when all are used. **Help** lists the keys, generated from the bindings, then
-how the interface works (the UI pack's words) and the game's own `help`. In a game,
-Q asks "Quit to the start screen?": Y quits (the game is saved after every turn), N or
-X goes back to where you were. `--slot` and `--new` go straight into a game.
+#### The character screen (C)
 
-**Messages.** Every key's messages also go into the **journal**, the message history
-kept in the game state and saved with it (the last 200 lines, each stamped with its
-turn; a fight's after-action screen included). L opens it in the shared panel, grouped
-under day and shift headings, the newest at the bottom; up and down look back, X or L
-closes it.
-
-**Event cards.** An event that asks a question, or whose text is longer than the UI
-pack's `card_min_lines` on the narrowest screen (3 by default), opens as a card in the
-shared panel: the event's name as the title, its text, then the question and its
-numbered choices. Any question opens this way, titled with the thing's name when it
-isn't an event's (the terminal). A card without a question waits for any key; up and
-down scroll a long one. Shorter event texts stay in the message log. The engine keeps
-the last event's text in the state as `card` until the next key.
-
-**The conversation screen** opens with Talk in a person's menu (talking still takes a
-turn). On top, the speaker's portrait beside their name, title, faction and trust (the
-relation level's name, the number and a bar). Below, the last exchanges ("You:
-Trade", then what followed, such as what changed hands), the speaker's current line,
-and your responses: their interactions, numbered, unavailable ones greyed out with
-their hint, and Leave last. A trade shows "You give" and "You get", read from the
-interaction's own top-level `take_item` and `give_item` effects. The conversation
-keeps its newest lines in view; up and down look back. It ends with Leave or X, or
-when something takes over (a fight, a question, the speaker out of reach). On short
-terminals the portrait row gives way (priority 1 in the default UI pack).
-
-**The character screen** (C) is a full screen: the title, the portrait beside the
-identity (name, title, faction and rank, health and heat), then a body that scrolls
-with up and down: skills with their progress and next level, stats, conditions,
-party and standing. The portrait zone always keeps its place, sized by the UI pack's
+The portrait beside the identity (name, title, faction and rank, health and heat),
+then a body that scrolls: skills with their progress and next level, stats in
+columns, conditions with the turns they have left, the party with their health, and
+standing. The portrait zone keeps its place without a portrait, sized by
 `portrait_width` and `portrait_height`.
 
-**Fights.** A digit picks an action tile: it's drawn with the heavy border and its
-details take the round log's place (costs; what it does in words, worked out from its
-effects: damage and what it scales with, statuses and their rounds, stat changes,
-restoring, chances; and why it can't be used, if it can't). The same digit again uses
-it, another digit picks another, X lets go. An action with several possible targets
-then marks them `▸` in the fighters column; a digit picks one, X goes back to the
-tile. On short terminals the screen switches to the widgets' compact forms before it
-cuts any text.
+#### Conversations
 
-**The pack panel keeps its pick.** Numbers shift when an item is stored or taken,
-because entries are grouped by where they are. After an action the panel keeps the
-same item picked at its new number (or drops the pick when the item is gone).
+Talk in a person's menu opens the conversation (it takes a turn): the speaker's
+portrait beside their name, title, faction and trust (the level, the number and a
+bar); the last exchanges ("You: Trade" and what followed); their current line; your
+responses (their interactions, numbered, greyed out with their hint when unavailable)
+and Leave. A trade shows "You give" and "You get", read from the interaction's own
+top-level `take_item` and `give_item` effects. It ends with Leave or X, or when
+something takes over (a fight, a question, the speaker out of reach). On short
+terminals the portrait row gives way (priority 1 in the default UI pack).
 
-**Widgets** are a fixed catalogue owned by the engine; each has a few options and is
+#### Fights
+
+A digit picks an action tile (heavy border) and shows its details in the round log's
+place: costs, what it does in words (damage and what it scales with, statuses and
+their rounds, stat changes, restoring, chances) and why it can't be used, if it
+can't. The same digit uses it, another picks another, X lets go. An action with
+several possible targets marks them `▸` in the fighters column; a digit picks one, X
+goes back to the tile. Fighters show their statuses with the rounds left.
+
+#### Around the game
+
+`python3 play.py` opens the start screen: Continue (the slot saved last, with its
+place and day), New game, Load, Help and Quit, picked with up and down and Enter, or
+a number. Games live in a few numbered slots (`save_slots`, 3 by default) in
+`saves/<pack folder>/slotN.json`; New game takes an empty one, or asks which to
+replace when all are used. Help lists the keys, generated from the bindings, then how
+the interface works (the UI pack's `help_interface`) and the game's own `help`. In a
+game, Q asks "Quit to the start screen?": Y quits (the game is saved after every
+turn), N or X goes back to exactly where you were. `--slot` and `--new` go straight
+into a game.
+
+#### Colour
+
+Colour always means something, and everything reads without it. Styles come by role
+(warnings in `danger`, greyed-out options in `unavailable`, key hints in `hint`…).
+Item names are drawn in their grade's colour (the vocabulary's `grades` → `colour`)
+on the pack panel, the fitting screen and in item details; ungraded items as they
+are. Picks are drawn inverse and also marked with a glyph (the cursor, the heavy
+tile border), so they show without colour.
+
+#### The widget catalogue
+
+Widgets are a fixed catalogue owned by the engine; each has a few options and is
 allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 
 | Widget | Shows | Screens | Options |
 |---|---|---|---|
-| `title` | The location with region and hazards; the encounter and its round; the fight's result | all | — |
+| `title` | The screen's title: the location with region and hazards, the encounter and its round, the fight's result, the game's name… | all | — |
+| `keys` | Key hints for the current context, built from the bindings | all | — |
+| `log` | Messages in order | all | `round_heading` |
 | `grid` | The room | world | — |
 | `status` | Day and phase, pool bars, statuses, party | world | `pools` (`all` or stat roles), `day`, `statuses`, `party` |
 | `legend` | What each glyph is | world | — |
-| `log` | Messages in order | all | `round_heading` |
 | `menu` | What can be done with the thing in focus | world | `hints` |
-| `choice` | A choice waiting for an answer | world, encounter | `hints` |
-| `board` | The pack panel: what you carry and storage within reach | world | `budgets` |
-| `tiles` | Action tiles: the number in the top border, the name inside, costs as symbols (`▲` heat, `⟳` cooldown, `×` uses left); the picked one with a heavy border | encounter | `per_row` (0 = fit) |
-| `fighters` | Both sides with bars, statuses (rounds left) and intents; while aiming, the targets marked `▸` and numbered | encounter | `intent` |
-| `action` | The picked action's details in words: costs, what it does, why it can't be used | encounter | — |
-| `art` | The enemy's picture | encounter | `frame` |
-| `portrait` | The player's portrait (the speaker's in a conversation) in half-block pixels; an empty frame of the same size without one | character, talk | `frame` |
-| `identity` | Name, title, faction and rank, the pool bars; in a conversation the speaker and their trust | character, talk | — |
-| `conversation` | The last exchanges, the speaker's line, numbered responses with what trades give and take, Leave | talk | `trades` |
-| `skills` | Each skill: level, a bar to the next level, what the next level brings | character | — |
-| `stats` | Derived stats in columns; conditions with the turns they have left | character | — |
-| `people` | The party with their health; your rank and how factions regard you | character | — |
-| `panel` | The shared panel: what Inspect shows (name, a person's title or an object's state, description), or an item's details | world | `slider` |
+| `choice` | A choice waiting for an answer (on the world, shown as a card) | world, encounter | `hints` |
+| `board` | The pack panel | world | `budgets` |
+| `panel` | The shared panel: Inspect, item details, the message log, cards | world, fitting | `slider` |
 | `budgets` | Power, mass, heat and cargo as bars | fitting | — |
 | `loadout` | The fitting list: worn by slot, spare gear, designs | fitting | — |
 | `pick` | The picked entry, what its action would change, its keys; or its modifications | fitting | — |
+| `portrait` | The player's portrait (the speaker's in a conversation) in half-block pixels | character, talk | `frame` |
+| `identity` | Name, title, faction and rank, the pool bars; in a conversation the speaker and their trust | character, talk | — |
+| `skills` | Each skill: level, a bar to the next level, what the next level brings | character | — |
+| `stats` | Derived stats in columns; conditions with the turns they have left | character | — |
+| `people` | The party with their health; your rank and how factions regard you | character | — |
+| `conversation` | The last exchanges, the speaker's line, numbered responses with what trades give and take, Leave | talk | `trades` |
+| `art` | The enemy's picture | encounter | `frame` |
+| `fighters` | Both sides with bars, statuses and intents; while aiming, the targets marked `▸` | encounter | `intent` |
+| `tiles` | Action tiles: the number in the top border, the name inside, costs as symbols (`▲` heat, `⟳` cooldown, `×` uses left) | encounter | `per_row` (0 = fit) |
+| `action` | The picked action's details in words | encounter | — |
 | `start_menu` | The start screen's choices; Continue shows what it resumes | start | — |
 | `description` | The game pack's description | start | — |
 | `slots` | The save slots: where and when each was saved, or empty | slots | — |
 | `help` | The keys from the bindings, how the interface works, the game's own help | help | — |
 | `question` | The quit question | quit | — |
-| `keys` | Key hints for the current context, built from the bindings | all | — |
 
-**Keys.** The input actions are fixed by the engine: `move_north`, `move_west`,
-`move_south`, `move_east`, `wait`, `pack`, `fitting`, `character`, `history`, `close`, `quit`, `next_page`.
-Number keys 1–9 always pick numbered entries and can't be bound. Bindings are lower
-case (keys match either case). The arrow keys always move and Esc always closes,
-whatever the bindings. `hints` lists, per
-context (`walk`, `menu`, `choice`, `card`, `history`, `pack`, `fitting`, `modify`, `sheet`, `talk`, `panel`, `item`, `encounter`, `target`,
-`debrief`), entries that show some actions' keys joined (`WASD`), the arrow keys
-instead for move actions (`arrows`: `↑↓`), the picked action tile's number
-(`picked`: "3 again: use"), or `1-9` (`digits`, shown as the real
-range), then a label from the words file. Hints are generated from the bindings, so
-they can't disagree with the real keys, and a hint whose keys do nothing right now
-(scrolling what fits, paging a single page) isn't shown.
+#### Key bindings and hints
 
-**The UI validator** (`python3 -m core.packtool check packs/ui/<id>`) checks every
-file against the schema, then:
+The input actions are fixed by the engine: `move_north`, `move_west`, `move_south`,
+`move_east`, `wait`, `pack`, `fitting`, `character`, `history`, `close`, `quit`,
+`next_page`. Bindings are lower case (keys match either case). `hints` lists, per
+context (`walk`, `menu`, `choice`, `card`, `history`, `pack`, `panel`, `item`,
+`fitting`, `modify`, `sheet`, `talk`, `encounter`, `picked`, `target`, `debrief`,
+`start`, `slots`, `help`, `quit`), entries that show some actions' keys joined
+(`WASD`), the arrow keys instead for move actions (`arrows`: `↑↓`), the picked
+action tile's number (`picked`: "3 again: use"), or `1-9` (`digits`, shown as the
+real range), then a label from the words file. Hints are generated from the
+bindings, so they can't disagree with the real keys, and a hint whose keys do nothing
+right now (scrolling what fits, paging a single page) isn't shown.
+
+#### The UI validator
+
+`python3 -m core.packtool check packs/ui/<id>` checks every file against the schema,
+then:
 
 - each widget only on the screens that allow it, at most once per screen;
 - no two actions on one key, and none on a key the engine's menus use (`g t i`, the

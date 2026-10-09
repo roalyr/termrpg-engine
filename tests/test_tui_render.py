@@ -639,7 +639,7 @@ class TestMessages(unittest.TestCase):
         _, view, _ = app.handle(CONTENT, s, "l", app.View(), UI)
         self.assertEqual(view.panel, "history")
         frame = plain(s, panel="history")
-        for words in ("Messages", "Day 1 · Day shift", "Empty.", "Day 1 · Night shift", "Already searched.", "X close"):
+        for words in ("Message log", "Day 1 · Day shift", "Empty.", "Day 1 · Night shift", "Already searched.", "X close"):
             self.assertIn(words, frame)
         self.assertNotIn("WASD move", frame)
         _, closed, _ = app.handle(CONTENT, s, "x", view, UI)
@@ -791,6 +791,55 @@ class TestFightScreen(unittest.TestCase):
         frame = plain(encounter_state(), 40, 20, selected=1)
         self.assertIn("ARM +4 on yourself for 1 round.", frame)
         self.assertIn("2 again: use", frame)
+
+
+class TestPolish(unittest.TestCase):
+    """Step 9: the polish pass."""
+
+    def test_wrapped_options_hang_under_their_text(self):
+        frame = plain(walk(new_game(CONTENT, 1), "as"), 40, 30, screen="talk")
+        self.assertIn("│ 2 Recruit - Doesn't trust you", frame)
+        self.assertIn("│   enough.", frame)
+
+    def test_the_pack_panel_shows_the_pick_with_what_it_can_do(self):
+        frame = plain(new_game(CONTENT, 1), 40, 20, panel="pack", selected=0)
+        lines = frame.splitlines()
+        medkit = next(i for i, line in enumerate(lines) if "1 Medkit" in line)
+        self.assertIn("U Use", lines[medkit + 1])                    # the options sit under the pick
+        self.assertIn("I Details", lines[medkit + 2])
+
+    def test_lists_keep_room_on_short_terminals(self):
+        frame = plain(bench_state(), 40, 20, screen="fitting", selected=1)
+        self.assertIn("1 Light suit", frame)
+        self.assertIn("Hand  2 Cutter", frame)
+        self.assertIn("Hand  · empty", frame)
+        self.assertIn("R Remove", frame)
+
+    def test_a_question_card_opens_on_the_question(self):
+        s = requested("event_grudge")
+        frame = plain(s, 40, 20)
+        self.assertIn("1 Apologise", frame)
+        self.assertIn("2 Ignore it", frame)
+        self.assertNotIn("Grudge", frame)
+        _, view, _ = app.handle(CONTENT, s, "w", app.View(), UI)      # up looks back to the text
+        self.assertIn("Grudge", plain(s, 40, 20, scroll=view.scroll + 6))
+
+    def test_item_names_in_their_grades_colour(self):
+        style = Style(True, UI.tokens["styles"])
+        frame = render.render(CONTENT, new_game(CONTENT, 1), 44, 60, panel="pack", ui=UI)
+        common = CONTENT.get("grade", "grade_common")["colour"]
+        self.assertIn(style.colour_of("Scrap", common), frame)
+        self.assertNotIn(style.colour_of("Medkit", common), frame)    # ungraded: as it is
+        fine = CONTENT.get("grade", "grade_fine")["colour"]
+        fitting = render.render(CONTENT, bench_state(), 44, 60, screen="fitting", selected=2, ui=UI)
+        self.assertIn(style.colour_of("Shield", fine), fitting)
+        picked = render.render(CONTENT, new_game(CONTENT, 1), 44, 60, panel="pack", selected=1, ui=UI)
+        self.assertIn(style.key("2 Scrap x10"), picked)              # the highlight isn't broken by the colour
+
+    def test_counts_read_naturally(self):
+        s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"), [
+            freeze({"op": "apply_status", "status": "status_burning", "duration": 1, "subject": "self"})])
+        self.assertIn("1 turn left", plain(s, screen="character"))
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):

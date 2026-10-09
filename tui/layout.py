@@ -26,6 +26,9 @@ from tui.text import pad
 from tui.widgets import FOCUS, LISTS, NATURAL_WIDTH, SUBWINDOWS, WIDGETS, Frame
 
 
+FLEX_MIN = 3   # lines a sub-window or list keeps before other zones give way (compact forms, scrolling, clipping)
+
+
 class Band(NamedTuple):
     zone: Mapping[str, Any]
     lines: List[str]
@@ -145,7 +148,7 @@ def _fit(frame: Frame, zones: List[Mapping[str, Any]], inner: int, rows: int) ->
 def _scroll_zones(bands: List[Band], rows: int) -> List[Band]:
     """Scroll zones keep only their last lines (at least one) while the screen is too tall."""
     for i, band in enumerate(bands):
-        excess = _height(bands, flexible_as=1) - rows
+        excess = _height(bands, flexible_as=FLEX_MIN) - rows
         if excess > 0 and band.zone.get("scroll") and not band.flexible and len(band.lines) > 1:
             bands[i] = band._replace(lines=band.lines[min(excess, len(band.lines) - 1):])
     return bands
@@ -155,11 +158,11 @@ def arrange(frame: Frame, zones: List[Mapping[str, Any]], columns: int, rows: in
     """The bands that fit the terminal, and where the open sub-window is scrolled to."""
     inner = columns - 2
     bands = _fit(frame, zones, inner, rows)
-    if _height(bands, flexible_as=1) > rows and not frame.compact:    # compact widgets before cutting text
+    if _height(bands, flexible_as=FLEX_MIN) > rows and not frame.compact:    # compact widgets before cutting text
         frame = frame._replace(compact=True)
         bands = _fit(frame, zones, inner, rows)
     bands = _scroll_zones(bands, rows)
-    while _height(bands, flexible_as=1) > rows:              # last resort: clip the tallest zone
+    while _height(bands, flexible_as=FLEX_MIN) > rows:              # last resort: clip the tallest zone
         i = max((j for j in range(len(bands)) if not bands[j].flexible),
                 key=lambda j: len(bands[j].lines), default=None)
         if i is None or len(bands[i].lines) <= 1:

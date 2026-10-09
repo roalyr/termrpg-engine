@@ -226,6 +226,8 @@ WORDS = {
  "cost_charges": ("Action details: uses left this fight.", ["left", "total"]),
  "cost_consumes": ("Action details: items used up.", ["items"]),
  "cost_free": ("Action details: no cost.", []),
+ "turns_one": ("A count of one turn, used in other words.", []),
+ "turns_many": ("A count of turns, used in other words.", ["count"]),
  "rounds_one": ("A count of one round, used in other words.", []),
  "rounds_many": ("A count of rounds, used in other words.", ["count"]),
  "act_early": ("Action details: acts before initiative.", []),

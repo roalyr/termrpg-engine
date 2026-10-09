@@ -41,6 +41,10 @@ class Style:
     def inverse(self, text: str) -> str:
         return f"\x1b[7m{text}{RESET}" if text else text
 
+    def colour_of(self, text: str, colour: str) -> str:
+        """Text in a palette colour (a grade's colour, say). Plain without colour."""
+        return self._wrap(text, f"38;5;{PALETTE.get(colour, PALETTE['white'])}")
+
     def pixels(self, text: str, fg: Optional[int], bg: Optional[int]) -> str:
         """Half-block pixels: 'fg' and 'bg' are 256-colour codes (None for none). Plain without colour."""
         codes = ([f"38;5;{fg}"] if fg is not None else []) + ([f"48;5;{bg}"] if bg is not None else [])

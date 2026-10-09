@@ -77,7 +77,7 @@
     "stats_heading": "Stats",
     "conditions_heading": "Conditions",
     "conditions_none": "None",
-    "condition_turns": "{turns} turns left",
+    "condition_turns": "{turns} left",
     "party_heading": "Party",
     "party_alone": "Travelling alone",
     "party_down": "down",
@@ -91,7 +91,7 @@
     "talk_leave": "Leave",
     "talk_give": "You give",
     "talk_get": "You get",
-    "history_title": "Messages",
+    "history_title": "Message log",
     "history_empty": "Nothing yet.",
     "cost_heat": "heat {amount}",
     "cost_cooldown": "ready again after {rounds}",
@@ -133,13 +133,13 @@
     "help_title": "Help",
     "help_keys": "Keys",
     "help_how": "How it works",
-    "help_interface": "Walk into things to use them: a menu shows what you can do, each with its own key. Some windows open over the map; while one is open, up and down scroll it and close leaves it. The pack is what you carry; the fitting screen is where you build your suit; the character screen is who you are; the messages are everything so far. Talk to people to trade and recruit them. In a fight, a number picks an action and shows what it does, and the same number uses it. The game is saved after every turn.",
+    "help_interface": "Walk into things to use them: a menu shows what you can do, each with its own key. Some windows open over the map; while one is open, up and down scroll it and close leaves it. The pack is what you carry; the fitting screen is where you build your suit; the character screen is who you are; the message log is everything so far. Talk to people to trade and recruit them. In a fight, a number picks an action and shows what it does, and the same number uses it. The game is saved after every turn.",
     "key_move": "move",
     "key_wait": "wait a turn",
     "key_pack": "pack",
     "key_fitting": "fitting",
     "key_character": "character",
-    "key_history": "messages",
+    "key_history": "message log",
     "key_close": "close",
     "key_quit": "quit",
     "key_next_page": "next page",
@@ -147,7 +147,9 @@
     "key_arrows": "arrows",
     "key_escape": "Esc",
     "quit_question": "Quit to the start screen?",
-    "quit_saved": "The game is saved after every turn."
+    "quit_saved": "The game is saved after every turn.",
+    "turns_one": "1 turn",
+    "turns_many": "{count} turns"
   },
   "entries": [
     {
@@ -176,7 +178,7 @@
     },
     {
       "id": "hint_keys_above",
-      "text": "Keys shown above"
+      "text": "Keys above act"
     },
     {
       "id": "hint_keys_act",

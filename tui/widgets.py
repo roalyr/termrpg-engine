@@ -48,7 +48,9 @@ Draw = Callable[[Frame, int, Mapping[str, Any]], List[str]]
 
 # Sub-windows: what's open (Frame.panel) and the widget that shows it. While one is open
 # it is the focus: its zone scrolls, and the log and menu step back.
-SUBWINDOWS = {"inspect": "panel", "item": "panel", "modify": "pick", "card": "panel", "history": "panel"}
+SUBWINDOWS = {"inspect": "panel", "item": "panel", "modify": "pick", "card": "panel", "history": "panel",
+              "pack": "board"}
+SHOWS_LOG = ("pack",)    # sub-windows that keep the message log above them (what an action just did)
 # List screens: with no sub-window open, this widget's zone scrolls to keep the pick in view.
 LISTS = {"fitting": "loadout", "character": "skills", "talk": "conversation",
          "start": "start_menu", "slots": "slots", "help": "help"}
@@ -76,13 +78,23 @@ def option_text(ui: UI, option: Any) -> str:
     return ui.word(word, **dict(option.params))
 
 
+def hang(text: str, width: int, indent: int) -> List[str]:
+    """Wrapped text whose following lines are indented under the first one's text ('2 Recruit - Doesn't…')."""
+    first, *rest = wrap(text, width) or [""]
+    if not rest:
+        return [first]
+    more = wrap(" ".join(rest), max(1, width - indent))
+    return [first] + [" " * indent + line for line in more]
+
+
 def option_lines(frame: Frame, option: Any, width: int, hints: bool = True) -> List[str]:
     key, text = option.key.upper(), option_text(frame.ui, option)
+    indent = len(key) + 1
     if option.available:
         entry = f"{frame.style.key(key)} {text}"
-        return [entry] if visible_len(entry) <= width else wrap(f"{key} {text}", width)
+        return [entry] if visible_len(entry) <= width else hang(f"{key} {text}", width, indent)
     hint = f" - {option.hint}" if hints and option.hint else ""
-    return styled_lines(f"{key} {text}{hint}", width, frame, "unavailable")
+    return [frame.style.role(line, "unavailable") for line in hang(f"{key} {text}{hint}", width, indent)]
 
 
 def message_lines(frame: Frame, messages, width: int) -> List[str]:
@@ -268,7 +280,7 @@ def log(frame: Frame, width: int, options: Mapping) -> List[str]:
     else:
         heading = state.encounter.log_round if state.encounter is not None else 0
         messages = state.messages
-    if frame.panel in SUBWINDOWS:                    # one focus at a time
+    if frame.panel in SUBWINDOWS and frame.panel not in SHOWS_LOG:     # one focus at a time
         return []
     if frame.screen == "encounter" and frame.selected is not None and frame.panel != "target":
         return []                                    # the picked action's details take its place
@@ -308,10 +320,10 @@ def _choice_lines(frame: Frame, width: int, hints: bool) -> List[str]:
         ok, _ = conditions.holds(content, state, state.pending.ctx, option.get("condition"))
         text = f"{i} {content.text(option['label'])}"
         if ok:
-            lines += wrap(text, width)
+            lines += hang(text, width, len(str(i)) + 1)
         else:
             hint = f" - {content.text(option['hint'])}" if hints and option.get("hint") else ""
-            lines += styled_lines(text + hint, width, frame, "unavailable")
+            lines += [frame.style.role(line, "unavailable") for line in hang(text + hint, width, len(str(i)) + 1)]
     return lines
 
 
@@ -346,17 +358,32 @@ def board(frame: Frame, width: int, options: Mapping) -> List[str]:
                        "design": ui.word("pack_designs")}.get(group) or \
                 ui.word("pack_stored", container=content.get("placement", where_store)["name"])
             lines.append(style.role(heading, "heading"))
-        entry = build.entry_at(content, state, slot)
-        text = content.get("item", entry)["name"] if slot[0] == "design" else _item_line(content, entry)
-        entry = f"{number} {text}"[:width]
-        lines.append(style.key(entry) if frame.selected == first + number - 1 else entry)
+        item = build.entry_at(content, state, slot)
+        text = _item_entry(frame, item)
+        entry = f"{number} {text}" if visible_len(f"{number} {text}") <= width else f"{number} {_item_line(content, item)}"[:width]
+        if frame.selected == first + number - 1:                   # the pick, with what it can do under it
+            lines.append(FOCUS + style.key(_plain(entry)))
+            for option in build.item_options(content, state, slot, ui.bound_keys, "pack"):
+                lines += ["  " + line for line in option_lines(frame, option, width - 2)]
+            lines.append(f"  {style.key(world.MENU_KEYS['inspect'].upper())} {ui.word('details')}")
+        else:
+            lines.append(entry)
     if pages > 1:
         lines += styled_lines(ui.word("pack_more", page=page + 1, pages=pages), width, frame, "hint")
-    if frame.selected is not None and frame.selected < len(slots):
-        for option in build.item_options(content, state, slots[frame.selected], ui.bound_keys, "pack"):
-            lines += option_lines(frame, option, width)
-        lines.append(f"{style.key(world.MENU_KEYS['inspect'].upper())} {ui.word('details')}")
     return lines
+
+
+def graded(frame: Frame, item_id: str, text: str) -> str:
+    """An item's name in its grade's colour (ungraded items as they are)."""
+    grade = frame.content.get("item", item_id).get("grade")
+    return frame.style.colour_of(text, frame.content.get("grade", grade)["colour"]) if grade else text
+
+
+def _item_entry(frame: Frame, inst) -> str:
+    """'Cutter 4/4', 'Scrap x10': the name in its grade's colour, the count and condition plain."""
+    plain = _item_line(frame.content, inst)
+    name = stats.item_view(frame.content, inst)["name"]
+    return graded(frame, inst.item, name) + plain[len(name):]
 
 
 def _item_line(content: Content, inst) -> str:
@@ -397,7 +424,8 @@ def _card(frame: Frame, width: int) -> List[str]:
     if state.pending is not None:
         if lines:
             lines.append("")
-        lines += _choice_lines(frame, width, True)
+        question = _choice_lines(frame, width, True)
+        lines += [FOCUS + question[0]] + question[1:] if question else []   # opens on the question
     return lines
 
 
@@ -464,7 +492,8 @@ def item_details(frame: Frame, entry, width: int) -> List[str]:
     view = stats.item_view(content, inst)
 
     title = view["name"] + (f" x{inst.count}" if inst.count > 1 else "")
-    lines = [style.role(line, "heading") for line in wrap(title, width)]
+    lines = [graded(frame, inst.item, line) if record.get("grade") else style.role(line, "heading")
+             for line in wrap(title, width)]
     facts = [ui.word(f"kind_{view['kind']}")]
     if view["slot_type"]:
         facts.append(ui.word("slot_named", slot=content.get("slot_type", view["slot_type"])["name"]))
@@ -627,18 +656,18 @@ def loadout(frame: Frame, width: int, options: Mapping) -> List[str]:
         entry = build.entry_at(content, state, row.slot) if row.slot is not None else None
         right = ""
         if row.group == "worn" and row.slot_type == "frame":
-            left = number + (_item_line(content, entry) if entry is not None else ui.word("fitting_empty"))
+            left = number + (_item_entry(frame, entry) if entry is not None else ui.word("fitting_empty"))
             right = ui.word("fitting_frame_slot")
         elif row.group == "worn":
             label = content.get("slot_type", row.slot_type)["name"].ljust(name_width)
-            left = "   " + label + "  " + (number + _item_line(content, entry) if entry is not None
+            left = "   " + label + "  " + (number + _item_entry(frame, entry) if entry is not None
                                            else style.role(ui.word("fitting_empty"), "quiet"))
         elif row.group == "spare":
-            left = number + _item_line(content, entry)
+            left = number + _item_entry(frame, entry)
             right = ui.word("fitting_in", container=content.get("placement", row.where)["name"]) if row.where \
                 else ui.word("fitting_carried")
         else:
-            left = number + content.get("item", entry)["name"]
+            left = number + graded(frame, entry, content.get("item", entry)["name"])
             right = _counts(content, content.get("item", entry).get("fabricate", {}).get("inputs", ()))
         line = _right(left, style.role(right, "quiet") if right else "", width)
         if index == chosen:
@@ -681,12 +710,13 @@ def pick(frame: Frame, width: int, options: Mapping) -> List[str]:
         facts.append(ui.word("slot_named", slot=content.get("slot_type", view["slot_type"])["name"]))
     if record.get("grade"):
         facts.append(content.get("grade", record["grade"])["name"])
-    lines = [style.role(_item_line(content, entry) if not isinstance(entry, str) else record["name"], "heading")]
-    lines += styled_lines(" · ".join(facts), width, frame, "quiet")
-    status = {"worn": ui.word("fitting_fitted"), "designs": ui.word("fitting_design")}.get(row.group) or (
-        ui.word("fitting_in", container=content.get("placement", row.where)["name"]) if row.where
-        else ui.word("fitting_carried"))
-    lines += styled_lines(status, width, frame, "quiet")
+    lines = [_item_entry(frame, entry) if not isinstance(entry, str) else graded(frame, entry, record["name"])]
+    if not frame.compact:                       # on a short terminal, the list matters more
+        lines += styled_lines(" · ".join(facts), width, frame, "quiet")
+        status = {"worn": ui.word("fitting_fitted"), "designs": ui.word("fitting_design")}.get(row.group) or (
+            ui.word("fitting_in", container=content.get("placement", row.where)["name"]) if row.where
+            else ui.word("fitting_carried"))
+        lines += styled_lines(status, width, frame, "quiet")
     main = next((o for o in opts if o.kind in ("fit", "remove")), None)
     if main is not None:
         after = build.preview(content, state, row.slot, main.kind)
@@ -906,9 +936,10 @@ def conversation(frame: Frame, width: int, options: Mapping) -> List[str]:
     for number, option in enumerate(responses(frame), 1):
         text = f"{number} {option_text(ui, option)}"
         if option.available:
-            lines += wrap(text, width)
+            lines += hang(text, width, len(str(number)) + 1)
         else:
-            lines += styled_lines(text + (f" - {option.hint}" if option.hint else ""), width, frame, "unavailable")
+            lines += [style.role(line, "unavailable")
+                      for line in hang(text + (f" - {option.hint}" if option.hint else ""), width, len(str(number)) + 1)]
         if options.get("trades", True) and option.interaction is not None:
             gives, gets = exchange(content, option.interaction)
             rows = ([(ui.word("talk_give"), gives)] if gives else []) + ([(ui.word("talk_get"), gets)] if gets else [])
@@ -987,7 +1018,7 @@ def stats_widget(frame: Frame, width: int, options: Mapping) -> List[str]:
     for inst in me.statuses:
         record = content.get("status", inst.status)
         name = record["name"] + (f" x{inst.stacks}" if inst.stacks > 1 else "")
-        left = ui.word("condition_turns", turns=inst.turns_left) if inst.turns_left is not None else ""
+        left = ui.word("condition_turns", turns=_turns(ui, inst.turns_left)) if inst.turns_left is not None else ""
         line = _right(name, style.role(left, "quiet") if left else "", width)
         lines.append(style.role(_plain(line), "danger") if record.get("harmful", True) else line)
     return lines
@@ -1310,6 +1341,11 @@ def _action_costs(frame: Frame, record: Mapping, tile) -> List[str]:
     elif record.get("priority", 0) < 0:
         parts.append(ui.word("act_late"))
     return parts or [ui.word("cost_free")]
+
+
+def _turns(ui: UI, count) -> str:
+    """'1 turn', '3 turns'."""
+    return ui.word("turns_one") if count == 1 else ui.word("turns_many", count=count)
 
 
 def _rounds(ui: UI, count) -> str:

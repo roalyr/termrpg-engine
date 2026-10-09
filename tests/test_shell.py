@@ -122,7 +122,7 @@ class TestStartScreen(unittest.TestCase):
 class TestHelp(unittest.TestCase):
     def test_keys_how_it_works_and_the_games_help(self):
         frame = draw(shell.Shell("help"), Saves(self).slots(), 72, 60)
-        for words in ("Keys", "WASD, arrows", "move", "F", "fitting", "L", "messages", "X, Esc", "close",
+        for words in ("Keys", "WASD, arrows", "move", "F", "fitting", "L", "message log", "X, Esc", "close",
                       "1-9", "How it works", "Walk into things", "Test pack", "mind the gas"):
             self.assertIn(words, frame)
 
@@ -136,7 +136,7 @@ class TestHelp(unittest.TestCase):
         data["bindings"]["history"] = "j"
         path.write_text(json.dumps(data), encoding="utf-8")
         frame = draw(shell.Shell("help"), Saves(self).slots(), 72, 60, ui=load_ui(ui_dir))
-        self.assertTrue(any(line.strip("│ ").startswith("J") and "messages" in line for line in frame.splitlines()))
+        self.assertTrue(any(line.strip("│ ").startswith("J") and "message log" in line for line in frame.splitlines()))
 
     def test_it_scrolls(self):
         slots = Saves(self).slots()

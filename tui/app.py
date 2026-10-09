@@ -68,9 +68,11 @@ def _handle(content: Content, state: GameState, key: str, view: View, ui: UI):
         return state, View(screen="quit", back=view), False
     if state.debrief is not None:                 # any key leaves the after-action screen
         return events.settle(content, state._replace(debrief=None)), View(), False
-    if state.pending is not None:                 # a question, on its card: digits answer, up and down scroll
-        if action in ("move_north", "move_south"):
-            return state, _scroll(action, view), False
+    if state.pending is not None:                 # a question, on its card: digits answer, up looks back
+        if action == "move_north":
+            return state, view._replace(scroll=view.scroll + 1), False
+        if action == "move_south":
+            return state, view._replace(scroll=max(0, view.scroll - 1)), False
         if _digit(key):
             state = choose_option(content, state._replace(card=None), _digit(key) - 1)
             state = turns.advance(content, state, 0)

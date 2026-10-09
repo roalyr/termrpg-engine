@@ -2355,6 +2355,20 @@
               "description": "Action details: no cost. No placeholders.",
               "x-placeholders": []
             },
+            "turns_one": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A count of one turn, used in other words. No placeholders.",
+              "x-placeholders": []
+            },
+            "turns_many": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A count of turns, used in other words. Placeholders: {count}.",
+              "x-placeholders": [
+                "count"
+              ]
+            },
             "rounds_one": {
               "type": "string",
               "minLength": 1,
