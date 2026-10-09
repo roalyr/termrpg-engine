@@ -262,6 +262,19 @@ Steps, each one playable and tested:
      choices (or a key to continue). Short event texts stay in the message log.
 8. **Around the game:** a start screen (new game, continue, save slots), a help and
    keys screen, quit confirmation.
+   Agreed layout:
+   - **start screen:** the game pack's name and version, then Continue (showing the
+     slot, place and day it would resume), New game, Load, Help and Quit, numbered
+     and picked with up and down; the pack's description below;
+   - **save slots:** a few numbered slots (how many is a UI pack size, 3 by default),
+     each showing where and when it was saved; New game takes an empty slot or asks
+     which one to overwrite; Load lists them. `--slot` and `--new` still work;
+   - **help:** the keys, generated from the bindings, then "How it works" in two
+     parts: the interface, from the UI pack's words (the same for every game), and
+     the game's own section from an optional `help` text in the game pack's
+     manifest;
+   - **quit:** Q in the game asks "Quit to the start screen? Y/N" (the game is
+     saved after every turn); Quit on the start screen leaves the program.
 9. **Polish pass:** item names coloured by grade, small-screen behaviour, consistent
    wording, UI pack docs, the playtest.
 
