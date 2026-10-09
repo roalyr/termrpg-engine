@@ -192,6 +192,13 @@
               "default": 12,
               "description": "Height of the portrait zone, in pixels (two per line of text)."
             },
+            "save_slots": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9,
+              "default": 3,
+              "description": "How many numbered save slots the start screen offers."
+            },
             "card_min_lines": {
               "type": "integer",
               "minimum": 0,
@@ -1748,6 +1755,230 @@
                 ]
               },
               "default": []
+            },
+            "start": {
+              "type": "array",
+              "description": "The start screen.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "fitting",
+                        "character",
+                        "history",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "picked": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the picked action tile's number, then the label ('3 again: use')."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "slots": {
+              "type": "array",
+              "description": "The save slots.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "fitting",
+                        "character",
+                        "history",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "picked": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the picked action tile's number, then the label ('3 again: use')."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "help": {
+              "type": "array",
+              "description": "The help screen.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "fitting",
+                        "character",
+                        "history",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "picked": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the picked action tile's number, then the label ('3 again: use')."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
+            },
+            "quit": {
+              "type": "array",
+              "description": "The quit question: Y quits to the start screen, N goes back.",
+              "items": {
+                "type": "object",
+                "description": "One key hint: the keys of some actions (or 1-9), then a label.",
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "description": "Actions whose keys are shown, joined, e.g. WASD.",
+                    "items": {
+                      "enum": [
+                        "move_north",
+                        "move_west",
+                        "move_south",
+                        "move_east",
+                        "wait",
+                        "pack",
+                        "fitting",
+                        "character",
+                        "history",
+                        "close",
+                        "quit",
+                        "next_page"
+                      ]
+                    },
+                    "uniqueItems": true
+                  },
+                  "digits": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show '1-9' (the number keys) instead of action keys."
+                  },
+                  "arrows": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the arrow keys (↑↓←→) for move actions instead of their letters; the arrow keys always work."
+                  },
+                  "picked": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show the picked action tile's number, then the label ('3 again: use')."
+                  },
+                  "label": {
+                    "$ref": "common.schema.json#/$defs/id",
+                    "x-ref": "word",
+                    "description": "Id of a text in the words file."
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "label"
+                ]
+              },
+              "default": []
             }
           },
           "additionalProperties": false,
@@ -1817,6 +2048,38 @@
             "$ref": "#/$defs/zone"
           },
           "minItems": 1
+        },
+        "start": {
+          "type": "array",
+          "description": "The start screen: the game's name, Continue, New game, Load, Help, Quit.",
+          "items": {
+            "$ref": "#/$defs/zone"
+          },
+          "minItems": 1
+        },
+        "slots": {
+          "type": "array",
+          "description": "The save slots, to load a game or to start a new one in.",
+          "items": {
+            "$ref": "#/$defs/zone"
+          },
+          "minItems": 1
+        },
+        "help": {
+          "type": "array",
+          "description": "The help screen: the keys, and how it works.",
+          "items": {
+            "$ref": "#/$defs/zone"
+          },
+          "minItems": 1
+        },
+        "quit": {
+          "type": "array",
+          "description": "Quit to the start screen? Asked when Q is pressed in the game.",
+          "items": {
+            "$ref": "#/$defs/zone"
+          },
+          "minItems": 1
         }
       },
       "additionalProperties": false,
@@ -1826,7 +2089,11 @@
         "debrief",
         "fitting",
         "character",
-        "talk"
+        "talk",
+        "start",
+        "slots",
+        "help",
+        "quit"
       ]
     },
     "words_file": {
@@ -2232,6 +2499,200 @@
               "x-placeholders": [
                 "why"
               ]
+            },
+            "start_continue": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Start screen: resume the last game. No placeholders.",
+              "x-placeholders": []
+            },
+            "start_new": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Start screen: a new game. No placeholders.",
+              "x-placeholders": []
+            },
+            "start_load": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Start screen: pick a saved game. No placeholders.",
+              "x-placeholders": []
+            },
+            "start_help": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Start screen: the help screen. No placeholders.",
+              "x-placeholders": []
+            },
+            "start_quit": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Start screen: leave the program. No placeholders.",
+              "x-placeholders": []
+            },
+            "slot_name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A save slot's name. Placeholders: {number}.",
+              "x-placeholders": [
+                "number"
+              ]
+            },
+            "slot_empty": {
+              "type": "string",
+              "minLength": 1,
+              "description": "An empty save slot. No placeholders.",
+              "x-placeholders": []
+            },
+            "slot_where": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Where a saved game is. Placeholders: {place}, {day}, {phase}.",
+              "x-placeholders": [
+                "place",
+                "day",
+                "phase"
+              ]
+            },
+            "slot_saved": {
+              "type": "string",
+              "minLength": 1,
+              "description": "When a slot was saved. Placeholders: {when}.",
+              "x-placeholders": [
+                "when"
+              ]
+            },
+            "slot_unreadable": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A save that can't be read. No placeholders.",
+              "x-placeholders": []
+            },
+            "slots_load_title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Slots screen title, loading. No placeholders.",
+              "x-placeholders": []
+            },
+            "slots_new_title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Slots screen title, for a new game. No placeholders.",
+              "x-placeholders": []
+            },
+            "slots_new_note": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Slots screen, for a new game: a used slot is overwritten. No placeholders.",
+              "x-placeholders": []
+            },
+            "help_title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help screen title. No placeholders.",
+              "x-placeholders": []
+            },
+            "help_keys": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help heading: the keys. No placeholders.",
+              "x-placeholders": []
+            },
+            "help_how": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help heading: how it works. No placeholders.",
+              "x-placeholders": []
+            },
+            "help_interface": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: how the interface works, for every game. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_move": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: what the move keys do. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_wait": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: what the wait key does. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_pack": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: what the pack key does. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_fitting": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: what the fitting key does. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_character": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: what the character key does. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_history": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: what the history key does. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_close": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: what the close key does. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_quit": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: what the quit key does. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_next_page": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: what the next-page key does. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_digits": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: what the number keys do. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_arrows": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: how the arrow keys are named. No placeholders.",
+              "x-placeholders": []
+            },
+            "key_escape": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Help: how the Esc key is named. No placeholders.",
+              "x-placeholders": []
+            },
+            "quit_question": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The quit question. No placeholders.",
+              "x-placeholders": []
+            },
+            "quit_saved": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Under the quit question. No placeholders.",
+              "x-placeholders": []
             },
             "history_title": {
               "type": "string",
@@ -2835,6 +3296,21 @@
           "$ref": "#/$defs/widget_action"
         },
         {
+          "$ref": "#/$defs/widget_start_menu"
+        },
+        {
+          "$ref": "#/$defs/widget_description"
+        },
+        {
+          "$ref": "#/$defs/widget_slots"
+        },
+        {
+          "$ref": "#/$defs/widget_help"
+        },
+        {
+          "$ref": "#/$defs/widget_question"
+        },
+        {
           "$ref": "#/$defs/widget_keys"
         }
       ]
@@ -2923,7 +3399,7 @@
     },
     "widget_title": {
       "type": "object",
-      "description": "The screen's title line: the location and region with hazards, the encounter and its round, or the fight's result. Allowed on: world, encounter, debrief, fitting, character, talk.",
+      "description": "The screen's title line: the location and region with hazards, the encounter and its round, or the fight's result. Allowed on: world, encounter, debrief, fitting, character, talk, start, slots, help, quit.",
       "properties": {
         "widget": {
           "const": "title"
@@ -2939,7 +3415,11 @@
         "debrief",
         "fitting",
         "character",
-        "talk"
+        "talk",
+        "start",
+        "slots",
+        "help",
+        "quit"
       ]
     },
     "widget_grid": {
@@ -3032,7 +3512,7 @@
     },
     "widget_log": {
       "type": "object",
-      "description": "Messages, in the order they happened. Allowed on: world, encounter, debrief, fitting, character, talk.",
+      "description": "Messages, in the order they happened. Allowed on: world, encounter, debrief, fitting, character, talk, start, slots, help, quit.",
       "properties": {
         "widget": {
           "const": "log"
@@ -3053,7 +3533,11 @@
         "debrief",
         "fitting",
         "character",
-        "talk"
+        "talk",
+        "start",
+        "slots",
+        "help",
+        "quit"
       ]
     },
     "widget_menu": {
@@ -3379,9 +3863,89 @@
         "encounter"
       ]
     },
+    "widget_start_menu": {
+      "type": "object",
+      "description": "The start screen's choices, numbered; Continue shows the slot, place and day it would resume. Allowed on: start.",
+      "properties": {
+        "widget": {
+          "const": "start_menu"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "start"
+      ]
+    },
+    "widget_description": {
+      "type": "object",
+      "description": "The game pack's description. Allowed on: start.",
+      "properties": {
+        "widget": {
+          "const": "description"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "start"
+      ]
+    },
+    "widget_slots": {
+      "type": "object",
+      "description": "The save slots: where and when each was saved, or empty. Allowed on: slots.",
+      "properties": {
+        "widget": {
+          "const": "slots"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "slots"
+      ]
+    },
+    "widget_help": {
+      "type": "object",
+      "description": "The keys, generated from the bindings, then how it works: the interface (the UI pack's words) and the game's own help (the game pack's 'help'). Allowed on: help.",
+      "properties": {
+        "widget": {
+          "const": "help"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "help"
+      ]
+    },
+    "widget_question": {
+      "type": "object",
+      "description": "The quit question. Allowed on: quit.",
+      "properties": {
+        "widget": {
+          "const": "question"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "widget"
+      ],
+      "x-screens": [
+        "quit"
+      ]
+    },
     "widget_keys": {
       "type": "object",
-      "description": "The key hints for the current context, built from the key bindings. Allowed on: world, encounter, debrief, fitting, character, talk.",
+      "description": "The key hints for the current context, built from the key bindings. Allowed on: world, encounter, debrief, fitting, character, talk, start, slots, help, quit.",
       "properties": {
         "widget": {
           "const": "keys"
@@ -3397,7 +3961,11 @@
         "debrief",
         "fitting",
         "character",
-        "talk"
+        "talk",
+        "start",
+        "slots",
+        "help",
+        "quit"
       ]
     }
   }

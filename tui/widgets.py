@@ -29,6 +29,7 @@ class Frame(NamedTuple):
     scroll: int = 0               # how far the open sub-window is scrolled
     scrollable: bool = False      # the open sub-window is longer than its space
     log: Tuple = ()               # a conversation's history: Messages ('response' for what you said)
+    shell: Any = None             # the start, slots and help screens' data (tui.shell.ShellData); no state there
 
     @property
     def tokens(self) -> Mapping[str, Any]:
@@ -49,7 +50,9 @@ Draw = Callable[[Frame, int, Mapping[str, Any]], List[str]]
 # it is the focus: its zone scrolls, and the log and menu step back.
 SUBWINDOWS = {"inspect": "panel", "item": "panel", "modify": "pick", "card": "panel", "history": "panel"}
 # List screens: with no sub-window open, this widget's zone scrolls to keep the pick in view.
-LISTS = {"fitting": "loadout", "character": "skills", "talk": "conversation"}
+LISTS = {"fitting": "loadout", "character": "skills", "talk": "conversation",
+         "start": "start_menu", "slots": "slots", "help": "help"}
+SHELL = ("start", "slots", "help")   # screens before a game is loaded: no state
 FOCUS = "\x00"   # marks the picked line of a list for the layout; never drawn
 
 
@@ -100,6 +103,13 @@ def message_lines(frame: Frame, messages, width: int) -> List[str]:
 
 def title(frame: Frame, width: int, options: Mapping) -> List[str]:
     content, state, style = frame.content, frame.state, frame.style
+    if frame.screen == "start":
+        return [_right(style.role(content.pack["name"], "title"), style.role(content.pack["version"], "quiet"), width)]
+    if frame.screen == "slots":
+        word = "slots_new_title" if frame.shell.mode == "new" else "slots_load_title"
+        return [style.role(frame.ui.word(word), "title")]
+    if frame.screen == "help":
+        return [style.role(frame.ui.word("help_title"), "title")]
     if frame.screen == "debrief":
         debrief = state.debrief
         return [style.role(debrief.title, "danger" if debrief.result == "lost" else "title")]
@@ -251,6 +261,8 @@ def legend(frame: Frame, width: int, options: Mapping) -> List[str]:
 
 def log(frame: Frame, width: int, options: Mapping) -> List[str]:
     state = frame.state
+    if state is None:
+        return []
     if frame.screen == "debrief":
         heading, messages = state.debrief.round, state.debrief.messages
     else:
@@ -509,12 +521,12 @@ def item_details(frame: Frame, entry, width: int) -> List[str]:
     return lines
 
 
-def _label_rows(frame: Frame, rows, width: int) -> List[str]:
+def _label_rows(frame: Frame, rows, width: int, widest: Optional[int] = None) -> List[str]:
     """
     Rows of 'label  value' with the values in one column. A value is text, or a list of
     entries ('PWR 1', 'MAS 2') that wrap only between entries, never inside one.
     """
-    column = min(max(len(label) for label, _ in rows), max(4, width // 3))
+    column = min(max(len(label) for label, _ in rows), widest or max(4, width // 3))
     lines = []
     for label, value in rows:
         wrapped = _pack(value, max(1, width - column - 2)) if isinstance(value, list) \
@@ -1018,6 +1030,92 @@ def _relation_name(content: Content, value: int) -> str:
     return name
 
 
+# --- around the game -------------------------------------------------------------------
+
+def start_menu(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The start screen's choices, numbered, the pick marked; Continue shows what it resumes."""
+    from tui import shell as shell_mod
+    ui, style = frame.ui, frame.style
+    lines = [""]
+    last = shell_mod.last_played(frame.shell.slots)
+    for index, entry in enumerate(frame.shell.entries):
+        text = f"{index + 1} {ui.word('start_' + entry)}"
+        if index == frame.selected:
+            lines.append(FOCUS + "  " + frame.glyphs["cursor"] + style.key(text))
+        else:
+            lines.append("   " + text)
+        if entry == "continue" and last is not None:
+            lines += ["     " + line for line in styled_lines(_slot_words(frame, last), width - 5, frame, "quiet")]
+    return lines + [""]
+
+
+def _slot_words(frame: Frame, slot) -> str:
+    ui = frame.ui
+    name = ui.word("slot_name", number=slot.number)
+    if not slot.used:
+        return f"{name} · {ui.word('slot_empty')}"
+    if not slot.readable:
+        return f"{name} · {ui.word('slot_unreadable')}"
+    return f"{name} · " + ui.word("slot_where", place=slot.place, day=slot.day, phase=slot.phase)
+
+
+def description(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The game pack's description."""
+    text = frame.content.pack.get("description")
+    return styled_lines(frame.content.text(text), width, frame, "quiet") if text else []
+
+
+def slots(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The save slots: where and when each was saved, or empty; the pick marked."""
+    ui, style = frame.ui, frame.style
+    lines = styled_lines(ui.word("slots_new_note"), width, frame, "quiet") + [""] if frame.shell.mode == "new" else []
+    for index, slot in enumerate(frame.shell.slots):
+        name = ui.word("slot_name", number=slot.number)
+        if not slot.used:
+            where = style.role(ui.word("slot_empty"), "quiet")
+        elif not slot.readable:
+            where = style.role(ui.word("slot_unreadable"), "danger")
+        else:
+            where = ui.word("slot_where", place=slot.place, day=slot.day, phase=slot.phase)
+        head = f"{index + 1} {name}"
+        line = head + "   " + where
+        if index == frame.selected:
+            lines.append(FOCUS + frame.glyphs["cursor"] + style.key(_plain(line)[:width - 1]))
+        else:
+            lines.append(" " + line if visible_len(line) < width else " " + _plain(line)[:width - 1])
+        if slot.saved:
+            lines.append("    " + style.role(ui.word("slot_saved", when=slot.saved), "quiet"))
+    return lines
+
+
+def help_widget(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The keys, generated from the bindings; then how the interface works, then the game's own help."""
+    ui, style, content = frame.ui, frame.style, frame.content
+    keys = ui.bindings
+    arrows, escape = ui.word("key_arrows"), ui.word("key_escape")
+    move = "".join(keys[a].upper() for a in ("move_north", "move_west", "move_south", "move_east"))
+    rows = [(f"{move}, {arrows}", ui.word("key_move"))]
+    for action in ("wait", "pack", "fitting", "character", "history", "next_page", "quit"):
+        if action in keys:
+            rows.append((keys[action].upper(), ui.word(f"key_{action}")))
+    rows.append((f"{keys['close'].upper()}, {escape}", ui.word("key_close")))
+    rows.append(("1-9", ui.word("key_digits")))
+    lines = [style.role(ui.word("help_keys"), "heading")]
+    lines += ["  " + line for line in _label_rows(frame, rows, width - 2, (width - 2) // 2)]
+    lines += ["", style.role(ui.word("help_how"), "heading")]
+    lines += ["  " + line for line in wrap(ui.word("help_interface"), width - 2)]
+    if content.pack.get("help"):
+        lines += ["", style.role(content.pack["name"], "heading")]
+        lines += ["  " + line for line in wrap(content.text(content.pack["help"]), width - 2)]
+    return lines
+
+
+def question(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The quit question."""
+    return ([frame.style.role(line, "heading") for line in wrap(frame.ui.word("quit_question"), width)]
+            + styled_lines(frame.ui.word("quit_saved"), width, frame, "quiet"))
+
+
 # --- encounter widgets -----------------------------------------------------------------
 
 def art_width(frame: Frame, options: Mapping) -> int:
@@ -1269,6 +1367,8 @@ def _describe(frame: Frame, effects, target_kind: str) -> List[str]:
 
 def hint_context(frame: Frame) -> str:
     state = frame.state
+    if frame.screen in SHELL or frame.screen == "quit":
+        return frame.screen
     if frame.screen == "debrief":
         return "debrief"
     if frame.screen == "fitting":
@@ -1303,6 +1403,10 @@ def _numbered(frame: Frame, context: str) -> int:
     content, state = frame.content, frame.state
     if context == "choice":
         return len(state.pending.options)
+    if context == "start":
+        return len(frame.shell.entries)
+    if context == "slots":
+        return len(frame.shell.slots)
     if context in ("encounter", "picked"):
         return len(encounter.tiles(content, state))
     if context == "target":
@@ -1366,7 +1470,7 @@ def _works(frame: Frame, context: str, actions) -> bool:
     scrolling = set(actions) <= {"move_north", "move_south", "next_page"}
     if context == "fitting" and scrolling:
         return len(picks(frame.content, frame.state)) > 1
-    if context in ("talk", "card", "choice", "history") and scrolling:
+    if context in ("talk", "card", "choice", "history", "help") and scrolling:
         return frame.scrollable
     if not scrolling or context not in ("panel", "item", "sheet", "pack"):
         return True
@@ -1380,7 +1484,8 @@ WIDGETS: Dict[str, Draw] = {
     "choice": choice, "board": board, "tiles": tiles, "fighters": fighters,
     "art": art, "keys": keys, "panel": panel, "budgets": budgets, "loadout": loadout, "pick": pick,
     "portrait": portrait, "identity": identity, "skills": skills, "stats": stats_widget, "people": people,
-    "conversation": conversation, "action": action,
+    "conversation": conversation, "action": action, "start_menu": start_menu, "description": description,
+    "slots": slots, "help": help_widget, "question": question,
 }
 
 # Widgets with a natural width of their own (the rest take the width they're given).

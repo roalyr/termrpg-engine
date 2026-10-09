@@ -116,7 +116,38 @@
     "target_self": "yourself",
     "action_unusable": "Can't use it now: {why}",
     "rounds_one": "1 round",
-    "rounds_many": "{count} rounds"
+    "rounds_many": "{count} rounds",
+    "start_continue": "Continue",
+    "start_new": "New game",
+    "start_load": "Load",
+    "start_help": "Help",
+    "start_quit": "Quit",
+    "slot_name": "Slot {number}",
+    "slot_empty": "empty",
+    "slot_where": "{place} · Day {day} · {phase}",
+    "slot_saved": "saved {when}",
+    "slot_unreadable": "can't be read",
+    "slots_load_title": "Load a game",
+    "slots_new_title": "New game: pick a slot",
+    "slots_new_note": "A used slot's game will be replaced.",
+    "help_title": "Help",
+    "help_keys": "Keys",
+    "help_how": "How it works",
+    "help_interface": "Walk into things to use them: a menu shows what you can do, each with its own key. Some windows open over the map; while one is open, up and down scroll it and close leaves it. The pack is what you carry; the fitting screen is where you build your suit; the character screen is who you are; the messages are everything so far. Talk to people to trade and recruit them. In a fight, a number picks an action and shows what it does, and the same number uses it. The game is saved after every turn.",
+    "key_move": "move",
+    "key_wait": "wait a turn",
+    "key_pack": "pack",
+    "key_fitting": "fitting",
+    "key_character": "character",
+    "key_history": "messages",
+    "key_close": "close",
+    "key_quit": "quit",
+    "key_next_page": "next page",
+    "key_digits": "pick a numbered entry",
+    "key_arrows": "arrows",
+    "key_escape": "Esc",
+    "quit_question": "Quit to the start screen?",
+    "quit_saved": "The game is saved after every turn."
   },
   "entries": [
     {
@@ -210,6 +241,18 @@
     {
       "id": "hint_use",
       "text": "again: use"
+    },
+    {
+      "id": "hint_yes",
+      "text": "Y yes"
+    },
+    {
+      "id": "hint_no",
+      "text": "N no"
+    },
+    {
+      "id": "hint_choose_entry",
+      "text": "choose"
     }
   ]
 }

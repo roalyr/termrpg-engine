@@ -260,7 +260,7 @@ Steps, each one playable and tested:
      few lines (a UI pack size, 3 lines by default), opens as a card in the panel:
      the event's name as the title, its text, then the question and numbered
      choices (or a key to continue). Short event texts stay in the message log.
-8. **Around the game:** a start screen (new game, continue, save slots), a help and
+8. ✓ **Around the game:** a start screen (new game, continue, save slots), a help and
    keys screen, quit confirmation.
    Agreed layout:
    - **start screen:** the game pack's name and version, then Continue (showing the

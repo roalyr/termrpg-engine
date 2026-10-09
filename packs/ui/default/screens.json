@@ -227,5 +227,79 @@
         "widget": "keys"
       }
     }
+  ],
+  "start": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "widget": "start_menu"
+      }
+    },
+    {
+      "content": {
+        "widget": "description"
+      },
+      "priority": 1
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
+  ],
+  "slots": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "widget": "slots"
+      }
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
+  ],
+  "help": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "widget": "help"
+      }
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
+  ],
+  "quit": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "widget": "question"
+      }
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
   ]
 }

@@ -295,7 +295,11 @@ class TestApp(unittest.TestCase):
         s, _, _ = app.handle(CONTENT, s, "a", view)
         s, _, _ = app.handle(CONTENT, s, ".")
         self.assertEqual(s.turn, 2)
-        _, _, quit_now = app.handle(CONTENT, s, "q")
+        _, asked, quit_now = app.handle(CONTENT, s, "q")           # Q asks first
+        self.assertEqual((asked.screen, quit_now), ("quit", False))
+        _, back, quit_now = app.handle(CONTENT, s, "n", asked)
+        self.assertEqual((back, quit_now), (app.View(), False))
+        _, _, quit_now = app.handle(CONTENT, s, "y", asked)
         self.assertTrue(quit_now)
 
     def test_choice_keys(self):

@@ -45,6 +45,10 @@
     "description": {
       "$ref": "common.schema.json#/$defs/text"
     },
+    "help": {
+      "$ref": "common.schema.json#/$defs/text",
+      "description": "The game's own part of the help screen: its premise and a few tips, in plain words. Shown under the interface's own help. Optional."
+    },
     "authors": {
       "type": "array",
       "description": "Credits.",

@@ -9,6 +9,7 @@ shown in menus act. Any key leaves the after-action screen.
 When stdin isn't a terminal, keys are read from it one character at a time, so a
 game can be scripted: python3 play.py < keys.txt
 """
+import random
 import sys
 from pathlib import Path
 from typing import NamedTuple, Optional
@@ -17,8 +18,8 @@ from engine import build, encounter, events, journal, save, turns, world
 from engine.content import Content, PackError, load_pack
 from engine.effects import choose_option
 from engine.state import GameState, Message, new_game
-from tui import render, text, widgets
-from tui.ui import UI, UIPackError, default_ui, load_ui, ui_dir_for
+from tui import render, shell, text, widgets
+from tui.ui import ROOT_DIR, UI, UIPackError, default_ui, load_ui, ui_dir_for
 
 # The engine's step directions, by input action.
 MOVES = {"move_north": "w", "move_west": "a", "move_south": "s", "move_east": "d"}
@@ -38,6 +39,7 @@ class View(NamedTuple):
     screen: Optional[str] = None     # a full screen of the world: 'fitting', 'character' or 'talk'; on the
                                      # fitting screen 'selected' is the pick and 'panel' its sub-window
     log: tuple = ()                  # a conversation's history: what you said and what followed
+    back: Optional[object] = None    # on the quit question: the view to go back to
 
 
 def _digit(key: str) -> Optional[int]:
@@ -56,8 +58,14 @@ def _handle(content: Content, state: GameState, key: str, view: View, ui: UI):
     if key in FIXED_KEYS:
         key = ui.bindings.get(action, "")
     key = key.lower()
+    if view.screen == "quit":                     # Y quits to the start screen, N or close go back
+        if key == "y":
+            return state, view.back or View(), True
+        if key == "n" or action == "close":
+            return state, view.back or View(), False
+        return state, view, False
     if action == "quit":
-        return state, view, True
+        return state, View(screen="quit", back=view), False
     if state.debrief is not None:                 # any key leaves the after-action screen
         return events.settle(content, state._replace(debrief=None)), View(), False
     if state.pending is not None:                 # a question, on its card: digits answer, up and down scroll
@@ -308,24 +316,69 @@ def _scrolling(action: Optional[str], view: View) -> View:
     return view
 
 
-def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = True,
-        ui_dir: Optional[Path] = None) -> int:
+def run(pack_dir: Path, save_path: Optional[Path] = None, seed: Optional[int] = None, fresh: bool = False,
+        colour: bool = True, ui_dir: Optional[Path] = None, saves_dir: Optional[Path] = None) -> int:
+    """
+    The program: the start screen, then a game, then back to the start screen, until Quit.
+    With 'save_path' it goes straight into that game first. The end of input (a script, or
+    Ctrl-D) leaves at once.
+    """
     try:
         content = load_pack(pack_dir)
         ui = load_ui(ui_dir or ui_dir_for(content.pack["ui"]))
     except (PackError, UIPackError) as error:
         print(error)
         return 1
+    saves_dir = saves_dir or (save_path.parent if save_path else ROOT_DIR / "saves" / Path(pack_dir).name)
+    if save_path is not None:
+        outcome = _play(content, ui, save_path, seed, fresh, colour)
+        if outcome != "menu":
+            return 1 if outcome == "error" else 0
+    while True:
+        choice = _start(content, ui, saves_dir, colour)
+        if choice in ("exit", "eof"):
+            return 0
+        _, path, new = choice
+        if _play(content, ui, path, seed, new, colour) in ("eof", "error"):
+            return 0
+
+
+def _start(content: Content, ui: UI, saves_dir: Path, colour: bool):
+    """The start, slots and help screens: returns ('play', path, fresh), 'exit' or 'eof'."""
+    view = shell.Shell()
+    interactive = sys.stdin.isatty()
+    while True:
+        slots = shell.read_slots(content, saves_dir, ui.tokens["size"]["save_slots"])
+        data = shell.ShellData(shell.entries(slots), slots, view.mode)
+        columns, rows = text.terminal_size()
+        view = view._replace(scroll=min(view.scroll, render.shell_scroll_limit(content, ui, view, data, columns, rows)))
+        if interactive:
+            text.clear()
+        sys.stdout.write(render.render_shell(content, ui, view, data, columns, rows, colour))
+        sys.stdout.flush()
+        key = text.read_key()
+        if key in ("", "\x03", "\x04"):
+            return "eof"
+        action = FIXED_KEYS.get(key) or ui.action_of(key.lower())
+        view, outcome = shell.handle(view, action, key, slots)
+        if outcome is not None:
+            return outcome
+
+
+def _play(content: Content, ui: UI, save_path: Path, seed: Optional[int], fresh: bool, colour: bool) -> str:
+    """One game in one slot, saved after every turn: returns 'menu' (quit to the start screen), 'eof' or 'error'."""
     if save_path.exists() and not fresh:
         try:
             state = save.load(content, save_path)
         except save.SaveError as error:
             print(f"{save_path}: {error}")
-            return 1
+            return "error"
     else:
-        state = new_game(content, seed)
+        state = new_game(content, seed if seed is not None else random.randrange(1, 2 ** 31))
+        save.save(content, state, save_path)
     view = View()
     interactive = sys.stdin.isatty()
+    outcome = "eof"
     while True:
         if interactive:
             text.clear()
@@ -346,7 +399,8 @@ def run(pack_dir: Path, save_path: Path, seed: int, fresh: bool, colour: bool = 
         if state.turn != before:
             save.save(content, state, save_path)
         if quit_now:
+            outcome = "menu"
             break
     save.save(content, state, save_path)
     print(content.message("game_saved"))
-    return 0
+    return outcome

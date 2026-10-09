@@ -76,7 +76,7 @@ All commands run from the project root.
 | `python3 -m core.packtool explain vocab stats` | A vocabulary section |
 | `python3 -m core.packtool check packs/ui/default` | Validate a UI pack |
 | `python3 -m core.packtool explain widget status` / `explain ui tokens` | A UI widget's options, or a UI pack file's fields |
-| `python3 play.py --pack packs/game --new` | Play the pack in the terminal to see your work. `--slot name` keeps separate saves |
+| `python3 play.py --pack packs/game --new` | Play the pack in the terminal to see your work: `--new` goes straight into a new game (slot 1, or `--slot name`); without flags the start screen opens |
 | `python3 -B -m unittest discover -s tests` | Run all tests. Use `-B` on phone storage |
 
 **The working loop:** look up (`explain`, `ids`) → edit → `check` → fix → `check` →
@@ -554,6 +554,8 @@ good.
 - **Write trades as top-level `take_item` and `give_item` effects** of an interaction
   (not inside an `if`): the conversation screen reads them to show "You give" and
   "You get". `self` is the player, `target` the person.
+- **Write the pack's `help`** in `pack.json`: the game's premise and a few tips, a short
+  paragraph. The help screen shows it under the interface's own help.
 - **Give every object, person and item a `description`.** Inspect and the item details
   show it. Say what the thing is and what it's for; the numbers are shown already.
 - Keep names short enough for a 40-column screen.

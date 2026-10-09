@@ -27,7 +27,11 @@ PALETTE = ["grey", "white", "green", "cyan", "blue", "violet", "yellow", "orange
 SCREENS = {"world": "Walking around.", "encounter": "A fight.", "debrief": "The after-action screen at the end of a fight.",
            "fitting": "The fitting screen: the loadout, spare gear and designs, and building.",
            "character": "The character screen: who you are, skills, stats, conditions, party and standing.",
-           "talk": "A conversation: the speaker, what was said, and your responses."}
+           "talk": "A conversation: the speaker, what was said, and your responses.",
+           "start": "The start screen: the game's name, Continue, New game, Load, Help, Quit.",
+           "slots": "The save slots, to load a game or to start a new one in.",
+           "help": "The help screen: the keys, and how it works.",
+           "quit": "Quit to the start screen? Asked when Q is pressed in the game."}
 ACTIONS = {
  "move_north": ("w", "Step up; scrolls an open sub-window up."), "move_west": ("a", "Step left."),
  "move_south": ("s", "Step down; scrolls an open sub-window down."),
@@ -50,6 +54,8 @@ CONTEXTS = {
  "card": "An event's card without a question: any key continues.",
  "history": "The message history is open.",
  "picked": "An action tile is picked: its details show, the same number uses it.",
+ "start": "The start screen.", "slots": "The save slots.", "help": "The help screen.",
+ "quit": "The quit question: Y quits to the start screen, N goes back.",
 }
 ROLES = {
  "title": ("white", True, False, "Screen titles: the location, the encounter, the result."),
@@ -99,6 +105,11 @@ WIDGETS = {
  "loadout": (["fitting"], "The fitting screen's list: what's worn by slot (empty slots too), spare gear, designs. Up and down move the pick; the list scrolls to keep it in view.", {}),
  "pick": (["fitting"], "The picked entry: what it is, what its action would change, and its action keys; or the modifications that apply to it.", {}),
  "action": (["encounter"], "The picked action's details, in place of the log: its costs and what it does in words, and why it can't be used when it can't.", {}),
+ "start_menu": (["start"], "The start screen's choices, numbered; Continue shows the slot, place and day it would resume.", {}),
+ "description": (["start"], "The game pack's description.", {}),
+ "slots": (["slots"], "The save slots: where and when each was saved, or empty.", {}),
+ "help": (["help"], "The keys, generated from the bindings, then how it works: the interface (the UI pack's words) and the game's own help (the game pack's 'help').", {}),
+ "question": (["quit"], "The quit question.", {}),
  "keys": (list(SCREENS), "The key hints for the current context, built from the key bindings.", {}),
 }
 
@@ -137,6 +148,7 @@ size = obj("Sizes, in terminal cells.", {
    "page_size": intval(9, 1, 9, "Entries per page of the pack panel (picked with 1-9)."),
    "portrait_width": intval(12, 4, 24, "Width of the portrait zone, in pixels (one text column each)."),
    "portrait_height": intval(12, 4, 24, "Height of the portrait zone, in pixels (two per line of text)."),
+   "save_slots": intval(3, 1, 9, "How many numbered save slots the start screen offers."),
    "card_min_lines": intval(3, 0, 20, "An event text longer than this many lines on the narrowest screen opens as a card; shorter ones stay in the message log; 0 opens every event text as a card. Questions always open as a card.")}, default={})
 border = obj("The box-drawing set.", {k: char(v, f"The {k.replace('_', ' ')} piece.", 1) for k, v in (
    ("horizontal", "─"), ("vertical", "│"), ("top_left", "┌"), ("top_right", "┐"), ("bottom_left", "└"),
@@ -231,6 +243,24 @@ WORDS = {
  "target_ally": ("Action details: one ally.", []), "target_all_allies": ("Action details: your whole side.", []),
  "target_self": ("Action details: the user.", []),
  "action_unusable": ("Action details: why it can't be used now.", ["why"]),
+ "start_continue": ("Start screen: resume the last game.", []), "start_new": ("Start screen: a new game.", []),
+ "start_load": ("Start screen: pick a saved game.", []), "start_help": ("Start screen: the help screen.", []),
+ "start_quit": ("Start screen: leave the program.", []),
+ "slot_name": ("A save slot's name.", ["number"]), "slot_empty": ("An empty save slot.", []),
+ "slot_where": ("Where a saved game is.", ["place", "day", "phase"]),
+ "slot_saved": ("When a slot was saved.", ["when"]), "slot_unreadable": ("A save that can't be read.", []),
+ "slots_load_title": ("Slots screen title, loading.", []), "slots_new_title": ("Slots screen title, for a new game.", []),
+ "slots_new_note": ("Slots screen, for a new game: a used slot is overwritten.", []),
+ "help_title": ("Help screen title.", []), "help_keys": ("Help heading: the keys.", []),
+ "help_how": ("Help heading: how it works.", []),
+ "help_interface": ("Help: how the interface works, for every game.", []),
+ "key_move": ("Help: what the move keys do.", []), "key_wait": ("Help: what the wait key does.", []),
+ "key_pack": ("Help: what the pack key does.", []), "key_fitting": ("Help: what the fitting key does.", []),
+ "key_character": ("Help: what the character key does.", []), "key_history": ("Help: what the history key does.", []),
+ "key_close": ("Help: what the close key does.", []), "key_quit": ("Help: what the quit key does.", []),
+ "key_next_page": ("Help: what the next-page key does.", []), "key_digits": ("Help: what the number keys do.", []),
+ "key_arrows": ("Help: how the arrow keys are named.", []), "key_escape": ("Help: how the Esc key is named.", []),
+ "quit_question": ("The quit question.", []), "quit_saved": ("Under the quit question.", []),
  "history_title": ("Message history heading.", []),
  "history_empty": ("Message history: nothing yet.", []),
  "talk_title": ("Conversation title.", ["name"]),

@@ -295,6 +295,64 @@
         ],
         "label": "hint_back"
       }
+    ],
+    "start": [
+      {
+        "actions": [
+          "move_north",
+          "move_south"
+        ],
+        "arrows": true,
+        "label": "hint_pick"
+      },
+      {
+        "digits": true,
+        "label": "hint_choose_entry"
+      }
+    ],
+    "slots": [
+      {
+        "actions": [
+          "move_north",
+          "move_south"
+        ],
+        "arrows": true,
+        "label": "hint_pick"
+      },
+      {
+        "digits": true,
+        "label": "hint_choose_entry"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_back"
+      }
+    ],
+    "help": [
+      {
+        "actions": [
+          "move_north",
+          "move_south"
+        ],
+        "arrows": true,
+        "label": "hint_scroll"
+      },
+      {
+        "actions": [
+          "close"
+        ],
+        "label": "hint_back"
+      }
+    ],
+    "quit": [
+      {
+        "label": "hint_yes"
+      },
+      {
+        "label": "hint_no"
+      }
     ]
   }
 }

@@ -6,10 +6,10 @@ how you get there is up to you. Tick the box when it works; note anything that
 doesn't. Things that depend on chance are marked **(chance)**.
 
 ```sh
-python3 play.py --new                 # a fresh game of the test pack
-python3 play.py                       # resume the saved game
+python3 play.py                       # the start screen
+python3 play.py --new                 # straight into a fresh game (slot 1)
 python3 play.py --no-colour           # plain text
-python3 play.py --slot two --new      # a separate save
+python3 play.py --slot two --new      # straight into a save named 'two'
 python3 play.py --ui packs/ui/<id>    # another UI pack
 ```
 
@@ -224,11 +224,19 @@ All of these happen on the fitting screen, next to the workbench.
   (the rescue after losing) open as a card: any key continues, up and down scroll it.
 - [ ] Every question opens as a card, the terminal's titled "Terminal".
 
-## 19. Saving
+## 19. Saving and the start screen
 
-- [ ] Quitting saves; starting again resumes exactly, even mid-fight or with a choice
-  waiting.
-- [ ] `--new` starts over; `--slot` keeps games apart.
+- [ ] Without flags the game opens on the start screen: the pack's name and version,
+  New game, Help and Quit; once there's a save, Continue (with its slot, place and
+  day) and Load too. Up and down and Enter, or a number, choose.
+- [ ] New game takes an empty slot; with all three used it asks which to replace.
+  Load lists the slots with where and when each was saved.
+- [ ] Help lists every key (rebind one in a UI pack and it changes), how the interface
+  works, and the test pack's own tips; up and down scroll it.
+- [ ] Q in the game asks "Quit to the start screen?" from anywhere, a fight too: N or X
+  goes back exactly where you were, Y saves and returns to the start screen.
+  Continue resumes exactly, even mid-fight or with a choice waiting.
+- [ ] `--new` and `--slot` go straight into a game.
 
 ## 20. The UI pack
 

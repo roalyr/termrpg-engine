@@ -36,6 +36,21 @@ def max_scroll(content: Content, state: GameState, columns: int, rows: int, pane
     return scroll_limit(frame, frame.ui.screens[frame.screen], columns, rows)
 
 
+def render_shell(content: Content, ui: UI, shell, data, columns: int, rows: int, colour: bool = True) -> str:
+    """The start, slots or help screen (tui.shell), before a game is loaded: there's no game state."""
+    frame = Frame(content=content, state=None, ui=ui, style=Style(colour, ui.tokens["styles"]), screen=shell.screen,
+                  selected=shell.selected, scroll=shell.scroll, shell=data)
+    if not _fits(frame, columns, rows):
+        return ui.word("terminal_too_small", columns=frame.size["min_columns"], rows=frame.size["min_rows"]) + "\n"
+    return draw_screen(frame, ui.screens[shell.screen], columns, rows)
+
+
+def shell_scroll_limit(content: Content, ui: UI, shell, data, columns: int, rows: int) -> int:
+    frame = Frame(content=content, state=None, ui=ui, style=Style(False, ui.tokens["styles"]), screen=shell.screen,
+                  selected=shell.selected, scroll=0, shell=data)
+    return scroll_limit(frame, ui.screens[shell.screen], columns, rows) if _fits(frame, columns, rows) else 0
+
+
 def _fits(frame: Frame, columns: int, rows: int) -> bool:
     return columns >= frame.size["min_columns"] and rows >= frame.size["min_rows"]
 
@@ -43,7 +58,9 @@ def _fits(frame: Frame, columns: int, rows: int) -> bool:
 def _frame(content: Content, state: GameState, panel: Optional[str], colour: bool, selected: Optional[int],
            page: int, ui: Optional[UI], scroll: int, wanted: Optional[str] = None, log: tuple = ()) -> Frame:
     ui = ui or default_ui()
-    if state.debrief is not None:
+    if wanted == "quit":
+        screen = "quit"                                       # asked from anywhere, a fight too
+    elif state.debrief is not None:
         screen = "debrief"
     elif state.encounter is not None:
         screen = "encounter"

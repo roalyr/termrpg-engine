@@ -483,6 +483,7 @@ these effects":
 | `version` | The pack's own version, `major.minor.patch` |
 | `schema_version` | The schema version it targets (currently `1`) |
 | `purpose` | `game` (default) or `test` |
+| `help` | Optional: the game's own part of the help screen (its premise and a few tips), shown under the interface's help |
 | `start` | `location`, optional `entry` placement, `player` character, `day` (1), `phase` (the first one) |
 | `settings` | `skill_max_level` (5), `relation_min` (-100), `relation_max` (100), `relation_default` (0), `events_per_trigger` (0 = no limit) |
 | `files` | Data files by kind; paths relative to the pack, no `..` |
@@ -915,7 +916,7 @@ win key by key; word entries add up):
 | Kind | Holds |
 |---|---|
 | `tokens` | Layout variables: `size` (minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the portrait's width and height in pixels), `padding`, `glyphs` (the border set, the list cursor, bar steps, the player cursor, the intent and cost marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints, the picked action tile's heavy border, the cooldown and charges marks) and `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`: a palette colour, bold, dim) |
-| `screens` | Each screen (`world`, `encounter`, `debrief`, `fitting`, `character`, `talk`) as zones, top to bottom |
+| `screens` | Each screen (`world`, `encounter`, `debrief`, `fitting`, `character`, `talk`, `start`, `slots`, `help`, `quit`) as zones, top to bottom |
 | `keys` | `bindings` (action → key) and `hints` (what each context shows) |
 | `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |
 
@@ -964,6 +965,16 @@ details for whatever is picked there.
   change; a digit applies one. I opens the item's details;
 - close goes back a level: from the details or the modifications to the list, from
   the list to the world. After an action the pick follows the item wherever it went.
+
+**Around the game.** `python3 play.py` opens the **start screen**: the game pack's
+name and version, then Continue (the slot saved last, with its place and day), New
+game, Load, Help and Quit, picked with up and down and Enter, or a number. Games live
+in a few numbered **slots** (the UI pack's `save_slots`, 3 by default) in
+`saves/<pack folder>/slotN.json`; New game takes an empty one, or asks which to
+replace when all are used. **Help** lists the keys, generated from the bindings, then
+how the interface works (the UI pack's words) and the game's own `help`. In a game,
+Q asks "Quit to the start screen?": Y quits (the game is saved after every turn), N or
+X goes back to where you were. `--slot` and `--new` go straight into a game.
 
 **Messages.** Every key's messages also go into the **journal**, the message history
 kept in the game state and saved with it (the last 200 lines, each stamped with its
@@ -1036,6 +1047,11 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `budgets` | Power, mass, heat and cargo as bars | fitting | — |
 | `loadout` | The fitting list: worn by slot, spare gear, designs | fitting | — |
 | `pick` | The picked entry, what its action would change, its keys; or its modifications | fitting | — |
+| `start_menu` | The start screen's choices; Continue shows what it resumes | start | — |
+| `description` | The game pack's description | start | — |
+| `slots` | The save slots: where and when each was saved, or empty | slots | — |
+| `help` | The keys from the bindings, how the interface works, the game's own help | help | — |
+| `question` | The quit question | quit | — |
 | `keys` | Key hints for the current context, built from the bindings | all | — |
 
 **Keys.** The input actions are fixed by the engine: `move_north`, `move_west`,
