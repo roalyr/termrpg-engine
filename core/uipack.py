@@ -22,7 +22,7 @@ from core.pack import SCHEMA_DIR, Report, _collect, _fmt, _read_json
 
 UI_SCHEMA = "ui.schema.json"
 KINDS = ("tokens", "keys", "screens", "words")
-GRID_MAX_TILES = 10   # the world schema's largest grid side
+GRID_MAX_WIDTH = 12   # the world schema's widest grid
 
 
 def _engine_keys() -> Dict[str, str]:
@@ -164,7 +164,7 @@ def _check_sizes(ui: Dict[str, Any], errors: List[str]) -> None:
     world = [w for zone in ui["screens"].get("world", []) for w in _widgets(zone.get("content"))]
     if "grid" in world:
         cell = size["cell_width"]
-        grid = GRID_MAX_TILES + (GRID_MAX_TILES - 1) * (cell - 1) + 4   # the largest room, in its own box
+        grid = GRID_MAX_WIDTH + (GRID_MAX_WIDTH - 1) * (cell - 1) + 4   # the largest room, in its own box
         needed = 2 + grid + 1 + size["side_min_width"]         # outer borders, grid, divider, side panel
         if needed > columns:
             errors.append(f"tokens: the world screen needs {needed} columns for the largest grid and the side panel, "

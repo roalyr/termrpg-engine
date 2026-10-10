@@ -84,7 +84,8 @@
           "at": [
             1,
             1
-          ]
+          ],
+          "colour": "violet"
         }
       ]
     },
@@ -100,7 +101,9 @@
         "width": 7,
         "height": 5,
         "floor": "~",
+        "floor_colour": 240,
         "wall": "░",
+        "wall_colour": 244,
         "rows": [
           "###.###",
           "#.....#",

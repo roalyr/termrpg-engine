@@ -142,6 +142,12 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 
 - Grid positions are `[row, column]`, counted from the top-left `[0, 0]`. Without
   `rows`, row 0, the last row, column 0 and the last column are walls.
+- A room is at most 12 tiles across and 10 down (it must fit a 48 by 24 screen).
+  Bigger spaces are several rooms joined by exits.
+- Map colours are optional: `colour` on an object, placement or character, and
+  `floor_colour` / `wall_colour` on a grid. Leave them out to use the UI pack's
+  colours (objects, exits, people, hostile people). Use them to make something stand
+  out, not on everything; the glyph must still read without colour.
 - Doors and other exits sit on wall tiles; everything else on floor tiles. One
   placement per tile; characters need a free floor tile.
 - An exit only goes one way. **Two rooms need a door placement in each**, each with

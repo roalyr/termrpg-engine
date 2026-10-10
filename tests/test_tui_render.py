@@ -803,7 +803,7 @@ class TestPolish(unittest.TestCase):
     """Step 9: the polish pass."""
 
     def test_wrapped_options_hang_under_their_text(self):
-        narrow = ui_with(self, min_columns=40)                   # a UI pack that allows 40 columns
+        narrow = ui_with(self, min_columns=40, side_min_width=10)   # a UI pack that allows 40 columns
         frame = plain(walk(new_game(CONTENT, 1), "as"), 40, 30, ui=narrow, screen="talk")
         self.assertIn("│ 2 Recruit - Doesn't trust you", frame)
         self.assertIn("│   enough.", frame)
@@ -847,6 +847,52 @@ class TestPolish(unittest.TestCase):
         s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"), [
             freeze({"op": "apply_status", "status": "status_burning", "duration": 1, "subject": "self"})])
         self.assertIn("1 turn left", plain(s, screen="character"))
+
+
+class TestMap(unittest.TestCase):
+    """The room: walls joined into solid runs, glyphs coloured by role or by the pack."""
+
+    def coloured(self, state):
+        return render.render(CONTENT, state, 52, 30, ui=UI)
+
+    def test_walls_are_solid_and_tiles_stay_in_columns(self):
+        frame = plain(new_game(CONTENT, 1), 52, 30)
+        self.assertIn("│░░░░░◆░░░░░░░│", frame)                 # the door sits in the wall's run
+        self.assertIn("│░░ § · · ⊞ ░░│", frame)                 # side walls two glyphs wide
+
+    def test_glyphs_take_their_roles_colour(self):
+        frame = self.coloured(new_game(CONTENT, 1))
+        self.assertIn("\x1b[38;5;80m◆", frame)                  # an exit
+        self.assertIn("\x1b[38;5;221m⊞", frame)                 # an object
+        self.assertIn("\x1b[1;38;5;255mJ", frame)               # a neutral person
+        self.assertIn("\x1b[2;38;5;245m·", frame)               # the floor
+        self.assertIn("\x1b[7;1;38;5;255m@", frame)             # the player, inverse
+
+    def test_the_packs_colour_wins(self):
+        frame = self.coloured(new_game(CONTENT, 1))
+        self.assertIn("\x1b[38;5;141m§", frame)                 # the placement's own colour
+        storage = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"),
+                      [freeze({"op": "move_to", "location": "loc_storage", "subject": "self"})])
+        frame = self.coloured(storage)
+        self.assertIn("\x1b[38;5;244m", frame)                  # the room's wall colour
+        self.assertIn("\x1b[38;5;240m", frame)                  # and floor colour
+        self.assertIn("\x1b[38;5;114m", frame)                  # the terminal's object colour (green)
+
+    def test_people_are_coloured_by_how_they_see_the_player(self):
+        s = new_game(CONTENT, 1)
+        cross = run(CONTENT, s, Ctx(self_id="char_juno"),
+                    [freeze({"op": "change_relation", "of": "self", "toward": {"character": s.player}, "amount": -40})])
+        self.assertIn("\x1b[38;5;203mJ", self.coloured(cross))  # hostile
+
+    def test_the_legend_shows_glyphs_in_their_map_colours(self):
+        legend = [line for line in self.coloured(new_game(CONTENT, 1)).splitlines() if "Crate" in line]
+        self.assertIn("\x1b[38;5;221m⊞", legend[0])
+
+    def test_narrow_status_bars_keep_their_numbers(self):
+        frame = Frame(CONTENT, new_game(CONTENT, 1), UI, Style(False, UI.tokens["styles"]), "world")
+        lines = widgets.status(frame, 14, {})
+        self.assertTrue(any(line.startswith("HP") and line.endswith("30/30") for line in lines), lines)
+        self.assertTrue(all(visible_len(line) <= 14 for line in lines if line.startswith(("HP", "HT"))), lines)
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):

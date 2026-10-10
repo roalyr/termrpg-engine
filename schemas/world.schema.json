@@ -175,20 +175,30 @@
             "width": {
               "type": "integer",
               "minimum": 3,
-              "maximum": 10
+              "maximum": 12,
+              "description": "Tiles across, at most 12: the largest room that fits the default UI pack's 48 by 24 screen."
             },
             "height": {
               "type": "integer",
               "minimum": 3,
-              "maximum": 10
+              "maximum": 10,
+              "description": "Tiles down, at most 10."
             },
             "floor": {
               "$ref": "common.schema.json#/$defs/glyph",
               "description": "Glyph for floor tiles."
             },
+            "floor_colour": {
+              "$ref": "common.schema.json#/$defs/colour",
+              "description": "Colour of the floor glyphs. Without it the UI pack's floor colour is used."
+            },
             "wall": {
               "$ref": "common.schema.json#/$defs/glyph",
               "description": "Glyph for wall tiles."
+            },
+            "wall_colour": {
+              "$ref": "common.schema.json#/$defs/colour",
+              "description": "Colour of the wall glyphs. Without it the UI pack's wall colour is used."
             },
             "rows": {
               "type": "array",
@@ -247,6 +257,10 @@
               },
               "glyph": {
                 "$ref": "common.schema.json#/$defs/glyph"
+              },
+              "colour": {
+                "$ref": "common.schema.json#/$defs/colour",
+                "description": "Overrides the template's colour."
               },
               "state": {
                 "$ref": "common.schema.json#/$defs/id",
@@ -522,6 +536,10 @@
         "glyph": {
           "$ref": "common.schema.json#/$defs/glyph"
         },
+        "colour": {
+          "$ref": "common.schema.json#/$defs/colour",
+          "description": "Overrides the template's colour."
+        },
         "state": {
           "$ref": "common.schema.json#/$defs/id",
           "x-ref": "object_state",
@@ -640,20 +658,30 @@
         "width": {
           "type": "integer",
           "minimum": 3,
-          "maximum": 10
+          "maximum": 12,
+          "description": "Tiles across, at most 12: the largest room that fits the default UI pack's 48 by 24 screen."
         },
         "height": {
           "type": "integer",
           "minimum": 3,
-          "maximum": 10
+          "maximum": 10,
+          "description": "Tiles down, at most 10."
         },
         "floor": {
           "$ref": "common.schema.json#/$defs/glyph",
           "description": "Glyph for floor tiles."
         },
+        "floor_colour": {
+          "$ref": "common.schema.json#/$defs/colour",
+          "description": "Colour of the floor glyphs. Without it the UI pack's floor colour is used."
+        },
         "wall": {
           "$ref": "common.schema.json#/$defs/glyph",
           "description": "Glyph for wall tiles."
+        },
+        "wall_colour": {
+          "$ref": "common.schema.json#/$defs/colour",
+          "description": "Colour of the wall glyphs. Without it the UI pack's wall colour is used."
         },
         "rows": {
           "type": "array",

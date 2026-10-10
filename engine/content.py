@@ -21,7 +21,7 @@ VOCAB_SECTIONS = {
 }
 
 # Fields a placement takes from its object template.
-TEMPLATE_FIELDS = ("name", "glyph", "description", "size", "holds_size", "solid", "states",
+TEMPLATE_FIELDS = ("name", "glyph", "colour", "description", "size", "holds_size", "solid", "states",
                    "state_glyphs", "storage", "workshop", "contents")
 
 
@@ -140,7 +140,7 @@ def _placements(locations: Dict[str, dict], objects: Dict[str, dict]) -> Dict[st
         for p in loc.get("placements", []):
             template = objects[p["object"]]
             merged = {field: template[field] for field in TEMPLATE_FIELDS if field in template}
-            merged.update({k: p[k] for k in ("name", "glyph", "description", "contents") if k in p})
+            merged.update({k: p[k] for k in ("name", "glyph", "colour", "description", "contents") if k in p})
             tags = list(template.get("tags", []))
             tags += [t for t in p.get("tags", []) if t not in tags]
             interactions = {i["id"]: i for i in template.get("interactions", [])}

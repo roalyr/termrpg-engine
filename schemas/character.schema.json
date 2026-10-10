@@ -48,6 +48,10 @@
           "$ref": "common.schema.json#/$defs/glyph",
           "description": "Map glyph. Defaults to the first letter of the name."
         },
+        "colour": {
+          "$ref": "common.schema.json#/$defs/colour",
+          "description": "The glyph's colour on the map. Without it the UI pack colours people by how they see the player: party, hostile or neutral."
+        },
         "art": {
           "$ref": "common.schema.json#/$defs/id",
           "x-ref": "art",

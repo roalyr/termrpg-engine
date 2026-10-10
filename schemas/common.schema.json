@@ -29,6 +29,29 @@
       "maxLength": 2,
       "description": "One character drawn on the map. No emoji."
     },
+    "colour": {
+      "description": "A colour: a palette colour, or a 256-colour terminal number.",
+      "anyOf": [
+        {
+          "enum": [
+            "grey",
+            "white",
+            "green",
+            "cyan",
+            "blue",
+            "violet",
+            "yellow",
+            "orange",
+            "red"
+          ]
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      ]
+    },
     "notes": {
       "type": "string",
       "description": "Author notes. Ignored by the engine."

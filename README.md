@@ -545,7 +545,7 @@ Each role must be given to exactly one stat:
 | Field | Meaning |
 |---|---|
 | `region` | Required |
-| `grid` | `width` and `height` (3–10), `floor` and `wall` glyphs, optional `rows` |
+| `grid` | `width` (3–12) and `height` (3–10), `floor` and `wall` glyphs, optional `floor_colour` and `wall_colour`, optional `rows` |
 | `size`, `holds_size` | How big the space is, and the largest size class that can be inside (living areas keep heavy suits out) |
 | `tags` | Tags marked as hazards are shown as dangers |
 | `entry` | Where arrivals appear; defaults to the grid centre |
@@ -556,7 +556,14 @@ Each role must be given to exactly one stat:
 
 `rows` draws shapes other than a rectangle: one string per row, `#` for wall, `.`
 for floor and a space for nothing. Without `rows` the edge is wall and the inside is
-floor. Grid positions are `[row, column]` from the top-left corner.
+floor. Grid positions are `[row, column]` from the top-left corner. A room is at most
+12 tiles across and 10 down, so it fits the default UI pack's 48 by 24 screen whole.
+
+On the map each tile is two columns wide: the glyph and a space, except that wall
+tiles are joined, so walls show as solid runs two glyphs thick at the sides. Glyphs
+are coloured: by the pack's `colour` where it gives one (a palette colour or a
+256-colour number, as in pictures), otherwise by the UI pack's map styles (objects,
+exits, people, hostile people, walls, floor). The terminal's background is kept.
 
 ```json
 "grid": { "width": 7, "height": 5, "floor": "~", "wall": "░",
@@ -570,7 +577,7 @@ A **placement** puts an object template at a grid position:
 | `id` | Unique across the pack; checks and effects refer to it |
 | `object` | The template |
 | `at` | `[row, column]` on a wall or floor tile, one placement per tile |
-| `name`, `description`, `glyph`, `state`, `contents` | Override the template's |
+| `name`, `description`, `glyph`, `colour`, `state`, `contents` | Override the template's |
 | `tags` | Added to the template's |
 | `interactions` | Merged with the template's by id: the same id replaces, a new id adds |
 | `exit` | Makes it a way to somewhere else |
@@ -601,6 +608,7 @@ machines, bunks.
 | Field | Meaning |
 |---|---|
 | `name`, `glyph`, `description`, `tags` | Required: `name`, `glyph` |
+| `colour` | The glyph's colour on the map; without it, the UI pack's colour for objects or exits |
 | `size`, `holds_size` | Its size, and the largest thing that fits in, through or onto it |
 | `solid` | Blocks walking onto its tile; used from a neighbouring tile |
 | `states` | The states it can be in; the first is the initial one unless `state` says otherwise |
@@ -695,6 +703,7 @@ One record serves the player's character, NPCs, companions and enemies.
 | Field | Meaning |
 |---|---|
 | `name`, `title`, `description`, `glyph` | The glyph defaults to the first letter of the name |
+| `colour` | The glyph's colour on the map; without it, the UI pack's colour for people (or hostile people: those whose view of the player is below 0) |
 | `art` | Their picture: the id of an entry in the pack's art (see [Art](#art-artschemajson)). Shown on the character screen, in conversations, and in fights when they're the enemy in front. Many characters can share one |
 | `tags`, `faction`, `rank` | |
 | `template` | Generic character that encounters and zones spawn copies of; has no location |
@@ -933,7 +942,7 @@ win key by key; word entries add up):
 
 | Kind | Holds |
 |---|---|
-| `tokens` | Layout variables. `size`: minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the art zone's width and height in pixels (`art_width`, `art_height`: characters' pictures), `save_slots`, `card_min_lines`. `padding`. `glyphs`: the border set, the picked action tile's heavy border, the list cursor, bar steps, the player cursor, the intent, cost, cooldown and charges marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints. `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`): a palette colour, bold, dim |
+| `tokens` | Layout variables. `size`: minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the art zone's width and height in pixels (`art_width`, `art_height`: characters' pictures), `save_slots`, `card_min_lines`. `padding`. `glyphs`: the border set, the picked action tile's heavy border, the list cursor, bar steps, the player cursor, the intent, cost, cooldown and charges marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints. `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`, and on the map `map_player`, `map_person`, `map_hostile`, `map_object`, `map_exit`, `map_wall`, `map_floor`): a palette colour, bold, dim. A game pack's own colours override the map roles |
 | `screens` | Each screen as zones, top to bottom |
 | `keys` | `bindings` (action → key) and `hints` (what each context shows) |
 | `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |

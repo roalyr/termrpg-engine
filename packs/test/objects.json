@@ -147,6 +147,7 @@
       "name": "Terminal",
       "description": "A maintenance terminal wired into the station. Checking the logs keeps the crew informed, and they think a little better of you for it. Rerouting power needs the power on, and uses it up until something brings it back.",
       "glyph": "⌸",
+      "colour": "green",
       "solid": true,
       "interactions": [
         {

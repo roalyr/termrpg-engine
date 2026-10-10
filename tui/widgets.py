@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional, Tup
 
 from engine import build, conditions, context, encounter, stats, world
 from engine.content import Content
-from engine.state import GameState, ItemInst, Message, day_of, new_item, phase_of
+from engine.state import GameState, ItemInst, Message, char_key, day_of, new_item, phase_of
 from tui.text import ANSI, Style, pad, visible_len, wrap
 from tui.ui import UI
 
@@ -165,38 +165,75 @@ def grid_width(frame: Frame, options: Mapping) -> int:
 
 
 def grid(frame: Frame, width: int, options: Mapping) -> List[str]:
-    content, state, glyphs = frame.content, frame.state, frame.glyphs
+    content, state, glyphs, style = frame.content, frame.state, frame.glyphs, frame.style
     border = glyphs["border"]
     player = state.characters[state.player]
     location = content.get("location", player.location)
     spec = location["grid"]
     people = {tuple(state.characters[cid].at): cid for cid in world.others_here(state)}
-    gap = " " * (frame.size["cell_width"] - 1)
+    wall = map_glyph(style, spec["wall"], spec.get("wall_colour"), "map_wall")
     inner = grid_width(frame, options) - 2
     lines = [border["top_left"] + border["horizontal"] * inner + border["top_right"]]
     for row in range(spec["height"]):
-        cells = []
+        cells, walls = [], []
         for col in range(spec["width"]):
             pos = (row, col)
-            glyph = _cell(content, state, location, pos, people)
+            glyph, colour, role = _cell(content, state, location, pos, people)
             if pos == tuple(player.at):
-                glyph = frame.style.inverse(glyph if glyph.strip() not in ("", spec["floor"]) else glyphs["player"])
-            cells.append(glyph)
-        lines.append(border["vertical"] + " " + gap.join(cells) + " " + border["vertical"])
+                shown = glyph if glyph.strip() not in ("", spec["floor"]) else glyphs["player"]
+                cells.append(style.role(shown, "map_player", "7") if style.colour else style.inverse(shown))
+            else:
+                cells.append(map_glyph(style, glyph, colour, role))
+            walls.append(world.tile(content, location["id"], pos) == "#")
+        lines.append(border["vertical"] + room_line(cells, walls, wall, frame.size["cell_width"]) + border["vertical"])
     lines.append(border["bottom_left"] + border["horizontal"] * inner + border["bottom_right"])
     return lines
 
 
-def _cell(content: Content, state: GameState, location, pos, people) -> str:
+def room_line(cells: List[str], walls: List[bool], wall: str, cell_width: int) -> str:
+    """
+    One row of a room: one tile per cell, cell_width columns apart. Walls are joined: the gap
+    between two wall tiles, and the edge beside one, is the wall glyph too, so walls are solid.
+    """
+    gap = cell_width - 1
+    line = [wall if walls and walls[0] else " "]
+    for i, cell in enumerate(cells):
+        if i:
+            line.append((wall if walls[i - 1] and walls[i] else " ") * gap)
+        line.append(cell)
+    line.append(wall if walls and walls[-1] else " ")
+    return "".join(line)
+
+
+def map_glyph(style: Style, glyph: str, colour, role: str) -> str:
+    """A map glyph in the pack's colour (a palette colour or a 256-colour number), else in its role's style."""
+    if colour is not None:
+        return style.pixels(glyph, _colour_code(colour), None)
+    return style.role(glyph, role)
+
+
+def _person_role(content: Content, state: GameState, cid: str) -> str:
+    """Party members travel with the player and aren't drawn, so people are hostile or not."""
+    return "map_hostile" if context.relation(content, state, char_key(cid), char_key(state.player)) < 0 else "map_person"
+
+
+def _cell(content: Content, state: GameState, location, pos, people) -> Tuple[str, Any, str]:
+    """The glyph on a tile, the pack's colour for it (or None) and its style role."""
     if pos in people:
-        record = content.get("character", state.characters[people[pos]].source)
-        return record.get("glyph") or record["name"][0]
+        cid = people[pos]
+        record = content.get("character", state.characters[cid].source)
+        return record.get("glyph") or record["name"][0], record.get("colour"), _person_role(content, state, cid)
     placed = world.placement_at(content, location["id"], pos)
     if placed is not None:
         current = state.object_states.get(placed["id"])
-        return placed.get("state_glyphs", {}).get(current, placed["glyph"])
-    kind = world.tile(content, location["id"], pos)
-    return {"#": location["grid"]["wall"], ".": location["grid"]["floor"]}.get(kind, " ")
+        glyph = placed.get("state_glyphs", {}).get(current, placed["glyph"])
+        return glyph, placed.get("colour"), "map_exit" if placed.get("exit") else "map_object"
+    kind, spec = world.tile(content, location["id"], pos), location["grid"]
+    if kind == "#":
+        return spec["wall"], spec.get("wall_colour"), "map_wall"
+    if kind == ".":
+        return spec["floor"], spec.get("floor_colour"), "map_floor"
+    return " ", None, "map_floor"
 
 
 # --- status ----------------------------------------------------------------------------
@@ -214,7 +251,7 @@ def status(frame: Frame, width: int, options: Mapping) -> List[str]:
     else:
         shown = [content.stat_roles[r] for r in pools if r in content.stat_roles
                  and content.get("stat", content.stat_roles[r]).get("kind") == "pool"]
-    lines += _pool_lines(frame, player, shown)
+    lines += _pool_lines(frame, player, shown, width)
     if options.get("statuses", True):
         for inst in player.statuses:
             record = content.get("status", inst.status)
@@ -227,8 +264,11 @@ def status(frame: Frame, width: int, options: Mapping) -> List[str]:
     return lines
 
 
-def _pool_lines(frame: Frame, cs, shown: List[str]) -> List[str]:
-    """One bar per pool stat: 'HP  ████████ 30/30', low health or high heat in the warning colour."""
+def _pool_lines(frame: Frame, cs, shown: List[str], width: Optional[int] = None) -> List[str]:
+    """
+    One bar per pool stat: 'HP  ████████ 30/30', low health or high heat in the warning colour.
+    In a narrow panel the bar gets shorter so the numbers stay whole.
+    """
     content, lines = frame.content, []
     for stat_id in shown:
         record = content.get("stat", stat_id)
@@ -236,7 +276,10 @@ def _pool_lines(frame: Frame, cs, shown: List[str]) -> List[str]:
         if top <= 0:
             continue
         label = record.get("short") or record["name"][:3]
-        line = f"{label:<4}{bar(frame, now, top, frame.size['bar_length'])} {int(now)}/{int(top)}"
+        numbers = f"{int(now)}/{int(top)}"
+        length = frame.size["bar_length"] if width is None else max(1, min(frame.size["bar_length"],
+                                                                           width - 5 - len(numbers)))
+        line = f"{label:<4}{bar(frame, now, top, length)} {numbers}"
         low = (record.get("role") == "health" and now <= top / 3) or (record.get("role") == "heat" and now >= top * 0.8)
         lines.append(frame.style.role(line, "danger") if low else line)
     return lines
@@ -245,9 +288,11 @@ def _pool_lines(frame: Frame, cs, shown: List[str]) -> List[str]:
 # --- legend ----------------------------------------------------------------------------
 
 def legend(frame: Frame, width: int, options: Mapping) -> List[str]:
-    content, state = frame.content, frame.state
+    """What each glyph in the room is, the glyph in its map colour."""
+    content, state, style = frame.content, frame.state, frame.style
     location_id = state.characters[state.player].location
     entries: Dict[str, List[str]] = {}
+    painted: Dict[str, str] = {}
     for placed in content.all("placement").values():
         if placed["location"] != location_id:
             continue
@@ -259,13 +304,17 @@ def legend(frame: Frame, width: int, options: Mapping) -> List[str]:
         if current:
             name += f" ({content.get('object_state', current)['name']})"
         entries.setdefault(glyph, []).append(name)
+        painted.setdefault(glyph, map_glyph(style, glyph, placed.get("colour"),
+                                            "map_exit" if placed.get("exit") else "map_object"))
     for cid in world.others_here(state):
         record = content.get("character", state.characters[cid].source)
-        entries.setdefault(record.get("glyph") or record["name"][0], []).append(record["name"])
+        glyph = record.get("glyph") or record["name"][0]
+        entries.setdefault(glyph, []).append(record["name"])
+        painted.setdefault(glyph, map_glyph(style, glyph, record.get("colour"), _person_role(content, state, cid)))
     lines = []
     for glyph, names in entries.items():
         for i, line in enumerate(wrap(frame.glyphs["separator"].join(names), width - 2)):
-            lines.append(f"{glyph if i == 0 else ' '} {frame.style.role(line, 'hint')}")
+            lines.append(f"{painted[glyph] if i == 0 else ' '} {style.role(line, 'hint')}")
     return lines
 
 
@@ -895,7 +944,7 @@ def identity(frame: Frame, width: int, options: Mapping) -> List[str]:
     lines += styled_lines(" · ".join(facts), width, frame, "quiet")
     lines.append("")
     pools = [sid for sid, rec in content.all("stat").items() if rec.get("kind") == "pool"]
-    return lines + _pool_lines(frame, me, pools)
+    return lines + _pool_lines(frame, me, pools, width)
 
 
 def speaker_of(frame: Frame) -> str:

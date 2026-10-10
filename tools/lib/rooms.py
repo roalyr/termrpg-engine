@@ -65,6 +65,11 @@ def glyph(pack: PackFiles, placement: dict) -> str:
     return placement.get("glyph") or object_of(pack, placement).get("glyph") or "?"
 
 
+def colour(pack: PackFiles, placement: dict):
+    """The placement's map colour, or its object's; None leaves it to the UI pack."""
+    return placement.get("colour", object_of(pack, placement).get("colour"))
+
+
 def name(pack: PackFiles, placement: dict) -> str:
     return placement.get("name") or object_of(pack, placement).get("name") or placement.get("id", "?")
 

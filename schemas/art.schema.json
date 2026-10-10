@@ -29,7 +29,7 @@
     },
     "art": {
       "type": "object",
-      "description": "A picture in pixels. Each letter in 'rows' is one pixel in the palette's colour for that letter; a space or '.' is see-through. Two pixel rows share one line of text (half-block characters), so 16 rows take 8 lines. Without colour only the shape shows. Characters show theirs on the character screen, in conversations and in fights, in the UI pack's art zone (16 by 16 in the default UI pack), centred; a larger picture is cut to the zone.",
+      "description": "A picture in pixels. Each letter in 'rows' is one pixel in the palette's colour for that letter; a space or '.' is see-through. Two pixel rows share one line of text (half-block characters), so 24 rows take 12 lines. Without colour only the shape shows. Characters show theirs on the character screen, in conversations and in fights, in the UI pack's art zone (24 by 24 in the default UI pack), centred; a larger picture is cut to the zone.",
       "properties": {
         "id": {
           "$ref": "common.schema.json#/$defs/id"
@@ -53,26 +53,7 @@
             "pattern": "^[A-Za-z0-9]$"
           },
           "additionalProperties": {
-            "anyOf": [
-              {
-                "enum": [
-                  "grey",
-                  "white",
-                  "green",
-                  "cyan",
-                  "blue",
-                  "violet",
-                  "yellow",
-                  "orange",
-                  "red"
-                ]
-              },
-              {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 255
-              }
-            ]
+            "$ref": "common.schema.json#/$defs/colour"
           }
         },
         "notes": {

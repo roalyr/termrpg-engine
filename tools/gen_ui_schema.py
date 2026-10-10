@@ -66,6 +66,13 @@ ROLES = {
  "unavailable": ("grey", False, True, "Options that can't be used now, with their hint."),
  "hint": ("grey", False, True, "Key hints and the legend."),
  "key": ("white", False, False, "Key letters in menus (drawn inverse)."),
+ "map_player": ("white", True, False, "The player on the map (drawn inverse)."),
+ "map_person": ("white", True, False, "People on the map whose view of the player is 0 or more."),
+ "map_hostile": ("red", False, False, "People on the map whose view of the player is below 0."),
+ "map_object": ("yellow", False, False, "Objects on the map."),
+ "map_exit": ("cyan", False, False, "Doors and other exits on the map."),
+ "map_wall": ("grey", False, False, "Wall glyphs on the map."),
+ "map_floor": ("grey", False, True, "Floor glyphs on the map."),
 }
 WIDGETS = {
  "title": (list(SCREENS), "The screen's title line: the location and region with hazards, the encounter and its round, or the fight's result.", {}),
@@ -174,7 +181,7 @@ glyphs = obj("Characters the widgets draw with.", {
 style = obj("How text in one role looks.", {
    "colour": {"enum": PALETTE, "description": "Colour from the engine's palette."},
    "bold": flag(False, "Bold."), "dim": flag(False, "Dimmed.")})
-styles = obj("Text style by role. Roles are fixed by the engine.",
+styles = obj("Text style by role. Roles are fixed by the engine. A game pack's own colour for an object, a person or a room's floor and walls overrides the map roles.",
    {role: {**style, "default": {"colour": col, "bold": bold, "dim": dim}, "description": desc}
     for role, (col, bold, dim, desc) in ROLES.items()}, default={})
 tokens = obj("Layout variables: every size, glyph and style the widgets use.", {

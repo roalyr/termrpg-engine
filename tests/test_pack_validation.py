@@ -163,6 +163,19 @@ class TestPackErrors(unittest.TestCase):
         self.location("loc_storage", lambda loc: loc["grid"]["rows"].pop())
         self.assertIn("rows must be 5 strings of 7 characters", self.errors())
 
+    def test_rooms_fit_the_smallest_screen(self):
+        self.location("loc_workshop", lambda loc: loc["grid"].update(width=13, height=11))
+        errors = self.errors()
+        self.assertIn("grid.width: must be at most 12", errors)
+        self.assertIn("grid.height: must be at most 10", errors)
+
+    def test_map_colours_are_palette_names_or_terminal_numbers(self):
+        self.location("loc_storage", lambda loc: loc["grid"].update(wall_colour="pink", floor_colour=256))
+        self.placement("loc_workshop", "workshop_trainer", lambda p: p.__setitem__("colour", "teal"))
+        errors = self.errors()
+        for field in ("grid.wall_colour", "grid.floor_colour", "placements[5].colour"):
+            self.assertIn(field, errors)
+
     def test_placement_ids_unique_across_locations(self):
         self.placement("loc_storage", "storage_terminal", lambda p: p.__setitem__("id", "workshop_crate"))
         self.assertIn("duplicate placement 'workshop_crate'", self.errors())

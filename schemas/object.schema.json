@@ -40,6 +40,10 @@
         "glyph": {
           "$ref": "common.schema.json#/$defs/glyph"
         },
+        "colour": {
+          "$ref": "common.schema.json#/$defs/colour",
+          "description": "The glyph's colour on the map. Without it the UI pack's colour for objects, or for exits, is used."
+        },
         "description": {
           "$ref": "common.schema.json#/$defs/text"
         },

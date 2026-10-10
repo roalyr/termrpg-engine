@@ -17,6 +17,7 @@ from typing import Callable, List, Optional, Tuple
 
 from tools.lib import forms, rooms, screen, term
 from tools.lib.packfiles import Found, PackFiles
+from tui.widgets import map_glyph, room_line
 
 Pos = Tuple[int, int]
 MOVES = {"up": (-1, 0), "down": (1, 0), "left": (0, -1), "right": (0, 1)}
@@ -107,30 +108,42 @@ class Room:
             lines = lines[:most - 1] + [lines[most - 1][:width - 1] + "…"]
         return [self.look.style.role(line, "quiet") for line in lines]
 
-    def cell(self, location: dict, pos: Pos, people: dict) -> str:
+    def cell(self, location: dict, pos: Pos, people: dict) -> Tuple[str, object, str]:
+        """The glyph on a tile, the pack's colour for it (or None) and its map role, as the game draws them."""
         if pos in people:
-            return people[pos].get("glyph") or people[pos].get("name", "?")[0]
+            person = people[pos]
+            return person.get("glyph") or person.get("name", "?")[0], person.get("colour"), "map_person"
         placed = rooms.placement_at(location, pos)
-        if placed is not None and placed is not self.carrying:
-            return rooms.glyph(self.pack, placed)
-        if self.carrying is not None and pos == self.cursor and location is self.location:
-            return rooms.glyph(self.pack, self.carrying)
+        if placed is self.carrying:
+            placed = None                                   # drawn where the cursor is instead
+        if placed is None and self.carrying is not None and pos == self.cursor and location is self.location:
+            placed = self.carrying
+        if placed is not None:
+            return rooms.glyph(self.pack, placed), rooms.colour(self.pack, placed), "map_exit" if placed.get("exit") else "map_object"
+        grid = location["grid"]
         kind = rooms.tile(location, pos)
-        return {"#": location["grid"]["wall"], ".": location["grid"]["floor"]}.get(kind, " ")
+        if kind == "#":
+            return grid["wall"], grid.get("wall_colour"), "map_wall"
+        if kind == ".":
+            return grid["floor"], grid.get("floor_colour"), "map_floor"
+        return " ", None, "map_floor"
 
     def body(self, location: dict, width: int) -> List[str]:
         """The grid, and beside it what's in the room."""
+        style, spec = self.look.style, location["grid"]
         grid_w, grid_h = rooms.size(location)
         people = rooms.characters_at(self.pack, location["id"])
-        gap = " " * (self.look.ui.tokens["size"]["cell_width"] - 1)
+        cell_width = self.look.ui.tokens["size"]["cell_width"]
+        wall = map_glyph(style, spec["wall"], spec.get("wall_colour"), "map_wall")
         grid = []
         for r in range(grid_h):
             cells = []
             for c in range(grid_w):
-                glyph = self.cell(location, (r, c), people)
-                cells.append(self.look.style.inverse(glyph if glyph.strip() else " ") if (r, c) == self.cursor else glyph)
-            grid.append(gap.join(cells))
-        grid_width = grid_w + (grid_w - 1) * len(gap)
+                glyph, colour, role = self.cell(location, (r, c), people)
+                cells.append(style.inverse(glyph if glyph.strip() else " ") if (r, c) == self.cursor
+                             else map_glyph(style, glyph, colour, role))
+            grid.append(room_line(cells, [rooms.tile(location, (r, c)) == "#" for c in range(grid_w)], wall, cell_width))
+        grid_width = grid_w + (grid_w - 1) * (cell_width - 1) + 2
         legend = self.legend(location, people)
         side = width - grid_width - 3
         lines = []
@@ -141,18 +154,24 @@ class Room:
         return lines
 
     def legend(self, location: dict, people: dict) -> List[str]:
-        """Each kind of thing here once: its glyph and name, where an exit leads, and how many."""
-        seen, counts = [], {}
+        """Each kind of thing here once: its glyph (in its map colour) and name, where an exit leads, and how many."""
+        style = self.look.style
+        seen, counts, painted = [], {}, {}
         for p in location.get("placements", []):
             dest, _ = rooms.exit_target(p)
             zone = (p.get("exit") or {}).get("zone") if isinstance(p.get("exit"), dict) else None
             where = f" → {rooms.location_name(self.pack, dest)}" if dest else (f" → {zone}" if zone else "")
-            key = f"{rooms.glyph(self.pack, p)} {rooms.name(self.pack, p)}{where}"
+            glyph = rooms.glyph(self.pack, p)
+            key = (glyph, f"{rooms.name(self.pack, p)}{where}")
             if key not in counts:
                 seen.append(key)
+                painted[key] = map_glyph(style, glyph, rooms.colour(self.pack, p), "map_exit" if p.get("exit") else "map_object")
             counts[key] = counts.get(key, 0) + 1
-        lines = [k + (f" ×{counts[k]}" if counts[k] > 1 else "") for k in seen]
-        return lines + [f"{c.get('glyph') or c.get('name', '?')[0]} {c.get('name', c['id'])}" for c in people.values()]
+        lines = [f"{painted[k]} {k[1]}" + (f" ×{counts[k]}" if counts[k] > 1 else "") for k in seen]
+        for c in people.values():
+            glyph = c.get("glyph") or c.get("name", "?")[0]
+            lines.append(f"{map_glyph(style, glyph, c.get('colour'), 'map_person')} {c.get('name', c['id'])}")
+        return lines
 
     def info(self, location: dict, width: int) -> List[str]:
         """The tile under the cursor: what it is, what's on it, what's wrong; then the last message."""
@@ -345,8 +364,8 @@ class Room:
             if len(parts) != 2 or not all(p.strip().isdigit() for p in parts):
                 return "Write it as width x height, e.g. 7x7."
             w, h = (int(p) for p in parts)
-            if not (3 <= w <= 10 and 3 <= h <= 10):
-                return "Each side is 3 to 10 tiles."
+            if not (3 <= w <= 12 and 3 <= h <= 10):
+                return "3 to 12 tiles across, 3 to 10 down."
             return rooms.resize(self.pack, self.found, w, h) or ""
 
         def done(_):
@@ -354,7 +373,7 @@ class Room:
             self.cursor = (min(self.cursor[0], h - 1), min(self.cursor[1], w - 1))
             self.say(f"The room is now {w}×{h}.")
         self.ask(forms.Field(self.look, "Size (width x height)", f"{width}x{height}", check,
-                             "3 to 10 tiles each way. A custom shape keeps its top-left part."), done)
+                             "3 to 12 tiles across, 3 to 10 down. A custom shape keeps its top-left part."), done)
 
     def go(self) -> None:
         placed = rooms.placement_at(self.location, self.cursor)

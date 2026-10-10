@@ -468,7 +468,7 @@
         },
         "styles": {
           "type": "object",
-          "description": "Text style by role. Roles are fixed by the engine.",
+          "description": "Text style by role. Roles are fixed by the engine. A game pack's own colour for an object, a person or a room's floor and walls overrides the map roles.",
           "properties": {
             "title": {
               "type": "object",
@@ -756,6 +756,258 @@
                 "colour": "white",
                 "bold": false,
                 "dim": false
+              }
+            },
+            "map_player": {
+              "type": "object",
+              "description": "The player on the map (drawn inverse).",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "white",
+                "bold": true,
+                "dim": false
+              }
+            },
+            "map_person": {
+              "type": "object",
+              "description": "People on the map whose view of the player is 0 or more.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "white",
+                "bold": true,
+                "dim": false
+              }
+            },
+            "map_hostile": {
+              "type": "object",
+              "description": "People on the map whose view of the player is below 0.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "red",
+                "bold": false,
+                "dim": false
+              }
+            },
+            "map_object": {
+              "type": "object",
+              "description": "Objects on the map.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "yellow",
+                "bold": false,
+                "dim": false
+              }
+            },
+            "map_exit": {
+              "type": "object",
+              "description": "Doors and other exits on the map.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "cyan",
+                "bold": false,
+                "dim": false
+              }
+            },
+            "map_wall": {
+              "type": "object",
+              "description": "Wall glyphs on the map.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "grey",
+                "bold": false,
+                "dim": false
+              }
+            },
+            "map_floor": {
+              "type": "object",
+              "description": "Floor glyphs on the map.",
+              "properties": {
+                "colour": {
+                  "enum": [
+                    "grey",
+                    "white",
+                    "green",
+                    "cyan",
+                    "blue",
+                    "violet",
+                    "yellow",
+                    "orange",
+                    "red"
+                  ],
+                  "description": "Colour from the engine's palette."
+                },
+                "bold": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Bold."
+                },
+                "dim": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Dimmed."
+                }
+              },
+              "additionalProperties": false,
+              "default": {
+                "colour": "grey",
+                "bold": false,
+                "dim": true
               }
             }
           },
