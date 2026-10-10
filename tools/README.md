@@ -12,7 +12,7 @@ game's start screen. With more than one pack in `packs/` it asks which to open f
 | Map | The world by region: where locations lie, how they connect, what needs fixing | `python3 -m tools.map <pack>` |
 | Room | One location's layout: tiles, size, objects, entry point, doors, open edges | `python3 -m tools.room <pack>` |
 | Overview | The pack's files, entry counts by kind, the checker's report | `python3 -m tools.overview <pack>` |
-| Art | Portraits and encounter art (planned) | |
+| Art | The pack's pictures in pixels: paint, mirror, undo, colours | `python3 -m tools.art <pack>` |
 
 `python3 tools/gen_ui_schema.py` is a script, not an editor: it regenerates
 `schemas/ui.schema.json` (see README.md, "UI packs").
@@ -180,10 +180,29 @@ switches between them.
 
 Later schemes could colour by kind of place, by region, or by who lives there.
 
-### Art: pictures (next)
+### Art: pictures (ready)
 
-- Edits the pack's art file: pictures in pixels (rows and a palette, up to 32 by 32),
-  drawn with half blocks as the game draws them, in the 16 by 16 art zone. Without
-  colour only the silhouette shows, so the editor can show both.
-- Every picture in the game is one of these: characters use them by id (`art`) on the
-  character screen, in conversations and in fights.
+Every picture in the game is an entry in the pack's art file (pixel rows and a
+palette, up to 32 by 32); characters use them by id (`art`) on the character screen,
+in conversations and in fights.
+
+The editor opens on the list of pictures: each with its size and who uses it, filtered
+as you type, and **New picture…** last (an id, then a blank 16 by 16 with one colour).
+The canvas draws the picture as the game does, two pixels per text cell; the cursor
+is one pixel, shown in magenta (without colour, its cell is inverted and the detail
+band gives the row and column). Beside it the palette, the current colour marked.
+
+| Key | Action |
+|---|---|
+| Space | Paint the pixel with the current colour (both sides with mirror on) |
+| Tab | The next colour in the palette, then see-through |
+| K | Pick the colour under the cursor |
+| M | Mirror on or off: painting does the left and right at once |
+| U | Undo (back through every change since the picture was opened) |
+| N | New colour: the next free letter, a named colour or one from the 256-colour grid |
+| C | Change the current colour (every pixel of it changes) |
+| Z | Size, `width x height` from 2 to 32 (the top-left part is kept; 16 by 16 fills the default art zone) |
+
+Enter lists these and the rest: removing the current colour (its pixels become
+see-through), deleting a picture nothing uses, saving. X goes back to the list,
+asking to save if anything changed; Esc on the list leaves.

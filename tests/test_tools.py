@@ -10,6 +10,7 @@ from tui.text import visible_len
 from tools import tools
 from tools.lib import maps, rooms, screen, term
 from tools.lib.packfiles import PackFiles, dumps
+from tools.art import Art
 from tools.map import Map
 from tools.overview import Overview
 from tools.room import Room
@@ -390,3 +391,99 @@ class MapRegionsTest(unittest.TestCase):
             self.assertEqual(pack.check().errors, ())
         finally:
             shutil.rmtree(tmp)
+
+
+class ArtTest(unittest.TestCase):
+    """The art editor on a copy of the test pack: painting, colours, new pictures; saved pictures pass the checker."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        shutil.copytree(TEST_PACK, self.tmp / "test")
+        self.pack = PackFiles(self.tmp / "test")
+        self.art = Art(self.pack, LOOK)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def keys(self, *keys):
+        for key in keys:
+            self.assertTrue(self.art.handle(key), key)
+
+    def saved_clean(self):
+        self.pack.save()
+        self.assertEqual(self.pack.check().errors, ())
+
+    def test_lists_pictures_with_who_uses_them_and_esc_leaves(self):
+        text = self.art.render(40, 20)
+        self.assertIn("art_juno", text)
+        self.assertIn("16×16 · Juno", text)
+        self.assertIn("New picture…", text)
+        self.assertFalse(self.art.handle("esc"))
+
+    def test_paint_with_mirror_then_undo(self):
+        self.keys("enter")                                    # art_player
+        before = list(self.art.picture["rows"])
+        self.art.cursor = (0, 0)
+        self.keys("m", " ")
+        self.assertEqual(self.art.picture["rows"][0][0], self.art.current)
+        self.assertEqual(self.art.picture["rows"][0][15], self.art.current)
+        self.keys("u")
+        self.assertEqual(self.art.picture["rows"], before)
+
+    def test_tab_steps_through_the_palette_and_see_through(self):
+        self.keys("enter")
+        letters = list(self.art.picture["palette"]) + ["."]
+        seen = []
+        for _ in letters:
+            seen.append(self.art.current)
+            self.keys("tab")
+        self.assertEqual(seen, letters)
+        self.art.cursor = (8, 8)
+        self.keys("k")
+        self.assertEqual(self.art.current, self.art.letter_at(8, 8))
+
+    def test_colours_named_and_from_the_grid(self):
+        self.keys("enter", "n", "enter")                      # a new colour: grey
+        letter = self.art.current
+        self.assertEqual(self.art.picture["palette"][letter], "grey")
+        self.keys("c")
+        self.art.form.filter = "terminal"
+        self.keys("enter", "right", "right", "down", "enter")
+        self.assertEqual(self.art.picture["palette"][letter], 34)
+        self.saved_clean()
+
+    def test_removing_a_colour_clears_its_pixels(self):
+        self.keys("enter")
+        letter = self.art.current
+        self.art.form = None
+        self.art.remove_colour()
+        self.assertNotIn(letter, self.art.picture["palette"])
+        self.assertFalse(any(letter in row for row in self.art.picture["rows"]))
+        self.saved_clean()
+
+    def test_a_new_picture_used_by_nobody_can_be_resized_and_deleted(self):
+        self.art.form.filter = "new"
+        self.keys("enter", "backspace", "backspace", "backspace", "backspace", *"art_rock", "enter")
+        self.assertEqual(self.art.picture["id"], "art_rock")
+        self.assertEqual(len(self.art.picture["rows"]), 16)
+        self.keys("z", *("backspace",) * 5, *"20x8", "enter")
+        self.assertEqual((len(self.art.picture["rows"][0]), len(self.art.picture["rows"])), (20, 8))
+        self.saved_clean()
+        self.keys("enter")
+        self.art.form.filter = "delete"
+        self.keys("enter", "y")
+        self.assertIsNone(self.pack.find("art", "art_rock"))
+        self.saved_clean()
+
+    def test_leaving_with_changes_asks(self):
+        self.keys("enter", " ", "tab", " ", "x")
+        self.assertIn("Save your changes?", self.art.render(40, 20))
+        self.keys("n")
+        self.assertFalse(self.pack.dirty)
+
+    def test_every_screen_fits(self):
+        for setup in ((), ("enter",), ("enter", "enter"), ("enter", "n"), ("enter", "c")):
+            self.art = Art(self.pack, LOOK)
+            self.keys(*setup)
+            for columns, rows in SIZES:
+                fits(self, self.art.render(columns, rows), columns, rows)

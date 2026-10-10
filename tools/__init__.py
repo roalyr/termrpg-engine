@@ -9,7 +9,8 @@ render(columns, rows) and handle(key) -> False to leave.
 
 def tools() -> list:
     """The finished tools, in menu order. Planned ones aren't listed until they work."""
+    from tools.art import Art
     from tools.map import Map
     from tools.overview import Overview
     from tools.room import Room
-    return [Map, Room, Overview]
+    return [Map, Room, Art, Overview]
