@@ -1,1 +1,13 @@
-"""Standalone tools for working on content packs. Run them from the project root: python3 -m tools."""
+"""
+Standalone tools for working on content packs. Start them from the editor's menu
+(python3 editor.py) or on their own (python3 -m tools.<name> <pack>).
+
+Every tool is a class with 'name' and 'about', built from (PackFiles, Look), with
+render(columns, rows) and handle(key) -> False to leave.
+"""
+
+
+def tools() -> list:
+    """The finished tools, in menu order. Planned ones aren't listed until they work."""
+    from tools.overview import Overview
+    return [Overview]

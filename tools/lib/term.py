@@ -4,8 +4,10 @@ render(columns, rows) -> the screen as text, and handle(key) -> False to quit.
 Keys arrive as names: a character, or 'up', 'down', 'left', 'right', 'enter', 'esc',
 'backspace', 'tab'. Raw keys and styles come from the game's tui.text.
 """
+import argparse
 import sys
-from typing import Callable
+from pathlib import Path
+from typing import Callable, List
 
 from tui import text
 
@@ -39,3 +41,15 @@ def run(render: Callable[[int, int], str], handle: Callable[[str], bool]) -> int
         if interactive:
             sys.stdout.write("\x1b[?25h\x1b[?1049l")
             sys.stdout.flush()
+
+
+def run_tool(tool_class, argv: List[str]) -> int:
+    """Runs one tool on its own: python3 -m tools.<name> [pack] [--no-colour]."""
+    from tools.lib import screen
+    from tools.lib.packfiles import PackFiles
+    parser = argparse.ArgumentParser(description=tool_class.about)
+    parser.add_argument("pack", nargs="?", default="packs/test", help="pack folder")
+    parser.add_argument("--no-colour", action="store_true", help="plain text")
+    args = parser.parse_args(argv)
+    tool = tool_class(PackFiles(Path(args.pack)), screen.look(not args.no_colour))
+    return run(tool.render, tool.handle)
