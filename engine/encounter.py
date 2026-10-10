@@ -114,7 +114,8 @@ def _health_share(content: Content, cs: CharState) -> float:
 def begin(content: Content, state: GameState) -> GameState:
     """
     Starts the requested encounter, if there is one and none is running. Unique enemies
-    who are down stay out of it; with nobody left to fight, it doesn't start at all.
+    who are down stay out of it; unique allies join only when they're in the room and up
+    (the party always fights). With nobody left to fight, it doesn't start at all.
     """
     request = state.encounter_request
     state = state._replace(encounter_request=None)
@@ -130,8 +131,12 @@ def begin(content: Content, state: GameState) -> GameState:
             source = content.get("character", entry["character"])
             if not source.get("template"):
                 cs = state.characters.get(entry["character"])
-                if cs is not None and not (side == "enemies" and cs.down):
-                    (allies if side == "allies" else enemies).append(entry["character"])
+                if cs is None or cs.down:
+                    continue
+                if side == "enemies":
+                    enemies.append(entry["character"])
+                elif cs.location == player.location:              # someone elsewhere can't help
+                    allies.append(entry["character"])
                 continue
             count, state = context.amount(content, state, Ctx(self_id=state.player), entry["count"])
             for _ in range(int(count)):

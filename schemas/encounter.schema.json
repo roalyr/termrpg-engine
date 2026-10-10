@@ -71,7 +71,7 @@
         },
         "allies": {
           "type": "array",
-          "description": "Extra characters fighting with the player's party.",
+          "description": "Extra characters fighting with the player's party. A unique character joins only when in the same location and not down; a template is spawned there.",
           "items": {
             "type": "object",
             "description": "Who takes part on one side.",

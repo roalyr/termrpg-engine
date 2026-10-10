@@ -187,6 +187,9 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   numbers when it doesn't fit.
 - `template: true` characters (enemies spawned in numbers) have no `location`. In
   encounters, only templates take a `count`.
+- A unique character in an encounter's `allies` fights only when they're in the
+  player's location and not down. To bring someone along wherever the fight is, put
+  them in the party.
 
 **Encounters**
 

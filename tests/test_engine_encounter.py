@@ -70,6 +70,19 @@ class TestBegin(unittest.TestCase):
         self.assertEqual(texts(s)[:2], ["Drones!", "Drones close in."])
         self.assertEqual(encounter.intent_line(CONTENT, s, "char_drone#1"), "STRIKE Player")
 
+    def test_a_unique_ally_elsewhere_or_down_stays_out(self):
+        away = run(CONTENT, new_game(CONTENT, 2), Ctx(self_id=PLAYER),
+                   [freeze({"op": "move_to", "location": "loc_storage", "subject": "self"})])
+        s = encounter.begin(CONTENT, away._replace(encounter_request="enc_drones"))
+        self.assertEqual(s.encounter.allies, (PLAYER,))                 # Juno is in the workshop
+        down = new_game(CONTENT, 2)
+        down = down._replace(characters=freeze({**down.characters, NPC: down.characters[NPC]._replace(down=True)}))
+        s = encounter.begin(CONTENT, down._replace(encounter_request="enc_drones"))
+        self.assertEqual(s.encounter.allies, (PLAYER,))
+        party = run(CONTENT, away, Ctx(self_id=NPC), [freeze({"op": "join_party", "subject": "self"})])
+        s = encounter.begin(CONTENT, party._replace(encounter_request="enc_drones"))
+        self.assertEqual(s.encounter.allies, (PLAYER, NPC))             # the party always fights
+
     def test_tiles(self):
         tiles = encounter.tiles(CONTENT, fight())
         self.assertEqual([(t.key, t.action) for t in tiles],

@@ -416,7 +416,8 @@ Rules the engine follows that the schemas alone don't spell out:
 
 - **Beginning.** `start_encounter` starts the encounter after the current action.
   Template enemies are spawned as copies (not on the map); unique characters in
-  `enemies` or `allies` join as themselves, except unique enemies who are down. With
+  `enemies` join as themselves unless they're down, and unique `allies` only when
+  they're up and in the player's location (someone in another room can't help). With
   no enemy left to fight, the encounter doesn't start. The player's party is on the player's
   side. `on_start` runs, and the `intro` is shown.
 - **A round.** Every AI-controlled fighter (everyone but the player) picks an action
