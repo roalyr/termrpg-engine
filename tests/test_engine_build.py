@@ -259,14 +259,14 @@ class TestUsingItems(unittest.TestCase):
 class TestScreen(unittest.TestCase):
     def test_the_fitting_screen_shows_the_loadout(self):
         s = at_bench()
-        frame = ANSI.sub("", render.render(CONTENT, s, 44, 60, selected=1, screen="fitting"))
+        frame = ANSI.sub("", render.render(CONTENT, s, 52, 60, selected=1, screen="fitting"))
         for words in ("Fitting · Light suit", "At: Workbench", "4/6", "1 Light suit", "2 Cutter 4/4",
                       "Hand  · empty", "R Remove", "Remove: PWR 4→3/6", "I Details"):
             self.assertIn(words, frame)
 
     def test_the_pack_panel_is_for_carrying(self):
         s = at_bench()
-        frame = ANSI.sub("", render.render(CONTENT, s, 44, 60, panel="pack", selected=0))
+        frame = ANSI.sub("", render.render(CONTENT, s, 52, 60, panel="pack", selected=0))
         self.assertIn("CRG 4/6", frame)
         self.assertIn("1 Medkit x3", frame)
         self.assertIn("U Use", frame)

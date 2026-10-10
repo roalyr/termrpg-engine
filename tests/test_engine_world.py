@@ -220,12 +220,12 @@ class TestInspect(unittest.TestCase):
 
 
 class TestScreen(unittest.TestCase):
-    def frame(self, state, columns=44, **kw):
+    def frame(self, state, columns=52, **kw):
         return ANSI.sub("", render.render(CONTENT, state, columns, 60, **kw))
 
     def test_frame_fits_the_width(self):
         s = keys(new_game(CONTENT, 1), "aaww")
-        for columns in (40, 44, 60):
+        for columns in (48, 52, 60):
             for line in self.frame(s, columns).splitlines():
                 self.assertEqual(len(line), columns, line)
 
@@ -248,14 +248,14 @@ class TestScreen(unittest.TestCase):
         self.assertIn("1-2 choose", f)
 
     def test_too_small(self):
-        self.assertIn("at least 40x20", render.render(CONTENT, new_game(CONTENT, 1), 30, 60))
+        self.assertIn("at least 48x24", render.render(CONTENT, new_game(CONTENT, 1), 30, 60))
 
 
 class TestPlaytestFixes(unittest.TestCase):
     def test_unavailable_choice_options_are_marked(self):
         s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id=PLAYER),
                 CONTENT.get("object", "obj_terminal")["interactions"][0]["effects"])
-        coloured = render.render(CONTENT, s, 44, 60)
+        coloured = render.render(CONTENT, s, 52, 60)
         frame = ANSI.sub("", coloured)
         self.assertIn("2 Reroute power - Needs the power on.", frame)      # the power on is 0: unavailable, with its hint
         self.assertIn(Style(True, UI.tokens["styles"]).role("2 Reroute power - Needs the power on.", "unavailable"), coloured)   # and greyed

@@ -90,7 +90,7 @@ def wrap(text: str, width: int) -> List[str]:
 
 
 def terminal_size() -> tuple:
-    size = shutil.get_terminal_size((44, 40))
+    size = shutil.get_terminal_size((48, 40))
     return size.columns, size.lines
 
 

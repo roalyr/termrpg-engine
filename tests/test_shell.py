@@ -39,7 +39,7 @@ class Saves:
         return shell.read_slots(CONTENT, self.dir, UI.tokens["size"]["save_slots"])
 
 
-def draw(view, slots, columns=44, rows=60, colour=False, ui=UI):
+def draw(view, slots, columns=52, rows=60, colour=False, ui=UI):
     data = shell.ShellData(shell.entries(slots), slots, view.mode)
     return ANSI.sub("", render.render_shell(CONTENT, ui, view, data, columns, rows, colour))
 
@@ -112,7 +112,7 @@ class TestStartScreen(unittest.TestCase):
         saves = Saves(self, filled=(1, 2, 3))
         slots = saves.slots()
         for view in (shell.Shell(), shell.Shell("slots"), shell.Shell("slots", mode="new"), shell.Shell("help")):
-            for columns, rows in ((40, 20), (44, 30), (100, 60)):
+            for columns, rows in ((48, 24), (52, 30), (100, 60)):
                 with self.subTest(screen=view.screen, mode=view.mode, size=(columns, rows)):
                     lines = draw(view, slots, columns, rows, colour=True).rstrip("\n").split("\n")
                     self.assertEqual({visible_len(line) for line in lines}, {columns})
@@ -142,8 +142,8 @@ class TestHelp(unittest.TestCase):
         slots = Saves(self).slots()
         view = shell.Shell("help")
         data = shell.ShellData(shell.entries(slots), slots, "load")
-        self.assertGreater(render.shell_scroll_limit(CONTENT, UI, view, data, 40, 20), 0)
-        self.assertIn("↑↓ scroll", draw(view, slots, 40, 20))
+        self.assertGreater(render.shell_scroll_limit(CONTENT, UI, view, data, 48, 24), 0)
+        self.assertIn("↑↓ scroll", draw(view, slots, 48, 24))
         moved, _ = shell.handle(view, "move_south", "s", slots)
         self.assertEqual(moved.scroll, 1)
         back, _ = shell.handle(view, "close", "x", slots)
@@ -156,7 +156,7 @@ class TestQuitting(unittest.TestCase):
         picked = app.View(selected=1)
         _, asked, quit_now = app.handle(CONTENT, s, "q", picked, UI)
         self.assertEqual((asked.screen, quit_now), ("quit", False))
-        frame = ANSI.sub("", render.render(CONTENT, s, 44, 30, screen="quit"))
+        frame = ANSI.sub("", render.render(CONTENT, s, 52, 30, screen="quit"))
         self.assertIn("Quit to the start screen?", frame)
         self.assertIn("Y yes  N no", frame)
         _, back, _ = app.handle(CONTENT, s, "n", asked, UI)

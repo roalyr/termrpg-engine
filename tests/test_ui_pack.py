@@ -119,7 +119,7 @@ class TestUiRules(unittest.TestCase):
         report, ui = uipack.load_merged(self.pack)
         self.assertEqual(report.errors, ())
         self.assertEqual(ui["keys"]["bindings"]["move_north"], "w")
-        self.assertEqual(ui["tokens"]["size"]["min_columns"], 40)
+        self.assertEqual(ui["tokens"]["size"]["min_columns"], 48)
         self.assertEqual(ui["tokens"]["glyphs"]["border"]["top_left"], "┌")
         self.assertEqual(ui["tokens"]["styles"]["danger"]["colour"], "orange")
 

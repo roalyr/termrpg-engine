@@ -17,7 +17,7 @@ from tools.room import Room
 
 ROOT = Path(__file__).resolve().parent.parent
 LOOK = screen.look(colour=False)
-SIZES = ((40, 20), (60, 40), (100, 60))
+SIZES = ((48, 24), (60, 40), (100, 60))
 TEST_PACK = ROOT / "packs" / "test"
 
 
@@ -77,21 +77,21 @@ class LookTest(unittest.TestCase):
                          ["up", "up", "down", "left", "right", "back", "back", "quit", "enter", "r"])
 
     def test_draws_bands_in_a_border_and_scrolls_the_flexible_one(self):
-        drawn = screen.draw(LOOK, [["Title"], [str(i) for i in range(50)], ["hints"]], 40, 20, flex=1, scroll=5)
-        fits(self, drawn.text, 40, 20)
+        drawn = screen.draw(LOOK, [["Title"], [str(i) for i in range(50)], ["hints"]], 48, 24, flex=1, scroll=5)
+        fits(self, drawn.text, 48, 24)
         lines = drawn.text.split("\n")
         self.assertTrue(lines[0].startswith("┌") and "Title" in lines[1])
         self.assertIn("5", lines[3])
-        self.assertEqual(drawn.limit, 50 - (20 - 2 - 4))
+        self.assertEqual(drawn.limit, 50 - (24 - 2 - 4))
 
     def test_too_small_a_terminal_says_so(self):
-        self.assertIn("40x20", screen.draw(LOOK, [["x"]], 30, 10).text)
+        self.assertIn("48x24", screen.draw(LOOK, [["x"]], 30, 10).text)
 
 
 class EditorTest(unittest.TestCase):
     def test_opens_the_only_pack_and_lists_working_tools_then_quit(self):
         ed = editor.Editor(LOOK, [TEST_PACK])
-        screen_text = ed.render(40, 20)
+        screen_text = ed.render(48, 24)
         self.assertIn("Test pack", screen_text)
         for tool in tools():
             self.assertIn(tool.name, screen_text)
@@ -101,7 +101,7 @@ class EditorTest(unittest.TestCase):
         ed = editor.Editor(LOOK, [TEST_PACK])
         self.assertTrue(ed.handle(str(tools().index(Overview) + 1)))
         self.assertIsInstance(ed.tool, Overview)
-        self.assertIn("Checker", ed.render(40, 20))
+        self.assertIn("Checker", ed.render(48, 24))
         self.assertTrue(ed.handle("x"))
         self.assertIsNone(ed.tool)
         self.assertFalse(ed.handle("x"))
@@ -117,7 +117,7 @@ class EditorTest(unittest.TestCase):
             ed.handle("down")
             ed.handle("enter")
             self.assertEqual(ed.pack.dir.name, "two")
-            self.assertIn("Open another pack", ed.render(40, 20))
+            self.assertIn("Open another pack", ed.render(48, 24))
         finally:
             shutil.rmtree(tmp)
 
@@ -141,10 +141,10 @@ class OverviewTest(unittest.TestCase):
         view = Overview(PackFiles(TEST_PACK), LOOK)
         for columns, rows in SIZES:
             fits(self, view.render(columns, rows), columns, rows)
-        top = view.render(40, 20)
+        top = view.render(48, 24)
         for _ in range(50):
             view.handle("down")
-        self.assertNotEqual(view.render(40, 20), top)
+        self.assertNotEqual(view.render(48, 24), top)
         self.assertGreater(view.scroll, 0)
 
 
@@ -176,9 +176,9 @@ class RoomTest(unittest.TestCase):
 
     def test_starts_with_a_location_list_and_esc_leaves(self):
         room = Room(self.pack, LOOK)
-        self.assertIn("Workshop", room.render(40, 20))
+        self.assertIn("Workshop", room.render(48, 24))
         self.assertTrue(room.handle("enter"))
-        self.assertIn("Room · Workshop", room.render(40, 20))
+        self.assertIn("Room · Workshop", room.render(48, 24))
         self.assertTrue(room.handle("x"))                     # back to the list, nothing changed
         self.assertFalse(room.handle("esc"))
 
@@ -186,7 +186,7 @@ class RoomTest(unittest.TestCase):
         room = self.room()
         room.cursor = (2, 5)                                  # the east wall
         self.keys(room, "l", "enter", "enter")                # the suggested object, the first location
-        self.assertIn("Pick a tile in Storage", room.render(40, 20))
+        self.assertIn("Pick a tile in Storage", room.render(48, 24))
         self.keys(room, "enter")
         door = rooms.placement_at(room.location, (2, 5))
         other_found, other = rooms.partner(self.pack, door)
@@ -249,7 +249,7 @@ class RoomTest(unittest.TestCase):
         room = self.room()
         room.cursor = (2, 2)
         self.keys(room, "t", "x")
-        self.assertIn("Save your changes?", room.render(40, 20))
+        self.assertIn("Save your changes?", room.render(48, 24))
         self.keys(room, "n")
         self.assertFalse(self.pack.dirty)
         self.assertEqual(rooms.tile(self.pack.find("locations", "loc_workshop").entry, (2, 2)), ".")
@@ -289,17 +289,17 @@ class MapTest(unittest.TestCase):
         return self.pack.find("locations", "loc_" + name.lower().replace(" ", "_"))
 
     def test_opens_on_the_start_and_switches_regions_from_a_list(self):
-        text = self.map.render(40, 20)
+        text = self.map.render(48, 24)
         self.assertIn("Map · Lower deck", text)
         self.assertIn("Workshop · 6×6", text)
         self.keys("x")
-        listing = self.map.render(40, 20)
+        listing = self.map.render(48, 24)
         self.assertIn("Map · regions", listing)
         self.assertIn("Station", listing)
         self.assertIn("  Lower deck", listing)                # nested under its parent
         self.keys("up", "enter")                              # Station: its own map, no rooms placed
-        self.assertIn("Map · Station", self.map.render(40, 20))
-        self.assertNotIn("Workshop", self.map.render(40, 20))
+        self.assertIn("Map · Station", self.map.render(48, 24))
+        self.assertNotIn("Workshop", self.map.render(48, 24))
         self.keys("x")
         self.assertFalse(self.map.handle("esc"))              # Esc on the list leaves
 
@@ -320,7 +320,7 @@ class MapTest(unittest.TestCase):
         self.assertEqual(found.entry["region"], "reg_lower_deck")
         self.keys("up", "l", "enter", "enter")                # the south neighbour, as a door
         self.assertEqual(self.validity(found.entry["id"]), "plain")
-        self.assertIn("│", self.map.render(40, 20))           # the link is drawn
+        self.assertIn("│", self.map.render(48, 24))           # the link is drawn
         self.pack.save()
         self.assertEqual(self.pack.check().errors, ())
 
@@ -340,11 +340,11 @@ class MapTest(unittest.TestCase):
         self.keys("m", "down", "enter")
         self.assertEqual(self.pack.find("locations", "loc_workshop").entry["map"], {"x": 0, "y": 1})
         self.keys("e")
-        self.assertIn("Room · Workshop", self.map.render(40, 20))
+        self.assertIn("Room · Workshop", self.map.render(48, 24))
         self.keys("x")                                        # back to the map, no question
-        self.assertIn("Map · Lower deck", self.map.render(40, 20))
+        self.assertIn("Map · Lower deck", self.map.render(48, 24))
         self.keys("x", "esc")                                 # the region list, then leaving asks
-        self.assertIn("Save your changes?", self.map.render(40, 20))
+        self.assertIn("Save your changes?", self.map.render(48, 24))
 
     def test_every_screen_fits(self):
         for setup in ((), ("enter",), ("x",), ("l",), ("down", "n")):
@@ -383,10 +383,10 @@ class MapRegionsTest(unittest.TestCase):
             view.handle("x")
             self.assertIn("Workshop in Lower deck", view.render(60, 30))
             view.handle("g")                                      # follow the exit: the workshop's map
-            self.assertIn("Map · Lower deck", view.render(40, 20))
+            self.assertIn("Map · Lower deck", view.render(48, 24))
             self.assertEqual(view.at_cursor()[1]["id"], "loc_workshop")
             view.handle("x")                                      # and back along it
-            self.assertIn("Map · Tunnels", view.render(40, 20))
+            self.assertIn("Map · Tunnels", view.render(48, 24))
             pack.save()
             self.assertEqual(pack.check().errors, ())
         finally:
@@ -414,7 +414,7 @@ class ArtTest(unittest.TestCase):
         self.assertEqual(self.pack.check().errors, ())
 
     def test_lists_pictures_with_who_uses_them_and_esc_leaves(self):
-        text = self.art.render(40, 20)
+        text = self.art.render(48, 24)
         self.assertIn("art_juno", text)
         self.assertIn("16×16 · Juno", text)
         self.assertIn("New picture…", text)
@@ -465,7 +465,7 @@ class ArtTest(unittest.TestCase):
         self.art.form.filter = "new"
         self.keys("enter", "backspace", "backspace", "backspace", "backspace", *"art_rock", "enter")
         self.assertEqual(self.art.picture["id"], "art_rock")
-        self.assertEqual(len(self.art.picture["rows"]), 16)
+        self.assertEqual(len(self.art.picture["rows"]), 24)
         self.keys("z", *("backspace",) * 5, *"20x8", "enter")
         self.assertEqual((len(self.art.picture["rows"][0]), len(self.art.picture["rows"])), (20, 8))
         self.saved_clean()
@@ -477,7 +477,7 @@ class ArtTest(unittest.TestCase):
 
     def test_leaving_with_changes_asks(self):
         self.keys("enter", " ", "tab", " ", "x")
-        self.assertIn("Save your changes?", self.art.render(40, 20))
+        self.assertIn("Save your changes?", self.art.render(48, 24))
         self.keys("n")
         self.assertFalse(self.pack.dirty)
 

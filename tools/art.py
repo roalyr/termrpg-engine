@@ -342,7 +342,7 @@ class Art:
         def check(text):
             parts = text.lower().replace("×", "x").split("x")
             if len(parts) != 2 or not all(p.strip().isdigit() for p in parts):
-                return "Write it as width x height, e.g. 16x16."
+                return "Write it as width x height, e.g. 24x24."
             w, h = (int(p) for p in parts)
             return "" if 2 <= w <= 32 and 2 <= h <= 32 else "Each side is 2 to 32 pixels."
 
@@ -355,7 +355,7 @@ class Art:
             self.pack.touch(self.found.file)
             self.say(f"The picture is now {w}×{h}.")
         self.ask(forms.Field(self.look, "Size (width x height)", f"{width}x{height}", check,
-                             "2 to 32 pixels each way; 16x16 fills the default art zone. "
+                             "2 to 32 pixels each way; 24x24 fills the default art zone. "
                              "The top-left part is kept."), done)
 
     def start_new(self) -> None:
@@ -367,10 +367,10 @@ class Art:
             return "That id is taken." if text in taken else ""
 
         def done(art_id):
-            entry = {"id": art_id, "rows": [CLEAR * 16] * 16, "palette": {"a": "white"}}
+            entry = {"id": art_id, "rows": [CLEAR * 24] * 24, "palette": {"a": "white"}}
             self.pack.add("art", entry)
             self.open(art_id)
-            self.say("A blank 16×16 picture. Z changes the size, N adds colours.")
+            self.say("A blank 24×24 picture. Z changes the size, N adds colours.")
         self.ask(forms.Field(self.look, "Id of the new picture", "art_", check,
                              "Characters use it by this id, in their 'art'."), done)
 

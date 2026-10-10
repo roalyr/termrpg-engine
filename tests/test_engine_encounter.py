@@ -211,7 +211,7 @@ class TestReadableFights(unittest.TestCase):
     def test_the_log_is_labelled_with_its_round(self):
         s = encounter.take_turn(CONTENT, fight(2), "action_strike", "char_drone#1")
         self.assertEqual((s.encounter.round, s.encounter.log_round), (2, 1))
-        frame = ANSI.sub("", render.render(CONTENT, s, 44, 60))
+        frame = ANSI.sub("", render.render(CONTENT, s, 52, 60))
         self.assertIn("Drones · round 2", frame)
         self.assertIn("Round 1:", frame)
         log = frame.index("Round 1:")
@@ -224,7 +224,7 @@ class TestReadableFights(unittest.TestCase):
         self.assertEqual(s.messages, ())                       # nothing bleeds onto the map
         self.assertEqual((s.debrief.title, s.debrief.result), ("Won.", "won"))
         self.assertTrue(any(m.text.startswith("Found:") for m in s.debrief.messages))
-        frame = ANSI.sub("", render.render(CONTENT, s, 44, 60))
+        frame = ANSI.sub("", render.render(CONTENT, s, 52, 60))
         self.assertIn("Won.", frame)
         self.assertIn(f"Round {s.debrief.round}:", frame)
         self.assertIn("Any key: continue", frame)
@@ -250,22 +250,22 @@ class TestReadableFights(unittest.TestCase):
 class TestEncounterScreen(unittest.TestCase):
     def test_frame(self):
         s = fight(2)
-        frame = ANSI.sub("", render.render(CONTENT, s, 44, 60))
+        frame = ANSI.sub("", render.render(CONTENT, s, 52, 60))
         for words in ("Drones · round 1", "1 Drone", "⚠ STRIKE Player", "┌1───────┐", "│Strike  │", "│Guard   │",
                       "▄▄▄▄▄  ▄▄▄▄▄", "1-3 pick"):                  # the drone's rotors, in pixels
             self.assertIn(words, frame)
         for line in frame.splitlines():
-            self.assertEqual(len(line), 44, line)
+            self.assertEqual(len(line), 52, line)
 
     def test_keys_pick_tile_then_target(self):
         s = fight(2)
         s, view, _ = app.handle(CONTENT, s, "1")
         self.assertEqual((view.selected, view.panel), (0, None))   # picked: its details show
-        self.assertIn("1 again: use", ANSI.sub("", render.render(CONTENT, s, 44, 60, selected=0)))
+        self.assertIn("1 again: use", ANSI.sub("", render.render(CONTENT, s, 52, 60, selected=0)))
         self.assertEqual(s.encounter.round, 1)                     # nothing used yet
         s, view, _ = app.handle(CONTENT, s, "1", view)
         self.assertEqual((view.selected, view.panel), (0, "target"))   # two drones: waiting for a target
-        self.assertIn("1-2 target", ANSI.sub("", render.render(CONTENT, s, 44, 60, "target", selected=0)))
+        self.assertIn("1-2 target", ANSI.sub("", render.render(CONTENT, s, 52, 60, "target", selected=0)))
         s, view, _ = app.handle(CONTENT, s, "2", view)
         self.assertIsNone(view.selected)
         self.assertEqual(s.encounter.round, 2)

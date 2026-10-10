@@ -139,7 +139,7 @@ file as you type. The engine ignores it.
   namespace across the whole pack. Placement ids are unique across all locations.
 - **References.** A field that names another thing holds its id. The validator
   checks that every reference points at something that exists.
-- **Labels** are short names (at most 32 characters) that must fit a 40-column
+- **Labels** are short names (at most 32 characters) that must fit a 48-column
   screen. **Text** is longer player-facing prose (at most 600 characters).
 - **`@` texts.** A text field whose value is exactly `@` plus an id (for example
   `"@str_greeting"`) shows that entry from the strings file.
@@ -901,9 +901,9 @@ picture can serve many characters. Every picture in the game is one of these.
 | `palette` | Each pixel letter to a palette colour (`grey`, `white`, `green`, `cyan`, `blue`, `violet`, `yellow`, `orange`, `red`) or a 256-colour terminal number |
 | `notes` | What it shows, for authors |
 
-Two pixel rows share one line of text (half-block characters), so 16 rows take 8
+Two pixel rows share one line of text (half-block characters), so 24 rows take 12
 lines. A picture is drawn centred in the UI pack's **art zone** (`art_width` by
-`art_height`, 16 by 16 in the default UI pack) and cut to it: draw for 16 by 16. Without
+`art_height`, 24 by 24 in the default UI pack) and cut to it: draw for 24 by 24. Without
 colour only the shape shows, so draw the silhouette first. The checker makes sure the
 rows match and every letter is in the palette.
 

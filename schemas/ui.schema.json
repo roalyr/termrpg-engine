@@ -126,14 +126,14 @@
               "type": "integer",
               "minimum": 30,
               "maximum": 200,
-              "default": 40,
+              "default": 48,
               "description": "The narrowest terminal the screens must fit."
             },
             "min_rows": {
               "type": "integer",
               "minimum": 10,
               "maximum": 100,
-              "default": 20,
+              "default": 24,
               "description": "The shortest terminal the screens must fit."
             },
             "cell_width": {
@@ -182,14 +182,14 @@
               "type": "integer",
               "minimum": 4,
               "maximum": 32,
-              "default": 16,
+              "default": 24,
               "description": "Width of the art zone (a character's picture: portrait and fight), in pixels (one text column each)."
             },
             "art_height": {
               "type": "integer",
               "minimum": 4,
               "maximum": 32,
-              "default": 16,
+              "default": 24,
               "description": "Height of the art zone, in pixels (two per line of text)."
             },
             "save_slots": {

@@ -24,7 +24,7 @@ CONTENT = load_pack(ROOT / "packs" / "test")
 UI = default_ui()
 STEPS = int(os.environ.get("RANDOM_PLAY_STEPS", "250"))
 SEEDS = range(1, 7)
-SIZES = ((40, 20), (44, 30), (72, 50))
+SIZES = ((48, 24), (52, 30), (72, 50))
 STARTS = ("start", "loc_storage", "fight", "choice", "juno")
 # Every bound key except quit, the digits, and letters menus and the board use.
 KEYS = sorted((UI.bound_keys - {UI.bindings["quit"]}) | set("123456789") | set("ufrbehjklmnoyvzgtio"))

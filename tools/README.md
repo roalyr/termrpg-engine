@@ -29,7 +29,7 @@ These hold for every tool. A new tool, or a change to one, follows them.
   when its key does something right now.
 - **Few words.** Labels are short and plain. No ids where a name will do; show the id
   only where the user has to type or choose it.
-- **Fits 40 by 20.** Every screen works at the UI pack's minimum size (the game's
+- **Fits 48 by 24.** Every screen works at the UI pack's minimum size (the game's
   phone-sized screen) and uses more room when there is more.
 
 ### 2. Intuitive
@@ -93,7 +93,7 @@ These hold for every tool. A new tool, or a change to one, follows them.
   turns the game's bindings into `up`, `down`, `left`, `right`, `back`, `quit`. When
   stdin isn't a terminal, keys are read from it, so a tool can be scripted.
 - **Tested.** `render` and `handle` touch no terminal, so `tests/test_tools.py` drives
-  the tools with keys against a copy of the test pack, at 40 by 20 and wider.
+  the tools with keys against a copy of the test pack, at 48 by 24 and wider.
 
 `tools/overview.py` is the smallest tool and the template for new ones.
 
@@ -187,7 +187,7 @@ palette, up to 32 by 32); characters use them by id (`art`) on the character scr
 in conversations and in fights.
 
 The editor opens on the list of pictures: each with its size and who uses it, filtered
-as you type, and **New picture…** last (an id, then a blank 16 by 16 with one colour).
+as you type, and **New picture…** last (an id, then a blank 24 by 24 with one colour).
 The canvas draws the picture as the game does, two pixels per text cell; the cursor
 is one pixel, shown in magenta (without colour, its cell is inverted and the detail
 band gives the row and column). Beside it the palette, the current colour marked.
@@ -201,7 +201,7 @@ band gives the row and column). Beside it the palette, the current colour marked
 | U | Undo (back through every change since the picture was opened) |
 | N | New colour: the next free letter, a named colour or one from the 256-colour grid |
 | C | Change the current colour (every pixel of it changes) |
-| Z | Size, `width x height` from 2 to 32 (the top-left part is kept; 16 by 16 fills the default art zone) |
+| Z | Size, `width x height` from 2 to 32 (the top-left part is kept; 24 by 24 fills the default art zone) |
 
 Enter lists these and the rest: removing the current colour (its pixels become
 see-through), deleting a picture nothing uses, saving. X goes back to the list,

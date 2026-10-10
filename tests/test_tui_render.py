@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")
 UI = default_ui()
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
-SIZES = ((40, 20), (44, 30), (60, 40), (100, 60))
+SIZES = ((48, 24), (52, 30), (60, 40), (100, 60))
 
 
 def walk(state, sequence):
@@ -102,8 +102,21 @@ def screens():
     ]
 
 
-def plain(state, columns=44, rows=60, ui=UI, **options):
+def plain(state, columns=52, rows=60, ui=UI, **options):
     return ANSI.sub("", render.render(CONTENT, state, columns, rows, ui=ui, **options))
+
+
+def ui_with(case, **size):
+    """The default UI pack with some size tokens changed, e.g. a smaller minimum screen."""
+    tmp = tempfile.TemporaryDirectory()
+    case.addCleanup(tmp.cleanup)
+    ui_dir = Path(tmp.name) / "mine"
+    shutil.copytree(ui_dir_for("default"), ui_dir)
+    path = ui_dir / "tokens.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data.setdefault("size", {}).update(size)
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return load_ui(ui_dir)
 
 
 class TestEveryScreen(unittest.TestCase):
@@ -124,7 +137,7 @@ class TestEveryScreen(unittest.TestCase):
     def test_plain_text_has_no_escapes(self):
         for name, state, options in screens():
             with self.subTest(screen=name):
-                self.assertNotIn("\x1b", render.render(CONTENT, state, 44, 60, colour=False, ui=UI, **options)
+                self.assertNotIn("\x1b", render.render(CONTENT, state, 52, 60, colour=False, ui=UI, **options)
                                  .replace("\x1b[7m", "").replace("\x1b[0m", ""))
 
     def test_what_each_screen_shows(self):
@@ -145,22 +158,22 @@ class TestEveryScreen(unittest.TestCase):
                     self.assertIn(words, plain(state, **options))
 
     def test_too_small(self):
-        self.assertEqual(plain(new_game(CONTENT, 1), 39, 60).strip(), UI.word("terminal_too_small", columns=40, rows=20))
-        self.assertIn("at least 40x20", plain(new_game(CONTENT, 1), 60, 19))
+        self.assertEqual(plain(new_game(CONTENT, 1), 47, 60).strip(), UI.word("terminal_too_small", columns=48, rows=24))
+        self.assertIn("at least 48x24", plain(new_game(CONTENT, 1), 60, 23))
 
 
 class TestFitting(unittest.TestCase):
     def test_low_priority_zones_drop_first(self):
         s = menu_state()
-        self.assertIn("Locker", plain(s, 44, 60))            # the legend
-        self.assertNotIn("Locker", plain(s, 44, 20))
-        self.assertIn("I Inspect", plain(s, 44, 20))          # the menu stays
+        self.assertIn("Locker", plain(s, 52, 60))            # the legend
+        self.assertNotIn("Locker", plain(s, 52, 24))
+        self.assertIn("I Inspect", plain(s, 52, 24))          # the menu stays
 
     def test_scroll_zones_keep_their_last_lines(self):
         s = new_game(CONTENT, 1)
         me = s.characters[s.player]
         s = s._replace(characters=freeze({**s.characters, s.player: me._replace(inventory=me.inventory * 2)}))
-        tall, short = plain(s, 40, 60, panel="pack", selected=4), plain(s, 40, 20, panel="pack", selected=4)
+        tall, short = plain(s, 48, 60, panel="pack", selected=4), plain(s, 48, 24, panel="pack", selected=4)
         self.assertIn("Carried:", tall)
         self.assertNotIn("Carried:", short)                   # the top scrolled away
         self.assertIn("U Use", short)                         # the picked item's options stay
@@ -168,19 +181,19 @@ class TestFitting(unittest.TestCase):
 
     def test_encounter_title_drops_on_short_terminals(self):
         s = encounter_state()
-        self.assertIn("Drones · round 1", plain(s, 40, 30))
-        self.assertNotIn("Drones · round 1", plain(s, 40, 20))
-        self.assertIn("Strike", plain(s, 40, 20))
+        self.assertIn("Drones · round 1", plain(s, 48, 30))
+        self.assertNotIn("Drones · round 1", plain(s, 48, 24))
+        self.assertIn("Strike", plain(s, 48, 24))
 
 
     def test_hints_wrap_between_entries(self):
-        lines = plain(new_game(CONTENT, 1), 44, 60).splitlines()[-4:]
+        lines = plain(new_game(CONTENT, 1), 52, 60).splitlines()[-4:]
         self.assertGreater(len([line for line in lines if line.startswith("│ ")]), 1)   # the hints wrap
         for hint in ("WASD move", ". wait", "P pack", "F fitting", "C char", "Q quit"):
             self.assertTrue(any(hint in line for line in lines), hint)               # each one whole
 
     def test_kept_zones_stay_when_empty(self):
-        lines = plain(new_game(CONTENT, 1), 44, 60).splitlines()
+        lines = plain(new_game(CONTENT, 1), 52, 60).splitlines()
         self.assertFalse(any(a.startswith("├") and b.startswith("├") for a, b in zip(lines, lines[1:])))
 
 
@@ -190,7 +203,8 @@ class TestFitting(unittest.TestCase):
                                                              "subject": "self"})])          # unlocks a fourth tile
         s = encounter.begin(CONTENT, s._replace(encounter_request="enc_drones"))
         self.assertEqual(len(encounter.tiles(CONTENT, s)), 4)
-        roomy, short = plain(s, 40, 40), plain(s, 40, 20)
+        small = ui_with(self, min_rows=20)                       # a UI pack that allows 20 rows
+        roomy, short = plain(s, 48, 40, ui=small), plain(s, 48, 20, ui=small)
         self.assertIn("┌1───────┐", roomy)                       # boxed tiles when there's room
         self.assertLessEqual(len(short.splitlines()), 20)
         self.assertIn("1 Strike ▲1  2 Guard ▲1", short)           # a list when there isn't
@@ -209,7 +223,7 @@ class TestSubWindows(unittest.TestCase):
         s = bench_state()
         view = self.open_inspect(s)
         self.assertEqual(view.panel, "inspect")
-        frame = plain(s, 44, 60, panel="inspect")
+        frame = plain(s, 52, 60, panel="inspect")
         self.assertIn("Workbench", frame)
         self.assertIn("A proper workbench", frame)
         self.assertNotIn("I Inspect", frame)                       # one focus: the menu steps back
@@ -226,15 +240,15 @@ class TestSubWindows(unittest.TestCase):
 
     def test_long_pages_scroll_with_a_slider(self):
         s = bench_state()
-        limit = render.max_scroll(CONTENT, s, 40, 20, "inspect")
+        limit = render.max_scroll(CONTENT, s, 48, 24, "inspect")
         self.assertGreater(limit, 0)
-        top, bottom = plain(s, 40, 20, panel="inspect"), plain(s, 40, 20, panel="inspect", scroll=limit)
+        top, bottom = plain(s, 48, 24, panel="inspect"), plain(s, 48, 24, panel="inspect", scroll=limit)
         self.assertIn("↑↓ scroll", top)
         self.assertIn("A proper workbench", top)
         self.assertNotIn("common-grade gear", top)
         self.assertIn("common-grade gear", bottom)
         self.assertNotIn("A proper workbench", bottom)
-        self.assertEqual(plain(s, 40, 20, panel="inspect", scroll=999), bottom)   # kept within the content
+        self.assertEqual(plain(s, 48, 24, panel="inspect", scroll=999), bottom)   # kept within the content
         thumb, track = UI.tokens["glyphs"]["slider_thumb"], UI.tokens["glyphs"]["slider_track"]
         rows = [line for line in top.splitlines() if line.endswith(thumb + " │") or line.endswith(track + " │")]
         self.assertGreaterEqual(len(rows), 3)
@@ -293,7 +307,7 @@ class TestSubWindows(unittest.TestCase):
                     if part.get("widget") == "panel":
                         part["slider"] = False
             path.write_text(json.dumps(data), encoding="utf-8")
-            frame = plain(bench_state(), 40, 20, ui=load_ui(ui_dir), panel="inspect")
+            frame = plain(bench_state(), 48, 24, ui=load_ui(ui_dir), panel="inspect")
             self.assertNotIn(UI.tokens["glyphs"]["slider_thumb"] + " │", frame)
             self.assertIn("↑↓ scroll", frame)                      # it still scrolls
         finally:
@@ -359,8 +373,8 @@ class TestItemDetails(unittest.TestCase):
     def test_long_details_scroll(self):
         s = carrying_a_cutter()
         picked = self.pick(s, "module_cutter")
-        self.assertGreater(render.max_scroll(CONTENT, s, 40, 20, "item", picked), 0)
-        self.assertIn("↑↓ scroll", plain(s, 40, 20, panel="item", selected=picked))
+        self.assertGreater(render.max_scroll(CONTENT, s, 48, 24, "item", picked), 0)
+        self.assertIn("↑↓ scroll", plain(s, 48, 24, panel="item", selected=picked))
 
 
 class TestFittingScreen(unittest.TestCase):
@@ -413,7 +427,7 @@ class TestFittingScreen(unittest.TestCase):
         frame = plain(s, screen="fitting", selected=spare)
         self.assertIn("Fit: PWR 4→5/4", frame)
         self.assertIn("F Fit - ", frame)                              # greyed out, with the reason
-        coloured = render.render(CONTENT, s, 44, 60, screen="fitting", selected=spare, ui=UI)
+        coloured = render.render(CONTENT, s, 52, 60, screen="fitting", selected=spare, ui=UI)
         self.assertIn(Style(True, UI.tokens["styles"]).role("PWR 4→5/4", "danger"), coloured)
 
     def test_modify_applies_with_a_digit(self):
@@ -438,14 +452,14 @@ class TestFittingScreen(unittest.TestCase):
         self.assertEqual(view, app.View())
 
     def test_the_pick_shows_without_colour(self):
-        frame = render.render(CONTENT, bench_state(), 44, 60, colour=False, screen="fitting", selected=1, ui=UI)
+        frame = render.render(CONTENT, bench_state(), 52, 60, colour=False, screen="fitting", selected=1, ui=UI)
         self.assertIn(UI.tokens["glyphs"]["cursor"] + "   Hand  2 Cutter", frame)
 
 
 class TestCharacterScreen(unittest.TestCase):
     """Step 4: the character screen, with the art zone for the character's picture."""
 
-    def frame(self, state, columns=44, rows=60, **kw):
+    def frame(self, state, columns=52, rows=60, **kw):
         return plain(state, columns, rows, screen="character", **kw)
 
     def pack_copy(self, change, file="characters.json", entry_id="char_player"):
@@ -461,7 +475,7 @@ class TestCharacterScreen(unittest.TestCase):
 
     def test_the_portrait_is_drawn_in_half_block_pixels(self):
         s = new_game(CONTENT, 1)
-        coloured = render.render(CONTENT, s, 44, 60, screen="character", ui=UI)
+        coloured = render.render(CONTENT, s, 52, 60, screen="character", ui=UI)
         style = Style(True, UI.tokens["styles"])
         self.assertIn(style.pixels("▀", 255, 31), coloured)          # a glint over the visor: two colours in one cell
         self.assertIn(style.pixels("█", 166, None), coloured)        # the suit: both halves the same colour
@@ -472,7 +486,7 @@ class TestCharacterScreen(unittest.TestCase):
 
     def test_without_a_picture_the_zone_is_kept(self):
         content = load_pack(self.pack_copy(lambda player: player.pop("art")))
-        frame = ANSI.sub("", render.render(content, new_game(content, 1), 44, 60, screen="character", ui=UI))
+        frame = ANSI.sub("", render.render(content, new_game(content, 1), 52, 60, screen="character", ui=UI))
         lines = frame.splitlines()
         box = [line for line in lines if line.startswith("││")]
         self.assertEqual(len(box), UI.tokens["size"]["art_height"] // 2)
@@ -514,22 +528,14 @@ class TestCharacterScreen(unittest.TestCase):
 
     def test_it_scrolls_on_small_screens(self):
         s = new_game(CONTENT, 1)
-        limit = render.max_scroll(CONTENT, s, 40, 20, screen="character")
+        limit = render.max_scroll(CONTENT, s, 48, 24, screen="character")
         self.assertGreater(limit, 0)
-        self.assertIn("↑↓ scroll", self.frame(s, 40, 20))
-        self.assertIn("Station crew", self.frame(s, 40, 20, scroll=limit))
-        self.assertNotIn("Station crew", self.frame(s, 40, 20))
+        self.assertIn("↑↓ scroll", self.frame(s, 48, 24))
+        self.assertIn("Station crew", self.frame(s, 48, 24, scroll=limit))
+        self.assertNotIn("Station crew", self.frame(s, 48, 24))
 
     def test_the_art_zone_size_comes_from_the_ui_pack(self):
-        tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        ui_dir = Path(tmp.name) / "mine"
-        shutil.copytree(ui_dir_for("default"), ui_dir)
-        path = ui_dir / "tokens.json"
-        data = json.loads(path.read_text(encoding="utf-8"))
-        data.setdefault("size", {}).update(art_width=20, art_height=14)
-        path.write_text(json.dumps(data), encoding="utf-8")
-        frame = plain(new_game(CONTENT, 1), ui=load_ui(ui_dir), screen="character")
+        frame = plain(new_game(CONTENT, 1), ui=ui_with(self, art_width=20, art_height=14), screen="character")
         self.assertIn("┌" + "─" * 20 + "┐", frame)
         self.assertEqual(len([line for line in frame.splitlines() if line.startswith("││")]), 7)
 
@@ -544,7 +550,7 @@ class TestConversation(unittest.TestCase):
         self.assertEqual(s.turn, turn + 1)                     # talking takes a turn
         return s, view
 
-    def frame(self, s, view, columns=44, rows=60):
+    def frame(self, s, view, columns=52, rows=60):
         return plain(s, columns, rows, screen=view.screen, log=view.log, scroll=view.scroll)
 
     def test_talk_opens_the_conversation(self):
@@ -555,7 +561,7 @@ class TestConversation(unittest.TestCase):
                       "1 Trade", "You give  Keycard", "You get   Medkit x2",
                       "2 Recruit - Doesn't trust you enough.", "3 Leave", "1-3 answer", "X leave"):
             self.assertIn(words, frame)
-        coloured = render.render(CONTENT, s, 44, 60, screen="talk", ui=UI)
+        coloured = render.render(CONTENT, s, 52, 60, screen="talk", ui=UI)
         self.assertIn(Style(True, UI.tokens["styles"]).pixels("█", 130, None), coloured)   # Juno's hair
 
     def test_answers_are_kept_with_what_changed_hands(self):
@@ -588,11 +594,11 @@ class TestConversation(unittest.TestCase):
     def test_looking_back_through_a_long_conversation(self):
         s, view = self.talking()
         history = tuple(Message("plain", f"Line {i}.") for i in range(30))
-        newest = plain(s, 40, 20, screen="talk", log=history)
+        newest = plain(s, 48, 24, screen="talk", log=history)
         self.assertIn("3 Leave", newest)
         self.assertNotIn("Line 0.", newest)
         self.assertIn("↑↓ scroll", newest)
-        oldest = plain(s, 40, 20, screen="talk", log=history, scroll=99)
+        oldest = plain(s, 48, 24, screen="talk", log=history, scroll=99)
         self.assertIn("Line 0.", oldest)
         _, back, _ = app.handle(CONTENT, s, "w", view._replace(log=history), UI)
         self.assertEqual(back.scroll, 1)
@@ -648,11 +654,11 @@ class TestMessages(unittest.TestCase):
 
     def test_the_history_keeps_the_newest_in_view_and_looks_back(self):
         s = with_history()._replace(journal=tuple(Entry(1, "plain", f"Line {i}.") for i in range(30)))
-        newest = plain(s, 40, 20, panel="history")
+        newest = plain(s, 48, 24, panel="history")
         self.assertIn("Line 29.", newest)
         self.assertNotIn("Line 0.", newest)
         self.assertIn("↑↓ scroll", newest)
-        self.assertIn("Line 0.", plain(s, 40, 20, panel="history", scroll=99))
+        self.assertIn("Line 0.", plain(s, 48, 24, panel="history", scroll=99))
         _, view, _ = app.handle(CONTENT, s, "w", app.View("history"), UI)
         self.assertEqual(view.scroll, 1)
 
@@ -679,7 +685,7 @@ class TestMessages(unittest.TestCase):
         s = requested("event_rescue")
         frame = plain(s)
         self.assertIn("Rescue", frame)
-        self.assertIn("medkit wrapper", frame)
+        self.assertIn("Nobody's around", frame)
         self.assertIn("Any key: continue", frame)
         scrolled, view, _ = app.handle(CONTENT, s, "s", app.View(), UI)  # down scrolls, it doesn't move
         self.assertEqual((scrolled.card, view.scroll), (s.card, 1))
@@ -753,7 +759,7 @@ class TestFightScreen(unittest.TestCase):
         self.assertIn("0.5×PWR+2 impact damage to one enemy.", strike)
         burn = plain(s, selected=2)
         for words in ("heat 3-4", "1 of 1 uses left", "uses Scrap x2", "2×Salvage toxic damage to every enemy",
-                      "Burning on every enemy for 3 rounds."):
+                      "on every enemy for 3 rounds."):
             self.assertIn(words, burn)
         retreat = plain(s, 72, 60, selected=3)
         self.assertIn("acts late", retreat)
@@ -784,11 +790,11 @@ class TestFightScreen(unittest.TestCase):
         self.assertEqual(column(normal), column(aiming))
 
     def test_the_pick_shows_without_colour(self):
-        frame = render.render(CONTENT, encounter_state(), 44, 60, colour=False, selected=1, ui=UI)
+        frame = render.render(CONTENT, encounter_state(), 52, 60, colour=False, selected=1, ui=UI)
         self.assertIn("┏2━━━━━━━┓", frame)
 
     def test_details_fit_the_smallest_screen(self):
-        frame = plain(encounter_state(), 40, 20, selected=1)
+        frame = plain(encounter_state(), 48, 24, selected=1)
         self.assertIn("ARM +4 on yourself for 1 round.", frame)
         self.assertIn("2 again: use", frame)
 
@@ -797,19 +803,20 @@ class TestPolish(unittest.TestCase):
     """Step 9: the polish pass."""
 
     def test_wrapped_options_hang_under_their_text(self):
-        frame = plain(walk(new_game(CONTENT, 1), "as"), 40, 30, screen="talk")
+        narrow = ui_with(self, min_columns=40)                   # a UI pack that allows 40 columns
+        frame = plain(walk(new_game(CONTENT, 1), "as"), 40, 30, ui=narrow, screen="talk")
         self.assertIn("│ 2 Recruit - Doesn't trust you", frame)
         self.assertIn("│   enough.", frame)
 
     def test_the_pack_panel_shows_the_pick_with_what_it_can_do(self):
-        frame = plain(new_game(CONTENT, 1), 40, 20, panel="pack", selected=0)
+        frame = plain(new_game(CONTENT, 1), 48, 24, panel="pack", selected=0)
         lines = frame.splitlines()
         medkit = next(i for i, line in enumerate(lines) if "1 Medkit" in line)
         self.assertIn("U Use", lines[medkit + 1])                    # the options sit under the pick
         self.assertIn("I Details", lines[medkit + 2])
 
     def test_lists_keep_room_on_short_terminals(self):
-        frame = plain(bench_state(), 40, 20, screen="fitting", selected=1)
+        frame = plain(bench_state(), 48, 24, screen="fitting", selected=1)
         self.assertIn("1 Light suit", frame)
         self.assertIn("Hand  2 Cutter", frame)
         self.assertIn("Hand  · empty", frame)
@@ -817,23 +824,23 @@ class TestPolish(unittest.TestCase):
 
     def test_a_question_card_opens_on_the_question(self):
         s = requested("event_grudge")
-        frame = plain(s, 40, 20)
+        frame = plain(s, 48, 24)
         self.assertIn("1 Apologise", frame)
         self.assertIn("2 Ignore it", frame)
         self.assertNotIn("Grudge", frame)
         _, view, _ = app.handle(CONTENT, s, "w", app.View(), UI)      # up looks back to the text
-        self.assertIn("Grudge", plain(s, 40, 20, scroll=view.scroll + 6))
+        self.assertIn("Grudge", plain(s, 48, 24, scroll=view.scroll + 6))
 
     def test_item_names_in_their_grades_colour(self):
         style = Style(True, UI.tokens["styles"])
-        frame = render.render(CONTENT, new_game(CONTENT, 1), 44, 60, panel="pack", ui=UI)
+        frame = render.render(CONTENT, new_game(CONTENT, 1), 52, 60, panel="pack", ui=UI)
         common = CONTENT.get("grade", "grade_common")["colour"]
         self.assertIn(style.colour_of("Scrap", common), frame)
         self.assertNotIn(style.colour_of("Medkit", common), frame)    # ungraded: as it is
         fine = CONTENT.get("grade", "grade_fine")["colour"]
-        fitting = render.render(CONTENT, bench_state(), 44, 60, screen="fitting", selected=2, ui=UI)
+        fitting = render.render(CONTENT, bench_state(), 52, 60, screen="fitting", selected=2, ui=UI)
         self.assertIn(style.colour_of("Shield", fine), fitting)
-        picked = render.render(CONTENT, new_game(CONTENT, 1), 44, 60, panel="pack", selected=1, ui=UI)
+        picked = render.render(CONTENT, new_game(CONTENT, 1), 52, 60, panel="pack", selected=1, ui=UI)
         self.assertIn(style.key("2 Scrap x10"), picked)              # the highlight isn't broken by the colour
 
     def test_counts_read_naturally(self):
@@ -865,7 +872,7 @@ class TestEngineDefaults(unittest.TestCase):
         self.assertEqual(world.STANDARD_BINDINGS, UI.bound_keys)
 
     def test_menu_keys_are_drawn_in_the_key_style(self):
-        frame = render.render(CONTENT, menu_state(), 44, 60, ui=UI)
+        frame = render.render(CONTENT, menu_state(), 52, 60, ui=UI)
         self.assertIn(Style(True, UI.tokens["styles"]).key("U"), frame)
         self.assertIn("\x1b[7;", frame)
 

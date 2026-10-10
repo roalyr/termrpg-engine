@@ -225,7 +225,7 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   of someone uses their faction's view. Test with `play.py` that the right people get
   cast.
 - An event's `name` is the title of its card. Events that ask a question, or whose
-  `text` runs past about three lines on a 40-column screen, open as a card the
+  `text` runs past about three lines on a 48-column screen, open as a card the
   player has to read; keep everyday events to a line or two so they stay in the log.
 - `notify: false` events shouldn't use `choose`: the player would get a question about
   something they can't see.
@@ -243,8 +243,8 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   One picture can serve many characters (every guard, every drone).
 - A picture is pixel letters plus a palette: every row the same length, every letter
   in the palette, a space or `.` for see-through; up to 32 by 32 pixels. The default
-  UI pack shows 16 by 16 (8 lines), centred, and cuts what's larger: draw for 16 by
-  16. Draw for the shape first: without colour only the silhouette shows.
+  UI pack shows 24 by 24 (12 lines), centred, and cuts what's larger: draw for 24 by
+  24. Draw for the shape first: without colour only the silhouette shows.
 - A text that is exactly `@` plus an id shows that entry from `strings.json`.
 - Engine messages in `strings.json` may only use their own placeholders:
   `explain engine` lists them. Write all of them: a missing one shows as its key.
@@ -577,7 +577,7 @@ good.
   paragraph. The help screen shows it under the interface's own help.
 - **Give every object, person and item a `description`.** Inspect and the item details
   show it. Say what the thing is and what it's for; the numbers are shown already.
-- Keep names short enough for a 40-column screen.
+- Keep names short enough for a 48-column screen.
 
 ## When the schema can't express something
 

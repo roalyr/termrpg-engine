@@ -138,16 +138,16 @@ zone = obj("One bordered band of a screen.", {
    "notes": c("notes")}, ("content",))
 
 size = obj("Sizes, in terminal cells.", {
-   "min_columns": intval(40, 30, 200, "The narrowest terminal the screens must fit."),
-   "min_rows": intval(20, 10, 100, "The shortest terminal the screens must fit."),
+   "min_columns": intval(48, 30, 200, "The narrowest terminal the screens must fit."),
+   "min_rows": intval(24, 10, 100, "The shortest terminal the screens must fit."),
    "cell_width": intval(2, 1, 3, "Columns per grid tile (the glyph plus spacing)."),
    "tile_width": intval(10, 6, 16, "Width of an action tile, borders included."),
    "bar_length": intval(8, 3, 16, "Length of a pool bar in the status panel."),
    "fighter_bar_length": intval(6, 3, 16, "Length of a health bar in the fighters panel."),
    "side_min_width": intval(14, 8, 60, "The narrowest the panel beside the grid or the art may get."),
    "page_size": intval(9, 1, 9, "Entries per page of the pack panel (picked with 1-9)."),
-   "art_width": intval(16, 4, 32, "Width of the art zone (a character's picture: portrait and fight), in pixels (one text column each)."),
-   "art_height": intval(16, 4, 32, "Height of the art zone, in pixels (two per line of text)."),
+   "art_width": intval(24, 4, 32, "Width of the art zone (a character's picture: portrait and fight), in pixels (one text column each)."),
+   "art_height": intval(24, 4, 32, "Height of the art zone, in pixels (two per line of text)."),
    "save_slots": intval(3, 1, 9, "How many numbered save slots the start screen offers."),
    "card_min_lines": intval(3, 0, 20, "An event text longer than this many lines on the narrowest screen opens as a card; shorter ones stay in the message log; 0 opens every event text as a card. Questions always open as a card.")}, default={})
 border = obj("The box-drawing set.", {k: char(v, f"The {k.replace('_', ' ')} piece.", 1) for k, v in (

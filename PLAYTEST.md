@@ -6,7 +6,7 @@ get there is up to you. Tick the box when it works; note anything that doesn't.
 Things that depend on chance are marked **(chance)**.
 
 Part A checks the interface screen by screen; part B checks the game's features.
-Run part A at least twice: once at the smallest size (40×20) and once with
+Run part A at least twice: once at the smallest size (48×24) and once with
 `--no-colour`.
 
 ```sh
@@ -40,9 +40,9 @@ log, X closes, Q quits, `]` next page, digits pick.
 
 - [ ] Every line is exactly the terminal's width; nothing spills past the right
   border, and borders join cleanly between zones.
-- [ ] At 40×20 every screen still works: less important zones (the legend first)
+- [ ] At 48×24 every screen still works: less important zones (the legend first)
   give way, then widgets switch to compact forms, and the thing you're looking at or
-  choosing always keeps at least 3 lines. Below 40×20 the game asks for a bigger
+  choosing always keeps at least 3 lines. Below 48×24 the game asks for a bigger
   terminal, and comes back when you resize.
 - [ ] One clear focus at a time: the picked entry stands out, the rest steps back.
 - [ ] The key hints at the bottom show only keys that work right now, and change
@@ -94,7 +94,7 @@ log, X closes, Q quits, `]` next page, digits pick.
 - [ ] P shows cargo, then what you carry and, next to storage, what's stored,
   numbered; no fitting here. The message log stays visible beside it.
 - [ ] Picking a number highlights the entry and lists its options (take, store, use,
-  I Details) indented right under it; the pick stays in view at 40×20.
+  I Details) indented right under it; the pick stays in view at 48×24.
 - [ ] With more than nine entries it shows "Page 1/2"; up and down (or `]`) turn pages,
   and numbers start at 1 again on each page.
 - [ ] I Details shows the item's kind, slot, grade, condition, description, and rows
@@ -115,7 +115,7 @@ log, X closes, Q quits, `]` next page, digits pick.
   (the rescue after losing) open as a card titled with the event's name: any key
   continues, up and down scroll it.
 - [ ] Every question opens as a card (the terminal's is titled "Terminal"); its first
-  choice is in view even at 40×20, and up and down scroll the rest.
+  choice is in view even at 48×24, and up and down scroll the rest.
 
 ## A6. The conversation screen
 
@@ -157,7 +157,7 @@ log, X closes, Q quits, `]` next page, digits pick.
   ⟳ cooldown, × uses left). A crowded fight switches its tiles to a compact list.
 - [ ] A digit picks a tile (heavy border) and shows its details in place of the log:
   costs and what it does in words, or why it can't be used. The same digit uses it,
-  another picks another, X lets go. It still fits 40×20.
+  another picks another, X lets go. It still fits 48×24.
 - [ ] An action with several possible targets marks them ▸ in the fighters column; a
   digit picks one, X goes back to the tile. The names don't move.
 - [ ] Each fighter shows their statuses with rounds left (Burning 3).
