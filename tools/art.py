@@ -446,7 +446,7 @@ class Art:
 
         def done(answer):
             if answer == "save":
-                self.choose_picture(self.save_words())
+                self.save(then=lambda words: self.choose_picture(words))
             else:
                 self.pack.reload()
                 self.choose_picture("Changes discarded.")
@@ -460,10 +460,10 @@ class Art:
 
         def done(answer):
             if answer == "save":
-                self.save_words()
+                self.save(then=lambda words: self.close())
             else:
                 self.pack.reload()
-            self.closed = True
+                self.close()
         self.ask(forms.Question(self.look, "Save your changes?", [("y", "save", "save"), ("n", "discard", "discard")]),
                  done)
 
@@ -473,9 +473,18 @@ class Art:
         words = f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), {len(report.warnings)} warning(s)."
         return words + (" " + report.errors[0] if report.errors else "")
 
-    def save(self) -> None:
-        words = self.save_words()
-        self.say(words, "danger" if "0 error(s)" not in words else "quiet")
+    def close(self) -> None:
+        self.closed = True
+
+    def save(self, then: Optional[Callable[[str], None]] = None) -> None:
+        """Saves (asking first if a file changed on disk meanwhile), then says how it went, or hands that to 'then'."""
+        def write():
+            words = self.save_words()
+            if then:
+                then(words)
+            else:
+                self.say(words, "danger" if "0 error(s)" not in words else "quiet")
+        forms.save_safely(self, write)
 
 
 if __name__ == "__main__":

@@ -477,15 +477,17 @@ class Room:
             self.choose_location(notice)
 
     def save(self, back: bool = False) -> None:
-        written = self.pack.save()
-        report = self.pack.check()
-        verdict = f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), {len(report.warnings)} warning(s)."
-        if report.errors:
-            verdict += " " + report.errors[0]
-        if back:
-            self.finish(verdict)
-        else:
-            self.say(verdict, "danger" if report.errors else "quiet")
+        def write():
+            written = self.pack.save()
+            report = self.pack.check()
+            verdict = f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), {len(report.warnings)} warning(s)."
+            if report.errors:
+                verdict += " " + report.errors[0]
+            if back:
+                self.finish(verdict)
+            else:
+                self.say(verdict, "danger" if report.errors else "quiet")
+        forms.save_safely(self, write)
 
 
 if __name__ == "__main__":

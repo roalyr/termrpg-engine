@@ -71,6 +71,10 @@ These hold for every tool. A new tool, or a change to one, follows them.
   list.
 - **Saving checks.** Saving writes only the changed files, in the packs' format, then
   runs the checker and shows its verdict. Git is the undo.
+- **Never overwrites someone else's save.** If a file about to be written was changed
+  on disk since the tool read it (another tool, an editor, a person), saving asks:
+  O overwrite, N don't save. Not saving keeps your changes open; leave without saving
+  and open the pack again to see the other changes.
 - **Never breaks a reference.** Removing something still used elsewhere is refused,
   with the files that use it. Two sides of a door or an edge are removed together.
 - **Content-free.** Like the engine, a tool never names a pack's ids. What it needs (the

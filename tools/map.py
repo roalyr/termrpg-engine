@@ -490,19 +490,26 @@ class Map:
 
         def done(answer):
             if answer == "save":
-                self.save()
+                self.save(then=self.close)
             else:
                 self.pack.reload()
-            self.closed = True
+                self.close()
         self.ask(forms.Question(self.look, "Save your changes?", [("y", "save", "save"), ("n", "discard", "discard")]),
                  done)
 
-    def save(self) -> None:
-        written = self.pack.save()
-        report = self.pack.check()
-        self.errors = report.errors
-        self.say(f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), "
-                 f"{len(report.warnings)} warning(s).", "danger" if report.errors else "quiet")
+    def close(self) -> None:
+        self.closed = True
+
+    def save(self, then: Optional[Callable[[], None]] = None) -> None:
+        def write():
+            written = self.pack.save()
+            report = self.pack.check()
+            self.errors = report.errors
+            self.say(f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), "
+                     f"{len(report.warnings)} warning(s).", "danger" if report.errors else "quiet")
+            if then:
+                then()
+        forms.save_safely(self, write)
 
 
 if __name__ == "__main__":

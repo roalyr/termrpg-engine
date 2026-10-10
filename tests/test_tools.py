@@ -59,6 +59,19 @@ class PackFilesTest(unittest.TestCase):
         self.assertFalse(pack.check().ok)
 
 
+    def test_knows_which_changed_files_were_changed_on_disk_too(self):
+        pack = PackFiles(self.dir)
+        location = next(pack.entries("locations"))
+        location.entry["name"] = "Renamed"
+        pack.touch(location.file)
+        self.assertEqual(pack.changed_elsewhere(), [])
+        path = self.dir / location.file
+        path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+        self.assertEqual(pack.changed_elsewhere(), [location.file])
+        pack.save()
+        self.assertEqual(pack.changed_elsewhere(), [])         # what was saved is the new baseline
+
+
 class TermTest(unittest.TestCase):
     def test_key_names(self):
         self.assertEqual([term.key_name(k) for k in ("\x1b[A", "\r", "\x1b", "\x7f", "x")],
@@ -480,6 +493,26 @@ class ArtTest(unittest.TestCase):
         self.assertIn("Save your changes?", self.art.render(48, 24))
         self.keys("n")
         self.assertFalse(self.pack.dirty)
+
+    def test_a_file_changed_on_disk_is_not_overwritten_without_asking(self):
+        art_file = self.tmp / "test" / "art.json"
+        self.keys("enter", " ", "tab", " ", "x", "y")          # the list now; the edit is saved
+        self.assertFalse(self.pack.dirty)
+        self.keys("enter")
+        self.art.cursor = (0, 0)                               # a see-through corner
+        self.keys(" ")                                         # another edit
+        self.assertTrue(self.pack.dirty)
+        elsewhere = art_file.read_text(encoding="utf-8").replace('"notes"', '"notes" ', 1)
+        art_file.write_text(elsewhere, encoding="utf-8")       # meanwhile someone else saves the file
+        self.keys("x", "y")
+        self.assertIn("art.json changed on disk", self.art.render(48, 24))
+        self.keys("n")                                         # don't save: theirs is kept, ours stays open
+        self.assertEqual(art_file.read_text(encoding="utf-8"), elsewhere)
+        self.assertTrue(self.pack.dirty)
+        self.assertIn("Not saved", self.art.render(48, 24))
+        self.keys("x", "y", "o")                               # overwrite after all
+        self.assertFalse(self.pack.dirty)
+        self.assertNotEqual(art_file.read_text(encoding="utf-8"), elsewhere)
 
     def test_every_screen_fits(self):
         for setup in ((), ("enter",), ("enter", "enter"), ("enter", "n"), ("enter", "c")):

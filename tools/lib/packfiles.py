@@ -30,10 +30,12 @@ class PackFiles:
         self.data: Dict[str, dict] = {}          # file (relative to the pack) -> its JSON
         self.kinds: Dict[str, List[str]] = {}    # kind -> its files, in manifest order
         self.dirty: set = set()
+        self.as_read: Dict[str, str] = {}        # file -> its text when read or last saved
         for kind, files in self.manifest.get("files", {}).items():
             self.kinds[kind] = list(files)
             for rel in files:
-                self.data[rel] = _read(self.dir / rel)
+                self.as_read[rel] = (self.dir / rel).read_text(encoding="utf-8")
+                self.data[rel] = json.loads(self.as_read[rel])
 
     @property
     def id(self) -> str:
@@ -67,11 +69,21 @@ class PackFiles:
         """Marks a file as changed after editing one of its entries in place."""
         self.dirty.add(file)
 
+    def changed_elsewhere(self) -> List[str]:
+        """Changed files that something else (another editor, a person) also changed on disk since they were read."""
+        clash = []
+        for rel in sorted(self.dirty):
+            path = self.dir / rel
+            now = path.read_text(encoding="utf-8") if path.exists() else None
+            if now != self.as_read.get(rel):
+                clash.append(rel)
+        return clash
+
     def save(self) -> List[str]:
-        """Writes the changed files (each atomically); returns which."""
+        """Writes the changed files (each atomically); returns which. Ask about changed_elsewhere() first."""
         written = sorted(self.dirty)
         for rel in written:
-            _write(self.dir / rel, self.data[rel])
+            self.as_read[rel] = _write(self.dir / rel, self.data[rel])
         self.dirty.clear()
         return written
 
@@ -89,7 +101,9 @@ def _read(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _write(path: Path, data) -> None:
+def _write(path: Path, data) -> str:
+    text = dumps(data)
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(dumps(data), encoding="utf-8")
+    tmp.write_text(text, encoding="utf-8")
     os.replace(tmp, path)
+    return text
