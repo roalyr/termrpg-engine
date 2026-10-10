@@ -4,6 +4,7 @@
     "go_to": "Go to {destination}",
     "talk": "Talk",
     "inspect": "Inspect",
+    "workshop": "Open the fitting board",
     "fit": "Fit",
     "remove": "Remove",
     "store": "Store",

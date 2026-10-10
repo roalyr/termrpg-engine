@@ -136,13 +136,14 @@ def move(content: Content, state: GameState, key: str) -> GameState:
 class Option(NamedTuple):
     """
     One menu option. 'label' is the content's own label; when it's None the UI words the
-    option from its 'kind' ('go', 'talk', 'inspect') and 'params' (e.g. the destination).
+    option from its 'kind' ('go', 'talk', 'workshop', 'inspect') and 'params' (e.g. the
+    destination). A 'workshop' option has no key of its own: the UI's fitting key opens it.
     """
     key: str
     label: Optional[str]
     available: bool
     hint: Optional[str]
-    kind: str                        # 'interaction', 'go', 'talk', 'inspect'
+    kind: str                        # 'interaction', 'go', 'talk', 'workshop', 'inspect'
     interaction: Optional[Record]
     params: Mapping[str, str] = freeze({})
 
@@ -220,6 +221,9 @@ def menu(content: Content, state: GameState, bindings: Optional[frozenset] = Non
             ok, hint = False, content.message("unavailable")
         options.append(Option(MENU_KEYS["go"], label, ok, hint, "go", None,
                               freeze({"destination": _destination_name(content, exit_)})))
+    if kind == "placement" and content.get("placement", ref).get("workshop"):
+        # The fitting screen does the work; the UI shows its own fitting key for this option.
+        options.append(Option("", None, True, None, "workshop", None))
     if kind == "character" and content.get("character", state.characters[ref].source).get("talk"):
         options.append(Option(MENU_KEYS["talk"], None, True, None, "talk", None))
     options.append(Option(MENU_KEYS["inspect"], None, True, None, "inspect", None))

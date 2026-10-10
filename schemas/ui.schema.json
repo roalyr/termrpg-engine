@@ -2380,6 +2380,12 @@
               "description": "Menu label for looking closely. No placeholders.",
               "x-placeholders": []
             },
+            "workshop": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Menu label on a workshop (a bench, a suit bay): opens the fitting screen with the fitting key. No placeholders.",
+              "x-placeholders": []
+            },
             "fit": {
               "type": "string",
               "minLength": 1,

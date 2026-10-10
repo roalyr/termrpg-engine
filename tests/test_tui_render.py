@@ -849,6 +849,15 @@ class TestPolish(unittest.TestCase):
         self.assertIn("1 turn left", plain(s, screen="character"))
 
 
+class TestWorkshopMenu(unittest.TestCase):
+    def test_a_workshop_offers_the_fitting_board_on_the_uis_fitting_key(self):
+        frame = plain(bench_state(), 52, 40)
+        self.assertIn("F Open the fitting board", frame)
+        s, view, _ = app.handle(CONTENT, bench_state(), UI.bindings["fitting"], app.View(), UI)
+        self.assertEqual(view.screen, "fitting")
+        self.assertNotIn("fitting board", plain(menu_state(), 52, 40))     # a door isn't a workshop
+
+
 class TestMap(unittest.TestCase):
     """The room: walls joined into solid runs, glyphs coloured by role or by the pack."""
 

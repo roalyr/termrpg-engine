@@ -586,7 +586,9 @@ A **placement** puts an object template at a grid position:
 
 An **exit** leads to a `location` (or, reserved, a `zone`). It may name an `entry`
 placement in the destination, a `label` (default "Go to …"), a `requires` condition
-with a `hint`, and a `time`. The engine offers the "go" interaction by itself.
+with a `hint`, and a `time`. The engine offers the "go" interaction by itself, and on
+an object with a `workshop` block an option that opens the fitting screen (shown with
+the UI's fitting key).
 
 ```json
 { "id": "workshop_door", "object": "obj_door", "at": [0, 2],

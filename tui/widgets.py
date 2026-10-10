@@ -87,8 +87,12 @@ def hang(text: str, width: int, indent: int) -> List[str]:
     return [first] + [" " * indent + line for line in more]
 
 
+UI_KEYS = {"workshop": "fitting"}      # menu options opened by one of the UI's own keys
+
+
 def option_lines(frame: Frame, option: Any, width: int, hints: bool = True) -> List[str]:
-    key, text = option.key.upper(), option_text(frame.ui, option)
+    key = (option.key or frame.ui.bindings.get(UI_KEYS.get(option.kind, ""), "")).upper()
+    text = option_text(frame.ui, option)
     indent = len(key) + 1
     if option.available:
         entry = f"{frame.style.key(key)} {text}"

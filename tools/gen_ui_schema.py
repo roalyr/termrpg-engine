@@ -205,6 +205,7 @@ keys = obj("Key bindings and the hints each context shows. Number keys 1-9 alway
 WORDS = {
  "go_to": ("Menu label for an exit without a label of its own.", ["destination"]),
  "talk": ("Menu label for talking to someone.", []), "inspect": ("Menu label for looking closely.", []),
+ "workshop": ("Menu label on a workshop (a bench, a suit bay): opens the fitting screen with the fitting key.", []),
  "fit": ("Board: fit a frame, module or implant.", []), "remove": ("Board: remove a worn or fitted item.", []),
  "store": ("Board: put an item into storage within reach.", []), "take": ("Board: take a stored item.", []),
  "dismantle": ("Board: dismantle an item at a workshop.", []), "repair": ("Board: repair a worn item.", []),
