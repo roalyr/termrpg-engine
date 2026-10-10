@@ -22,6 +22,10 @@ class PackFiles:
 
     def __init__(self, pack_dir: Path):
         self.dir = Path(pack_dir)
+        self.reload()
+
+    def reload(self) -> None:
+        """Reads every file again, dropping unsaved changes."""
         self.manifest: dict = _read(self.dir / "pack.json")
         self.data: Dict[str, dict] = {}          # file (relative to the pack) -> its JSON
         self.kinds: Dict[str, List[str]] = {}    # kind -> its files, in manifest order

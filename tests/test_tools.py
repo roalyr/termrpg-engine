@@ -6,10 +6,13 @@ import unittest
 from pathlib import Path
 
 import editor
+from tui.text import visible_len
 from tools import tools
-from tools.lib import screen, term
+from tools.lib import maps, rooms, screen, term
 from tools.lib.packfiles import PackFiles, dumps
+from tools.map import Map
 from tools.overview import Overview
+from tools.room import Room
 
 ROOT = Path(__file__).resolve().parent.parent
 LOOK = screen.look(colour=False)
@@ -64,7 +67,7 @@ class TermTest(unittest.TestCase):
 def fits(test, text, columns, rows):
     lines = text.rstrip("\n").split("\n")
     test.assertLessEqual(len(lines), rows)
-    test.assertTrue(all(len(line) <= columns for line in lines), text)
+    test.assertTrue(all(visible_len(line) <= columns for line in lines), text)
 
 
 class LookTest(unittest.TestCase):
@@ -95,8 +98,8 @@ class EditorTest(unittest.TestCase):
 
     def test_a_tool_runs_in_place_and_back_returns_to_the_menu(self):
         ed = editor.Editor(LOOK, [TEST_PACK])
-        self.assertTrue(ed.handle("1"))
-        self.assertIsNotNone(ed.tool)
+        self.assertTrue(ed.handle(str(tools().index(Overview) + 1)))
+        self.assertIsInstance(ed.tool, Overview)
         self.assertIn("Checker", ed.render(40, 20))
         self.assertTrue(ed.handle("x"))
         self.assertIsNone(ed.tool)
@@ -146,3 +149,244 @@ class OverviewTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RoomTest(unittest.TestCase):
+    """The room editor on a copy of the test pack: every change it makes passes the checker."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        shutil.copytree(TEST_PACK, self.tmp / "test")
+        self.pack = PackFiles(self.tmp / "test")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def room(self, location_id="loc_workshop"):
+        return Room(self.pack, LOOK, location_id)
+
+    def keys(self, room, *keys):
+        for key in keys:
+            self.assertTrue(room.handle(key))
+
+    def assert_saved_clean(self):
+        self.pack.save()
+        self.assertEqual(self.pack.check().errors, ())
+
+    def test_starts_with_a_location_list_and_esc_leaves(self):
+        room = Room(self.pack, LOOK)
+        self.assertIn("Workshop", room.render(40, 20))
+        self.assertTrue(room.handle("enter"))
+        self.assertIn("Room · Workshop", room.render(40, 20))
+        self.assertTrue(room.handle("x"))                     # back to the list, nothing changed
+        self.assertFalse(room.handle("esc"))
+
+    def test_a_door_to_another_room_leads_both_ways(self):
+        room = self.room()
+        room.cursor = (2, 5)                                  # the east wall
+        self.keys(room, "l", "enter", "enter")                # the suggested object, the first location
+        self.assertIn("Pick a tile in Storage", room.render(40, 20))
+        self.keys(room, "enter")
+        door = rooms.placement_at(room.location, (2, 5))
+        other_found, other = rooms.partner(self.pack, door)
+        self.assertEqual(other_found.entry["id"], "loc_storage")
+        self.assertEqual(rooms.partner(self.pack, other)[1], door)
+        self.keys(room, "g")                                  # go through it
+        self.assertEqual(room.location["id"], "loc_storage")
+        self.assert_saved_clean()
+
+    def test_an_open_edge_joins_sides_tile_by_tile_and_goes_as_one(self):
+        storage = self.pack.find("locations", "loc_storage")
+        self.assertIsNotNone(rooms.edge_problem(storage.entry, "west", self.pack.find("locations", "loc_workshop").entry))
+        self.assertIsNone(rooms.resize(self.pack, storage, 6, 6))
+        room = self.room()
+        room.cursor = (2, 5)
+        self.keys(room, "o", "enter", "enter")
+        edge = rooms.edge_group(room.location, rooms.placement_at(room.location, (2, 5)))
+        self.assertEqual(len(edge), 4)
+        self.assertTrue(all(rooms.partner(self.pack, p) for p in edge))
+        self.assert_saved_clean()
+        self.keys(room, "r", "y")
+        self.assertEqual(rooms.side_of(room.location, (2, 5)), "east")
+        self.assertFalse([p for p in room.location["placements"] if rooms.exit_target(p)[0] == "loc_storage"
+                          and rooms.side_of(room.location, tuple(p["at"])) == "east"])
+        self.assertFalse([p for p in storage.entry["placements"] if p["id"].startswith("storage_west")])
+        self.assert_saved_clean()
+
+    def test_something_still_used_elsewhere_is_not_removed(self):
+        room = self.room()
+        room.cursor = (1, 4)                                  # the crate: where the game starts
+        self.keys(room, "r")
+        self.assertIsNone(room.form)
+        self.assertIn("pack.json", room.message[0])
+        self.assertIsNotNone(rooms.placement_at(room.location, (1, 4)))
+
+    def test_place_move_entry_and_tiles(self):
+        room = self.room()
+        room.cursor = (2, 2)
+        self.keys(room, "p")
+        room.form.filter = "crate"
+        self.keys(room, "enter")
+        placed = rooms.placement_at(room.location, (2, 2))
+        self.assertEqual(placed["id"], "workshop_crate_2")
+        self.keys(room, "m", "down", "enter", "e")
+        self.assertEqual(placed["at"], [3, 2])
+        self.assertEqual(room.location["entry"], "workshop_crate_2")
+        room.cursor = (2, 3)
+        self.keys(room, "t")
+        self.assertEqual(rooms.tile(room.location, (2, 3)), "#")
+        self.keys(room, "t")
+        self.assertNotIn("rows", room.location["grid"])       # back to the plain shape
+        self.assert_saved_clean()
+
+    def test_resize_refuses_while_something_would_fall_outside(self):
+        found = self.pack.find("locations", "loc_workshop")
+        self.assertIn("Move or remove", rooms.resize(self.pack, found, 4, 4))
+        self.assertEqual(rooms.size(found.entry), (6, 6))
+
+    def test_leaving_with_changes_asks_and_discarding_reloads(self):
+        room = self.room()
+        room.cursor = (2, 2)
+        self.keys(room, "t", "x")
+        self.assertIn("Save your changes?", room.render(40, 20))
+        self.keys(room, "n")
+        self.assertFalse(self.pack.dirty)
+        self.assertEqual(rooms.tile(self.pack.find("locations", "loc_workshop").entry, (2, 2)), ".")
+
+    def test_every_screen_fits(self):
+        room = self.room()
+        for setup in ((), ("enter",), ("z",), ("x",)):
+            room = self.room()
+            room.cursor = (1, 4)
+            self.keys(room, "r", *setup)
+            for columns, rows in SIZES:
+                fits(self, room.render(columns, rows), columns, rows)
+
+
+class MapTest(unittest.TestCase):
+    """The map editor on a copy of the test pack: regions, the Validity colours, new locations and links."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        shutil.copytree(TEST_PACK, self.tmp / "test")
+        self.pack = PackFiles(self.tmp / "test")
+        self.map = Map(self.pack, LOOK)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def keys(self, *keys):
+        for key in keys:
+            self.assertTrue(self.map.handle(key), key)
+
+    def validity(self, location_id):
+        facts = maps.facts(self.pack, self.pack.check().errors)
+        return maps.validity(self.pack, facts, self.pack.find("locations", location_id).entry)
+
+    def new_location(self, name):
+        self.keys("n", *name, "enter", "enter")
+        return self.pack.find("locations", "loc_" + name.lower().replace(" ", "_"))
+
+    def test_opens_on_the_start_and_switches_regions_from_a_list(self):
+        text = self.map.render(40, 20)
+        self.assertIn("Map · Lower deck", text)
+        self.assertIn("Workshop · 6×6", text)
+        self.keys("x")
+        listing = self.map.render(40, 20)
+        self.assertIn("Map · regions", listing)
+        self.assertIn("Station", listing)
+        self.assertIn("  Lower deck", listing)                # nested under its parent
+        self.keys("up", "enter")                              # Station: its own map, no rooms placed
+        self.assertIn("Map · Station", self.map.render(40, 20))
+        self.assertNotIn("Workshop", self.map.render(40, 20))
+        self.keys("x")
+        self.assertFalse(self.map.handle("esc"))              # Esc on the list leaves
+
+    def test_validity_sorts_start_hazard_cut_off_and_problems(self):
+        self.assertEqual(self.validity("loc_workshop"), "start")
+        self.assertEqual(self.validity("loc_storage"), "hazard")
+        self.keys("down")
+        found = self.new_location("East field")
+        self.assertEqual(self.validity(found.entry["id"]), "cut_off")
+        storage = self.pack.find("locations", "loc_storage")
+        storage.entry["placements"][0]["exit"]["entry"] = "workshop_crate"      # leads somewhere that doesn't lead back
+        self.assertEqual(self.validity("loc_storage"), "problem")
+
+    def test_a_new_location_linked_to_its_neighbour_is_reached_and_saves_clean(self):
+        self.keys("down")
+        found = self.new_location("East field")
+        self.assertEqual(found.entry["map"], {"x": 0, "y": 1})
+        self.assertEqual(found.entry["region"], "reg_lower_deck")
+        self.keys("up", "l", "enter", "enter")                # the south neighbour, as a door
+        self.assertEqual(self.validity(found.entry["id"]), "plain")
+        self.assertIn("│", self.map.render(40, 20))           # the link is drawn
+        self.pack.save()
+        self.assertEqual(self.pack.check().errors, ())
+
+    def test_neighbours_of_the_same_size_can_open_an_edge(self):
+        self.keys("right", "right")
+        first = self.new_location("Plain")
+        self.keys("down")
+        second = self.new_location("Ridge")
+        self.keys("l", "enter", "down", "enter", "enter")    # north neighbour, open edge, the suggested object
+        edge = [p for p in second.entry["placements"] if rooms.side_of(second.entry, tuple(p["at"])) == "north"]
+        self.assertEqual(len(edge), rooms.size(second.entry)[0] - 2)
+        self.assertTrue(all(rooms.partner(self.pack, p)[0].entry is first.entry for p in edge))
+        self.pack.save()
+        self.assertEqual(self.pack.check().errors, ())
+
+    def test_move_and_edit_the_room_in_place(self):
+        self.keys("m", "down", "enter")
+        self.assertEqual(self.pack.find("locations", "loc_workshop").entry["map"], {"x": 0, "y": 1})
+        self.keys("e")
+        self.assertIn("Room · Workshop", self.map.render(40, 20))
+        self.keys("x")                                        # back to the map, no question
+        self.assertIn("Map · Lower deck", self.map.render(40, 20))
+        self.keys("x", "esc")                                 # the region list, then leaving asks
+        self.assertIn("Save your changes?", self.map.render(40, 20))
+
+    def test_every_screen_fits(self):
+        for setup in ((), ("enter",), ("x",), ("l",), ("down", "n")):
+            self.map = Map(self.pack, LOOK)
+            self.keys(*setup)
+            for columns, rows in SIZES:
+                fits(self, self.map.render(columns, rows), columns, rows)
+
+
+class MapRegionsTest(unittest.TestCase):
+    """Regions as separate maps: made from the list, filled, joined by exits and followed."""
+
+    def test_a_new_region_with_a_location_linked_to_another_region(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            shutil.copytree(TEST_PACK, tmp / "test")
+            pack = PackFiles(tmp / "test")
+            view = Map(pack, LOOK)
+            view.handle("x")                                      # the region list; New region is last
+            view.form.filter = "new"
+            for key in ("enter", *"Tunnels", "enter", "enter", "n", *"Tunnel one", "enter", "enter"):
+                self.assertTrue(view.handle(key), key)
+            region = pack.find("regions", "reg_tunnels")
+            self.assertEqual(region.entry, {"id": "reg_tunnels", "name": "Tunnels"})
+            tunnel = pack.find("locations", "loc_tunnel_one")
+            self.assertEqual(tunnel.entry["region"], "reg_tunnels")
+            view.handle("e")                                      # a door to the workshop, from the room editor
+            view.room.cursor = (0, 3)
+            for key in ("l", "enter"):
+                view.handle(key)
+            view.room.form.filter = "workshop"
+            for key in ("enter",):
+                view.handle(key)
+            view.room.cursor = (5, 3)
+            view.handle("enter")
+            view.handle("x")
+            self.assertIn("Workshop in Lower deck", view.render(60, 30))
+            view.handle("g")                                      # follow the exit: the workshop's map
+            self.assertIn("Map · Lower deck", view.render(40, 20))
+            self.assertEqual(view.at_cursor()[1]["id"], "loc_workshop")
+            view.handle("x")                                      # and back along it
+            self.assertIn("Map · Tunnels", view.render(40, 20))
+            pack.save()
+            self.assertEqual(pack.check().errors, ())
+        finally:
+            shutil.rmtree(tmp)

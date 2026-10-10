@@ -4,12 +4,12 @@ glyphs, padding and styles, a numbered menu with the game's cursor, and a line o
 hints. Keys follow the game's bindings too, so a tool's keys are the game's keys.
 
 A screen is a list of bands, each a list of lines. One band may be flexible: it gets
-the rows the others leave and scrolls (a long list, a report). Everything else is cut
-to fit; a tool keeps its bands short instead.
+the rows the others leave and scrolls (a long list, a report). When the rest is still
+too tall, the tallest band loses its last lines; a tool keeps its bands short instead.
 """
 from typing import List, NamedTuple, Optional, Sequence, Tuple
 
-from tui.text import Style, pad, visible_len, wrap  # noqa: F401  (wrap is for the tools)
+from tui.text import ANSI, Style, pad, visible_len, wrap  # noqa: F401  (wrap is for the tools)
 from tui.ui import UI, default_ui
 
 # Input actions every tool understands, besides plain letters.
@@ -77,19 +77,27 @@ def menu(look: Look, labels: Sequence[str], selected: int) -> Tuple[List[str], i
     return lines + [""], selected + 1
 
 
+def strip(text: str) -> str:
+    """Text without its styles."""
+    return ANSI.sub("", text)
+
+
 def quiet(look: Look, text: str, width: int) -> List[str]:
     return [look.style.role(line, "quiet") for line in wrap(text, width)] if text else []
 
 
-def hints(look: Look, parts: Sequence[str], width: int) -> List[str]:
-    """Key hints, wrapped between hints, never inside one: only the keys that work now."""
+def hints(look: Look, parts: Sequence[str], width: int, styled: bool = True) -> List[str]:
+    """
+    Key hints, wrapped between hints, never inside one: only the keys that work now.
+    With styled=False the parts keep their own styles (a legend of colours).
+    """
     lines: List[str] = []
     for part in parts:
         if lines and visible_len(lines[-1]) + 2 + visible_len(part) <= width:
             lines[-1] += "  " + part
         else:
-            lines += wrap(part, width)
-    return [look.style.role(line, "hint") for line in lines]
+            lines += wrap(part, width) if styled else [part]
+    return [look.style.role(line, "hint") for line in lines] if styled else lines
 
 
 def inner_width(look: Look, columns: int) -> int:
@@ -114,6 +122,11 @@ def draw(look: Look, bands: Sequence[List[str]], columns: int, rows: int,
         return Drawn(look.ui.word("terminal_too_small", columns=min_columns, rows=min_rows) + "\n", 0, 0)
     bands = [list(b) for b in bands]
     limit = 0
+    while sum(len(b) for i, b in enumerate(bands) if i != flex) + len(bands) + 1 + (flex is not None) > rows:
+        tallest = max((i for i in range(len(bands)) if i != flex), key=lambda i: len(bands[i]))
+        if len(bands[tallest]) <= 1:
+            break
+        bands[tallest] = bands[tallest][:-1]               # too tall: the tallest band loses its last lines
     if flex is not None:
         others = sum(len(b) for i, b in enumerate(bands) if i != flex) + len(bands) + 1
         window = max(1, rows - others)
@@ -134,6 +147,4 @@ def draw(look: Look, bands: Sequence[List[str]], columns: int, rows: int,
         out += [border["vertical"] + padding + pad(line, text_width) + padding + border["vertical"]
                 for line in band]
     out.append(border["bottom_left"] + horizontal + border["bottom_right"])
-    if len(out) > rows:                                  # never overflow: cut above the last band
-        out = out[:rows - 1] + out[-1:]
     return Drawn("\n".join(out) + "\n", scroll if flex is not None else 0, limit)
