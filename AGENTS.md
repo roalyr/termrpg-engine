@@ -79,6 +79,7 @@ All commands run from the project root.
 | `python3 -m core.packtool explain widget status` / `explain ui tokens` | A UI widget's options, or a UI pack file's fields |
 | `python3 play.py --pack packs/game --new` | Play the pack in the terminal to see your work: `--new` goes straight into a new game (slot 1, or `--slot name`); without flags the start screen opens |
 | `python3 -B -m unittest discover -s tests` | Run all tests. Use `-B` on phone storage |
+| `python3 -B tests/run.py` | The same tests in parallel, about twice as fast. `tests/run.py pack` runs only test files with `pack` in the name |
 
 **The working loop:** look up (`explain`, `ids`) → edit → `check` → fix → `check` →
 tests.

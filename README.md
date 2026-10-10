@@ -47,6 +47,7 @@ python3 -m core.packtool ids packs/test item   # list the ids of a kind
 python3 -m core.packtool refs packs/test workshop_door   # where an id is declared and used
 python3 -m core.packtool explain op damage     # document any part of the schemas
 python3 -B -m unittest discover -s tests       # run all tests
+python3 -B tests/run.py                        # the same, in parallel
 ```
 
 [PLAYTEST.md](PLAYTEST.md) walks through every feature by hand in the test pack.
