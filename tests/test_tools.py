@@ -416,7 +416,7 @@ class ArtTest(unittest.TestCase):
     def test_lists_pictures_with_who_uses_them_and_esc_leaves(self):
         text = self.art.render(48, 24)
         self.assertIn("art_juno", text)
-        self.assertIn("16×16 · Juno", text)
+        self.assertIn("24×24 · Juno", text)
         self.assertIn("New picture…", text)
         self.assertFalse(self.art.handle("esc"))
 

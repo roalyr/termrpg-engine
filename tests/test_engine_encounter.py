@@ -252,7 +252,7 @@ class TestEncounterScreen(unittest.TestCase):
         s = fight(2)
         frame = ANSI.sub("", render.render(CONTENT, s, 52, 60))
         for words in ("Drones · round 1", "1 Drone", "⚠ STRIKE Player", "┌1───────┐", "│Strike  │", "│Guard   │",
-                      "▄▄▄▄▄  ▄▄▄▄▄", "1-3 pick"):                  # the drone's rotors, in pixels
+                      "▄▄▄▄▄▄▄▄▄    ▄▄▄▄▄▄▄▄▄", "1-3 pick"):                  # the drone's rotors, in pixels
             self.assertIn(words, frame)
         for line in frame.splitlines():
             self.assertEqual(len(line), 52, line)
