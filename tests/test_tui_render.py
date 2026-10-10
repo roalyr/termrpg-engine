@@ -866,8 +866,24 @@ class TestMap(unittest.TestCase):
 
     def test_walls_are_solid_and_tiles_stay_in_columns(self):
         frame = plain(new_game(CONTENT, 1), 52, 30)
-        self.assertIn("│░░░░░◆░░░░░░░│", frame)                 # the door sits in the wall's run
+        self.assertIn("│░░░░ ◆ ░░░░░░│", frame)                 # the door breaks the wall's run
         self.assertIn("│░░ § · · ⊞ ░░│", frame)                 # side walls two glyphs wide
+
+    def test_an_open_edge_leads_on_and_is_listed_once(self):
+        s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"),
+                [freeze({"op": "move_to", "location": "loc_crater_rim", "subject": "self"})])
+        frame = plain(s, 48, 30)
+        self.assertEqual(frame.count("Dust flat"), 1)               # eight edge tiles, one legend entry
+        self.assertIn("│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│", frame)      # the full 12-tile width
+        rows = [line for line in frame.splitlines() if line.startswith("││▓▓ ·")]
+        self.assertTrue(rows and all("· ││" in line for line in rows), rows)          # the east side is open
+        s = walk(s, "w" + "d" * 6)                                 # onto the east edge
+        self.assertIn("G Go to Dust flat", plain(s, 48, 30))
+        s, _, _ = app.handle(CONTENT, s, "g", app.View(), UI)
+        me = s.characters[s.player]
+        self.assertEqual((me.location, me.at), ("loc_dust_flat", (4, 0)))   # the matching tile on the far side
+        s, _, _ = app.handle(CONTENT, walk(s, "d"), "a", app.View(), UI)
+        self.assertIn("G Go to Crater rim", plain(s, 48, 30))
 
     def test_glyphs_take_their_roles_colour(self):
         frame = self.coloured(new_game(CONTENT, 1))

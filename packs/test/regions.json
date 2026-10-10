@@ -17,6 +17,15 @@
         "x": 1,
         "y": 0
       }
+    },
+    {
+      "id": "reg_surface",
+      "name": "Surface",
+      "description": "The moon's surface outside the station: dust, rock and hard light.",
+      "map": {
+        "x": 1,
+        "y": 0
+      }
     }
   ]
 }

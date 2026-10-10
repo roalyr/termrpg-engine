@@ -561,7 +561,8 @@ floor. Grid positions are `[row, column]` from the top-left corner. A room is at
 12 tiles across and 10 down, so it fits the default UI pack's 48 by 24 screen whole.
 
 On the map each tile is two columns wide: the glyph and a space, except that wall
-tiles are joined, so walls show as solid runs two glyphs thick at the sides. Glyphs
+tiles are joined, so walls show as solid runs two glyphs thick at the sides; a door
+or an open edge in a wall leaves a gap. Glyphs
 are coloured: by the pack's `colour` where it gives one (a palette colour or a
 256-colour number, as in pictures), otherwise by the UI pack's map styles (objects,
 exits, people, hostile people, walls, floor). The terminal's background is kept.

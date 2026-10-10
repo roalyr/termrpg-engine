@@ -142,7 +142,8 @@ class Room:
                 glyph, colour, role = self.cell(location, (r, c), people)
                 cells.append(style.inverse(glyph if glyph.strip() else " ") if (r, c) == self.cursor
                              else map_glyph(style, glyph, colour, role))
-            grid.append(room_line(cells, [rooms.tile(location, (r, c)) == "#" for c in range(grid_w)], wall, cell_width))
+            shows_wall = [self.cell(location, (r, c), people)[2] == "map_wall" for c in range(grid_w)]
+            grid.append(room_line(cells, shows_wall, wall, cell_width))
         grid_width = grid_w + (grid_w - 1) * (cell_width - 1) + 2
         legend = self.legend(location, people)
         side = width - grid_width - 3

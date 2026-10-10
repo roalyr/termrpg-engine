@@ -134,9 +134,9 @@ Everything else on a placement (state, contents, interactions, names) stays in J
   every tile of one side (corners excepted) is a placement whose exit leads to the
   matching tile on the other location's opposite side (`field_east_1` ↔
   `plain_west_1`). Stepping on one offers to go. Both sides must be the same length.
-  Pick an object that looks like ground for its tiles. Today's engine runs this
-  as it is; two things for later, in the game's UI rather than the tools: the game's
-  legend lists each edge tile separately, and arrivals land on the edge tile itself.
+  Pick an object that looks like ground for its tiles (the test pack's
+  `obj_ground`, `·`, between the Crater rim and the Dust flat). The game lists the
+  edge once in its legend; arrivals land on the matching edge tile.
 
 ### Map: the world by region (ready)
 

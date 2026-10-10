@@ -302,6 +302,13 @@
           ]
         }
       ]
+    },
+    {
+      "id": "obj_ground",
+      "name": "Open ground",
+      "description": "Open ground that runs on into the next area. Step onto it to go on.",
+      "glyph": "·",
+      "holds_size": 5
     }
   ]
 }

@@ -188,7 +188,7 @@ def grid(frame: Frame, width: int, options: Mapping) -> List[str]:
                 cells.append(style.role(shown, "map_player", "7") if style.colour else style.inverse(shown))
             else:
                 cells.append(map_glyph(style, glyph, colour, role))
-            walls.append(world.tile(content, location["id"], pos) == "#")
+            walls.append(role == "map_wall")              # a door or an open edge breaks the wall
         lines.append(border["vertical"] + room_line(cells, walls, wall, frame.size["cell_width"]) + border["vertical"])
     lines.append(border["bottom_left"] + border["horizontal"] * inner + border["bottom_right"])
     return lines
@@ -197,7 +197,8 @@ def grid(frame: Frame, width: int, options: Mapping) -> List[str]:
 def room_line(cells: List[str], walls: List[bool], wall: str, cell_width: int) -> str:
     """
     One row of a room: one tile per cell, cell_width columns apart. Walls are joined: the gap
-    between two wall tiles, and the edge beside one, is the wall glyph too, so walls are solid.
+    between two tiles showing wall, and the edge beside one, is the wall glyph too, so walls
+    are solid; a door or anything else in a wall leaves a gap around it.
     """
     gap = cell_width - 1
     line = [wall if walls and walls[0] else " "]
@@ -317,6 +318,7 @@ def legend(frame: Frame, width: int, options: Mapping) -> List[str]:
         painted.setdefault(glyph, map_glyph(style, glyph, record.get("colour"), _person_role(content, state, cid)))
     lines = []
     for glyph, names in entries.items():
+        names = list(dict.fromkeys(names))             # an open edge's tiles all lead to the same place
         for i, line in enumerate(wrap(frame.glyphs["separator"].join(names), width - 2)):
             lines.append(f"{painted[glyph] if i == 0 else ' '} {style.role(line, 'hint')}")
     return lines

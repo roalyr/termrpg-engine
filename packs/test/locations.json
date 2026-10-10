@@ -176,6 +176,19 @@
             1,
             2
           ]
+        },
+        {
+          "id": "storage_passage_crater_rim",
+          "object": "obj_passage",
+          "at": [
+            0,
+            5
+          ],
+          "exit": {
+            "location": "loc_crater_rim",
+            "entry": "crater_rim_passage_storage"
+          },
+          "name": "Airlock"
         }
       ],
       "on_turn": [
@@ -210,6 +223,275 @@
         "floor": "·",
         "wall": "░"
       }
+    },
+    {
+      "id": "loc_crater_rim",
+      "name": "Crater rim",
+      "region": "reg_surface",
+      "description": "Grey dust and broken rock on the crater's edge. The station's airlock is set into the rock behind you.",
+      "grid": {
+        "width": 12,
+        "height": 10,
+        "floor": "·",
+        "floor_colour": 250,
+        "wall": "▓",
+        "wall_colour": 243,
+        "rows": [
+          "############",
+          "#...##.....#",
+          "#....#.....#",
+          "#..........#",
+          "#..........#",
+          "#.......#..#",
+          "#......##..#",
+          "#..........#",
+          "##.........#",
+          "############"
+        ]
+      },
+      "map": {
+        "x": 0,
+        "y": 0
+      },
+      "placements": [
+        {
+          "id": "crater_rim_east_1",
+          "object": "obj_ground",
+          "at": [
+            1,
+            11
+          ],
+          "exit": {
+            "location": "loc_dust_flat",
+            "entry": "dust_flat_west_1"
+          }
+        },
+        {
+          "id": "crater_rim_east_2",
+          "object": "obj_ground",
+          "at": [
+            2,
+            11
+          ],
+          "exit": {
+            "location": "loc_dust_flat",
+            "entry": "dust_flat_west_2"
+          }
+        },
+        {
+          "id": "crater_rim_east_3",
+          "object": "obj_ground",
+          "at": [
+            3,
+            11
+          ],
+          "exit": {
+            "location": "loc_dust_flat",
+            "entry": "dust_flat_west_3"
+          }
+        },
+        {
+          "id": "crater_rim_east_4",
+          "object": "obj_ground",
+          "at": [
+            4,
+            11
+          ],
+          "exit": {
+            "location": "loc_dust_flat",
+            "entry": "dust_flat_west_4"
+          }
+        },
+        {
+          "id": "crater_rim_east_5",
+          "object": "obj_ground",
+          "at": [
+            5,
+            11
+          ],
+          "exit": {
+            "location": "loc_dust_flat",
+            "entry": "dust_flat_west_5"
+          }
+        },
+        {
+          "id": "crater_rim_east_6",
+          "object": "obj_ground",
+          "at": [
+            6,
+            11
+          ],
+          "exit": {
+            "location": "loc_dust_flat",
+            "entry": "dust_flat_west_6"
+          }
+        },
+        {
+          "id": "crater_rim_east_7",
+          "object": "obj_ground",
+          "at": [
+            7,
+            11
+          ],
+          "exit": {
+            "location": "loc_dust_flat",
+            "entry": "dust_flat_west_7"
+          }
+        },
+        {
+          "id": "crater_rim_east_8",
+          "object": "obj_ground",
+          "at": [
+            8,
+            11
+          ],
+          "exit": {
+            "location": "loc_dust_flat",
+            "entry": "dust_flat_west_8"
+          }
+        },
+        {
+          "id": "crater_rim_passage_storage",
+          "object": "obj_passage",
+          "at": [
+            4,
+            0
+          ],
+          "exit": {
+            "location": "loc_storage",
+            "entry": "storage_passage_crater_rim"
+          },
+          "name": "Airlock"
+        }
+      ]
+    },
+    {
+      "id": "loc_dust_flat",
+      "name": "Dust flat",
+      "region": "reg_surface",
+      "description": "A wide flat of fine dust, churned by old tracks. The rim rises to the west.",
+      "grid": {
+        "width": 12,
+        "height": 10,
+        "floor": "·",
+        "floor_colour": 250,
+        "wall": "▓",
+        "wall_colour": 243,
+        "rows": [
+          "############",
+          "#..........#",
+          "#...#......#",
+          "#..........#",
+          "#.......##.#",
+          "#..........#",
+          "#..#.......#",
+          "#..........#",
+          "#.........##",
+          "############"
+        ]
+      },
+      "map": {
+        "x": 1,
+        "y": 0
+      },
+      "placements": [
+        {
+          "id": "dust_flat_west_1",
+          "object": "obj_ground",
+          "at": [
+            1,
+            0
+          ],
+          "exit": {
+            "location": "loc_crater_rim",
+            "entry": "crater_rim_east_1"
+          }
+        },
+        {
+          "id": "dust_flat_west_2",
+          "object": "obj_ground",
+          "at": [
+            2,
+            0
+          ],
+          "exit": {
+            "location": "loc_crater_rim",
+            "entry": "crater_rim_east_2"
+          }
+        },
+        {
+          "id": "dust_flat_west_3",
+          "object": "obj_ground",
+          "at": [
+            3,
+            0
+          ],
+          "exit": {
+            "location": "loc_crater_rim",
+            "entry": "crater_rim_east_3"
+          }
+        },
+        {
+          "id": "dust_flat_west_4",
+          "object": "obj_ground",
+          "at": [
+            4,
+            0
+          ],
+          "exit": {
+            "location": "loc_crater_rim",
+            "entry": "crater_rim_east_4"
+          }
+        },
+        {
+          "id": "dust_flat_west_5",
+          "object": "obj_ground",
+          "at": [
+            5,
+            0
+          ],
+          "exit": {
+            "location": "loc_crater_rim",
+            "entry": "crater_rim_east_5"
+          }
+        },
+        {
+          "id": "dust_flat_west_6",
+          "object": "obj_ground",
+          "at": [
+            6,
+            0
+          ],
+          "exit": {
+            "location": "loc_crater_rim",
+            "entry": "crater_rim_east_6"
+          }
+        },
+        {
+          "id": "dust_flat_west_7",
+          "object": "obj_ground",
+          "at": [
+            7,
+            0
+          ],
+          "exit": {
+            "location": "loc_crater_rim",
+            "entry": "crater_rim_east_7"
+          }
+        },
+        {
+          "id": "dust_flat_west_8",
+          "object": "obj_ground",
+          "at": [
+            8,
+            0
+          ],
+          "exit": {
+            "location": "loc_crater_rim",
+            "entry": "crater_rim_east_8"
+          }
+        }
+      ]
     }
   ]
 }
