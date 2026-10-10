@@ -61,8 +61,8 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("vocab.json: line 2", self.errors())
 
     def test_wrong_schema_version(self):
-        self.edit("pack.json", lambda m: m.__setitem__("schema_version", 2))
-        self.assertIn("schema_version: must be 1", self.errors())
+        self.edit("pack.json", lambda m: m.__setitem__("schema_version", 1))
+        self.assertIn("schema_version: must be 2", self.errors())
 
     def test_kind_without_schema(self):
         schemas = Path(self.temp.name) / "schemas"
@@ -410,8 +410,12 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("unknown loot table 'loot_missing'", self.errors())
 
     def test_art_width(self):
-        self.character("char_drone", lambda ch: ch["art"].append("x" * 22))
-        self.assertIn("must be at most 21 characters", self.errors())
+        self.edit("art.json", lambda d: d["entries"][2]["rows"].append("x" * 33))
+        self.assertIn("must be at most 32 characters", self.errors())
+
+    def test_unknown_art(self):
+        self.character("char_drone", lambda ch: ch.__setitem__("art", "art_missing"))
+        self.assertIn("unknown art 'art_missing'", self.errors())
 
     # --- Events and strings ---
 

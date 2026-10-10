@@ -3,7 +3,7 @@
   "$id": "pack.schema.json",
   "title": "Pack manifest (pack.json)",
   "description": "The entry point of a content pack: what it is, which schema it was written for, where the game starts, and which data files to load. The engine loads only the files listed here.",
-  "x-schema-version": 1,
+  "x-schema-version": 2,
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -31,7 +31,7 @@
       "description": "The pack's own version (major.minor.patch)."
     },
     "schema_version": {
-      "const": 1,
+      "const": 2,
       "description": "Schema version the pack was written for. The engine refuses packs written for another version."
     },
     "purpose": {
@@ -279,6 +279,17 @@
         "modifications": {
           "type": "array",
           "description": "Files holding modifications.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "art": {
+          "type": "array",
+          "description": "Files holding art: pictures in pixels.",
           "items": {
             "type": "string",
             "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",

@@ -3,7 +3,7 @@
   "$id": "ui.schema.json",
   "title": "UI packs",
   "description": "A UI pack standardises the terminal UI: tokens (sizes, glyphs, styles), a fixed catalogue of widgets arranged into screens, key bindings with their hints, and the UI's own words. Every field defaults to the standard look, so a UI pack only writes what it changes. The engine owns the catalogue: screens, widgets and where each may appear, input actions, hint contexts and style roles.",
-  "x-schema-version": 1,
+  "x-schema-version": 2,
   "$ref": "#/$defs/manifest",
   "$defs": {
     "manifest": {
@@ -26,7 +26,7 @@
           "description": "The UI pack's own version."
         },
         "schema_version": {
-          "const": 1,
+          "const": 2,
           "description": "Schema version the UI pack was written for."
         },
         "description": {
@@ -178,19 +178,19 @@
               "default": 9,
               "description": "Entries per page of the pack panel (picked with 1-9)."
             },
-            "portrait_width": {
+            "art_width": {
               "type": "integer",
               "minimum": 4,
-              "maximum": 24,
-              "default": 12,
-              "description": "Width of the portrait zone, in pixels (one text column each)."
+              "maximum": 32,
+              "default": 16,
+              "description": "Width of the art zone (a character's picture: portrait and fight), in pixels (one text column each)."
             },
-            "portrait_height": {
+            "art_height": {
               "type": "integer",
               "minimum": 4,
-              "maximum": 24,
-              "default": 12,
-              "description": "Height of the portrait zone, in pixels (two per line of text)."
+              "maximum": 32,
+              "default": 16,
+              "description": "Height of the art zone, in pixels (two per line of text)."
             },
             "save_slots": {
               "type": "integer",
@@ -3664,7 +3664,7 @@
     },
     "widget_art": {
       "type": "object",
-      "description": "The picture of the enemy in front. Allowed on: encounter.",
+      "description": "The picture of the enemy in front, in half-block pixels in the art zone, centred; without one, its glyph in the middle. Allowed on: encounter.",
       "properties": {
         "widget": {
           "const": "art"
@@ -3707,7 +3707,7 @@
     },
     "widget_portrait": {
       "type": "object",
-      "description": "The player's portrait on the character screen, the speaker's in a conversation: pixels drawn with half-block characters, two per text cell. Without one, an empty frame of the same size keeps the place. Allowed on: character, talk.",
+      "description": "The player's picture on the character screen, the speaker's in a conversation: pixels drawn with half-block characters, two per text cell, in the art zone. Without one, an empty frame of the same size keeps the place. Allowed on: character, talk.",
       "properties": {
         "widget": {
           "const": "portrait"

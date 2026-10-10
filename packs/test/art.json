@@ -1,0 +1,88 @@
+{
+  "$schema": "../../schemas/art.schema.json",
+  "entries": [
+    {
+      "id": "art_player",
+      "rows": [
+        ".....hhhhhh.....",
+        "...hhhhhhhhhh...",
+        "..hhhhhhhhhhhh..",
+        ".hhhvvvvvvvvhhh.",
+        ".hhvwwvvvvvvvhh.",
+        ".hhvwvvvvvvvvhh.",
+        ".hhvvvvvvvvvvhh.",
+        ".hhhvvvvvvvvhhh.",
+        "..hhhhhhhhhhhh..",
+        "...hhhhhhhhhh...",
+        ".....dddddd.....",
+        "..ooooddddoooo..",
+        ".ooooooddoooooo.",
+        "oooowoooooowoooo",
+        "oooooooooooooooo",
+        "oooooooooooooooo"
+      ],
+      "palette": {
+        "h": "grey",
+        "v": 31,
+        "w": "white",
+        "d": 238,
+        "o": 166
+      },
+      "notes": "A work-suit helmet with its visor down."
+    },
+    {
+      "id": "art_juno",
+      "rows": [
+        ".....rrrrrr.....",
+        "...rrrrrrrrrr...",
+        "..rrrrrrrrrrrr..",
+        "..rrrssssssrrr..",
+        ".rrrssssssssrrr.",
+        ".rrsseesseessrr.",
+        ".rrssssssssssrr.",
+        ".rrssssssssssrr.",
+        ".rrsssmmmmsssrr.",
+        "..rrssssssssrr..",
+        "....rssssssr....",
+        "......ssss......",
+        "...gggggggggg...",
+        "..gggwggggwggg..",
+        ".gggggggggggggg.",
+        "gggggggggggggggg"
+      ],
+      "palette": {
+        "r": 130,
+        "s": 180,
+        "e": 236,
+        "m": 131,
+        "g": 65,
+        "w": "white"
+      },
+      "notes": "Juno: red hair, a green crew jacket with badges."
+    },
+    {
+      "id": "art_drone",
+      "rows": [
+        "................",
+        "..bbbbb..bbbbb..",
+        ".......mm.......",
+        "....mmmmmmmm....",
+        "...mmmmmmmmmm...",
+        "..mmmmmeemmmmm..",
+        "..mmmmmeemmmmm..",
+        "...mmmmmmmmmm...",
+        "....mmmmmmmm....",
+        "....k..kk..k....",
+        "...k...kk...k...",
+        "..k....kk....k.."
+      ],
+      "palette": {
+        "b": "grey",
+        "m": 244,
+        "e": "red",
+        "k": 238
+      },
+      "notes": "A hovering drone: two rotors, a red eye, three legs."
+    }
+  ]
+}

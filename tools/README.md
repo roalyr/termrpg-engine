@@ -180,9 +180,10 @@ switches between them.
 
 Later schemes could colour by kind of place, by region, or by who lives there.
 
-### Art: portraits and encounter art
+### Art: pictures (next)
 
-- Portraits: pixel rows plus a palette, drawn with half blocks as the character
-  screen draws them, at most 24 by 24. Without colour only the silhouette shows,
-  so the editor can show both.
-- Encounter `art`: at most 10 lines of 21 characters.
+- Edits the pack's art file: pictures in pixels (rows and a palette, up to 32 by 32),
+  drawn with half blocks as the game draws them, in the 16 by 16 art zone. Without
+  colour only the silhouette shows, so the editor can show both.
+- Every picture in the game is one of these: characters use them by id (`art`) on the
+  character screen, in conversations and in fights.

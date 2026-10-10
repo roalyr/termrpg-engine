@@ -3,7 +3,7 @@
   "$id": "modification.schema.json",
   "title": "Modifications (modifications.json)",
   "description": "Crafting's main path: improving found items. The material decides the result, always the same way; rare materials give rare properties. Fabricating, dismantling and repairing are described on the items themselves.",
-  "x-schema-version": 1,
+  "x-schema-version": 2,
   "$ref": "#/$defs/modifications_file",
   "$defs": {
     "modifications_file": {

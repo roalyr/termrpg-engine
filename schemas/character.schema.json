@@ -3,7 +3,7 @@
   "$id": "character.schema.json",
   "title": "Characters (characters.json)",
   "description": "Everyone: the player's character, NPCs, companions and enemies share one record. The suit is their stats, their skills are their own.",
-  "x-schema-version": 1,
+  "x-schema-version": 2,
   "$ref": "#/$defs/characters_file",
   "$defs": {
     "characters_file": {
@@ -49,16 +49,9 @@
           "description": "Map glyph. Defaults to the first letter of the name."
         },
         "art": {
-          "type": "array",
-          "description": "A picture drawn with characters, shown in the map area during encounters. At most 10 lines of 21 characters.",
-          "items": {
-            "type": "string",
-            "maxLength": 21
-          },
-          "maxItems": 10
-        },
-        "portrait": {
-          "$ref": "#/$defs/portrait"
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "art",
+          "description": "Their picture, from the pack's art: shown on the character screen, in conversations and in fights."
         },
         "tags": {
           "$ref": "common.schema.json#/$defs/tags"
@@ -328,70 +321,6 @@
       "additionalProperties": false,
       "required": [
         "text"
-      ]
-    },
-    "art": {
-      "type": "array",
-      "description": "A picture drawn with characters, shown in the map area during encounters. At most 10 lines of 21 characters.",
-      "items": {
-        "type": "string",
-        "maxLength": 21
-      },
-      "maxItems": 10
-    },
-    "portrait": {
-      "type": "object",
-      "description": "A small picture in pixels, shown on the character screen. Each letter in 'rows' is one pixel in the palette's colour for that letter; a space or '.' is see-through. Two pixel rows share one line of text (half-block characters), so 12 rows take 6 lines. Without colour only the shape shows.",
-      "properties": {
-        "rows": {
-          "type": "array",
-          "minItems": 2,
-          "maxItems": 24,
-          "description": "Pixel rows, top to bottom, all the same length; at most 24 by 24. The character screen shows up to the UI pack's portrait size, centred.",
-          "items": {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9. ]*$",
-            "minLength": 1,
-            "maxLength": 24
-          }
-        },
-        "palette": {
-          "type": "object",
-          "description": "Pixel letter to colour: a palette colour, or a 256-colour terminal number.",
-          "propertyNames": {
-            "pattern": "^[A-Za-z0-9]$"
-          },
-          "additionalProperties": {
-            "anyOf": [
-              {
-                "enum": [
-                  "grey",
-                  "white",
-                  "green",
-                  "cyan",
-                  "blue",
-                  "violet",
-                  "yellow",
-                  "orange",
-                  "red"
-                ]
-              },
-              {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 255
-              }
-            ]
-          }
-        },
-        "notes": {
-          "$ref": "common.schema.json#/$defs/notes"
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "rows",
-        "palette"
       ]
     }
   }

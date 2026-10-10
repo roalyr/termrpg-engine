@@ -3,7 +3,7 @@
   "$id": "action.schema.json",
   "title": "Actions (actions.json)",
   "description": "Encounter actions. Characters get them from fitted items, skill levels and innate actions; the encounter screen shows them as tiles. Not a deck: nothing is drawn or shuffled.",
-  "x-schema-version": 1,
+  "x-schema-version": 2,
   "$ref": "#/$defs/actions_file",
   "$defs": {
     "actions_file": {

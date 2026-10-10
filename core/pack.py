@@ -32,6 +32,7 @@ KIND_SCHEMAS = {
     "events": "event.schema.json",
     "strings": "strings.schema.json",
     "modifications": "modification.schema.json",
+    "art": "art.schema.json",
 }
 
 # Entity kind -> reference namespace. Entity files hold {"entries": [{"id": ...}, ...]}.
@@ -39,6 +40,7 @@ KIND_NAMESPACES = {
     "regions": "region", "locations": "location", "zones": "zone", "objects": "object", "items": "item",
     "actions": "action", "skills": "skill", "characters": "character", "encounters": "encounter",
     "loot_tables": "loot_table", "events": "event", "strings": "string", "modifications": "modification",
+    "art": "art",
 }
 
 # Vocabulary section -> reference namespace.
@@ -135,6 +137,7 @@ def index_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> PackIndex:
     _check_vocab_rules(manifest, vocab, errors, warnings)
     _check_world_rules(manifest, entries, where, errors)
     _check_item_rules(entries, vocab, where, errors)
+    _check_art_rules(entries, where, errors)
     _check_skill_rules(manifest, entries, where, errors)
     _check_character_rules(manifest, entries, vocab, where, errors)
     _check_loot_rules(entries, where, errors)
@@ -343,6 +346,19 @@ def _check_world_rules(manifest: dict, entries: Entries, where: Dict[Tuple[str, 
         errors.append(f"pack.json: start.entry '{start['entry']}' is not in '{start_loc}'")
 
 
+def _check_art_rules(entries: Entries, where: Dict[Tuple[str, str], str], errors: List[str]) -> None:
+    """Pictures: every row the same length, every pixel letter in the palette."""
+    for art_id, art in entries.get("art", {}).items():
+        label = where[("art", art_id)]
+        rows = [r for r in art.get("rows", []) if isinstance(r, str)] if isinstance(art.get("rows"), list) else []
+        if len({len(r) for r in rows}) > 1:
+            errors.append(f"{label}: rows have different lengths ({', '.join(str(len(r)) for r in rows)})")
+        palette = art.get("palette") if isinstance(art.get("palette"), dict) else {}
+        unknown = sorted({c for r in rows for c in r if c not in " ." and c not in palette})
+        if unknown:
+            errors.append(f"{label}: pixel letters not in the palette: {', '.join(unknown)}")
+
+
 def _check_item_rules(entries: Entries, vocab: Dict[str, Any], where: Dict[Tuple[str, str], str],
                       errors: List[str]) -> None:
     hosts = {s["id"]: s.get("host") for s in vocab.get("slot_types", [])}
@@ -415,15 +431,6 @@ def _check_character_rules(manifest: dict, entries: Entries, vocab: Dict[str, An
             _check_standing(char, char_id, label, locations, occupied, errors)
         _check_leader_chain(char_id, characters, label, errors)
 
-        portrait = char.get("portrait")
-        if isinstance(portrait, dict) and isinstance(portrait.get("rows"), list):
-            rows = [r for r in portrait["rows"] if isinstance(r, str)]
-            if len({len(r) for r in rows}) > 1:
-                errors.append(f"{label}.portrait: rows have different lengths ({', '.join(str(len(r)) for r in rows)})")
-            palette = portrait.get("palette") if isinstance(portrait.get("palette"), dict) else {}
-            unknown = sorted({c for r in rows for c in r if c not in " ." and c not in palette})
-            if unknown:
-                errors.append(f"{label}.portrait: pixel letters not in the palette: {', '.join(unknown)}")
         body = char.get("body", {}) if isinstance(char.get("body"), dict) else {}
         body_slots: Dict[str, int] = {}
         for slot in body.get("slots", []) or []:

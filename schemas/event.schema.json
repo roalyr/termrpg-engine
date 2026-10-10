@@ -3,7 +3,7 @@
   "$id": "event.schema.json",
   "title": "Events (events.json)",
   "description": "Living-world events: rules that find their own cast and change the world. Stories come from these meeting each other, not from scripts.",
-  "x-schema-version": 1,
+  "x-schema-version": 2,
   "$ref": "#/$defs/events_file",
   "$defs": {
     "events_file": {

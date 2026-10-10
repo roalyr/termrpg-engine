@@ -64,7 +64,8 @@
       "content": {
         "row": [
           {
-            "widget": "art"
+            "widget": "art",
+            "frame": false
           },
           {
             "widget": "fighters"

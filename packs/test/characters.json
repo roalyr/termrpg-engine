@@ -4,30 +4,7 @@
     {
       "id": "char_player",
       "name": "Player",
-      "portrait": {
-        "rows": [
-          "...hhhhhh...",
-          "..hhhhhhhh..",
-          ".hhvvvvvvhh.",
-          ".hvwvvvvvvh.",
-          ".hvvvvvvvvh.",
-          ".hhvvvvvvhh.",
-          "..hhhhhhhh..",
-          "...dddddd...",
-          ".oooddddooo.",
-          "ooooddddoooo",
-          "oowoooooowoo",
-          "oooooooooooo"
-        ],
-        "palette": {
-          "h": "grey",
-          "v": 31,
-          "w": "white",
-          "d": 238,
-          "o": 166
-        },
-        "notes": "A work-suit helmet with its visor down."
-      },
+      "art": "art_player",
       "body": {
         "size": 3,
         "stats": {
@@ -90,31 +67,7 @@
       "name": "Juno",
       "title": "Scrap trader",
       "description": "Deals in whatever the station throws away. Juno will trade two medkits for a keycard, once, and trusts you more after a fair deal. Once Juno trusts you, Juno will join you, fight beside you and follow you from room to room.",
-      "portrait": {
-        "rows": [
-          "...rrrrrr...",
-          "..rrrrrrrr..",
-          "..rssssssr..",
-          "..rsessesr..",
-          "..rssssssr..",
-          "..rssmmssr..",
-          "...ssssss...",
-          "....ssss....",
-          "..gggggggg..",
-          ".gggggggggg.",
-          "gggwggggwggg",
-          "gggggggggggg"
-        ],
-        "palette": {
-          "r": 130,
-          "s": 180,
-          "e": 236,
-          "m": 131,
-          "g": 65,
-          "w": "white"
-        },
-        "notes": "Juno: red hair, a green crew jacket with badges."
-      },
+      "art": "art_juno",
       "faction": "faction_crew",
       "location": "loc_workshop",
       "at": [
@@ -235,11 +188,7 @@
       "tags": [
         "tag_machine"
       ],
-      "art": [
-        "  ┌─┬─┐  ",
-        "══╡▓▓▓╞══",
-        "  └┬─┬┘  "
-      ],
+      "art": "art_drone",
       "body": {
         "size": 2,
         "stats": {

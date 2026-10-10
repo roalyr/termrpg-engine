@@ -237,11 +237,14 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 **Text**
 
 - Labels (`name`, `label`) are at most 32 characters. An action's `short` is at
-  most 8. `art` is at most 10 lines of 21 characters.
-- A `portrait` is pixel letters plus a palette: every row the same length, every
-  letter in the palette, a space or `.` for see-through; up to 24 by 24 pixels. The
-  default character screen shows 12 by 12 (6 lines), centred. Draw for the shape
-  first: without colour only the silhouette shows.
+  most 8.
+- **Pictures live in the art file** (`art` kind, ids `art_…`) and are used by id: a
+  character's `art` is shown on the character screen, in conversations and in fights.
+  One picture can serve many characters (every guard, every drone).
+- A picture is pixel letters plus a palette: every row the same length, every letter
+  in the palette, a space or `.` for see-through; up to 32 by 32 pixels. The default
+  UI pack shows 16 by 16 (8 lines), centred, and cuts what's larger: draw for 16 by
+  16. Draw for the shape first: without colour only the silhouette shows.
 - A text that is exactly `@` plus an id shows that entry from `strings.json`.
 - Engine messages in `strings.json` may only use their own placeholders:
   `explain engine` lists them. Write all of them: a missing one shows as its key.
@@ -296,6 +299,7 @@ Prefixes make ids easy to read and search. Use them in game packs:
 | Damage type, slot type, grade | `dmg_`, `slot_`, `grade_` | `dmg_kinetic`, `slot_hand`, `grade_exotic` |
 | Object state, phase, faction, flag | `state_`, `phase_`, `faction_`, `flag_` | `state_open`, `phase_night` |
 | Custom string | `str_` | `str_kael_greeting` |
+| Art (pictures) | `art_` | `art_kael`, `art_sentry` |
 
 The test pack follows these prefixes too, with plain names (a workshop, a storage room,
 a cutter, scrap), so its ids can be copied as examples.
@@ -432,22 +436,36 @@ numbers: power 2 of 8, mass 3 of 12, heat 0 of 10, cargo 1 stack of 3 + 2.
 }
 ```
 
-### Add an enemy, its loot, an encounter, and something that starts it
+### Add an enemy, its picture, its loot, an encounter, and something that starts it
 
 Enemies spawned in numbers are templates: no location, and a `count` in the
-encounter. Here an alarm panel in the storage room starts the encounter.
+encounter. Their picture is an `art` entry, shown in the fight. Here an alarm panel
+in the storage room starts the encounter.
 
 <!-- recipe -->
 ```json
 {
+  "art": [
+    { "id": "art_sentry", "notes": "A squat sentry: a dome with red eyes on four legs.",
+      "rows": [
+      "......aaaa......",
+      "....aaaaaaaa....",
+      "...aaeaaaaeaa...",
+      "...aaaaaaaaaa...",
+      "....aammmmaa....",
+      "..bbbbbbbbbbbb..",
+      "..bb..bbbb..bb..",
+      "..bb..bb..bb.bb."
+      ],
+      "palette": { "a": "grey", "e": "red", "m": 238, "b": 244 } }
+  ],
   "loot_tables": [
     { "id": "loot_sentry", "rolls": 1, "nothing": 1,
       "always": [ { "item": "material_scrap", "count": 1 } ],
       "entries": [ { "item": "material_odd_metal", "weight": 1 }, { "item": "consumable_medkit", "weight": 3 } ] }
   ],
   "characters": [
-    { "id": "char_sentry", "name": "Sentry", "template": true, "glyph": "s",
-      "art": ["  .-=-.  ", " ( o o ) ", "  |_=_|  "],
+    { "id": "char_sentry", "name": "Sentry", "template": true, "glyph": "s", "art": "art_sentry",
       "body": { "size": 3, "stats": { "stat_health": 12, "stat_initiative": 1, "stat_armor": 1 } },
       "actions": ["action_strike", "action_guard"],
       "ai": { "flee_below": 0.2 },

@@ -151,7 +151,7 @@ log, X closes, Q quits, `]` next page, digits pick.
 
 ## A9. The fight and after-action screens
 
-- [ ] The encounter screen shows the round, the enemy's picture, both sides with
+- [ ] The encounter screen shows the round, the enemy's picture in pixels, both sides with
   health bars (and your heat), each enemy's intent, and the action tiles: the number
   in the top border, the whole name inside ("Retreat"), costs as symbols (▲ heat,
   ⟳ cooldown, × uses left). A crowded fight switches its tiles to a compact list.

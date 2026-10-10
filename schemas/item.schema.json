@@ -3,7 +3,7 @@
   "$id": "item.schema.json",
   "title": "Items (items.json)",
   "description": "Everything that can be carried, fitted or implanted. Every item has a 'kind' that decides its extra fields: frame (a suit), module (fitted into frame slots; gear is a module in a limb or hand slot), implant, material, consumable, misc.",
-  "x-schema-version": 1,
+  "x-schema-version": 2,
   "$ref": "#/$defs/items_file",
   "$defs": {
     "items_file": {

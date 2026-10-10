@@ -119,6 +119,7 @@ its schema:
 | `events` | `event.schema.json` | `event` | Living-world events |
 | `strings` | `strings.schema.json` | `string` | Engine messages and reusable text |
 | `modifications` | `modification.schema.json` | `modification` | Crafting modifications |
+| `art` | `art.schema.json` | `art` | Pictures in pixels, used by id |
 
 `common.schema.json` holds the shared grammar that all of these use, and
 `pack.schema.json` describes the manifest.
@@ -482,7 +483,7 @@ these effects":
 |---|---|
 | `id`, `name`, `description`, `authors` | Identity |
 | `version` | The pack's own version, `major.minor.patch` |
-| `schema_version` | The schema version it targets (currently `1`) |
+| `schema_version` | The schema version it targets (currently `2`) |
 | `purpose` | `game` (default) or `test` |
 | `help` | Optional: the game's own part of the help screen (its premise and a few tips), shown under the interface's help |
 | `start` | `location`, optional `entry` placement, `player` character, `day` (1), `phase` (the first one) |
@@ -693,8 +694,7 @@ One record serves the player's character, NPCs, companions and enemies.
 | Field | Meaning |
 |---|---|
 | `name`, `title`, `description`, `glyph` | The glyph defaults to the first letter of the name |
-| `art` | A picture of up to 10 lines of 21 characters, shown during encounters |
-| `portrait` | A small pixel picture for the character screen: `rows` of pixel letters (all the same length, up to 24 by 24; a space or `.` is see-through) and a `palette` from each letter to a palette colour or a 256-colour number. Two pixel rows share a line (half-block characters); without colour only the shape shows. The checker makes sure rows match and every letter is in the palette |
+| `art` | Their picture: the id of an entry in the pack's art (see [Art](#art-artschemajson)). Shown on the character screen, in conversations, and in fights when they're the enemy in front. Many characters can share one |
 | `tags`, `faction`, `rank` | |
 | `template` | Generic character that encounters and zones spawn copies of; has no location |
 | `location`, `at` | Where a unique character starts; `at` must be a free floor tile |
@@ -890,6 +890,23 @@ How the engine runs them:
   produces must fit in cargo, or the action is refused, so nothing is lost. Each
   action takes one turn unless stated.
 
+### Art (`art.schema.json`)
+
+Pictures in pixels, kept apart from what uses them and referred to by id, so one
+picture can serve many characters. Every picture in the game is one of these.
+
+| Field | Meaning |
+|---|---|
+| `rows` | Pixel rows, top to bottom, all the same length, up to 32 by 32. Each letter or digit is one pixel; a space or `.` is see-through |
+| `palette` | Each pixel letter to a palette colour (`grey`, `white`, `green`, `cyan`, `blue`, `violet`, `yellow`, `orange`, `red`) or a 256-colour terminal number |
+| `notes` | What it shows, for authors |
+
+Two pixel rows share one line of text (half-block characters), so 16 rows take 8
+lines. A picture is drawn centred in the UI pack's **art zone** (`art_width` by
+`art_height`, 16 by 16 in the default UI pack) and cut to it: draw for 16 by 16. Without
+colour only the shape shows, so draw the silhouette first. The checker makes sure the
+rows match and every letter is in the palette.
+
 ### UI packs (`ui.schema.json`)
 
 A **UI pack** standardises the terminal UI and is shared by game packs. It lives in
@@ -915,7 +932,7 @@ win key by key; word entries add up):
 
 | Kind | Holds |
 |---|---|
-| `tokens` | Layout variables. `size`: minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the portrait's width and height in pixels, `save_slots`, `card_min_lines`. `padding`. `glyphs`: the border set, the picked action tile's heavy border, the list cursor, bar steps, the player cursor, the intent, cost, cooldown and charges marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints. `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`): a palette colour, bold, dim |
+| `tokens` | Layout variables. `size`: minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the art zone's width and height in pixels (`art_width`, `art_height`: characters' pictures), `save_slots`, `card_min_lines`. `padding`. `glyphs`: the border set, the picked action tile's heavy border, the list cursor, bar steps, the player cursor, the intent, cost, cooldown and charges marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints. `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`): a palette colour, bold, dim |
 | `screens` | Each screen as zones, top to bottom |
 | `keys` | `bindings` (action → key) and `hints` (what each context shows) |
 | `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |
@@ -1016,11 +1033,11 @@ A full screen for planning and building:
 
 #### The character screen (C)
 
-The portrait beside the identity (name, title, faction and rank, health and heat),
-then a body that scrolls: skills with their progress and next level, stats in
-columns, conditions with the turns they have left, the party with their health, and
-standing. The portrait zone keeps its place without a portrait, sized by
-`portrait_width` and `portrait_height`.
+The character's picture (their `art`) beside the identity (name, title, faction and
+rank, health and heat), then a body that scrolls: skills with their progress and next
+level, stats in columns, conditions with the turns they have left, the party with
+their health, and standing. The art zone keeps its place without a picture, sized by
+`art_width` and `art_height`.
 
 #### Conversations
 
@@ -1083,13 +1100,13 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `budgets` | Power, mass, heat and cargo as bars | fitting | — |
 | `loadout` | The fitting list: worn by slot, spare gear, designs | fitting | — |
 | `pick` | The picked entry, what its action would change, its keys; or its modifications | fitting | — |
-| `portrait` | The player's portrait (the speaker's in a conversation) in half-block pixels | character, talk | `frame` |
+| `portrait` | The player's picture (the speaker's in a conversation) in half-block pixels, in the art zone | character, talk | `frame` |
 | `identity` | Name, title, faction and rank, the pool bars; in a conversation the speaker and their trust | character, talk | — |
 | `skills` | Each skill: level, a bar to the next level, what the next level brings | character | — |
 | `stats` | Derived stats in columns; conditions with the turns they have left | character | — |
 | `people` | The party with their health; your rank and how factions regard you | character | — |
 | `conversation` | The last exchanges, the speaker's line, numbered responses with what trades give and take, Leave | talk | `trades` |
-| `art` | The enemy's picture | encounter | `frame` |
+| `art` | The enemy's picture in half-block pixels, in the art zone (the default UI pack draws it without a frame) | encounter | `frame` |
 | `fighters` | Both sides with bars, statuses and intents; while aiming, the targets marked `▸` | encounter | `intent` |
 | `tiles` | Action tiles: the number in the top border, the name inside, costs as symbols (`▲` heat, `⟳` cooldown, `×` uses left) | encounter | `per_row` (0 = fit) |
 | `action` | The picked action's details in words | encounter | — |
@@ -1180,6 +1197,7 @@ locations.json: entries[0].placements[1]: position [9, 9] is outside the grid
   - templates without a location, standing characters on free floor tiles;
   - no leader loops;
   - the start character isn't a template and isn't placed elsewhere.
+- **Art:** every row of a picture the same length; every pixel letter in the palette.
 - **Encounters, loot and events:**
   - only templates take a count;
   - no loot table rolls itself;
@@ -1206,7 +1224,8 @@ subject word. Used by relations.
 **Amount.** A number in data: fixed, a seeded `{min, max}` range, or scaled from a
 stat or skill.
 
-**Art.** A small picture made of characters, shown during encounters.
+**Art.** A picture in pixels, kept in the pack's art files and used by id: a
+character's `art` shows on the character screen, in conversations and in fights.
 
 **Body.** A character without a suit: size, base stats and implant slots.
 

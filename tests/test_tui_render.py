@@ -443,19 +443,19 @@ class TestFittingScreen(unittest.TestCase):
 
 
 class TestCharacterScreen(unittest.TestCase):
-    """Step 4: the character screen, with its portrait zone."""
+    """Step 4: the character screen, with the art zone for the character's picture."""
 
     def frame(self, state, columns=44, rows=60, **kw):
         return plain(state, columns, rows, screen="character", **kw)
 
-    def pack_copy(self, change):
+    def pack_copy(self, change, file="characters.json", entry_id="char_player"):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         folder = Path(tmp.name) / "test"
         shutil.copytree(ROOT / "packs" / "test", folder)
-        path = folder / "characters.json"
+        path = folder / file
         data = json.loads(path.read_text(encoding="utf-8"))
-        change(next(e for e in data["entries"] if e["id"] == "char_player"))
+        change(next(e for e in data["entries"] if e["id"] == entry_id))
         path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         return folder
 
@@ -463,25 +463,25 @@ class TestCharacterScreen(unittest.TestCase):
         s = new_game(CONTENT, 1)
         coloured = render.render(CONTENT, s, 44, 60, screen="character", ui=UI)
         style = Style(True, UI.tokens["styles"])
-        self.assertIn(style.pixels("▀", 31, 255), coloured)          # visor over its glint: two colours in one cell
+        self.assertIn(style.pixels("▀", 255, 31), coloured)          # a glint over the visor: two colours in one cell
         self.assertIn(style.pixels("█", 166, None), coloured)        # the suit: both halves the same colour
         frame = self.frame(s)
-        self.assertIn("▄██████▄", frame)                              # without colour, the shape
-        width = UI.tokens["size"]["portrait_width"] + 2
+        self.assertIn("▄▄██████▄▄", frame)                            # without colour, the shape
+        width = UI.tokens["size"]["art_width"] + 2
         self.assertIn("┌" + "─" * (width - 2) + "┐", frame)
 
-    def test_without_a_portrait_the_zone_is_kept(self):
-        content = load_pack(self.pack_copy(lambda player: player.pop("portrait")))
+    def test_without_a_picture_the_zone_is_kept(self):
+        content = load_pack(self.pack_copy(lambda player: player.pop("art")))
         frame = ANSI.sub("", render.render(content, new_game(content, 1), 44, 60, screen="character", ui=UI))
         lines = frame.splitlines()
         box = [line for line in lines if line.startswith("││")]
-        self.assertEqual(len(box), UI.tokens["size"]["portrait_height"] // 2)
-        self.assertTrue(any("P" in line[:16] for line in box))       # the initial, in the middle
+        self.assertEqual(len(box), UI.tokens["size"]["art_height"] // 2)
+        self.assertTrue(any("P" in line[:20] for line in box))       # the initial, in the middle
 
-    def test_the_checker_reads_portraits(self):
-        def broken(player):
-            player["portrait"]["rows"][0] += "x"
-        errors = validate_pack(self.pack_copy(broken)).errors
+    def test_the_checker_reads_pictures(self):
+        def broken(picture):
+            picture["rows"][0] += "x"
+        errors = validate_pack(self.pack_copy(broken, "art.json", "art_player")).errors
         self.assertTrue(any("rows have different lengths" in e for e in errors), errors)
         self.assertTrue(any("not in the palette: x" in e for e in errors), errors)
 
@@ -520,17 +520,17 @@ class TestCharacterScreen(unittest.TestCase):
         self.assertIn("Station crew", self.frame(s, 40, 20, scroll=limit))
         self.assertNotIn("Station crew", self.frame(s, 40, 20))
 
-    def test_the_portrait_size_comes_from_the_ui_pack(self):
+    def test_the_art_zone_size_comes_from_the_ui_pack(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         ui_dir = Path(tmp.name) / "mine"
         shutil.copytree(ui_dir_for("default"), ui_dir)
         path = ui_dir / "tokens.json"
         data = json.loads(path.read_text(encoding="utf-8"))
-        data.setdefault("size", {}).update(portrait_width=16, portrait_height=14)
+        data.setdefault("size", {}).update(art_width=20, art_height=14)
         path.write_text(json.dumps(data), encoding="utf-8")
         frame = plain(new_game(CONTENT, 1), ui=load_ui(ui_dir), screen="character")
-        self.assertIn("┌" + "─" * 16 + "┐", frame)
+        self.assertIn("┌" + "─" * 20 + "┐", frame)
         self.assertEqual(len([line for line in frame.splitlines() if line.startswith("││")]), 7)
 
 

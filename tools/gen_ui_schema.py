@@ -89,11 +89,11 @@ WIDGETS = {
      "per_row": intval(0, 0, 9, "Tiles per row; 0 fits as many as the width allows.")}),
  "fighters": (["encounter"], "Both sides with health bars, their statuses with rounds left, and the enemies' intents; while picking a target, the possible targets marked with the cursor glyph and numbered.", {
      "intent": flag(True, "Show each enemy's intent.")}),
- "art": (["encounter"], "The picture of the enemy in front.", {
+ "art": (["encounter"], "The picture of the enemy in front, in half-block pixels in the art zone, centred; without one, its glyph in the middle.", {
      "frame": flag(True, "Draw a frame around it.")}),
  "panel": (["world", "fitting"], "The shared panel for details: what Inspect shows, an item's details, the message history, or an event's card (a question, or a text longer than card_min_lines); questions always open as a card. A title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it.", {
      "slider": flag(True, "Draw a slider at the right edge when the content is longer than the panel.")}),
- "portrait": (["character", "talk"], "The player's portrait on the character screen, the speaker's in a conversation: pixels drawn with half-block characters, two per text cell. Without one, an empty frame of the same size keeps the place.", {
+ "portrait": (["character", "talk"], "The player's picture on the character screen, the speaker's in a conversation: pixels drawn with half-block characters, two per text cell, in the art zone. Without one, an empty frame of the same size keeps the place.", {
      "frame": flag(True, "Draw a frame around it.")}),
  "identity": (["character", "talk"], "Name, title, faction and rank, and the pool bars; in a conversation, the speaker's name, title, faction and trust.", {}),
  "conversation": (["talk"], "The conversation: the last exchanges, the speaker's current line, and your numbered responses (trades show what you give and get), Leave last. It keeps its newest lines in view; up and down look back.", {
@@ -146,8 +146,8 @@ size = obj("Sizes, in terminal cells.", {
    "fighter_bar_length": intval(6, 3, 16, "Length of a health bar in the fighters panel."),
    "side_min_width": intval(14, 8, 60, "The narrowest the panel beside the grid or the art may get."),
    "page_size": intval(9, 1, 9, "Entries per page of the pack panel (picked with 1-9)."),
-   "portrait_width": intval(12, 4, 24, "Width of the portrait zone, in pixels (one text column each)."),
-   "portrait_height": intval(12, 4, 24, "Height of the portrait zone, in pixels (two per line of text)."),
+   "art_width": intval(16, 4, 32, "Width of the art zone (a character's picture: portrait and fight), in pixels (one text column each)."),
+   "art_height": intval(16, 4, 32, "Height of the art zone, in pixels (two per line of text)."),
    "save_slots": intval(3, 1, 9, "How many numbered save slots the start screen offers."),
    "card_min_lines": intval(3, 0, 20, "An event text longer than this many lines on the narrowest screen opens as a card; shorter ones stay in the message log; 0 opens every event text as a card. Questions always open as a card.")}, default={})
 border = obj("The box-drawing set.", {k: char(v, f"The {k.replace('_', ' ')} piece.", 1) for k, v in (
@@ -337,7 +337,7 @@ path = {"type": "string", "pattern": r"^(?!/)(?!.*\.\.)[A-Za-z0-9_\-/]+\.json$",
 manifest = obj("A UI pack's manifest (ui.json). A UI pack is shared by game packs; it owns the look, layout, keys and the UI's words.", {
    "$schema": SCHEMA_REF, "id": c("id"), "name": c("label"),
    "version": {"type": "string", "pattern": r"^\d+\.\d+\.\d+$", "description": "The UI pack's own version."},
-   "schema_version": {"const": 1, "description": "Schema version the UI pack was written for."},
+   "schema_version": {"const": 2, "description": "Schema version the UI pack was written for."},
    "description": c("text"), "authors": arr({"type": "string", "minLength": 1}, "Credits."),
    "files": obj("Data files by kind; files of one kind are merged.", {k: arr(path, f"{k} files.", minItems=1, uniqueItems=True) for k in KINDS},
                 ("tokens", "keys", "screens", "words")),
@@ -347,7 +347,7 @@ schema = {
  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "ui.schema.json",
  "title": "UI packs",
  "description": "A UI pack standardises the terminal UI: tokens (sizes, glyphs, styles), a fixed catalogue of widgets arranged into screens, key bindings with their hints, and the UI's own words. Every field defaults to the standard look, so a UI pack only writes what it changes. The engine owns the catalogue: screens, widgets and where each may appear, input actions, hint contexts and style roles.",
- "x-schema-version": 1, "$ref": "#/$defs/manifest",
+ "x-schema-version": 2, "$ref": "#/$defs/manifest",
  "$defs": dict({"manifest": manifest, "tokens_file": tokens, "keys_file": keys, "screens_file": screens, "words_file": words,
                 "zone": zone, "layout": layout, "hint": hint, "style": style}, **widget_defs),
 }

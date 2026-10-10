@@ -813,28 +813,30 @@ def _adds(frame: Frame, adds: Mapping) -> List[str]:
 # --- the character screen --------------------------------------------------------------
 
 def portrait_size(frame: Frame) -> Tuple[int, int]:
-    """The portrait zone in pixels: width (one column each) and height (two per line, rounded to even)."""
-    return frame.size["portrait_width"], frame.size["portrait_height"] + frame.size["portrait_height"] % 2
+    """The art zone in pixels: width (one column each) and height (two per line, rounded to even)."""
+    return frame.size["art_width"], frame.size["art_height"] + frame.size["art_height"] % 2
 
 
 def portrait_width(frame: Frame, options: Mapping) -> int:
     return portrait_size(frame)[0] + (2 if options.get("frame", True) else 0)
 
 
-def portrait(frame: Frame, width: int, options: Mapping) -> List[str]:
-    """The player's portrait in half-block pixels, centred in a fixed zone; an empty frame without one."""
-    content, style = frame.content, frame.style
-    whose = speaker_of(frame) if frame.screen == "talk" else frame.state.player
-    record = content.get("character", frame.state.characters[whose].source)
+def picture_lines(frame: Frame, art_id: Optional[str], stand_in: str, framed: bool) -> List[str]:
+    """
+    A picture from the pack's art in half-block pixels, centred in the art zone and cut to
+    it; without one, 'stand_in' (an initial, a glyph) in the middle.
+    """
+    style = frame.style
     pw, ph = portrait_size(frame)
     grid = [[None] * pw for _ in range(ph)]                    # colour code per pixel, None = see-through
-    picture = record.get("portrait")
+    picture = frame.content.get("art", art_id) if art_id else None
     if picture:
-        rows = list(picture["rows"])[:ph]
-        top, left = (ph - len(rows)) // 2, (pw - max(len(r) for r in rows)) // 2
+        rows = list(picture["rows"])
+        widest = max(len(r) for r in rows)
+        top, left = (ph - len(rows)) // 2, (pw - widest) // 2
         for y, row in enumerate(rows):
             for x, letter in enumerate(row):
-                if letter not in " ." and 0 <= left + x < pw:
+                if letter not in " ." and 0 <= top + y < ph and 0 <= left + x < pw:
                     grid[top + y][left + x] = _colour_code(picture["palette"][letter])
     lines = []
     for y in range(0, ph, 2):
@@ -852,16 +854,23 @@ def portrait(frame: Frame, width: int, options: Mapping) -> List[str]:
             else:
                 cells.append(style.pixels("▀", upper, lower))
         lines.append("".join(cells))
-    if not picture:                                             # the place kept: the initial in the middle
+    if not picture:                                             # the place kept: the stand-in in the middle
         middle = len(lines) // 2
-        lines[middle] = pad(" " * ((pw - 1) // 2) + record["name"][0], pw)
-    if not options.get("frame", True):
+        lines[middle] = pad(" " * ((pw - 1) // 2) + stand_in, pw)
+    if not framed:
         return lines
     border = frame.glyphs["border"]
     edge = border["horizontal"] * pw
     return ([border["top_left"] + edge + border["top_right"]]
             + [border["vertical"] + line + border["vertical"] for line in lines]
             + [border["bottom_left"] + edge + border["bottom_right"]])
+
+
+def portrait(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The player's picture (the speaker's in a conversation), in the art zone; their initial without one."""
+    whose = speaker_of(frame) if frame.screen == "talk" else frame.state.player
+    record = frame.content.get("character", frame.state.characters[whose].source)
+    return picture_lines(frame, record.get("art"), record["name"][0], options.get("frame", True))
 
 
 def _colour_code(colour) -> int:
@@ -1150,26 +1159,17 @@ def question(frame: Frame, width: int, options: Mapping) -> List[str]:
 # --- encounter widgets -----------------------------------------------------------------
 
 def art_width(frame: Frame, options: Mapping) -> int:
-    return max(visible_len(line) for line in _art_lines(frame, options))
-
-
-def _art_lines(frame: Frame, options: Mapping) -> List[str]:
-    state, content = frame.state, frame.content
-    enemies = encounter.living(state, "enemies") if state.encounter is not None else []
-    record = content.get("character", state.characters[enemies[0]].source) if enemies else {}
-    lines = list(record.get("art", ())) or [record.get("glyph") or record.get("name", " ")[0]]
-    widest = max(len(line) for line in lines)
-    if not options.get("frame", True) or frame.compact:
-        return [line.ljust(widest) for line in lines]
-    border = frame.glyphs["border"]
-    edge = border["horizontal"] * (widest + 2)
-    return ([border["top_left"] + edge + border["top_right"]]
-            + [f"{border['vertical']} {line.ljust(widest)} {border['vertical']}" for line in lines]
-            + [border["bottom_left"] + edge + border["bottom_right"]])
+    return portrait_size(frame)[0] + (2 if options.get("frame", True) and not frame.compact else 0)
 
 
 def art(frame: Frame, width: int, options: Mapping) -> List[str]:
-    return [line if visible_len(line) <= width else ANSI.sub("", line)[:width] for line in _art_lines(frame, options)]
+    """The enemy in front, in the art zone; its glyph without a picture."""
+    state, content = frame.state, frame.content
+    enemies = encounter.living(state, "enemies") if state.encounter is not None else []
+    record = content.get("character", state.characters[enemies[0]].source) if enemies else {}
+    stand_in = record.get("glyph") or record.get("name", " ")[0]
+    lines = picture_lines(frame, record.get("art"), stand_in, options.get("frame", True) and not frame.compact)
+    return [line if visible_len(line) <= width else ANSI.sub("", line)[:width] for line in lines]
 
 
 def fighters(frame: Frame, width: int, options: Mapping) -> List[str]:
