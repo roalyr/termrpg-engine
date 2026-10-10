@@ -70,6 +70,7 @@ timestamps can make Python run stale cached bytecode.
 | `ROADMAP.md` | The engine rebuild plan |
 | `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `craft.py` workshops, `events.py` the living world, `save.py` saves, `rng.py` seeded randomness |
 | `tui/`, `play.py` | The terminal UI for the new engine, and how to start it |
+| `tools/` | Standalone terminal tools for editing packs (`python3 -m tools` lists them; see `tools/README.md`) |
 | `core/`, `ui/`, `main.py` | The old engine (being replaced) |
 | `core/data/default-1.0/` | The old engine's content (to be rewritten as a game pack) |
 | `tests/` | Unit tests; `tests/test_pack_validation.py` covers the validator |

@@ -49,6 +49,7 @@ to check your work, and the rules of the data that are easy to get wrong.
 | `schemas/**` | Ask first | The contract with the engine. See [Changing the engine or schemas](#changing-the-engine-or-schemas) |
 | `core/schema.py`, `core/pack.py`, `core/packtool.py` | Ask first | The validator and tools |
 | `engine/**` | Ask first | Small, tested changes only |
+| `tools/**` | Ask first | Standalone editors for packs; see `tools/README.md` |
 | `tests/**` | Add, don't weaken | Add tests for new code. Never delete or loosen a test to make it pass |
 | `README.md` | When schemas change | Keep the schema section and glossary in sync |
 | `ROADMAP.md` | When a milestone is done | Tick it off |
