@@ -195,6 +195,25 @@ class RoomTest(unittest.TestCase):
         self.assertTrue(room.handle("x"))                     # back to the list, nothing changed
         self.assertFalse(room.handle("esc"))
 
+    def test_colours_for_a_placement_its_object_and_the_room(self):
+        room = self.room()
+        location = self.pack.find("locations", "loc_workshop").entry
+        crate = next(p for p in location["placements"] if p["id"] == "workshop_crate")
+        room.cursor = tuple(crate["at"])
+        self.keys(room, "c", "enter", *"red", "enter")         # this crate only
+        self.assertEqual(crate["colour"], "red")
+        self.keys(room, "c", "down", "enter", *"violet", "enter")   # every crate
+        self.assertEqual(self.pack.find("objects", crate["object"]).entry["colour"], "violet")
+        room.cursor = (0, 0)
+        self.keys(room, "c", *"grey", "enter")                 # a wall tile: the room's walls
+        self.assertEqual(location["grid"]["wall_colour"], "grey")
+        self.keys(room, "c", "up", "enter")                    # the list starts on grey; Default takes it away
+        self.assertNotIn("wall_colour", location["grid"])
+        room.cursor = (2, 2)
+        self.keys(room, "c", *"terminal", "enter", "right", "right", "enter")   # from the 256-colour grid
+        self.assertEqual(location["grid"]["floor_colour"], 2)
+        self.assert_saved_clean()
+
     def test_a_door_to_another_room_leads_both_ways(self):
         room = self.room()
         room.cursor = (2, 5)                                  # the east wall

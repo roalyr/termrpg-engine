@@ -15,7 +15,7 @@ Nothing is written until you leave the room and say yes; then the checker runs.
 import sys
 from typing import Callable, List, Optional, Tuple
 
-from tools.lib import forms, rooms, screen, term
+from tools.lib import colours, forms, rooms, screen, term
 from tools.lib.packfiles import Found, PackFiles
 from tui.widgets import map_glyph, room_line
 
@@ -240,6 +240,7 @@ class Room:
                 continue
             found.append(("t" if kind == rooms.toggled(here) else "", f"Make it {TILE_WORDS[kind]}",
                           lambda kind=kind: self.set_tile(kind)))
+        found.append(("c", "Colour…", self.start_colour))
         found.append(("z", "Room size…", self.start_size))
         if self.pack.dirty:
             found.append(("", "Save changes", self.save))
@@ -351,6 +352,42 @@ class Room:
         clear = self.location.get("entry") == placed.get("id")
         rooms.set_entry(self.pack, self.found, None if clear else placed)
         self.say("Arrivals appear in the centre." if clear else f"Arrivals appear at {placed['id']}.")
+
+    def start_colour(self) -> None:
+        """Colours what's under the cursor: a person, this placement or every one of its object, or the room's walls or floor."""
+        location, pos = self.location, self.cursor
+        placed = rooms.placement_at(location, pos)
+        person = next((f for f in self.pack.entries("characters") if f.entry.get("location") == location["id"]
+                       and isinstance(f.entry.get("at"), list) and tuple(f.entry["at"]) == pos), None)
+        targets = []                                   # (label, entry, file, field)
+        if person is not None:
+            targets.append((person.entry.get("name", person.entry["id"]), person.entry, person.file, "colour"))
+        elif placed is not None:
+            name = rooms.name(self.pack, placed)
+            targets.append((f"This {name}", placed, self.found.file, "colour"))
+            template = self.pack.find("objects", placed.get("object", ""))
+            if template is not None:
+                targets.append((f"Every {template.entry.get('name', template.entry['id'])}", template.entry,
+                                template.file, "colour"))
+        else:
+            wall = rooms.tile(location, pos) == "#"
+            targets.append(("The walls here" if wall else "The floor here", location["grid"], self.found.file,
+                            "wall_colour" if wall else "floor_colour"))
+
+        def colour(target):
+            label, entry, file, field = target
+
+            def done(chosen):
+                if chosen is colours.DEFAULT:
+                    entry.pop(field, None)
+                else:
+                    entry[field] = chosen
+                self.pack.touch(file)
+                self.say(f"{label}: {'the default colour' if chosen is colours.DEFAULT else chosen}.")
+            colours.choose(self, f"Colour: {label}", done, entry.get(field), default="Default (the UI pack's)")
+        if len(targets) == 1:
+            return colour(targets[0])
+        self.ask(forms.Picker(self.look, "Colour what?", [forms.Choice(t[0], t) for t in targets]), colour)
 
     def set_tile(self, kind: str) -> None:
         rooms.set_tile(self.pack, self.found, self.cursor, kind)

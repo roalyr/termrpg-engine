@@ -119,9 +119,11 @@ Pick a location, move the cursor over its grid; Enter lists what works on the ti
 | L | Door to another location: pick the object, the location, then the tile there (a free wall tile facing this one is suggested) | Empty wall tile on a side |
 | O | Open the side to another location: an open edge | A side with nothing on it |
 | T | Wall and floor swap; "Make it nothing" is in the list | Anywhere (people stand on floor) |
+| C | Colour: this placement or every one of its object, the person standing here, or the room's walls or floor. A named colour, a terminal colour (0-255) from the grid, or Default (the UI pack's colour) | Anywhere |
 | Z | Room size, `width x height`: 3 to 12 across, 3 to 10 down (a custom shape keeps its top-left part) | Anywhere |
 
 The side panel lists each kind of thing in the room once, with where exits lead.
+The room is drawn as the game draws it: joined walls, glyphs in their map colours.
 Everything else on a placement (state, contents, interactions, names) stays in JSON.
 
 **Two ways between locations:**
