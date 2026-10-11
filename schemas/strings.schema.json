@@ -3,7 +3,7 @@
   "$id": "strings.schema.json",
   "title": "Strings (strings.json)",
   "description": "All text the engine prints comes from here, so the engine names no content and writes no prose. Also holds reusable texts referred to as '@id'.",
-  "x-schema-version": 2,
+  "x-schema-version": 3,
   "$ref": "#/$defs/strings_file",
   "$defs": {
     "strings_file": {
@@ -197,12 +197,13 @@
             "character"
           ]
         },
-        "overheated": {
+        "pool_full": {
           "type": "string",
           "minLength": 1,
-          "description": "A character reaches maximum heat. Placeholders: {character}.",
+          "description": "A filling pool (heat, fatigue) reaches its maximum. Placeholders: {character}, {stat}.",
           "x-placeholders": [
-            "character"
+            "character",
+            "stat"
           ]
         },
         "status_applied": {
@@ -258,22 +259,10 @@
           "description": "The game was saved. No placeholders.",
           "x-placeholders": []
         },
-        "refit_needed": {
+        "workshop_needed": {
           "type": "string",
           "minLength": 1,
-          "description": "Fitting or removing needs a workshop that offers refit. No placeholders.",
-          "x-placeholders": []
-        },
-        "frame_worn": {
-          "type": "string",
-          "minLength": 1,
-          "description": "A frame is already worn. No placeholders.",
-          "x-placeholders": []
-        },
-        "frame_needed": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Modules need a worn frame. No placeholders.",
+          "description": "Equipping or taking off gear in this slot type needs a workshop offering 'equip'. No placeholders.",
           "x-placeholders": []
         },
         "no_free_slot": {
@@ -287,7 +276,7 @@
         "cannot_use": {
           "type": "string",
           "minLength": 1,
-          "description": "The character doesn't meet the item's fit requirement. Placeholders: {item}.",
+          "description": "The character doesn't meet the item's equip requirement. Placeholders: {item}.",
           "x-placeholders": [
             "item"
           ]
@@ -302,11 +291,13 @@
             "have"
           ]
         },
-        "remove_modules_first": {
+        "empty_slots_first": {
           "type": "string",
           "minLength": 1,
-          "description": "A frame comes off only after its modules. No placeholders.",
-          "x-placeholders": []
+          "description": "Gear comes off only after what is in its slots. Placeholders: {item}.",
+          "x-placeholders": [
+            "item"
+          ]
         },
         "storage_full": {
           "type": "string",
@@ -316,10 +307,10 @@
             "container"
           ]
         },
-        "item_fitted": {
+        "item_equipped": {
           "type": "string",
           "minLength": 1,
-          "description": "An item was fitted or put on. Placeholders: {item}.",
+          "description": "An item was equipped. Placeholders: {item}.",
           "x-placeholders": [
             "item"
           ]
@@ -382,6 +373,14 @@
           "description": "Why an action can't be used: no uses left this encounter. No placeholders.",
           "x-placeholders": []
         },
+        "cannot_pay": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why an action can't be used: a pool can't pay its cost. Placeholders: {stat}.",
+          "x-placeholders": [
+            "stat"
+          ]
+        },
         "needs_item": {
           "type": "string",
           "minLength": 1,
@@ -393,7 +392,7 @@
         "skips_turn": {
           "type": "string",
           "minLength": 1,
-          "description": "Someone loses their action (overheated, stunned). Placeholders: {character}.",
+          "description": "Someone loses their action (a full pool, stunned). Placeholders: {character}.",
           "x-placeholders": [
             "character"
           ]
@@ -478,7 +477,7 @@
             "item"
           ]
         },
-        "item_fabricated": {
+        "item_made": {
           "type": "string",
           "minLength": 1,
           "description": "An item was made. Placeholders: {item}.",

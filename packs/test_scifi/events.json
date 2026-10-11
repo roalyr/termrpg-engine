@@ -145,13 +145,13 @@
       "when": {
         "not": {
           "check": "knows_design",
-          "item": "module_shield"
+          "item": "gear_shield"
         }
       },
       "effects": [
         {
           "op": "learn_design",
-          "item": "module_shield"
+          "item": "gear_shield"
         },
         {
           "op": "modify_item",

@@ -1,15 +1,15 @@
 """
-Crafting at workshops: dismantle, fabricate, modify and repair.
+Crafting at workshops: dismantle, make, modify and repair.
 
 Each needs a workshop within reach that offers the service and whose max_grade (if
 any) is at least the item's grade. Results are predictable: no rolls.
 
-- Dismantle destroys one carried item, gives its salvage yields, and teaches its
-  design when salvage.learn is on and learn_requires holds.
-- Fabricate makes one copy of a known design from fabricate.inputs.
+- Dismantle destroys one carried item, gives its dismantle yields, and teaches its
+  design when dismantle.learn is on and learn_requires holds.
+- Make makes one copy of a known design from make.inputs.
 - Modify applies a modification to a held item: the item must match applies_to,
   have a free mod slot, not already carry it when 'once', the crafter must meet
-  'requires' and carry the material. A fitted item must still fit the loadout after.
+  'requires' and carry the material. Equipped gear must still fit the loadout after.
 - Repair restores condition from repair.inputs, by 'amount' or fully.
 
 What comes out must fit in cargo, or the action is refused: nothing is lost.
@@ -97,7 +97,7 @@ def _give(content: Content, cs: CharState, parts: Sequence[Tuple[str, int]]) -> 
     inventory = cs.inventory
     for item_id, count in parts:
         inventory = add_items(content, inventory, item_id, count)
-    if len(inventory) > stats.budget_provided(content, cs, "cargo"):
+    if len(inventory) > stats.cargo_capacity(content, cs):
         return None
     return cs._replace(inventory=inventory)
 
@@ -115,13 +115,13 @@ def _one_off(cs: CharState, slot: Slot) -> Tuple[CharState, ItemInst]:
 def dismantle_problem(content: Content, state: GameState, slot: Slot) -> Optional[str]:
     cs = state.characters[state.player]
     inst = stats.item_at(cs, slot)
-    if slot[0] != "inventory" or not content.get("item", inst.item).get("salvage"):
+    if slot[0] != "inventory" or not content.get("item", inst.item).get("dismantle"):
         return content.message("unavailable")
     problem = service_problem(content, state, "dismantle", inst.item)
     if problem:
         return problem
     rest, _ = _one_off(cs, slot)
-    yields = [(y["item"], y["count"]) for y in content.get("item", inst.item)["salvage"]["yields"]]
+    yields = [(y["item"], y["count"]) for y in content.get("item", inst.item)["dismantle"]["yields"]]
     if _give(content, rest, yields) is None:
         return content.message("cargo_full", item=content.get("item", yields[0][0])["name"])
     return None
@@ -134,13 +134,13 @@ def dismantle(content: Content, state: GameState, slot: Slot) -> GameState:
         return _say(state, "plain", problem)
     cs, inst = _one_off(state.characters[state.player], slot)
     item = content.get("item", inst.item)
-    salvage = item["salvage"]
-    cs = _give(content, cs, [(y["item"], y["count"]) for y in salvage["yields"]])
+    parts = item["dismantle"]
+    cs = _give(content, cs, [(y["item"], y["count"]) for y in parts["yields"]])
     state = _set(state, cs)
-    names = ", ".join(f"{content.get('item', y['item'])['name']} x{y['count']}" for y in salvage["yields"])
+    names = ", ".join(f"{content.get('item', y['item'])['name']} x{y['count']}" for y in parts["yields"])
     state = _say(state, "gain", content.message("item_dismantled", item=item["name"], items=names))
-    if salvage.get("learn", True) and inst.item not in cs.designs:
-        ok, state = conditions.holds(content, state, Ctx(self_id=cs.id), salvage.get("learn_requires"))
+    if parts.get("learn", True) and inst.item not in cs.designs:
+        ok, state = conditions.holds(content, state, Ctx(self_id=cs.id), parts.get("learn_requires"))
         if ok:
             cs = state.characters[cs.id]
             state = _set(state, cs._replace(designs=cs.designs + (inst.item,)))
@@ -153,45 +153,45 @@ def dismantle(content: Content, state: GameState, slot: Slot) -> GameState:
 # --- Fabricate -------------------------------------------------------------------------
 
 def designs(content: Content, state: GameState) -> List[str]:
-    """Known designs that can be fabricated at all (they have fabricate data)."""
+    """Known designs that can be made at all (they have make data)."""
     cs = state.characters[state.player]
-    return [d for d in cs.designs if content.get("item", d).get("fabricate")]
+    return [d for d in cs.designs if content.get("item", d).get("make")]
 
 
-def fabricate_problem(content: Content, state: GameState, item_id: str) -> Optional[str]:
+def make_problem(content: Content, state: GameState, item_id: str) -> Optional[str]:
     cs = state.characters[state.player]
     item = content.get("item", item_id)
-    if item_id not in cs.designs or not item.get("fabricate"):
+    if item_id not in cs.designs or not item.get("make"):
         return content.message("unavailable")
-    problem = service_problem(content, state, "fabricate", item_id)
+    problem = service_problem(content, state, "make", item_id)
     if problem:
         return problem
-    ok, _ = conditions.holds(content, state, Ctx(self_id=cs.id), item["fabricate"].get("requires"))
+    ok, _ = conditions.holds(content, state, Ctx(self_id=cs.id), item["make"].get("requires"))
     if not ok:
         return content.message("cannot_use", item=item["name"])
-    lacking = _missing(content, cs, item["fabricate"]["inputs"])
+    lacking = _missing(content, cs, item["make"]["inputs"])
     if lacking:
         return content.message("needs_materials", items=lacking)
     rest = cs
-    for part in item["fabricate"]["inputs"]:
+    for part in item["make"]["inputs"]:
         rest = _take(content, rest, part["item"], part["count"])
     if _give(content, rest, [(item_id, 1)]) is None:
         return content.message("cargo_full", item=item["name"])
     return None
 
 
-def fabricate(content: Content, state: GameState, item_id: str) -> GameState:
+def make(content: Content, state: GameState, item_id: str) -> GameState:
     state = state._replace(messages=())
-    problem = fabricate_problem(content, state, item_id)
+    problem = make_problem(content, state, item_id)
     if problem:
         return _say(state, "plain", problem)
     item = content.get("item", item_id)
     cs = state.characters[state.player]
-    for part in item["fabricate"]["inputs"]:
+    for part in item["make"]["inputs"]:
         cs = _take(content, cs, part["item"], part["count"])
     state = _set(state, _give(content, cs, [(item_id, 1)]))
-    state = _say(state, "gain", content.message("item_fabricated", item=item["name"]))
-    return turns.advance(content, state, item["fabricate"]["time"])
+    state = _say(state, "gain", content.message("item_made", item=item["name"]))
+    return turns.advance(content, state, item["make"]["time"])
 
 
 # --- Modify ----------------------------------------------------------------------------
@@ -203,7 +203,7 @@ def modifications_for(content: Content, state: GameState, slot: Slot) -> List[st
     found = []
     for mod_id, mod in content.all("modification").items():
         rule = mod["applies_to"]
-        if view["kind"] not in rule["kinds"]:
+        if view["kind"] != "gear":
             continue
         if rule.get("tags") and not set(rule["tags"]) & set(view["tags"]):
             continue
@@ -233,9 +233,9 @@ def modify_problem(content: Content, state: GameState, slot: Slot, mod_id: str) 
         return content.message("needs_materials", items=lacking)
     if slot[0] == "inventory" and inst.count > 1:       # one off the stack needs a cargo stack of its own
         stacks = len(_take(content, cs, mod["material"], mod["count"]).inventory) + 1
-        if stacks > stats.budget_provided(content, cs, "cargo"):
+        if stacks > stats.cargo_capacity(content, cs):
             return content.message("cargo_full", item=stats.item_view(content, inst)["name"])
-    if slot[0] in ("frame", "fitted", "implants"):
+    if slot[0] == "equipped":
         problem = build.budget_problem(content, _modified(content, cs, slot, mod_id))
         if problem:
             return problem

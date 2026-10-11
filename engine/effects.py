@@ -97,7 +97,7 @@ def _name_list(content: Content, counts: Sequence[Tuple[str, int]]) -> str:
 def _give(content: Content, state: GameState, char_id: str, item_id: str, count: int) -> Tuple[GameState, int]:
     """Gives as many as fit in cargo. Returns the state and how many were given."""
     cs = state.characters[char_id]
-    capacity = int(stats.budget_provided(content, cs, "cargo"))
+    capacity = int(stats.cargo_capacity(content, cs))
     given = 0
     inventory = cs.inventory
     for _ in range(count):
@@ -175,7 +175,7 @@ def _modify_item(content, state, ctx, effect):
             continue
         cs = state.characters[cid]
         inst = stats.item_at(cs, slot)
-        if inst.count > 1 and len(cs.inventory) + 1 > stats.budget_provided(content, cs, "cargo"):
+        if inst.count > 1 and len(cs.inventory) + 1 > stats.cargo_capacity(content, cs):
             if cid == state.player:   # one off the stack would need a cargo stack of its own
                 state = _say(state, "plain", content.message("cargo_full", item=stats.item_view(content, inst)["name"]))
             continue
@@ -304,15 +304,16 @@ GET_UP = freeze({"op": "_get_up"})    # not a pack effect: queued by the engine 
 
 
 def _restore(content, state, ctx, effect):
-    """Brings a pool back to normal: health and charges up toward their maximum, heat down toward 0."""
+    """Brings a pool back to normal: a draining pool up toward its maximum, a filling pool down toward rest."""
     health = content.stat_roles["health"]
-    cooling = effect["stat"] == content.stat_roles.get("heat")
+    cooling = stats.fills(content, effect["stat"])
     for cid in _who(state, ctx, effect):
         cs = state.characters[cid]
         amount, state = _number(content, state, ctx, effect["amount"])
         top = stats.stat(content, cs, effect["stat"])
         if cooling:
-            now = max(0, stats.current(content, cs, effect["stat"]) - max(0, amount))
+            now = stats.current(content, cs, effect["stat"])
+            now = max(min(now, stats.rest(content, cs, effect["stat"])), now - max(0, amount))
         else:
             now = min(top, stats.current(content, cs, effect["stat"]) + max(0, amount))
         cs = cs._replace(pools=freeze({**cs.pools, effect["stat"]: now}))

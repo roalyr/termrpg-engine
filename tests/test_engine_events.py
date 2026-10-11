@@ -99,7 +99,7 @@ class TestFiring(unittest.TestCase):
 
     def test_manual_events_still_need_their_condition(self):
         s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id=PLAYER),
-                [freeze({"op": "learn_design", "item": "module_shield", "subject": "self"})])
+                [freeze({"op": "learn_design", "item": "gear_shield", "subject": "self"})])
         before = s.characters[PLAYER].designs
         s = events.fire(CONTENT, s, "event_insight", manual=True)         # 'when' fails: already known
         self.assertEqual(s.characters[PLAYER].designs, before)

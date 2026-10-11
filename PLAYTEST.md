@@ -17,7 +17,7 @@ python3 play.py --slot two --new      # straight into a save named 'two'
 python3 play.py --ui packs/ui/<id>    # another UI pack
 ```
 
-Default keys: W A S D move, `.` waits, P pack, F fitting, C character, L message
+Default keys: W A S D move, `.` waits, P pack, F gear, C character, L message
 log, X closes, Q quits, `]` next page, digits pick.
 
 ## Where things are
@@ -57,7 +57,7 @@ log, X closes, Q quits, `]` next page, digits pick.
   their first line, not under their number.
 - [ ] Colour means something: warning (danger, over budget, a loss), gain, greyed out
   (unavailable), and item grade. Item names show their grade colour wherever items
-  are listed: the pack, the fitting screen, item details.
+  are listed: the pack, the gear screen, item details.
 - [ ] With `--no-colour` everything is still readable: picks show with a cursor or a
   heavy border, unavailable options keep their hint, the portrait is a silhouette.
 - [ ] Wording is consistent: "Message log", "1 turn" / "3 turns", "Keys above act".
@@ -92,7 +92,7 @@ log, X closes, Q quits, `]` next page, digits pick.
 ## A4. The pack panel
 
 - [ ] P shows cargo, then what you carry and, next to storage, what's stored,
-  numbered; no fitting here. The message log stays visible beside it.
+  numbered; no equipping here. The message log stays visible beside it.
 - [ ] Picking a number highlights the entry and lists its options (take, store, use,
   I Details) indented right under it; the pick stays in view at 48×24.
 - [ ] With more than nine entries it shows "Page 1/2"; up and down (or `]`) turn pages,
@@ -127,24 +127,25 @@ log, X closes, Q quits, `]` next page, digits pick.
 - [ ] On a short terminal the portrait row gives way; up and down look back through
   a long conversation.
 
-## A7. The fitting screen
+## A7. The gear screen
 
-- [ ] F shows the worn suit and where you are ("At: Workbench", or "Planning only"),
-  the budgets as bars, then Worn by slot (empty slots as "· empty"), Spare and
-  Designs.
+- [ ] F shows "Gear" and where you are ("At: Workbench", or "Planning only"), the
+  budgets as bars, then Equipped by slot (the body's slots, the suit's hand and back
+  slots indented under it, empty slots as "· empty"), Spare and Designs.
 - [ ] Up and down move the pick, skipping empty slots, and the list scrolls to keep it
   in view; digits jump. The pick shows with colour off too.
 - [ ] The picked entry says what its action would change ("Remove: PWR 4→3/6").
   Something that would go over a budget shows the number in the warning colour and is
   greyed out with the reason; something blocked for another reason shows no preview.
-- [ ] Away from a workshop every action is greyed out with "Needs a refit workshop."
+- [ ] Away from a workshop, changing gear is greyed out with "Needs a workshop that can
+  change this." (every slot type in the sci-fi pack needs one).
 - [ ] M lists the modifications that apply, with cost, what each adds and why not; a
   digit applies one. I opens the details; X goes back a level each time.
 
 ## A8. The character screen
 
 - [ ] C shows your portrait in half-block pixels beside your name, rank and health
-  and heat bars; then skills with a progress bar and what the next level brings,
+  and heat bars (every pool); then skills with a progress bar and what the next level brings,
   stats in columns, conditions with turns left, the party with health (or "down"),
   your rank and how the station crew regards you.
 - [ ] Up and down scroll it on a short terminal; C or X closes it.
@@ -156,7 +157,7 @@ log, X closes, Q quits, `]` next page, digits pick.
   name, "You haven't been here yet." and the legend.
 - [ ] After walking to Storage and through the airlock, M shows Storage as `■`;
   "Out of this region: Crater rim"; `]` shows the Surface with "2 of 2" in the title.
-- [ ] M or X closes it; on the fitting screen M still lists modifications.
+- [ ] M or X closes it; on the gear screen M still lists modifications.
 
 ## A9. The fight and after-action screens
 
@@ -218,19 +219,19 @@ log, X closes, Q quits, `]` next page, digits pick.
 - [ ] Going through puts you at the matching door on the other side and passes time.
 - [ ] A suit too big for a door or room is refused ("doesn't fit").
 
-## B5. Suits, modules and implants
+## B5. Suits, tools and implants
 
-All of this happens on the fitting screen.
+All of this happens on the gear screen.
 
-- [ ] At the suit bay (a refit workshop) the heavy suit and the eye implant are listed
-  as spare "in Suit bay" and fit straight from there.
-- [ ] Taking off the worn frame needs its modules removed first; a new frame needs the
-  old one off first.
+- [ ] At the suit bay (an equip workshop) the heavy suit and the eye implant are listed
+  as spare "in Suit bay" and go on straight from there.
+- [ ] Taking off the suit needs the tools in its slots taken off first; a new suit
+  needs the old one off first (the body has one suit slot).
 - [ ] Health, budgets and cargo follow the loadout: they drop when a suit comes off
   and rise when a heavier one goes on.
-- [ ] Fitting is refused when it would go over a budget or has no free slot, and
-  removing or fitting away from a refit workshop is refused with a hint.
-- [ ] Fitting an implant changes its stat (initiative).
+- [ ] Equipping is refused when it would go over a budget or has no free slot, and
+  removing or equipping away from an equip workshop is refused with a hint.
+- [ ] An implant changes its stat (initiative).
 
 ## B6. Skills
 
@@ -239,13 +240,13 @@ All of this happens on the fitting screen.
 
 ## B7. Crafting at a workshop
 
-All of these happen on the fitting screen, next to the workbench.
+All of these happen on the gear screen, next to the workbench.
 
 - [ ] **Repair** restores a worn item's condition for materials; an undamaged item says
   so.
 - [ ] **Dismantle** gives materials and, with enough skill, teaches the design (a
   Designs section appears); without the skill it says the item is beyond you.
-- [ ] **Fabricate** makes the item from a learned design, spends materials and time,
+- [ ] **Make** makes the item from a learned design, spends materials and time,
   and is refused when the result won't fit in cargo.
 - [ ] **Modify** fills a mod slot for good and shows in the item's name; it's refused
   when no slot is free, when the material is missing, or when the item's grade is

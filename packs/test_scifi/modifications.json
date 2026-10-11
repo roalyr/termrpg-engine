@@ -7,12 +7,7 @@
       "description": "Extra plating and bracing, made from scrap: tougher, and slower to wear down.",
       "material": "material_scrap",
       "count": 2,
-      "applies_to": {
-        "kinds": [
-          "frame",
-          "module"
-        ]
-      },
+      "applies_to": {},
       "adds": {
         "stats": {
           "stat_armor": 1
@@ -26,9 +21,6 @@
       "description": "Odd metal worked into a hand tool. It burns whatever it cuts and filters the air around you, but it runs a little hot.",
       "material": "material_odd_metal",
       "applies_to": {
-        "kinds": [
-          "module"
-        ],
         "tags": [
           "tag_tool"
         ],
@@ -49,7 +41,7 @@
           "tag_filter"
         ],
         "uses": {
-          "heat": 1
+          "stat_heat": 1
         }
       }
     }

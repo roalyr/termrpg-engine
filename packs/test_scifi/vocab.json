@@ -31,20 +31,20 @@
       "id": "stat_power",
       "name": "Power",
       "short": "PWR",
-      "role": "power"
+      "budget": true
     },
     {
       "id": "stat_mass",
       "name": "Mass",
       "short": "MAS",
-      "role": "mass"
+      "budget": true
     },
     {
       "id": "stat_heat",
       "name": "Heat",
       "short": "HT",
       "kind": "pool",
-      "role": "heat"
+      "fills": true
     },
     {
       "id": "stat_initiative",
@@ -102,19 +102,24 @@
   ],
   "slot_types": [
     {
+      "id": "slot_worn",
+      "name": "Suit",
+      "equip_at_workshop": true
+    },
+    {
       "id": "slot_back",
       "name": "Back",
-      "host": "frame"
+      "equip_at_workshop": true
     },
     {
       "id": "slot_head",
       "name": "Head",
-      "host": "body"
+      "equip_at_workshop": true
     },
     {
       "id": "slot_hand",
       "name": "Hand",
-      "host": "frame"
+      "equip_at_workshop": true
     }
   ],
   "sizes": [

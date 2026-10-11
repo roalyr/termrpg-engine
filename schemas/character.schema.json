@@ -2,8 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "character.schema.json",
   "title": "Characters (characters.json)",
-  "description": "Everyone: the player's character, NPCs, companions and enemies share one record. The suit is their stats, their skills are their own.",
-  "x-schema-version": 2,
+  "description": "Everyone: the player's character, NPCs, companions and enemies share one record. Their gear makes their stats; their skills are their own.",
+  "x-schema-version": 3,
   "$ref": "#/$defs/characters_file",
   "$defs": {
     "characters_file": {
@@ -95,7 +95,7 @@
         },
         "body": {
           "type": "object",
-          "description": "The character without a suit.",
+          "description": "The character without any gear.",
           "properties": {
             "size": {
               "$ref": "common.schema.json#/$defs/size"
@@ -113,15 +113,14 @@
             },
             "slots": {
               "type": "array",
-              "description": "Implant slots unlocked at the start.",
+              "description": "Slots the body has at the start, of any slot type: hands, a worn slot for armour or a suit, implant slots.",
               "items": {
                 "type": "object",
-                "description": "Unlocked implant slots of one type.",
+                "description": "Slots of one type.",
                 "properties": {
                   "slot_type": {
                     "$ref": "common.schema.json#/$defs/id",
-                    "x-ref": "slot_type",
-                    "description": "Must be a body slot type."
+                    "x-ref": "slot_type"
                   },
                   "count": {
                     "type": "integer",
@@ -142,22 +141,9 @@
             "stats"
           ]
         },
-        "frame": {
-          "$ref": "common.schema.json#/$defs/id",
-          "x-ref": "item",
-          "description": "Worn frame (a suit). Without one the character acts with its body alone."
-        },
-        "fitted": {
+        "equipped": {
           "type": "array",
-          "description": "Modules fitted into the frame's slots.",
-          "items": {
-            "$ref": "common.schema.json#/$defs/id",
-            "x-ref": "item"
-          }
-        },
-        "implants": {
-          "type": "array",
-          "description": "Implants in the body's slots.",
+          "description": "Gear equipped at the start. Each takes a free slot of its type, from the body or from gear listed before it.",
           "items": {
             "$ref": "common.schema.json#/$defs/id",
             "x-ref": "item"
@@ -188,7 +174,7 @@
         },
         "designs": {
           "type": "array",
-          "description": "Item designs they know at the start and can fabricate.",
+          "description": "Item designs they know at the start and can make.",
           "items": {
             "$ref": "common.schema.json#/$defs/id",
             "x-ref": "item"

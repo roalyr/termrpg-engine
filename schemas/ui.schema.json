@@ -3,7 +3,7 @@
   "$id": "ui.schema.json",
   "title": "UI packs",
   "description": "A UI pack standardises the terminal UI: tokens (sizes, glyphs, styles), a fixed catalogue of widgets arranged into screens, key bindings with their hints, and the UI's own words. Every field defaults to the standard look, so a UI pack only writes what it changes. The engine owns the catalogue: screens, widgets and where each may appear, input actions, hint contexts and style roles.",
-  "x-schema-version": 2,
+  "x-schema-version": 3,
   "$ref": "#/$defs/manifest",
   "$defs": {
     "manifest": {
@@ -26,7 +26,7 @@
           "description": "The UI pack's own version."
         },
         "schema_version": {
-          "const": 2,
+          "const": 3,
           "description": "Schema version the UI pack was written for."
         },
         "description": {
@@ -318,7 +318,7 @@
               "minLength": 1,
               "maxLength": 1,
               "default": "▲",
-              "description": "Before an action tile's heat cost."
+              "description": "Before an action tile's pool cost."
             },
             "mark_danger": {
               "type": "string",
@@ -1082,11 +1082,11 @@
               "default": "p",
               "description": "Open or close the pack: what you carry, and storage within reach. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
-            "fitting": {
+            "gear": {
               "type": "string",
               "pattern": "^[^0-9A-Z\\s]$",
               "default": "f",
-              "description": "Open the fitting screen. It may share its key with Fit, which only works on that screen. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Open the gear screen. It may share its key with Equip, which only works on that screen. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "character": {
               "type": "string",
@@ -1098,7 +1098,7 @@
               "type": "string",
               "pattern": "^[^0-9A-Z\\s]$",
               "default": "m",
-              "description": "Open or close the map. It may share its key with the fitting screen's modifications, which only work there. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Open or close the map. It may share its key with the gear screen's modifications, which only work there. One key: not a digit, a space or an upper-case letter (keys match either case)."
             },
             "history": {
               "type": "string",
@@ -1122,7 +1122,7 @@
               "type": "string",
               "pattern": "^[^0-9A-Z\\s]$",
               "default": "]",
-              "description": "Next page of the fitting board. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Next page of the pack panel, or the next region on the map. One key: not a digit, a space or an upper-case letter (keys match either case)."
             }
           },
           "additionalProperties": false,
@@ -1150,7 +1150,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1207,7 +1207,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1264,7 +1264,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1321,7 +1321,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1378,7 +1378,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1435,7 +1435,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1492,7 +1492,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1549,7 +1549,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1606,7 +1606,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1663,7 +1663,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1702,9 +1702,9 @@
               },
               "default": []
             },
-            "fitting": {
+            "gear": {
               "type": "array",
-              "description": "The fitting screen, picking from its list.",
+              "description": "The gear screen, picking from its list.",
               "items": {
                 "type": "object",
                 "description": "One key hint: the keys of some actions (or 1-9), then a label.",
@@ -1720,7 +1720,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1761,7 +1761,7 @@
             },
             "modify": {
               "type": "array",
-              "description": "The fitting screen's list of modifications for the picked item.",
+              "description": "The gear screen's list of modifications for the picked item.",
               "items": {
                 "type": "object",
                 "description": "One key hint: the keys of some actions (or 1-9), then a label.",
@@ -1777,7 +1777,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1834,7 +1834,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1891,7 +1891,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -1948,7 +1948,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -2005,7 +2005,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -2062,7 +2062,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -2119,7 +2119,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -2176,7 +2176,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -2233,7 +2233,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -2290,7 +2290,7 @@
                         "move_east",
                         "wait",
                         "pack",
-                        "fitting",
+                        "gear",
                         "character",
                         "map",
                         "history",
@@ -2374,9 +2374,9 @@
           },
           "minItems": 1
         },
-        "fitting": {
+        "gear": {
           "type": "array",
-          "description": "The fitting screen: the loadout, spare gear and designs, and building.",
+          "description": "The gear screen: what's equipped by slot, spare gear and designs, and building.",
           "items": {
             "$ref": "#/$defs/zone"
           },
@@ -2444,7 +2444,7 @@
         "world",
         "encounter",
         "debrief",
-        "fitting",
+        "gear",
         "character",
         "talk",
         "map",
@@ -2489,19 +2489,19 @@
             "workshop": {
               "type": "string",
               "minLength": 1,
-              "description": "Menu label on a workshop (a bench, a suit bay): opens the fitting screen with the fitting key. No placeholders.",
+              "description": "Menu label on a workshop (a bench, a forge): opens the gear screen with the gear key. No placeholders.",
               "x-placeholders": []
             },
-            "fit": {
+            "equip": {
               "type": "string",
               "minLength": 1,
-              "description": "Board: fit a frame, module or implant. No placeholders.",
+              "description": "Board: equip a piece of gear. No placeholders.",
               "x-placeholders": []
             },
             "remove": {
               "type": "string",
               "minLength": 1,
-              "description": "Board: remove a worn or fitted item. No placeholders.",
+              "description": "Board: take off equipped gear. No placeholders.",
               "x-placeholders": []
             },
             "store": {
@@ -2528,7 +2528,7 @@
               "description": "Board: repair a worn item. No placeholders.",
               "x-placeholders": []
             },
-            "fabricate": {
+            "make": {
               "type": "string",
               "minLength": 1,
               "description": "Board: make a copy of a known design. No placeholders.",
@@ -2542,10 +2542,10 @@
                 "modification"
               ]
             },
-            "pack_fitted": {
+            "pack_equipped": {
               "type": "string",
               "minLength": 1,
-              "description": "Board heading: worn and fitted items. No placeholders.",
+              "description": "Board heading: equipped gear. No placeholders.",
               "x-placeholders": []
             },
             "pack_carried": {
@@ -2565,7 +2565,7 @@
             "pack_designs": {
               "type": "string",
               "minLength": 1,
-              "description": "Board heading: known designs, near a fabricating workshop. No placeholders.",
+              "description": "Board heading: known designs, near a workshop that makes things. No placeholders.",
               "x-placeholders": []
             },
             "pack_more": {
@@ -2755,11 +2755,12 @@
                 "value"
               ]
             },
-            "cost_heat": {
+            "cost_pool": {
               "type": "string",
               "minLength": 1,
-              "description": "Action details: heat it adds. Placeholders: {amount}.",
+              "description": "Action details: what it costs of a pool (mana spent, heat added). Placeholders: {stat}, {amount}.",
               "x-placeholders": [
+                "stat",
                 "amount"
               ]
             },
@@ -3081,10 +3082,10 @@
               "description": "Help: what the pack key does. No placeholders.",
               "x-placeholders": []
             },
-            "key_fitting": {
+            "key_gear": {
               "type": "string",
               "minLength": 1,
-              "description": "Help: what the fitting key does. No placeholders.",
+              "description": "Help: what the gear key does. No placeholders.",
               "x-placeholders": []
             },
             "key_character": {
@@ -3272,22 +3273,10 @@
               "description": "Board: open the picked item's details. No placeholders.",
               "x-placeholders": []
             },
-            "kind_frame": {
+            "kind_gear": {
               "type": "string",
               "minLength": 1,
-              "description": "Item details: what a frame is called. No placeholders.",
-              "x-placeholders": []
-            },
-            "kind_module": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Item details: what a module is called. No placeholders.",
-              "x-placeholders": []
-            },
-            "kind_implant": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Item details: what an implant is called. No placeholders.",
+              "description": "Item details: what gear is called. No placeholders.",
               "x-placeholders": []
             },
             "kind_material": {
@@ -3334,7 +3323,7 @@
             "item_uses": {
               "type": "string",
               "minLength": 1,
-              "description": "Item details label: power, mass and heat it spends. No placeholders.",
+              "description": "Item details label: budgets and pools it uses while equipped. No placeholders.",
               "x-placeholders": []
             },
             "item_gives": {
@@ -3343,10 +3332,16 @@
               "description": "Item details label: stats it adds. No placeholders.",
               "x-placeholders": []
             },
-            "item_mounts": {
+            "item_slots": {
               "type": "string",
               "minLength": 1,
-              "description": "Item details label: a frame's slots. No placeholders.",
+              "description": "Item details label: the slots it adds. No placeholders.",
+              "x-placeholders": []
+            },
+            "item_worn_size": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Item details label: the size its wearer becomes. No placeholders.",
               "x-placeholders": []
             },
             "item_tags": {
@@ -3399,16 +3394,16 @@
             "item_needs": {
               "type": "string",
               "minLength": 1,
-              "description": "Item details label: what wearing or fitting it needs. No placeholders.",
+              "description": "Item details label: what equipping it needs. No placeholders.",
               "x-placeholders": []
             },
-            "item_salvage": {
+            "item_dismantle": {
               "type": "string",
               "minLength": 1,
               "description": "Item details label: what taking it apart gives. No placeholders.",
               "x-placeholders": []
             },
-            "item_fabricate": {
+            "item_make": {
               "type": "string",
               "minLength": 1,
               "description": "Item details label: what making one costs. No placeholders.",
@@ -3441,91 +3436,77 @@
               "description": "Item details: you don't know how to make it yet. No placeholders.",
               "x-placeholders": []
             },
-            "fitting_title": {
+            "gear_title": {
               "type": "string",
               "minLength": 1,
-              "description": "Fitting screen title. Placeholders: {frame}.",
-              "x-placeholders": [
-                "frame"
-              ]
-            },
-            "fitting_no_frame": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Fitting screen title without a frame worn. No placeholders.",
+              "description": "Gear screen title. No placeholders.",
               "x-placeholders": []
             },
-            "fitting_at": {
+            "gear_at": {
               "type": "string",
               "minLength": 1,
-              "description": "Fitting screen: the workshop within reach. Placeholders: {place}.",
+              "description": "Gear screen: the workshop within reach. Placeholders: {place}.",
               "x-placeholders": [
                 "place"
               ]
             },
-            "fitting_planning": {
+            "gear_planning": {
               "type": "string",
               "minLength": 1,
-              "description": "Fitting screen: no workshop within reach. No placeholders.",
+              "description": "Gear screen: no workshop within reach. No placeholders.",
               "x-placeholders": []
             },
-            "fitting_worn": {
+            "gear_worn": {
               "type": "string",
               "minLength": 1,
-              "description": "Fitting list heading: worn and fitted. No placeholders.",
+              "description": "Gear list heading: equipped. No placeholders.",
               "x-placeholders": []
             },
-            "fitting_spare": {
+            "gear_spare": {
               "type": "string",
               "minLength": 1,
-              "description": "Fitting list heading: spare gear. No placeholders.",
+              "description": "Gear list heading: spare gear. No placeholders.",
               "x-placeholders": []
             },
-            "fitting_designs": {
+            "gear_designs": {
               "type": "string",
               "minLength": 1,
-              "description": "Fitting list heading: known designs. No placeholders.",
+              "description": "Gear list heading: known designs. No placeholders.",
               "x-placeholders": []
             },
-            "fitting_empty": {
+            "gear_empty": {
               "type": "string",
               "minLength": 1,
-              "description": "Fitting list: an empty slot. No placeholders.",
+              "description": "Gear list: an empty slot. No placeholders.",
               "x-placeholders": []
             },
-            "fitting_frame_slot": {
+            "gear_carried": {
               "type": "string",
               "minLength": 1,
-              "description": "Fitting list: the frame's own line when none is worn. No placeholders.",
+              "description": "Gear list: where a spare item is. No placeholders.",
               "x-placeholders": []
             },
-            "fitting_carried": {
+            "gear_in": {
               "type": "string",
               "minLength": 1,
-              "description": "Fitting list: where a spare item is. No placeholders.",
-              "x-placeholders": []
-            },
-            "fitting_in": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Fitting list: a stored spare item's place. Placeholders: {container}.",
+              "description": "Gear list: a stored spare item's place. Placeholders: {container}.",
               "x-placeholders": [
                 "container"
               ]
             },
-            "fitting_fitted": {
+            "gear_equipped": {
               "type": "string",
               "minLength": 1,
-              "description": "Picked entry: it's worn or fitted. No placeholders.",
+              "description": "Picked entry: it's equipped. No placeholders.",
               "x-placeholders": []
             },
-            "fitting_design": {
+            "gear_design": {
               "type": "string",
               "minLength": 1,
               "description": "Picked entry: a design. No placeholders.",
               "x-placeholders": []
             },
-            "fitting_change": {
+            "gear_change": {
               "type": "string",
               "minLength": 1,
               "description": "Picked entry: what an action would change. Placeholders: {action}, {changes}.",
@@ -3795,7 +3776,7 @@
               "move_east",
               "wait",
               "pack",
-              "fitting",
+              "gear",
               "character",
               "map",
               "history",
@@ -3865,7 +3846,7 @@
     },
     "widget_title": {
       "type": "object",
-      "description": "The screen's title line: the location and region with hazards, the encounter and its round, or the fight's result. Allowed on: world, encounter, debrief, fitting, character, talk, map, start, slots, help, quit.",
+      "description": "The screen's title line: the location and region with hazards, the encounter and its round, or the fight's result. Allowed on: world, encounter, debrief, gear, character, talk, map, start, slots, help, quit.",
       "properties": {
         "widget": {
           "const": "title"
@@ -3879,7 +3860,7 @@
         "world",
         "encounter",
         "debrief",
-        "fitting",
+        "gear",
         "character",
         "talk",
         "map",
@@ -3913,7 +3894,7 @@
           "const": "status"
         },
         "pools": {
-          "description": "Which pool stats show as bars: 'all', or a list of stat roles in order.",
+          "description": "Which pool stats show as bars: 'all', or a list of groups in order: 'health', the other 'draining' pools (mana), the 'filling' pools (heat).",
           "default": "all",
           "oneOf": [
             {
@@ -3921,15 +3902,12 @@
             },
             {
               "type": "array",
-              "description": "Stat roles.",
+              "description": "Groups of pools.",
               "items": {
                 "enum": [
                   "health",
-                  "heat",
-                  "power",
-                  "mass",
-                  "initiative",
-                  "cargo"
+                  "draining",
+                  "filling"
                 ]
               },
               "minItems": 1,
@@ -3979,7 +3957,7 @@
     },
     "widget_log": {
       "type": "object",
-      "description": "Messages, in the order they happened. Allowed on: world, encounter, debrief, fitting, character, talk, map, start, slots, help, quit.",
+      "description": "Messages, in the order they happened. Allowed on: world, encounter, debrief, gear, character, talk, map, start, slots, help, quit.",
       "properties": {
         "widget": {
           "const": "log"
@@ -3998,7 +3976,7 @@
         "world",
         "encounter",
         "debrief",
-        "fitting",
+        "gear",
         "character",
         "talk",
         "map",
@@ -4053,7 +4031,7 @@
     },
     "widget_board": {
       "type": "object",
-      "description": "The fitting board: budgets, items by where they are, the picked item's options. Allowed on: world.",
+      "description": "The pack panel: cargo, items by where they are, the picked item's options. Allowed on: world.",
       "properties": {
         "widget": {
           "const": "board"
@@ -4061,7 +4039,7 @@
         "budgets": {
           "type": "boolean",
           "default": true,
-          "description": "Show the power, mass and cargo line."
+          "description": "Show the cargo line."
         }
       },
       "additionalProperties": false,
@@ -4139,7 +4117,7 @@
     },
     "widget_panel": {
       "type": "object",
-      "description": "The shared panel for details: what Inspect shows, an item's details, the message history, or an event's card (a question, or a text longer than card_min_lines); questions always open as a card. A title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it. Allowed on: world, fitting.",
+      "description": "The shared panel for details: what Inspect shows, an item's details, the message history, or an event's card (a question, or a text longer than card_min_lines); questions always open as a card. A title, a subtitle and a text. It takes the place of the other widgets in its zone while open; up and down scroll it. Allowed on: world, gear.",
       "properties": {
         "widget": {
           "const": "panel"
@@ -4156,7 +4134,7 @@
       ],
       "x-screens": [
         "world",
-        "fitting"
+        "gear"
       ]
     },
     "widget_portrait": {
@@ -4306,7 +4284,7 @@
     },
     "widget_budgets": {
       "type": "object",
-      "description": "Power, mass, heat and cargo as bars: used of what the loadout provides. Allowed on: fitting.",
+      "description": "Each budget, each filling pool's constant load, and cargo as bars: used of what the loadout provides. Allowed on: gear.",
       "properties": {
         "widget": {
           "const": "budgets"
@@ -4317,12 +4295,12 @@
         "widget"
       ],
       "x-screens": [
-        "fitting"
+        "gear"
       ]
     },
     "widget_loadout": {
       "type": "object",
-      "description": "The fitting screen's list: what's worn by slot (empty slots too), spare gear, designs. Up and down move the pick; the list scrolls to keep it in view. Allowed on: fitting.",
+      "description": "The gear screen's list: what's equipped by slot (empty slots too; slots that gear adds under it), spare gear, designs. Up and down move the pick; the list scrolls to keep it in view. Allowed on: gear.",
       "properties": {
         "widget": {
           "const": "loadout"
@@ -4333,12 +4311,12 @@
         "widget"
       ],
       "x-screens": [
-        "fitting"
+        "gear"
       ]
     },
     "widget_pick": {
       "type": "object",
-      "description": "The picked entry: what it is, what its action would change, and its action keys; or the modifications that apply to it. Allowed on: fitting.",
+      "description": "The picked entry: what it is, what its action would change, and its action keys; or the modifications that apply to it. Allowed on: gear.",
       "properties": {
         "widget": {
           "const": "pick"
@@ -4349,7 +4327,7 @@
         "widget"
       ],
       "x-screens": [
-        "fitting"
+        "gear"
       ]
     },
     "widget_action": {
@@ -4450,7 +4428,7 @@
     },
     "widget_keys": {
       "type": "object",
-      "description": "The key hints for the current context, built from the key bindings. Allowed on: world, encounter, debrief, fitting, character, talk, map, start, slots, help, quit.",
+      "description": "The key hints for the current context, built from the key bindings. Allowed on: world, encounter, debrief, gear, character, talk, map, start, slots, help, quit.",
       "properties": {
         "widget": {
           "const": "keys"
@@ -4464,7 +4442,7 @@
         "world",
         "encounter",
         "debrief",
-        "fitting",
+        "gear",
         "character",
         "talk",
         "map",

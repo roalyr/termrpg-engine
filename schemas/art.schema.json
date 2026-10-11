@@ -3,7 +3,7 @@
   "$id": "art.schema.json",
   "title": "Art (art.json)",
   "description": "Pictures in pixels that other entries use by id, e.g. a character's 'art'. One picture can serve many characters.",
-  "x-schema-version": 2,
+  "x-schema-version": 3,
   "$ref": "#/$defs/art_file",
   "$defs": {
     "art_file": {

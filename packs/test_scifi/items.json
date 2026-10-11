@@ -2,11 +2,13 @@
   "$schema": "../../schemas/item.schema.json",
   "entries": [
     {
-      "id": "frame_light",
-      "kind": "frame",
+      "id": "gear_light_suit",
+      "kind": "gear",
+      "slot_type": "slot_worn",
       "name": "Light suit",
       "description": "A light work suit with two hand mounts and one on the back. Easy to move in and it fits through any door, but it won't stop much.",
       "size": 3,
+      "worn_size": 3,
       "grade": "grade_common",
       "stats": {
         "stat_health": 20,
@@ -27,11 +29,13 @@
       "mod_slots": 2
     },
     {
-      "id": "frame_heavy",
-      "kind": "frame",
+      "id": "gear_heavy_suit",
+      "kind": "gear",
+      "slot_type": "slot_worn",
       "name": "Heavy suit",
       "description": "A sealed heavy suit with its own air filter and thick plating. Too big for the station's doors, so it stays in the room where you put it on. Handling it takes some Salvage experience.",
       "size": 5,
+      "worn_size": 5,
       "grade": "grade_fine",
       "tags": [
         "tag_filter"
@@ -54,15 +58,15 @@
           "count": 3
         }
       ],
-      "fit_requires": {
+      "equip_requires": {
         "check": "skill",
         "skill": "skill_salvage",
         "min": 2
       }
     },
     {
-      "id": "module_cutter",
-      "kind": "module",
+      "id": "gear_cutter",
+      "kind": "gear",
       "name": "Cutter",
       "description": "A hand cutter for opening doors and hulls, and a decent weapon in a pinch. It wears down with use; scrap at a workbench fixes it.",
       "size": 1,
@@ -72,14 +76,14 @@
       "condition": 4,
       "slot_type": "slot_hand",
       "uses": {
-        "power": 1,
-        "mass": 2
+        "stat_power": 1,
+        "stat_mass": 2
       },
       "actions": [
         "action_strike"
       ],
       "mod_slots": 1,
-      "salvage": {
+      "dismantle": {
         "yields": [
           {
             "item": "material_scrap",
@@ -92,7 +96,7 @@
           "min": 2
         }
       },
-      "fabricate": {
+      "make": {
         "inputs": [
           {
             "item": "material_scrap",
@@ -111,17 +115,17 @@
       }
     },
     {
-      "id": "module_shield",
-      "kind": "module",
+      "id": "gear_shield",
+      "kind": "gear",
       "name": "Shield",
       "description": "A back-mounted shield plate. It adds armour, and in a fight you can brace behind it.",
       "size": 2,
       "grade": "grade_fine",
       "slot_type": "slot_back",
       "uses": {
-        "power": 3,
-        "mass": 3,
-        "heat": 2
+        "stat_power": 3,
+        "stat_mass": 3,
+        "stat_heat": 2
       },
       "stats": {
         "stat_armor": 2
@@ -132,8 +136,8 @@
       "mod_slots": 2
     },
     {
-      "id": "implant_eye",
-      "kind": "implant",
+      "id": "gear_eye_implant",
+      "kind": "gear",
       "name": "Eye implant",
       "description": "A small eye implant that sharpens your reactions. You act a little sooner in a fight.",
       "size": 0,

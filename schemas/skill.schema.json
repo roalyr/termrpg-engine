@@ -2,8 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "skill.schema.json",
   "title": "Skills (skills.json)",
-  "description": "Skills: one short list, levels 1 to the pack's skill_max_level. The suit is your stats; you are your skills.",
-  "x-schema-version": 2,
+  "description": "Skills: one short list, levels 1 to the pack's skill_max_level. Gear makes your stats; you are your skills.",
+  "x-schema-version": 3,
   "$ref": "#/$defs/skills_file",
   "$defs": {
     "skills_file": {

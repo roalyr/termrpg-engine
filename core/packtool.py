@@ -175,7 +175,7 @@ def cmd_explain(topic: List[str]) -> int:
         return 0
     found = _find(topic, schemas)
     if found is None:
-        print(f"Nothing called '{' '.join(topic)}'. Try: explain checks, explain ops, explain item frame, "
+        print(f"Nothing called '{' '.join(topic)}'. Try: explain checks, explain ops, explain item gear, "
               f"explain location. Run 'explain' alone for all topics.")
         return 2
     title, node, file = found

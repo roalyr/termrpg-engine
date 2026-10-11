@@ -30,14 +30,14 @@
       "id": "loot_rare",
       "entries": [
         {
-          "item": "module_cutter",
+          "item": "gear_cutter",
           "when": {
             "check": "rank",
             "min": 1
           }
         },
         {
-          "item": "implant_eye"
+          "item": "gear_eye_implant"
         }
       ]
     },

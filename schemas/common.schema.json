@@ -3,7 +3,7 @@
   "$id": "common.schema.json",
   "title": "Common grammar",
   "description": "Shared building blocks for every pack file: ids and references, text, amounts, conditions, effects and interactions. The lists of checks (check_*) and operations (op_*) are the engine's feature list. Parity rule: nothing here is player-only; any character may be controlled by the player or by the AI. Definitions marked x-status 'reserved' are planned but not implemented by the engine yet.",
-  "x-schema-version": 2,
+  "x-schema-version": 3,
   "$defs": {
     "id": {
       "type": "string",
@@ -70,7 +70,7 @@
       "minimum": 0,
       "maximum": 9,
       "x-ref": "size",
-      "description": "Size class of anything (item, object, character, suit frame, vessel), smallest 0. A shorthand for volume. Things that hold or let others through also have 'holds_size': the largest class that fits in, through or onto them. The pack names each class."
+      "description": "Size class of anything (item, object, character, suit, vessel), smallest 0. A shorthand for volume. Things that hold or let others through also have 'holds_size': the largest class that fits in, through or onto them. The pack names each class."
     },
     "duration": {
       "type": "integer",
@@ -102,7 +102,7 @@
         },
         {
           "type": "object",
-          "description": "stat (or skill level) of the subject, times 'times', plus 'plus', rounded down. E.g. damage that grows with a module's cutting stat.",
+          "description": "stat (or skill level) of the subject, times 'times', plus 'plus', rounded down. E.g. damage that grows with a weapon's cutting stat.",
           "properties": {
             "stat": {
               "$ref": "#/$defs/id",
@@ -195,7 +195,7 @@
       ]
     },
     "item_pick": {
-      "description": "Which of the subject's items an effect or check means: a specific item, any item with a tag, whatever is fitted in a slot type, or the item that satisfied the current interaction's requirement ('used').",
+      "description": "Which of the subject's items an effect or check means: a specific item, any item with a tag, whatever is equipped in a slot type, or the item that satisfied the current interaction's requirement ('used').",
       "oneOf": [
         {
           "type": "object",
@@ -213,7 +213,7 @@
         },
         {
           "type": "object",
-          "description": "The first carried or fitted item with this tag.",
+          "description": "The first carried or equipped item with this tag.",
           "properties": {
             "tag": {
               "$ref": "#/$defs/id",
@@ -227,7 +227,7 @@
         },
         {
           "type": "object",
-          "description": "The item fitted in a slot of this type.",
+          "description": "The item equipped in a slot of this type.",
           "properties": {
             "slot_type": {
               "$ref": "#/$defs/id",
@@ -546,7 +546,7 @@
         },
         "hint": {
           "$ref": "#/$defs/text",
-          "description": "Shown when 'requires' fails, e.g. 'Needs a cutter or a strong frame.'"
+          "description": "Shown when 'requires' fails, e.g. 'Needs a cutter or a strong suit.'"
         },
         "time": {
           "type": "integer",
@@ -579,7 +579,7 @@
     },
     "check_has_tag": {
       "type": "object",
-      "description": "The subject has this tag from any of its sources (fitted gear, carried items, skills, implants, party members).",
+      "description": "The subject has this tag from any of its sources (equipped gear, carried items, skills, party members).",
       "properties": {
         "check": {
           "const": "has_tag"
@@ -594,13 +594,13 @@
         "source": {
           "enum": [
             "any",
-            "fitted",
+            "equipped",
             "carried",
             "body",
             "party"
           ],
           "default": "any",
-          "description": "Limit where the tag may come from. 'fitted' = suit gear and modules, 'body' = implants and skills, 'party' = companions."
+          "description": "Limit where the tag may come from. 'equipped' = gear in slots, 'body' = skills and the character's own tags, 'party' = companions."
         }
       },
       "additionalProperties": false,
@@ -611,7 +611,7 @@
     },
     "check_has_item": {
       "type": "object",
-      "description": "The subject holds at least this many of the item: carried by default, or fitted (worn frame, modules, implants), or either.",
+      "description": "The subject holds at least this many of the item: carried by default, or equipped, or either.",
       "properties": {
         "check": {
           "const": "has_item"
@@ -628,11 +628,11 @@
         "source": {
           "enum": [
             "carried",
-            "fitted",
+            "equipped",
             "any"
           ],
           "default": "carried",
-          "description": "Where the items may be. 'carried' (the default) matches what take_item can take; 'fitted' = the worn frame, modules and implants."
+          "description": "Where the items may be. 'carried' (the default) matches what take_item can take; 'equipped' = gear in slots."
         },
         "subject": {
           "$ref": "#/$defs/subject"
@@ -749,7 +749,7 @@
     },
     "check_knows_design": {
       "type": "object",
-      "description": "The subject knows how to fabricate this item.",
+      "description": "The subject knows how to make this item.",
       "properties": {
         "check": {
           "const": "knows_design"
@@ -912,7 +912,7 @@
     },
     "check_size": {
       "type": "object",
-      "description": "The subject's size class is within bounds (inclusive). A character's size is that of their current suit frame, or their body without one.",
+      "description": "The subject's size class is within bounds (inclusive). A character's size is the largest worn_size of their equipped gear, or their body's without any.",
       "properties": {
         "check": {
           "const": "size"
@@ -1302,7 +1302,7 @@
     },
     "op_learn_design": {
       "type": "object",
-      "description": "The subject learns how to fabricate an item. Dismantling does this by itself when the skill requirement is met.",
+      "description": "The subject learns how to make an item. Dismantling does this by itself when the skill requirement is met.",
       "properties": {
         "op": {
           "const": "learn_design"
@@ -1375,7 +1375,7 @@
     },
     "op_restore": {
       "type": "object",
-      "description": "Bring a pool back to normal: health and charges rise toward their maximum (heal, repair, recharge); heat falls toward 0 (cool down). Restoring health above 0 gets a downed character up.",
+      "description": "Bring a pool back to normal: draining pools (health, mana, charges) rise toward their maximum; filling pools (heat) fall toward their resting value. Restoring health above 0 gets a downed character up.",
       "properties": {
         "op": {
           "const": "restore"
@@ -1713,7 +1713,7 @@
     },
     "op_unlock_slot": {
       "type": "object",
-      "description": "Open new implant slots in the subject's body.",
+      "description": "Open new slots of a type in the subject's body.",
       "properties": {
         "op": {
           "const": "unlock_slot"

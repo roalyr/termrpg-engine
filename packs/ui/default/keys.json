@@ -7,7 +7,7 @@
     "move_east": "d",
     "wait": ".",
     "pack": "p",
-    "fitting": "f",
+    "gear": "f",
     "character": "c",
     "map": "m",
     "history": "l",
@@ -40,9 +40,9 @@
       },
       {
         "actions": [
-          "fitting"
+          "gear"
         ],
-        "label": "hint_fitting"
+        "label": "hint_gear"
       },
       {
         "actions": [
@@ -227,7 +227,7 @@
         "label": "hint_back"
       }
     ],
-    "fitting": [
+    "gear": [
       {
         "actions": [
           "move_north",

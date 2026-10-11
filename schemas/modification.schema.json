@@ -2,8 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "modification.schema.json",
   "title": "Modifications (modifications.json)",
-  "description": "Crafting's main path: improving found items. The material decides the result, always the same way; rare materials give rare properties. Fabricating, dismantling and repairing are described on the items themselves.",
-  "x-schema-version": 2,
+  "description": "Crafting's main path: improving found items. The material decides the result, always the same way; rare materials give rare properties. Making, dismantling and repairing are described on the items themselves.",
+  "x-schema-version": 3,
   "$ref": "#/$defs/modifications_file",
   "$defs": {
     "modifications_file": {
@@ -54,28 +54,15 @@
         },
         "applies_to": {
           "type": "object",
-          "description": "Which items it can be applied to. An item must match every field given.",
+          "description": "Which gear it can be applied to. Gear must match every field given; with none, any gear with a free mod slot.",
           "properties": {
-            "kinds": {
-              "type": "array",
-              "description": "Item kinds.",
-              "items": {
-                "enum": [
-                  "frame",
-                  "module",
-                  "implant"
-                ]
-              },
-              "minItems": 1,
-              "uniqueItems": true
-            },
             "tags": {
               "$ref": "common.schema.json#/$defs/tags",
               "description": "The item has at least one of these."
             },
             "slot_types": {
               "type": "array",
-              "description": "The item fits one of these slot types.",
+              "description": "The gear goes in one of these slot types.",
               "items": {
                 "$ref": "common.schema.json#/$defs/id",
                 "x-ref": "slot_type"
@@ -84,10 +71,7 @@
               "uniqueItems": true
             }
           },
-          "additionalProperties": false,
-          "required": [
-            "kinds"
-          ]
+          "additionalProperties": false
         },
         "requires": {
           "$ref": "common.schema.json#/$defs/condition",
@@ -126,19 +110,14 @@
             },
             "uses": {
               "type": "object",
-              "description": "Change to what a module uses from the frame's budgets. Negative lowers it.",
-              "properties": {
-                "power": {
-                  "type": "number"
-                },
-                "mass": {
-                  "type": "number"
-                },
-                "heat": {
-                  "type": "number"
-                }
+              "description": "Change to what the gear uses of budget stats. Negative lowers it.",
+              "propertyNames": {
+                "$ref": "common.schema.json#/$defs/id"
               },
-              "additionalProperties": false
+              "additionalProperties": {
+                "type": "number"
+              },
+              "x-ref-keys": "stat"
             }
           },
           "additionalProperties": false,

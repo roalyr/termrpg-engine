@@ -3,7 +3,7 @@
   "$id": "object.schema.json",
   "title": "Objects (objects.json)",
   "description": "Templates for things that sit in locations: doors, crates, terminals, machines, bunks. Locations place them; each placement may override the name, state or single interactions.",
-  "x-schema-version": 2,
+  "x-schema-version": 3,
   "$ref": "#/$defs/objects_file",
   "$defs": {
     "objects_file": {
@@ -60,22 +60,31 @@
         },
         "workshop": {
           "type": "object",
-          "description": "It is a workshop: characters can refit and craft here.",
+          "description": "It is a workshop: characters can change gear and craft here.",
           "properties": {
             "services": {
               "type": "array",
-              "description": "What can be done here. 'refit' allows changing frames, modules and implants; refitting is possible only at workshops that offer it.",
+              "description": "What can be done here. 'equip' allows changing gear in slot types that need a workshop ('equip_at_workshop').",
               "items": {
                 "enum": [
-                  "refit",
+                  "equip",
                   "dismantle",
-                  "fabricate",
+                  "make",
                   "modify",
                   "repair"
                 ]
               },
               "minItems": 1,
               "uniqueItems": true
+            },
+            "equip_slot_types": {
+              "type": "array",
+              "description": "The slot types its 'equip' can change. All of them if left out.",
+              "items": {
+                "$ref": "common.schema.json#/$defs/id",
+                "x-ref": "slot_type"
+              },
+              "minItems": 1
             },
             "max_grade": {
               "$ref": "common.schema.json#/$defs/id",
@@ -91,7 +100,7 @@
         "storage": {
           "type": "integer",
           "minimum": 1,
-          "description": "It can hold this many item stacks (a locker, a cargo rack, a suit bay). Items must also fit its holds_size."
+          "description": "It can hold this many item stacks (a locker, a cargo rack, an armour stand). Items must also fit its holds_size."
         },
         "contents": {
           "type": "array",

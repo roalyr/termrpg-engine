@@ -13,14 +13,17 @@
         },
         "slots": [
           {
+            "slot_type": "slot_worn"
+          },
+          {
             "slot_type": "slot_head"
           }
         ]
       },
-      "frame": "frame_light",
-      "fitted": [
-        "module_cutter",
-        "module_shield"
+      "equipped": [
+        "gear_light_suit",
+        "gear_cutter",
+        "gear_shield"
       ],
       "inventory": [
         {
@@ -82,12 +85,15 @@
         },
         "slots": [
           {
+            "slot_type": "slot_worn"
+          },
+          {
             "slot_type": "slot_head"
           }
         ]
       },
-      "implants": [
-        "implant_eye"
+      "equipped": [
+        "gear_eye_implant"
       ],
       "wants": [
         "tag_tool"
@@ -214,7 +220,12 @@
         "size": 3,
         "stats": {
           "stat_health": 10
-        }
+        },
+        "slots": [
+          {
+            "slot_type": "slot_worn"
+          }
+        ]
       },
       "views": [
         {
@@ -232,7 +243,12 @@
         "size": 3,
         "stats": {
           "stat_health": 10
-        }
+        },
+        "slots": [
+          {
+            "slot_type": "slot_worn"
+          }
+        ]
       },
       "views": [
         {
@@ -250,7 +266,12 @@
         "size": 3,
         "stats": {
           "stat_health": 10
-        }
+        },
+        "slots": [
+          {
+            "slot_type": "slot_worn"
+          }
+        ]
       }
     }
   ]

@@ -3,8 +3,8 @@ Where an entry is used, in words, and for items where the player can get them.
 
 Every use is found the way the checker finds references (tools.lib.refs) and named by
 the entry it sits in: a crate's contents, a trade's give_item, a loot table, another
-item's salvage. For an item, the uses that put it in the player's hands are its
-sources: loot that something rolls, storage contents, gifts and trades, salvage, the
+item's dismantling. For an item, the uses that put it in the player's hands are its
+sources: loot that something rolls, storage contents, gifts and trades, dismantling, the
 player's starting gear, and its own design when the player can learn it. An item with
 no source can't be had in play.
 """
@@ -84,13 +84,12 @@ def describe(pack: PackFiles, rel: str, path: str, ident: Any = None) -> Use:
                                           "roll_loot": "rolls it", "knows_design": "asks if its design is known"}.get(op, op.replace("_", " ")))
     if "contents" in keys:
         return Use(kind, entry_id, name, "holds it at the start")
-    if "salvage" in keys:
+    if "dismantle" in keys:
         return Use(kind, entry_id, name, "dismantling it yields it")
-    for key, words in (("fabricate", "needed to fabricate it"), ("repair", "needed to repair it"),
-                       ("material", "its material"), ("consumes", "uses it up"), ("fit_requires", "needed to fit it"),
+    for key, words in (("make", "needed to make it"), ("repair", "needed to repair it"),
+                       ("material", "its material"), ("consumes", "uses it up"), ("equip_requires", "needed to equip it"),
                        ("always", "always in it"), ("entries", "can be drawn from it"), ("designs", "knows its design"),
-                       ("inventory", "carries it"), ("fitted", "has it fitted"), ("implants", "has it implanted"),
-                       ("frame", "wears it"), ("loot", "drops it"), ("placements", "placed there"),
+                       ("inventory", "carries it"), ("equipped", "has it equipped"), ("loot", "drops it"), ("placements", "placed there"),
                        ("object_pool", "may turn up there"), ("allies", "fights beside the player"),
                        ("enemies", "fights in it"), ("spawns", "may turn up there")):
         if key in keys[1:]:
@@ -139,20 +138,19 @@ def item_uses(pack: PackFiles, item_id: str, seen: Optional[set] = None) -> List
         elif use.kind == "loot_tables" and use.words in ("always in it", "can be drawn from it"):
             source = bool(rolled(pack, use.entry_id))
             problem = "" if source else "but nothing rolls this table"
-        elif use.kind == "characters" and use.entry_id == player and use.words in ("carries it", "has it fitted",
-                                                                                 "has it implanted", "wears it"):
+        elif use.kind == "characters" and use.entry_id == player and use.words in ("carries it", "has it equipped"):
             source = True
             use = use._replace(words="starts with it")
         marked.append(use._replace(source=source, problem=problem))
     item = next((f.entry for f in pack.entries("items") if f.entry.get("id") == item_id), {})
-    if item.get("fabricate"):
+    if item.get("make"):
         learnt = [u for u in marked if u.words in ("teaches its design", "knows its design")
                   and (u.words == "teaches its design" or u.entry_id == player)]
-        dismantled = item.get("salvage", {}).get("learn_requires") is not None if isinstance(item.get("salvage"), dict) else False
+        dismantled = item.get("dismantle", {}).get("learn_requires") is not None if isinstance(item.get("dismantle"), dict) else False
         if learnt or (dismantled and any(u.source for u in marked)):
-            marked.insert(0, Use("items", item_id, _name(item), "fabricated once its design is known", True))
+            marked.insert(0, Use("items", item_id, _name(item), "made once its design is known", True))
         else:
-            marked.append(Use("items", item_id, _name(item), "can be fabricated", False,
+            marked.append(Use("items", item_id, _name(item), "can be made", False,
                               "but nothing teaches its design"))
     return sorted(marked, key=lambda u: not u.source)
 

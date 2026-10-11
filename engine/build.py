@@ -1,18 +1,20 @@
 """
-The build: the fitting board, storage, and using items.
+The build: equipping gear, storage, and using items.
 
-Frames, modules and implants can be fitted or removed only within reach of a
-workshop that offers 'refit'. A fit needs a free slot, the item's fit_requires, power
-and mass within what the loadout provides, a constant heat load below maximum heat
-and, for a frame, a size that fits the current location. Removed items go to the
-inventory, which must still fit in cargo afterwards. A frame comes off only after its
-modules.
+Gear goes into a free slot of its type, from the body or from other equipped gear, and
+needs its equip_requires, budgets within what the loadout provides, a constant load on
+each filling pool below its maximum and, for gear with a worn_size, a size that fits the
+current location. Slot types marked equip_at_workshop change only within reach of a
+workshop offering 'equip' (for that slot type); the rest change anywhere. Removed gear
+goes to the inventory, which must still fit in cargo afterwards. Gear with slots comes
+off only after what is in them.
 
 Objects with 'storage' hold items for anyone within reach; store and take move whole stacks. Items with interactions
 can be used from the pack; a consumable spends one per use.
 
 When the loadout changes a pool's maximum, the current value moves with it (never
-below 1 when it drops), so putting on a suit adds its health and heat capacity.
+below 1 when it drops), so putting on a suit adds its health; a filling pool moves with
+its constant load.
 """
 from typing import List, Mapping, NamedTuple, Optional, Tuple, Union
 
@@ -23,14 +25,14 @@ from engine.frozen import Record, freeze
 from engine.state import CharState, Ctx, GameState, ItemInst, Message, add_items, is_plain
 from engine.stats import Slot
 
-ITEM_KEYS = {"use": None, "fit": "f", "remove": "r", "store": "o", "take": "k",
-             "dismantle": "v", "repair": "e", "fabricate": "b"}
+ITEM_KEYS = {"use": None, "equip": "f", "remove": "r", "store": "o", "take": "k",
+             "dismantle": "v", "repair": "e", "make": "b"}
 SPARE_ITEM_KEYS = "uhjlnyz"
-MODIFY_KEY = "m"          # opens the list of modifications on the fitting screen
+MODIFY_KEY = "m"          # opens the list of modifications on the gear screen
 
-# Which options each place offers: the pack panel is for carrying, the fitting screen for building.
+# Which options each place offers: the pack panel is for carrying, the gear screen for building.
 SCOPES = {"pack": {"use", "store", "take"},
-          "fitting": {"fit", "remove", "dismantle", "repair", "fabricate", "modify"}}
+          "gear": {"equip", "remove", "dismantle", "repair", "make", "modify"}}
 
 
 class ItemOption(NamedTuple):
@@ -42,7 +44,7 @@ class ItemOption(NamedTuple):
     label: Optional[str]
     available: bool
     hint: Optional[str]
-    kind: str        # 'use', 'fit', 'remove', 'store', 'take', 'dismantle', 'repair', 'fabricate', 'modify'
+    kind: str        # 'use', 'equip', 'remove', 'store', 'take', 'dismantle', 'repair', 'make', 'modify'
     interaction: Optional[Record] = None
     modification: Optional[str] = None
     params: Mapping[str, str] = freeze({})
@@ -62,8 +64,22 @@ def _in_reach(content: Content, state: GameState) -> List[Record]:
     return found
 
 
-def refit_here(content: Content, state: GameState) -> bool:
-    return any("refit" in (p.get("workshop") or {}).get("services", ()) for p in _in_reach(content, state))
+def equip_here(content: Content, state: GameState, slot_type: Optional[str] = None) -> bool:
+    """Whether a workshop within reach offers 'equip' (for this slot type, when given)."""
+    for placed in _in_reach(content, state):
+        shop = placed.get("workshop") or {}
+        if "equip" in shop.get("services", ()) and (
+                slot_type is None or not shop.get("equip_slot_types") or slot_type in shop["equip_slot_types"]):
+            return True
+    return False
+
+
+def gate(content: Content, state: GameState, slot_type: Optional[str]) -> Optional[str]:
+    """Why gear in this slot type can't change here, or None: some slot types need a workshop."""
+    record = content.all("slot_type").get(slot_type or "", {})
+    if record.get("equip_at_workshop") and not equip_here(content, state, slot_type):
+        return content.message("workshop_needed")
+    return None
 
 
 def storage_here(content: Content, state: GameState) -> Optional[str]:
@@ -95,28 +111,16 @@ def _name(content: Content, inst: ItemInst) -> str:
 
 
 def _carry_pools(content: Content, before: CharState, after: CharState) -> CharState:
-    """Pools follow a change in their maximum; the heat pool also follows the constant load."""
-    heat = content.stat_roles.get("heat")
+    """Pools follow a change in their maximum; a filling pool also follows its constant load."""
     pools = dict(after.pools)
     for stat_id, value in before.pools.items():
-        if stat_id == heat:
-            load_change = stats.budget_used(content, after, "heat") - stats.budget_used(content, before, "heat")
-            value = value + load_change
+        if stats.fills(content, stat_id):
+            value = value + stats.budget_used(content, after, stat_id) - stats.budget_used(content, before, stat_id)
         else:
             value = value + stats.stat(content, after, stat_id) - stats.stat(content, before, stat_id)
             value = max(1 if before.pools[stat_id] > 0 else 0, value)
         pools[stat_id] = max(0, min(value, stats.stat(content, after, stat_id)))
     return after._replace(pools=freeze(pools))
-
-
-def _slot_capacity(content: Content, cs: CharState, kind: str) -> dict:
-    if kind == "implant":
-        return dict(cs.body_slots)
-    capacity: dict = {}
-    if cs.frame is not None:
-        for slot in content.get("item", cs.frame.item).get("slots", ()):
-            capacity[slot["slot_type"]] = capacity.get(slot["slot_type"], 0) + slot["count"]
-    return capacity
 
 
 def _take_out(cs: CharState, slot: Slot) -> Tuple[CharState, ItemInst]:
@@ -133,66 +137,49 @@ def _put_in(content: Content, items: Tuple[ItemInst, ...], inst: ItemInst) -> Tu
     return items + (inst,)
 
 
-# --- Fitting ---------------------------------------------------------------------------
+# --- Equipping -------------------------------------------------------------------------
 
 def fit_problem(content: Content, state: GameState, slot: Slot) -> Optional[str]:
-    """Why the item at an inventory slot can't be fitted now, or None if it can."""
-    if not refit_here(content, state):
-        return content.message("refit_needed")
+    """Why the item at an inventory slot can't be equipped now, or None if it can."""
     cs = state.characters[state.player]
     inst = stats.item_at(cs, slot)
     view = stats.item_view(content, inst)
-    kind = view["kind"]
-    if kind not in ("frame", "module", "implant"):
+    if view["kind"] != "gear":
         return content.message("unavailable")
-    if kind == "frame" and cs.frame is not None:
-        return content.message("frame_worn")
-    if kind == "module" and cs.frame is None:
-        return content.message("frame_needed")
-    if kind in ("module", "implant"):
-        capacity = _slot_capacity(content, cs, kind)
-        taken = sum(1 for i in (cs.fitted if kind == "module" else cs.implants)
-                    if stats.item_view(content, i)["slot_type"] == view["slot_type"])
-        if taken >= capacity.get(view["slot_type"], 0):
-            return content.message("no_free_slot", item=view["name"])
-    ok, _ = conditions.holds(content, state, Ctx(self_id=cs.id), content.get("item", inst.item).get("fit_requires"))
+    problem = gate(content, state, view["slot_type"])
+    if problem:
+        return problem
+    after, _ = _fitted(content, cs, slot)
+    if stats.slots(content, after)[1]:
+        return content.message("no_free_slot", item=view["name"])
+    ok, _ = conditions.holds(content, state, Ctx(self_id=cs.id), content.get("item", inst.item).get("equip_requires"))
     if not ok:
         return content.message("cannot_use", item=view["name"])
-    after, _ = _fitted(content, cs, slot)
     problem = budget_problem(content, after)
     if problem:
         return problem
     location = content.get("location", cs.location)
-    if kind == "frame" and location.get("holds_size") is not None and view["size"] > location["holds_size"]:
+    if location.get("holds_size") is not None and stats.size(content, after) > location["holds_size"]:
         return content.message("cannot_fit", thing=view["name"], container=location["name"])
     return None
 
 
 def budget_problem(content: Content, cs: CharState) -> Optional[str]:
-    """Why a loadout doesn't work: power or mass used above what it provides, or a constant heat load at its maximum."""
-    for budget in ("power", "mass"):
-        need, have = stats.budget_used(content, cs, budget), stats.budget_provided(content, cs, budget)
-        if need > have:
-            return content.message("over_budget", stat=_role_name(content, budget), need=f"{need:g}", have=f"{have:g}")
-    load, top = stats.budget_used(content, cs, "heat"), stats.budget_provided(content, cs, "heat")
-    if load and load >= top:
-        return content.message("over_budget", stat=_role_name(content, "heat"), need=f"{load:g}", have=f"{top:g}")
+    """Why a loadout doesn't work: a budget used above what it provides, or a filling pool's load at its maximum."""
+    cargo = content.stat_roles.get("cargo")
+    for stat_id in stats.budget_stats(content):
+        if stat_id == cargo:
+            continue
+        need, have = stats.budget_used(content, cs, stat_id), stats.budget_provided(content, cs, stat_id)
+        if stats.over(content, stat_id, need, have):
+            return content.message("over_budget", stat=content.get("stat", stat_id)["name"],
+                                   need=f"{need:g}", have=f"{have:g}")
     return None
-
-
-def _role_name(content: Content, role: str) -> str:
-    stat_id = content.stat_roles.get(role)
-    return content.get("stat", stat_id)["name"] if stat_id else role
 
 
 def _fitted(content: Content, cs: CharState, slot: Slot) -> Tuple[CharState, ItemInst]:
     cs, inst = _take_out(cs, slot)
-    kind = content.get("item", inst.item)["kind"]
-    if kind == "frame":
-        return cs._replace(frame=inst), inst
-    if kind == "module":
-        return cs._replace(fitted=cs.fitted + (inst,)), inst
-    return cs._replace(implants=cs.implants + (inst,)), inst
+    return cs._replace(equipped=cs.equipped + (inst,)), inst
 
 
 def fit(content: Content, state: GameState, slot: Slot) -> GameState:
@@ -203,19 +190,21 @@ def fit(content: Content, state: GameState, slot: Slot) -> GameState:
     before = state.characters[state.player]
     after, inst = _fitted(content, before, slot)
     state = _set(state, _carry_pools(content, before, after))
-    state = _say(state, "plain", content.message("item_fitted", item=_name(content, inst)))
+    state = _say(state, "plain", content.message("item_equipped", item=_name(content, inst)))
     return turns.advance(content, state, 1)
 
 
 def remove_problem(content: Content, state: GameState, slot: Slot) -> Optional[str]:
-    if not refit_here(content, state):
-        return content.message("refit_needed")
     cs = state.characters[state.player]
-    if slot[0] == "frame" and cs.fitted:
-        return content.message("remove_modules_first")
+    inst = stats.item_at(cs, slot)
+    problem = gate(content, state, stats.item_view(content, inst)["slot_type"])
+    if problem:
+        return problem
     after = _removed(content, cs, slot)
-    if len(after.inventory) > stats.budget_provided(content, after, "cargo"):
-        return content.message("cargo_full", item=_name(content, stats.item_at(cs, slot)))
+    if stats.slots(content, after)[1]:
+        return content.message("empty_slots_first", item=_name(content, inst))
+    if len(after.inventory) > stats.cargo_capacity(content, after):
+        return content.message("cargo_full", item=_name(content, inst))
     return budget_problem(content, after)     # what it provided may be what the rest needs
 
 
@@ -279,7 +268,7 @@ def take(content: Content, state: GameState, index: int) -> GameState:
     inst = items.pop(index)
     cs = state.characters[state.player]
     inventory = _put_in(content, cs.inventory, inst)
-    if len(inventory) > stats.budget_provided(content, cs, "cargo"):
+    if len(inventory) > stats.cargo_capacity(content, cs):
         return _say(state, "plain", content.message("cargo_full", item=_name(content, inst)))
     state = _set(state, cs._replace(inventory=inventory))
     state = state._replace(storage=freeze({**state.storage, where: tuple(items)}))
@@ -321,11 +310,11 @@ def item_options(content: Content, state: GameState, slot: Slot,
     """
     What the player can do with one of their items, or a stored one (slot ('storage', i)).
     'bindings' are the UI's keys, which interaction keys must avoid. 'scope' keeps the
-    options of one place: 'pack' (use, store, take) or 'fitting' (fit, remove and the
+    options of one place: 'pack' (use, store, take) or 'gear' (equip, remove and the
     workshop's services; these are listed even away from a workshop, greyed out with
-    why, so the fitting screen can be used for planning).
+    why, so the gear screen can be used for planning).
     """
-    options = _item_options(content, state, slot, bindings, scope == "fitting")
+    options = _item_options(content, state, slot, bindings, scope == "gear")
     if scope in SCOPES:
         options = tuple(o for o in options if o.kind in SCOPES[scope])
     return options
@@ -340,14 +329,14 @@ def _item_options(content: Content, state: GameState, slot: Slot, bindings: Opti
         where = storage_here(content, state)
         if where is not None:
             options.append(ItemOption(ITEM_KEYS["take"], None, True, None, "take"))
-            if slot[1] < len(stored(state, where)) and _is_gear(content, stored(state, where)[slot[1]]):
+            if slot[1] < len(stored(state, where)) and content.get("item", stored(state, where)[slot[1]].item)["kind"] == "gear":
                 problem = stored_fit_problem(content, state, slot[1])
-                options.append(ItemOption(ITEM_KEYS["fit"], None, problem is None, problem, "fit"))
+                options.append(ItemOption(ITEM_KEYS["equip"], None, problem is None, problem, "equip"))
         return tuple(options)
     if slot[0] == "design":
         item_id = craft.designs(content, state)[slot[1]]
-        problem = craft.fabricate_problem(content, state, item_id)
-        return (ItemOption(ITEM_KEYS["fabricate"], None, problem is None, problem, "fabricate"),)
+        problem = craft.make_problem(content, state, item_id)
+        return (ItemOption(ITEM_KEYS["make"], None, problem is None, problem, "make"),)
     cs = state.characters[state.player]
     inst = stats.item_at(cs, slot)
     if inst is None:
@@ -369,17 +358,17 @@ def _item_options(content: Content, state: GameState, slot: Slot, bindings: Opti
         taken.add(key)
         options.append(ItemOption(key, content.text(interaction["label"]), ok, hint, "use", interaction))
     kind = content.get("item", inst.item)["kind"]
-    if slot[0] == "inventory" and kind in ("frame", "module", "implant"):
+    if slot[0] == "inventory" and kind == "gear":
         problem = fit_problem(content, state, slot)
-        options.append(ItemOption(ITEM_KEYS["fit"], None, problem is None, problem, "fit"))
-    if slot[0] in ("frame", "fitted", "implants"):
+        options.append(ItemOption(ITEM_KEYS["equip"], None, problem is None, problem, "equip"))
+    if slot[0] == "equipped":
         problem = remove_problem(content, state, slot)
         options.append(ItemOption(ITEM_KEYS["remove"], None, problem is None, problem, "remove"))
     if slot[0] == "inventory" and storage_here(content, state) is not None:
         problem = store_problem(content, state, slot)
         options.append(ItemOption(ITEM_KEYS["store"], None, problem is None, problem, "store"))
     item = content.get("item", inst.item)
-    if slot[0] == "inventory" and item.get("salvage") and (planning or craft.offered(content, state, "dismantle")):
+    if slot[0] == "inventory" and item.get("dismantle") and (planning or craft.offered(content, state, "dismantle")):
         problem = craft.dismantle_problem(content, state, slot)
         options.append(ItemOption(ITEM_KEYS["dismantle"], None, problem is None, problem, "dismantle"))
     if item.get("repair") and inst.condition is not None and (planning or craft.offered(content, state, "repair")):
@@ -404,13 +393,13 @@ def item_act(content: Content, state: GameState, slot: Slot, key: str, bindings:
         return _say(state._replace(messages=()), "plain", option.hint or content.message("unavailable"))
     if option.kind == "use":
         return use(content, state, slot, option.interaction)
-    if option.kind == "fit":
+    if option.kind == "equip":
         return fit_stored(content, state, slot[1]) if slot[0] == "storage" else fit(content, state, slot)
     if option.kind == "remove":
         return remove(content, state, slot)
     if option.kind == "store":
         return store(content, state, slot)
-    if option.kind in ("dismantle", "repair", "fabricate", "modify"):
+    if option.kind in ("dismantle", "repair", "make", "modify"):
         from engine import craft
         if option.kind == "dismantle":
             return craft.dismantle(content, state, slot)
@@ -418,7 +407,7 @@ def item_act(content: Content, state: GameState, slot: Slot, key: str, bindings:
             return craft.repair(content, state, slot)
         if option.kind == "modify":
             return craft.modify(content, state, slot, option.modification)
-        return craft.fabricate(content, state, craft.designs(content, state)[slot[1]])
+        return craft.make(content, state, craft.designs(content, state)[slot[1]])
     return take(content, state, slot[1])
 
 
@@ -435,13 +424,13 @@ def entry_at(content: Content, state: GameState, slot: Slot) -> Union[ItemInst, 
     return stats.item_at(state.characters[state.player], slot)
 
 
-MOVES = {"fit": ("frame", "fitted", "implants"), "remove": ("inventory",), "store": ("storage",), "take": ("inventory",)}
+MOVES = {"equip": ("equipped",), "remove": ("inventory",), "store": ("storage",), "take": ("inventory",)}
 
 
 def follow(content: Content, before: GameState, after: GameState, slot: Slot, kind: Optional[str]) -> Optional[int]:
     """
     Where the pack entry at 'slot' went after an action of this kind, as its new index in
-    pack_slots(), or None when it's gone. Fitting, removing, storing and taking move it to
+    pack_slots(), or None when it's gone. Equipping, removing, storing and taking move it to
     another group, where it's found by value; anything else leaves it in place (repaired,
     modified, one used from a stack) as long as the slot still holds the same item.
     """
@@ -472,32 +461,32 @@ def pack_slots(content: Content, state: GameState) -> List[Slot]:
     return slots
 
 
-# --- The fitting screen ----------------------------------------------------------------
+# --- The gear screen -------------------------------------------------------------------
 
 class FitRow(NamedTuple):
     """
-    One line of the fitting screen's list. 'slot' is None for an empty slot (or no frame
-    worn); 'slot_type' names the slot a worn item sits in; 'where' is a stored item's
-    placement id.
+    One line of the gear screen's list. 'slot' is None for an empty slot; 'slot_type'
+    names the slot equipped gear sits in; 'host' is the equipped index of the gear that
+    adds the slot (-1 for the body); 'where' is a stored item's placement id.
     """
     group: str                       # 'worn', 'spare' or 'designs'
     slot: Optional[Slot]
     slot_type: Optional[str] = None
     where: Optional[str] = None
+    host: int = -1
 
 
-def fitting_rows(content: Content, state: GameState) -> List[FitRow]:
+def gear_rows(content: Content, state: GameState) -> List[FitRow]:
     """
-    The loadout by slot (the frame, each of its slots, the body's implant slots, empty ones
-    included), then spare gear carried or stored within reach, then known designs.
+    The loadout by slot (the body's slots, then each piece of gear's, empty ones included),
+    then spare gear carried or stored within reach, then known designs.
     """
     from engine import craft
     cs = state.characters[state.player]
-    rows: List[FitRow] = [FitRow("worn", ("frame", 0) if cs.frame is not None else None, "frame")]
-    if cs.frame is not None:
-        rows += _slot_rows(content, cs.fitted, "fitted",
-                           [(s["slot_type"], s.get("count", 1)) for s in content.get("item", cs.frame.item).get("slots", ())])
-    rows += _slot_rows(content, cs.implants, "implants", list(cs.body_slots.items()))
+    placed, unplaced = stats.slots(content, cs)
+    rows: List[FitRow] = [FitRow("worn", ("equipped", s.index) if s.item is not None else None, s.slot_type, host=s.host)
+                          for s in placed]
+    rows += [FitRow("worn", ("equipped", i), stats.item_view(content, cs.equipped[i])["slot_type"]) for i in unplaced]
     rows += [FitRow("spare", ("inventory", i)) for i, inst in enumerate(cs.inventory) if _is_gear(content, inst)]
     where = storage_here(content, state)
     if where is not None:
@@ -507,34 +496,21 @@ def fitting_rows(content: Content, state: GameState) -> List[FitRow]:
     return rows
 
 
-def _slot_rows(content: Content, items: Tuple[ItemInst, ...], group: str, capacity) -> List[FitRow]:
-    rows, placed = [], set()
-    for slot_type, count in capacity:
-        here = [i for i, inst in enumerate(items) if i not in placed
-                and stats.item_view(content, inst)["slot_type"] == slot_type][:count]
-        placed.update(here)
-        rows += [FitRow("worn", (group, i), slot_type) for i in here]
-        rows += [FitRow("worn", None, slot_type)] * (count - len(here))
-    rows += [FitRow("worn", (group, i), stats.item_view(content, inst)["slot_type"])
-             for i, inst in enumerate(items) if i not in placed]
-    return rows
-
-
 def _is_gear(content: Content, inst: ItemInst) -> bool:
-    """Items the fitting screen deals with: what can be worn, fitted or implanted, and what can be taken apart."""
+    """Items the gear screen deals with: gear, and what can be taken apart."""
     item = content.get("item", inst.item)
-    return item["kind"] in ("frame", "module", "implant") or bool(item.get("salvage"))
+    return item["kind"] == "gear" or bool(item.get("dismantle"))
 
 
 def workshop_here(content: Content, state: GameState) -> Optional[str]:
-    """The placement id of a workshop within reach (one offering refit first), if any."""
+    """The placement id of a workshop within reach (one offering equip first), if any."""
     shops = [p for p in _in_reach(content, state) if p.get("workshop")]
-    shops.sort(key=lambda p: "refit" not in p["workshop"]["services"])
+    shops.sort(key=lambda p: "equip" not in p["workshop"]["services"])
     return shops[0]["id"] if shops else None
 
 
 def stored_fit_problem(content: Content, state: GameState, index: int) -> Optional[str]:
-    """Why a stored item can't be fitted straight from storage, or None."""
+    """Why a stored item can't be equipped straight from storage, or None."""
     trial = _taken_for_fitting(content, state, index)
     if trial is None:
         return content.message("unavailable")
@@ -542,7 +518,7 @@ def stored_fit_problem(content: Content, state: GameState, index: int) -> Option
 
 
 def _taken_for_fitting(content: Content, state: GameState, index: int) -> Optional[GameState]:
-    """The state with a stored item moved to the end of the inventory (cargo isn't checked: it's fitted at once)."""
+    """The state with a stored item moved to the end of the inventory (cargo isn't checked: it's equipped at once)."""
     where = storage_here(content, state)
     if where is None or not 0 <= index < len(stored(state, where)):
         return None
@@ -554,7 +530,7 @@ def _taken_for_fitting(content: Content, state: GameState, index: int) -> Option
 
 
 def fit_stored(content: Content, state: GameState, index: int) -> GameState:
-    """Fits a stored item straight from storage within reach."""
+    """Equips a stored item straight from storage within reach."""
     problem = stored_fit_problem(content, state, index)
     if problem:
         return _say(state._replace(messages=()), "plain", problem)
@@ -564,16 +540,16 @@ def fit_stored(content: Content, state: GameState, index: int) -> GameState:
 
 def preview(content: Content, state: GameState, slot: Slot, kind: str,
             modification: Optional[str] = None) -> Optional[CharState]:
-    """The player as they'd be after fitting, removing or modifying, without doing it; None for other actions."""
+    """The player as they'd be after equipping, removing or modifying, without doing it; None for other actions."""
     from engine import craft
     cs = state.characters[state.player]
-    if kind == "fit" and slot[0] == "storage":
+    if kind == "equip" and slot[0] == "storage":
         trial = _taken_for_fitting(content, state, slot[1])
         if trial is None:
             return None
         tcs = trial.characters[trial.player]
         return _fitted(content, tcs, ("inventory", len(tcs.inventory) - 1))[0]
-    if kind == "fit" and slot[0] == "inventory":
+    if kind == "equip" and slot[0] == "inventory":
         return _fitted(content, cs, slot)[0]
     if kind == "remove":
         return _removed(content, cs, slot)

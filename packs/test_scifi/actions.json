@@ -10,7 +10,9 @@
       ],
       "target": "enemy",
       "cost": {
-        "heat": 1
+        "pools": {
+          "stat_heat": 1
+        }
       },
       "intent": "STRIKE",
       "trains": {
@@ -35,7 +37,9 @@
       "target": "self",
       "priority": 1,
       "cost": {
-        "heat": 1,
+        "pools": {
+          "stat_heat": 1
+        },
         "cooldown": 2
       },
       "effects": [
@@ -61,9 +65,11 @@
       "name": "Burn",
       "target": "all_enemies",
       "cost": {
-        "heat": {
-          "min": 3,
-          "max": 4
+        "pools": {
+          "stat_heat": {
+            "min": 3,
+            "max": 4
+          }
         },
         "charges": 1,
         "consumes": {

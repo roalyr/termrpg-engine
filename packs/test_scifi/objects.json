@@ -211,9 +211,9 @@
       "solid": true,
       "workshop": {
         "services": [
-          "refit",
+          "equip",
           "dismantle",
-          "fabricate",
+          "make",
           "modify",
           "repair"
         ],
@@ -231,7 +231,7 @@
       "storage": 6,
       "workshop": {
         "services": [
-          "refit"
+          "equip"
         ]
       }
     },

@@ -67,7 +67,7 @@ class Content(NamedTuple):
         return self.index.get(namespace, {})
 
     def role_stat(self, role: str) -> str:
-        """The id of the stat that carries a role: health, power, mass, heat, initiative, cargo."""
+        """The id of the stat that carries a role: health, initiative, cargo."""
         return self.stat_roles[role]
 
     def text(self, value: str) -> str:

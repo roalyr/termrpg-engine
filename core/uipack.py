@@ -4,7 +4,7 @@ and the rules a schema can't express:
 
 - each widget appears only on the screens that allow it, at most once per screen;
 - no two actions share a key, and none takes a key the engine's menus use (G, T, I and
-  the fitting board's letters);
+  the gear screen's letters);
 - hint labels exist in the words file; a hint shows actions or digits, not both;
 - words use only their own placeholders;
 - the world screen's grid row (the largest room plus the side panel) fits the minimum width.
@@ -34,10 +34,10 @@ def _engine_keys() -> Dict[str, str]:
     return keys
 
 
-# A binding may share an engine key when the two are never active at once: the fitting
-# screen's key opens it from the world, while Fit only works on that screen; the map's
-# key opens it from the world, while the modifications list only opens on the fitting screen.
-SHARED_KEYS = {("fitting", "fit"), ("map", "modify")}
+# A binding may share an engine key when the two are never active at once: the gear
+# screen's key opens it from the world, while Equip only works on that screen; the map's
+# key opens it from the world, while the modifications list only opens on the gear screen.
+SHARED_KEYS = {("gear", "equip"), ("map", "modify")}
 
 
 def is_ui_pack(folder: Path) -> bool:

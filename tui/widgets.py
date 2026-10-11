@@ -56,7 +56,7 @@ SUBWINDOWS = {"inspect": "panel", "item": "panel", "modify": "pick", "card": "pa
               "pack": "board"}
 SHOWS_LOG = ("pack",)    # sub-windows that keep the message log above them (what an action just did)
 # List screens: with no sub-window open, this widget's zone scrolls to keep the pick in view.
-LISTS = {"fitting": "loadout", "character": "skills", "talk": "conversation",
+LISTS = {"gear": "loadout", "character": "skills", "talk": "conversation",
          "start": "start_menu", "slots": "slots", "help": "help"}
 SHELL = ("start", "slots", "help")   # screens before a game is loaded: no state
 FOCUS = "\x00"   # marks the picked line of a list for the layout; never drawn
@@ -90,7 +90,7 @@ def hang(text: str, width: int, indent: int) -> List[str]:
     return [first] + [" " * indent + line for line in more]
 
 
-UI_KEYS = {"workshop": "fitting"}      # menu options opened by one of the UI's own keys
+UI_KEYS = {"workshop": "gear"}      # menu options opened by one of the UI's own keys
 
 
 def option_lines(frame: Frame, option: Any, width: int, hints: bool = True) -> List[str]:
@@ -145,13 +145,12 @@ def title(frame: Frame, width: int, options: Mapping) -> List[str]:
         name = frame.ui.word("talk_title", name=content.get("character", state.characters[speaker_of(frame)].source)["name"])
         place = content.get("location", state.characters[state.player].location)["name"]
         return [_right(style.role(name, "title"), style.role(place, "quiet"), width)]
-    if frame.screen == "fitting":
+    if frame.screen == "gear":
         me = state.characters[state.player]
-        name = frame.ui.word("fitting_title", frame=stats.item_view(content, me.frame)["name"]) if me.frame \
-            else frame.ui.word("fitting_no_frame")
+        name = frame.ui.word("gear_title")
         shop = build.workshop_here(content, state)
-        place = frame.ui.word("fitting_at", place=content.get("placement", shop)["name"]) if shop \
-            else frame.ui.word("fitting_planning")
+        place = frame.ui.word("gear_at", place=content.get("placement", shop)["name"]) if shop \
+            else frame.ui.word("gear_planning")
         if visible_len(name) + 1 + visible_len(place) > width:
             return [style.role(name, "title")] + styled_lines(place, width, frame, "quiet")
         return [style.role(name, "title") + " " * (width - visible_len(name) - visible_len(place)) + place]
@@ -240,8 +239,12 @@ def status(frame: Frame, width: int, options: Mapping) -> List[str]:
     if pools == "all":
         shown = [sid for sid, rec in content.all("stat").items() if rec.get("kind") == "pool"]
     else:
-        shown = [content.stat_roles[r] for r in pools if r in content.stat_roles
-                 and content.get("stat", content.stat_roles[r]).get("kind") == "pool"]
+        health = content.stat_roles.get("health")
+        groups = {"health": lambda s, r: s == health,
+                  "draining": lambda s, r: s != health and not r.get("fills"),
+                  "filling": lambda s, r: bool(r.get("fills"))}
+        shown = [sid for group in pools for sid, rec in content.all("stat").items()
+                 if rec.get("kind") == "pool" and groups[group](sid, rec)]
     lines += _pool_lines(frame, player, shown, width)
     if options.get("statuses", True):
         for inst in player.statuses:
@@ -257,7 +260,7 @@ def status(frame: Frame, width: int, options: Mapping) -> List[str]:
 
 def _pool_lines(frame: Frame, cs, shown: List[str], width: Optional[int] = None) -> List[str]:
     """
-    One bar per pool stat: 'HP  ████████ 30/30', low health or high heat in the warning colour.
+    One bar per pool stat: 'HP  ████████ 30/30', low health or a nearly full filling pool in the warning colour.
     In a narrow panel the bar gets shorter so the numbers stay whole.
     """
     content, lines = frame.content, []
@@ -271,7 +274,7 @@ def _pool_lines(frame: Frame, cs, shown: List[str], width: Optional[int] = None)
         length = frame.size["bar_length"] if width is None else max(1, min(frame.size["bar_length"],
                                                                            width - 5 - len(numbers)))
         line = f"{label:<4}{bar(frame, now, top, length)} {numbers}"
-        low = (record.get("role") == "health" and now <= top / 3) or (record.get("role") == "heat" and now >= top * 0.8)
+        low = (record.get("role") == "health" and now <= top / 3) or (record.get("fills") and now >= top * 0.8)
         lines.append(frame.style.role(line, "danger") if low else line)
     return lines
 
@@ -378,11 +381,10 @@ def board(frame: Frame, width: int, options: Mapping) -> List[str]:
     lines: List[str] = []
     if options.get("budgets", True):
         budgets = []
-        for role, used in (("cargo", len(player.inventory)),):
-            stat_id = content.stat_roles.get(role)
-            if stat_id:
-                short = content.get("stat", stat_id).get("short") or content.get("stat", stat_id)["name"]
-                budgets.append(f"{short} {used:g}/{stats.budget_provided(content, player, role):g}")
+        stat_id = content.stat_roles.get("cargo")
+        if stat_id:
+            short = content.get("stat", stat_id).get("short") or content.get("stat", stat_id)["name"]
+            budgets.append(f"{short} {len(player.inventory):g}/{stats.cargo_capacity(content, player):g}")
         lines += styled_lines("  ".join(budgets), width, frame, "hint")
     slots = build.pack_slots(content, state)
     page_size = frame.size["page_size"]
@@ -496,7 +498,7 @@ def panel(frame: Frame, width: int, options: Mapping) -> List[str]:
     if frame.panel == "history":
         return _history(frame, width)
     if frame.panel == "item":
-        if frame.screen == "fitting":
+        if frame.screen == "gear":
             row = picked_row(frame)
             slot = row.slot if row is not None else None
         else:
@@ -551,7 +553,7 @@ def item_details(frame: Frame, entry, width: int) -> List[str]:
         lines += wrap(content.text(record["description"]), width)
 
     rows = []
-    uses = [f"{_role_short(content, role)} {amount:g}" for role, amount in view["uses"].items() if amount]
+    uses = [f"{_stat_short(content, sid)} {amount:g}" for sid, amount in view["uses"].items() if amount]
     if uses:
         rows.append((ui.word("item_uses"), uses))
     gives = [f"{_stat_short(content, sid)} {amount:+g}" for sid, amount in view["stats"].items() if amount]
@@ -560,7 +562,10 @@ def item_details(frame: Frame, entry, width: int) -> List[str]:
     mounts = [content.get("slot_type", m["slot_type"])["name"] + (f" x{m['count']}" if m.get("count", 1) > 1 else "")
               for m in record.get("slots", ())]
     if mounts:
-        rows.append((ui.word("item_mounts"), ", ".join(mounts)))
+        rows.append((ui.word("item_slots"), ", ".join(mounts)))
+    if record.get("worn_size") is not None:
+        rows.append((ui.word("item_worn_size"), content.sizes[record["worn_size"]]["name"]
+                     if record["worn_size"] in content.sizes else str(record["worn_size"])))
     if view["tags"]:
         rows.append((ui.word("item_tags"), ", ".join(content.get("tag", t)["name"] for t in view["tags"])))
     if view["actions"]:
@@ -573,14 +578,14 @@ def item_details(frame: Frame, entry, width: int) -> List[str]:
                  else str(view["size"])))
     if view["stack"] > 1:
         rows.append((ui.word("item_stack"), ui.word("item_stack_count", count=view["stack"])))
-    needs = _needs(content, record.get("fit_requires"))
+    needs = _needs(content, record.get("equip_requires"))
     if needs:
         rows.append((ui.word("item_needs"), needs))
-    if record.get("salvage"):
-        rows.append((ui.word("item_salvage"), _counts(content, record["salvage"]["yields"])))
-    if record.get("fabricate"):
+    if record.get("dismantle"):
+        rows.append((ui.word("item_dismantle"), _counts(content, record["dismantle"]["yields"])))
+    if record.get("make"):
         known = record["id"] in state.characters[state.player].designs
-        rows.append((ui.word("item_fabricate"), [_counts(content, record["fabricate"]["inputs"]),
+        rows.append((ui.word("item_make"), [_counts(content, record["make"]["inputs"]),
                                                  ui.word("design_known" if known else "design_unknown")]))
     if record.get("repair") and record.get("condition"):
         rows.append((ui.word("item_repair"), ui.word("item_repair_amount", items=_counts(content, record["repair"]["inputs"]),
@@ -622,18 +627,13 @@ def _stat_short(content: Content, stat_id: str) -> str:
     return record.get("short") or record["name"]
 
 
-def _role_short(content: Content, role: str) -> str:
-    stat_id = content.stat_roles.get(role)
-    return _stat_short(content, stat_id) if stat_id else role
-
-
 def _counts(content: Content, entries) -> str:
     return ", ".join(content.get("item", e["item"])["name"] + (f" x{e['count']}" if e.get("count", 1) > 1 else "")
                      for e in entries)
 
 
 def _needs(content: Content, condition) -> Optional[str]:
-    """A fit requirement in words, for the simple cases (skill levels, all of them); otherwise None."""
+    """An equip requirement in words, for the simple cases (skill levels, all of them); otherwise None."""
     if not condition:
         return None
     if condition.get("check") == "skill":
@@ -644,15 +644,15 @@ def _needs(content: Content, condition) -> Optional[str]:
     return None
 
 
-# --- the fitting screen ----------------------------------------------------------------
+# --- the gear screen -------------------------------------------------------------------
 
 def picks(content: Content, state: GameState) -> List[int]:
-    """The fitting list's rows that can be picked (not empty slots), as indexes into fitting_rows()."""
-    return [i for i, row in enumerate(build.fitting_rows(content, state)) if row.slot is not None]
+    """The gear list's rows that can be picked (not empty slots), as indexes into gear_rows()."""
+    return [i for i, row in enumerate(build.gear_rows(content, state)) if row.slot is not None]
 
 
 def picked_row(frame: Frame):
-    rows = build.fitting_rows(frame.content, frame.state)
+    rows = build.gear_rows(frame.content, frame.state)
     pickable = [i for i, row in enumerate(rows) if row.slot is not None]
     if not pickable:
         return None
@@ -660,31 +660,33 @@ def picked_row(frame: Frame):
 
 
 def budgets(frame: Frame, width: int, options: Mapping) -> List[str]:
-    """Power, mass, heat and cargo as bars: what the loadout uses of what it provides."""
+    """Each budget, each filling pool's constant load, and cargo as bars: what the loadout uses of what it provides."""
     content, me = frame.content, frame.state.characters[frame.state.player]
     parts = []
-    for role in ("power", "mass", "heat", "cargo"):
-        if role not in content.stat_roles:
+    for stat_id in stats.budget_stats(content):
+        used, top = stats.budget_used(content, me, stat_id), stats.budget_provided(content, me, stat_id)
+        if not used and not top:
             continue
-        used = len(me.inventory) if role == "cargo" else stats.budget_used(content, me, role)
-        top = stats.budget_provided(content, me, role)
-        text = f"{_role_short(content, role):<4}{bar(frame, used, top, frame.size['bar_length'])} {used:g}/{top:g}"
-        over = used > top or (role == "heat" and used and used >= top)
-        parts.append(frame.style.role(text, "danger") if over else text)
+        text = f"{_stat_short(content, stat_id):<4}{bar(frame, used, top, frame.size['bar_length'])} {used:g}/{top:g}"
+        parts.append(frame.style.role(text, "danger") if stats.over(content, stat_id, used, top) else text)
     return _pack(parts, width, "   ")
 
 
 def loadout(frame: Frame, width: int, options: Mapping) -> List[str]:
-    """The fitting list: worn by slot (empty slots too), spare gear, designs; the pick highlighted."""
+    """The gear list: equipped by slot (empty slots too, slots that gear adds under it), spare gear, designs; the pick highlighted."""
     content, state, style, ui = frame.content, frame.state, frame.style, frame.ui
-    if frame.screen != "fitting" or frame.panel is not None:
+    if frame.screen != "gear" or frame.panel is not None:
         return []
-    rows = build.fitting_rows(content, state)
+    rows = build.gear_rows(content, state)
     pickable = [i for i, row in enumerate(rows) if row.slot is not None]
     chosen = pickable[max(0, min(frame.selected or 0, len(pickable) - 1))] if pickable else None
-    slot_names = [content.get("slot_type", r.slot_type)["name"] for r in rows
-                  if r.group == "worn" and r.slot_type not in (None, "frame")]
-    name_width = max((len(n) for n in slot_names), default=0)
+    depth = {}                                         # equipped index -> how deep its slot is
+    for r in rows:
+        if r.group == "worn" and r.slot is not None:
+            depth[r.slot[1]] = depth.get(r.host, -1) + 1 if r.host >= 0 else 0
+    slot_names = [2 * (depth.get(r.host, -1) + 1) + len(content.get("slot_type", r.slot_type)["name"])
+                  for r in rows if r.group == "worn" and r.slot_type]
+    name_width = max(slot_names, default=0)
     lines: List[str] = []
     group = None
     cursor = frame.glyphs["cursor"]
@@ -692,24 +694,22 @@ def loadout(frame: Frame, width: int, options: Mapping) -> List[str]:
     for index, row in enumerate(rows):
         if row.group != group:
             group = row.group
-            lines.append(" " + style.role(ui.word(f"fitting_{group}"), "heading"))
+            lines.append(" " + style.role(ui.word(f"gear_{group}"), "heading"))
         number = f"{pickable.index(index) + 1} " if row.slot is not None else ""
         entry = build.entry_at(content, state, row.slot) if row.slot is not None else None
         right = ""
-        if row.group == "worn" and row.slot_type == "frame":
-            left = number + (_item_entry(frame, entry) if entry is not None else ui.word("fitting_empty"))
-            right = ui.word("fitting_frame_slot")
-        elif row.group == "worn":
-            label = content.get("slot_type", row.slot_type)["name"].ljust(name_width)
+        if row.group == "worn":
+            indent = "  " * (depth.get(row.host, -1) + 1) if row.host >= 0 else ""
+            label = (indent + content.get("slot_type", row.slot_type)["name"]).ljust(name_width)
             left = "   " + label + "  " + (number + _item_entry(frame, entry) if entry is not None
-                                           else style.role(ui.word("fitting_empty"), "quiet"))
+                                           else style.role(ui.word("gear_empty"), "quiet"))
         elif row.group == "spare":
             left = number + _item_entry(frame, entry)
-            right = ui.word("fitting_in", container=content.get("placement", row.where)["name"]) if row.where \
-                else ui.word("fitting_carried")
+            right = ui.word("gear_in", container=content.get("placement", row.where)["name"]) if row.where \
+                else ui.word("gear_carried")
         else:
             left = number + graded(frame, entry, content.get("item", entry)["name"])
-            right = _counts(content, content.get("item", entry).get("fabricate", {}).get("inputs", ()))
+            right = _counts(content, content.get("item", entry).get("make", {}).get("inputs", ()))
         line = _right(left, style.role(right, "quiet") if right else "", width)
         if index == chosen:
             line = FOCUS + cursor + style.key(pad(_plain(line), width))
@@ -734,7 +734,7 @@ def _right(left: str, right: str, width: int) -> str:
 def pick(frame: Frame, width: int, options: Mapping) -> List[str]:
     """The picked entry: what it is, what its action would change, and its keys; or its modifications."""
     content, state, style, ui = frame.content, frame.state, frame.style, frame.ui
-    if frame.screen != "fitting" or frame.panel not in (None, "modify"):
+    if frame.screen != "gear" or frame.panel not in (None, "modify"):
         return []
     row = picked_row(frame)
     if row is None:
@@ -742,7 +742,7 @@ def pick(frame: Frame, width: int, options: Mapping) -> List[str]:
     entry = build.entry_at(content, state, row.slot)
     item_id = entry if isinstance(entry, str) else entry.item
     record = content.get("item", item_id)
-    opts = build.item_options(content, state, row.slot, ui.bound_keys, "fitting")
+    opts = build.item_options(content, state, row.slot, ui.bound_keys, "gear")
     if frame.panel == "modify":
         return _modify_list(frame, row, entry, [o for o in opts if o.kind == "modify"], width)
     view = stats.item_view(content, new_item(content, entry) if isinstance(entry, str) else entry)
@@ -754,11 +754,11 @@ def pick(frame: Frame, width: int, options: Mapping) -> List[str]:
     lines = [_item_entry(frame, entry) if not isinstance(entry, str) else graded(frame, entry, record["name"])]
     if not frame.compact:                       # on a short terminal, the list matters more
         lines += styled_lines(" · ".join(facts), width, frame, "quiet")
-        status = {"worn": ui.word("fitting_fitted"), "designs": ui.word("fitting_design")}.get(row.group) or (
-            ui.word("fitting_in", container=content.get("placement", row.where)["name"]) if row.where
-            else ui.word("fitting_carried"))
+        status = {"worn": ui.word("gear_equipped"), "designs": ui.word("gear_design")}.get(row.group) or (
+            ui.word("gear_in", container=content.get("placement", row.where)["name"]) if row.where
+            else ui.word("gear_carried"))
         lines += styled_lines(status, width, frame, "quiet")
-    main = next((o for o in opts if o.kind in ("fit", "remove")), None)
+    main = next((o for o in opts if o.kind in ("equip", "remove")), None)
     if main is not None:
         after = build.preview(content, state, row.slot, main.kind)
         # what it would change, when it can happen, or when the budgets are why it can't
@@ -787,29 +787,25 @@ class SimpleOption(NamedTuple):
 
 
 def _change_line(frame: Frame, action: str, before, after, width: int) -> List[str]:
-    """'Fit: PWR 4→5/6  MAS 5→7/10', over-budget numbers in the warning colour; nothing if nothing changes."""
+    """'Equip: PWR 4→5/6  MAS 5→7/10', over-budget numbers in the warning colour; nothing if nothing changes."""
     content = frame.content
     parts = []
-    for role in ("health", "power", "mass", "heat", "cargo"):
-        if role not in content.stat_roles:
-            continue
-        if role == "health":
-            hb, ha = stats.stat(content, before, content.stat_roles[role]), stats.stat(content, after, content.stat_roles[role])
-            if hb != ha:
-                parts.append(f"{_role_short(content, role)} {hb:g}→{ha:g}")
-            continue
-        ub, ua = (len(before.inventory), len(after.inventory)) if role == "cargo" else \
-            (stats.budget_used(content, before, role), stats.budget_used(content, after, role))
-        pb, pa = stats.budget_provided(content, before, role), stats.budget_provided(content, after, role)
+    health = content.stat_roles.get("health")
+    if health:
+        hb, ha = stats.stat(content, before, health), stats.stat(content, after, health)
+        if hb != ha:
+            parts.append(f"{_stat_short(content, health)} {hb:g}→{ha:g}")
+    for stat_id in stats.budget_stats(content):
+        ub, ua = stats.budget_used(content, before, stat_id), stats.budget_used(content, after, stat_id)
+        pb, pa = stats.budget_provided(content, before, stat_id), stats.budget_provided(content, after, stat_id)
         if (ub, pb) == (ua, pa):
             continue
-        text = f"{_role_short(content, role)} {ub:g}→{ua:g}/{pa:g}" if pb == pa else \
-            f"{_role_short(content, role)} {ub:g}/{pb:g}→{ua:g}/{pa:g}"
-        over = ua > pa or (role == "heat" and ua and ua >= pa)
-        parts.append(frame.style.role(text, "danger") if over else text)
+        text = f"{_stat_short(content, stat_id)} {ub:g}→{ua:g}/{pa:g}" if pb == pa else \
+            f"{_stat_short(content, stat_id)} {ub:g}/{pb:g}→{ua:g}/{pa:g}"
+        parts.append(frame.style.role(text, "danger") if stats.over(content, stat_id, ua, pa) else text)
     if not parts:
         return []
-    head = frame.ui.word("fitting_change", action=action, changes="").rstrip()
+    head = frame.ui.word("gear_change", action=action, changes="").rstrip()
     return _pack([head + " " + parts[0]] + parts[1:], width, "  ")
 
 
@@ -847,7 +843,7 @@ def _adds(frame: Frame, adds: Mapping) -> List[str]:
         parts.append(ui.word("mod_condition", amount=f"{adds['max_condition']:+g}"))
     parts += [f"+ {content.get('action', a)['name']}" for a in adds.get("actions", ())]
     parts += [f"+ {content.get('tag', t)['name']}" for t in adds.get("tags", ())]
-    parts += [ui.word("mod_uses", stat=_role_short(content, role), amount=f"{v:+g}") for role, v in adds.get("uses", {}).items()]
+    parts += [ui.word("mod_uses", stat=_stat_short(content, sid), amount=f"{v:+g}") for sid, v in adds.get("uses", {}).items()]
     return parts
 
 
@@ -1147,7 +1143,7 @@ def help_widget(frame: Frame, width: int, options: Mapping) -> List[str]:
     arrows, escape = ui.word("key_arrows"), ui.word("key_escape")
     move = "".join(keys[a].upper() for a in ("move_north", "move_west", "move_south", "move_east"))
     rows = [(f"{move}, {arrows}", ui.word("key_move"))]
-    for action in ("wait", "pack", "fitting", "character", "map", "history", "next_page", "quit"):
+    for action in ("wait", "pack", "gear", "character", "map", "history", "next_page", "quit"):
         if action in keys:
             rows.append((keys[action].upper(), ui.word(f"key_{action}")))
     rows.append((f"{keys['close'].upper()}, {escape}", ui.word("key_close")))
@@ -1208,11 +1204,11 @@ def fighters(frame: Frame, width: int, options: Mapping) -> List[str]:
         prefix = f"{cursor}{aims.index(cid) + 1} " if aims and cid in aims else ""
         lines.append(f"{prefix}{name:<10} {bar(frame, stats.current(content, cs, health), stats.stat(content, cs, health), length)}")
         lines += _status_line(frame, cs, width, None)
-    heat = content.stat_roles["heat"]
     me = state.characters[state.player]
-    if stats.stat(content, me, heat) > 0:
-        short = content.get("stat", heat).get("short") or heat
-        lines.append(f"{short:<10} {bar(frame, stats.current(content, me, heat), stats.stat(content, me, heat), length)}")
+    for pool in [s for s in content.all("stat") if s != health and stats.is_pool(content, s)]:
+        if stats.stat(content, me, pool) > 0:
+            short = content.get("stat", pool).get("short") or pool
+            lines.append(f"{short:<10} {bar(frame, stats.current(content, me, pool), stats.stat(content, me, pool), length)}")
     if not frame.compact:
         lines.append("")                              # a gap between the sides
     for number, cid in enumerate(encounter.living(state, "enemies"), 1):
@@ -1254,10 +1250,11 @@ def _status_line(frame: Frame, cs, width: int, intent: Optional[str]) -> List[st
 
 
 def _tile_cost(frame: Frame, tile) -> str:
-    """'▲3-4 ⟳2 ×1': heat, cooldown, and uses left this fight."""
+    """'▲3-4 MP2 ⟳2 ×1': a filling pool's cost, a draining pool's, cooldown, and uses left this fight."""
     action = frame.content.get("action", tile.action)
     cost = action.get("cost", {})
-    parts = [f"{frame.glyphs['cost']}{tile.cost}"] if tile.cost else []
+    parts = [f"{frame.glyphs['cost']}{amount}" if stats.fills(frame.content, stat_id)
+             else f"{_stat_short(frame.content, stat_id)}{amount}" for stat_id, amount in tile.cost]
     if cost.get("cooldown"):
         parts.append(f"{frame.glyphs['cooldown']}{cost['cooldown']}")
     if cost.get("charges"):
@@ -1337,8 +1334,8 @@ def _action_costs(frame: Frame, record: Mapping, tile) -> List[str]:
     content, ui = frame.content, frame.ui
     cost = record.get("cost", {})
     parts = []
-    if tile.cost:
-        parts.append(ui.word("cost_heat", amount=tile.cost))
+    for stat_id, amount in tile.cost:
+        parts.append(ui.word("cost_pool", stat=content.get("stat", stat_id)["name"].lower(), amount=amount))
     if cost.get("cooldown"):
         parts.append(ui.word("cost_cooldown", rounds=_rounds(ui, cost["cooldown"])))
     if cost.get("charges"):
@@ -1478,8 +1475,8 @@ def hint_context(frame: Frame) -> str:
         return frame.screen
     if frame.screen == "debrief":
         return "debrief"
-    if frame.screen == "fitting":
-        return {"item": "item", "modify": "modify"}.get(frame.panel, "fitting")
+    if frame.screen == "gear":
+        return {"item": "item", "modify": "modify"}.get(frame.panel, "gear")
     if state.pending is not None:
         return "choice"
     if frame.screen == "encounter":
@@ -1521,13 +1518,13 @@ def _numbered(frame: Frame, context: str) -> int:
     if context == "target":
         tile = encounter.tiles(content, state)[frame.selected]
         return len(encounter.targets(content, state, state.player, tile.action))
-    if context == "fitting":
+    if context == "gear":
         return min(9, len(picks(content, state)))
     if context == "talk":
         return min(9, len(responses(frame)) + 1)
     if context == "modify":
         row = picked_row(frame)
-        return len([o for o in build.item_options(content, state, row.slot, frame.ui.bound_keys, "fitting")
+        return len([o for o in build.item_options(content, state, row.slot, frame.ui.bound_keys, "gear")
                     if o.kind == "modify"]) if row else 0
     if context == "pack":
         slots, size = len(build.pack_slots(content, state)), frame.size["page_size"]
@@ -1577,7 +1574,7 @@ def _key_name(frame: Frame, action: str, arrows: bool) -> str:
 def _works(frame: Frame, context: str, actions) -> bool:
     """Whether a hint's keys do anything right now: scrolling needs something to scroll, paging more pages."""
     scrolling = set(actions) <= {"move_north", "move_south", "next_page"}
-    if context == "fitting" and scrolling:
+    if context == "gear" and scrolling:
         return len(picks(frame.content, frame.state)) > 1
     if context == "map":
         return "next_page" not in actions or len(atlas.regions(frame.content, frame.state)) > 1

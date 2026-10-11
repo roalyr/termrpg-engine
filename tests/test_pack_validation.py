@@ -62,7 +62,7 @@ class TestPackErrors(unittest.TestCase):
 
     def test_wrong_schema_version(self):
         self.edit("pack.json", lambda m: m.__setitem__("schema_version", 1))
-        self.assertIn("schema_version: must be 2", self.errors())
+        self.assertIn("schema_version: must be 3", self.errors())
 
     def test_kind_without_schema(self):
         schemas = Path(self.temp.name) / "schemas"
@@ -127,7 +127,8 @@ class TestPackErrors(unittest.TestCase):
         self.edit("vocab.json", lambda v: v["stats"][1].__setitem__("role", "health"))
         errors = self.errors()
         self.assertIn("stat role 'health' must be given to exactly one stat (found stat_health, stat_power)", errors)
-        self.assertIn("stat role 'power' must be given to exactly one stat (found none)", errors)
+        self.edit("vocab.json", lambda v: next(s for s in v["stats"] if s.get("role") == "cargo").pop("role"))
+        self.assertIn("stat role 'cargo' must be given to exactly one stat (found none)", self.errors())
 
     def test_health_must_be_pool(self):
         self.edit("vocab.json", lambda v: v["stats"][0].pop("kind"))
@@ -239,37 +240,40 @@ class TestPackErrors(unittest.TestCase):
         self.item("misc_keycard", lambda i: i.__setitem__("kind", "weapon"))
         self.assertIn("kind: unknown kind 'weapon'", self.errors())
 
-    def test_frame_needs_slots(self):
-        self.item("frame_light", lambda i: i.pop("slots"))
-        self.assertIn("missing required field 'slots'", self.errors())
+    def test_gear_cant_add_slots_of_its_own_type(self):
+        self.item("gear_light_suit", lambda i: i["slots"].append({"slot_type": "slot_worn"}))
+        self.assertIn("adds slots of its own type 'slot_worn'", self.errors())
 
     def test_fields_belong_to_their_kind(self):
         self.item("material_scrap", lambda i: i.__setitem__("slot_type", "slot_back"))
         self.assertIn("unknown field 'slot_type'", self.errors())
 
-    def test_implant_needs_body_slot(self):
-        self.item("implant_eye", lambda i: i.__setitem__("slot_type", "slot_back"))
-        self.assertIn("slot type 'slot_back' is a frame slot; an implant needs a body slot", self.errors())
+    def test_gear_needs_a_slot_of_its_type(self):
+        self.item("gear_eye_implant", lambda i: i.__setitem__("slot_type", "slot_back"))   # Juno has no back slot
+        self.assertIn("no free 'slot_back' slot for 'gear_eye_implant' (slots come from the body and from gear "
+                      "listed before it)", self.errors())
 
-    def test_module_needs_frame_slot(self):
-        self.item("module_cutter", lambda i: i.__setitem__("slot_type", "slot_head"))
-        self.assertIn("slot type 'slot_head' is a body slot; a module needs a frame slot", self.errors())
+    def test_slot_types_have_no_host(self):
+        self.edit("vocab.json", lambda v: v["slot_types"][0].__setitem__("host", "body"))
+        self.assertIn("slot_types[0]: unknown field 'host'", self.errors())
 
     def test_stacked_items_cannot_wear(self):
         self.item("material_scrap", lambda i: i.__setitem__("condition", 3))
         self.assertIn("items that stack can't have a condition", self.errors())
 
     def test_unknown_stat_key(self):
-        self.item("frame_light", lambda i: i["stats"].__setitem__("stat_missing", 1))
+        self.item("gear_light_suit", lambda i: i["stats"].__setitem__("stat_missing", 1))
         self.assertIn("stats.stat_missing: unknown stat 'stat_missing'", self.errors())
 
     def test_unknown_grade(self):
-        self.item("frame_light", lambda i: i.__setitem__("grade", "grade_missing"))
+        self.item("gear_light_suit", lambda i: i.__setitem__("grade", "grade_missing"))
         self.assertIn("unknown grade 'grade_missing'", self.errors())
 
-    def test_budget_keys_are_fixed(self):
-        self.item("module_cutter", lambda i: i["uses"].__setitem__("fuel", 1))
-        self.assertIn("uses: unknown field 'fuel'", self.errors())
+    def test_uses_name_budget_stats(self):
+        self.item("gear_cutter", lambda i: i["uses"].__setitem__("stat_fuel", 1))
+        self.assertIn("uses.stat_fuel: unknown stat 'stat_fuel'", self.errors())
+        self.item("gear_cutter", lambda i: (i["uses"].pop("stat_fuel"), i["uses"].__setitem__("stat_armor", 1)))
+        self.assertIn("uses 'stat_armor', which is neither a budget nor a filling pool", self.errors())
 
     def test_grade_colour_from_palette(self):
         self.edit("vocab.json", lambda v: v["grades"][0].__setitem__("colour", "pink"))
@@ -312,7 +316,7 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("result: must be one of", self.errors())
 
     def test_item_grants_unknown_action(self):
-        self.item("module_cutter", lambda i: i.__setitem__("actions", ["action_missing"]))
+        self.item("gear_cutter", lambda i: i.__setitem__("actions", ["action_missing"]))
         self.assertIn("unknown action 'action_missing'", self.errors())
 
     def test_levels_in_order(self):
@@ -362,37 +366,75 @@ class TestPackErrors(unittest.TestCase):
         self.character("char_juno", lambda ch: ch.pop("location"))
         self.assertIn("'at' needs a location", self.errors())
 
-    def test_frame_must_be_a_frame(self):
-        self.character("char_player", lambda ch: ch.__setitem__("frame", "module_cutter"))
-        self.assertIn("'module_cutter' is worn as a frame but is a module", self.errors())
+    def test_gear_needs_a_slot_type(self):
+        self.item("gear_light_suit", lambda i: i.pop("slot_type"))
+        self.assertIn("missing required field 'slot_type'", self.errors())
 
-    def test_fitted_must_be_modules(self):
-        self.character("char_player", lambda ch: ch["fitted"].append("implant_eye"))
-        self.assertIn("fitted lists 'implant_eye', which is an implant, not a module", self.errors())
+    def test_equipped_must_be_gear(self):
+        self.character("char_player", lambda ch: ch["equipped"].append("material_scrap"))
+        self.assertIn("equipped lists 'material_scrap', which is a material, not gear", self.errors())
 
-    def test_too_many_modules_for_slots(self):
-        self.character("char_player", lambda ch: ch["fitted"].extend(["module_cutter", "module_cutter"]))
-        self.assertIn("no free 'slot_hand' slot in the frame for 'module_cutter'", self.errors())
+    def test_too_much_gear_for_slots(self):
+        self.character("char_player", lambda ch: ch["equipped"].extend(["gear_cutter", "gear_cutter"]))
+        self.assertIn("no free 'slot_hand' slot for 'gear_cutter' (slots come from the body and from gear "
+                      "listed before it)", self.errors())
 
-    def test_fitted_without_frame(self):
-        self.character("char_player", lambda ch: ch.pop("frame"))
-        self.assertIn("has fitted modules but wears no frame", self.errors())
+    def test_gear_needs_the_slots_other_gear_adds(self):
+        self.character("char_player", lambda ch: ch["equipped"].remove("gear_light_suit"))   # the suit adds the hands
+        self.assertIn("no free 'slot_hand' slot for 'gear_cutter' (slots come from the body and from gear "
+                      "listed before it)", self.errors())
+
+    def test_gear_is_placed_in_the_order_it_is_listed(self):
+        self.character("char_player", lambda ch: ch["equipped"].reverse())                   # tools before the suit
+        self.assertIn("no free 'slot_hand' slot for 'gear_cutter' (slots come from the body and from gear "
+                      "listed before it)", self.errors())
 
     def test_power_budget(self):
-        self.item("module_shield", lambda i: i["uses"].__setitem__("power", 9))
-        self.assertIn("fitted gear needs 10 power, the loadout provides 6", self.errors())
+        self.item("gear_shield", lambda i: i["uses"].__setitem__("stat_power", 9))
+        self.assertIn("equipped gear needs 10 stat_power, the loadout provides 6", self.errors())
 
     def test_heat_load(self):
-        self.item("module_shield", lambda i: i["uses"].__setitem__("heat", 8))
-        self.assertIn("constant heat 8 leaves no room below maximum heat 8", self.errors())
+        self.item("gear_shield", lambda i: i["uses"].__setitem__("stat_heat", 8))
+        self.assertIn("constant load 8 on 'stat_heat' leaves no room below its maximum 8", self.errors())
 
     def test_cargo_capacity(self):
         self.character("char_player", lambda ch: ch["inventory"].append({"item": "misc_keycard", "count": 4}))
         self.assertIn("inventory needs 8 cargo stacks, the loadout carries 6", self.errors())
 
+    def test_budgets_are_values_and_only_pools_fill(self):
+        self.edit("vocab.json", lambda v: self.stat(v, "stat_heat").__setitem__("budget", True))
+        self.assertIn("vocab: stat 'stat_heat' is a pool, so it can't be a budget (make it fill instead)", self.errors())
+        self.edit("vocab.json", lambda v: (self.stat(v, "stat_heat").pop("budget"),
+                                           self.stat(v, "stat_power").__setitem__("fills", True)))
+        self.assertIn("vocab: stat 'stat_power' sets fills but isn't a pool", self.errors())
+
+    def test_health_drains(self):
+        self.edit("vocab.json", lambda v: self.stat(v, "stat_health").__setitem__("fills", True))
+        self.assertIn("vocab: stat 'stat_health' is health, which drains; it can't fill", self.errors())
+
+    def test_costs_are_paid_from_pools(self):
+        def cost_power(data):
+            action = next(a for a in data["entries"] if a["id"] == "action_strike")
+            action["cost"]["pools"] = {"stat_power": 1}
+        self.edit("actions.json", cost_power)
+        self.assertIn("costs 'stat_power', which isn't a pool", self.errors())
+
+    def test_equip_slot_types_need_the_equip_service(self):
+        def limit(data):
+            bench = next(o for o in data["entries"] if o.get("workshop") and len(o["workshop"]["services"]) > 1)
+            bench["workshop"]["services"].remove("equip")
+            bench["workshop"]["equip_slot_types"] = ["slot_hand"]
+        self.edit("objects.json", limit)
+        self.assertIn("lists equip_slot_types but doesn't offer 'equip'", self.errors())
+
+    @staticmethod
+    def stat(vocab, stat_id):
+        return next(s for s in vocab["stats"] if s["id"] == stat_id)
+
     def test_implant_needs_body_slot_on_character(self):
         self.character("char_juno", lambda ch: ch["body"].pop("slots"))
-        self.assertIn("no free 'slot_head' slot in the body for 'implant_eye'", self.errors())
+        self.assertIn("no free 'slot_head' slot for 'gear_eye_implant' (slots come from the body and from gear "
+                      "listed before it)", self.errors())
 
     def test_skill_level_above_max(self):
         self.character("char_player", lambda ch: ch["skills"].__setitem__("skill_salvage", 6))
@@ -474,10 +516,10 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("engine: unknown field 'hello_world'", self.errors())
 
     def test_missing_engine_message_warns(self):
-        self.strings(lambda d: d["engine"].pop("overheated"))
+        self.strings(lambda d: d["engine"].pop("pool_full"))
         report = validate_pack(self.pack)
         self.assertEqual(report.errors, ())
-        self.assertTrue(any("not written yet" in w and "overheated" in w for w in report.warnings))
+        self.assertTrue(any("not written yet" in w and "pool_full" in w for w in report.warnings))
 
     def test_unknown_string_reference(self):
         self.character("char_juno", lambda ch: ch["talk"][-1].__setitem__("text", "@missing"))
@@ -495,12 +537,12 @@ class TestPackErrors(unittest.TestCase):
         self.edit("modifications.json", apply)
 
     def test_modification_needs_a_material(self):
-        self.modification("mod_reinforced", lambda m: m.__setitem__("material", "module_cutter"))
-        self.assertIn("'module_cutter' is a module, not a material", self.errors())
+        self.modification("mod_reinforced", lambda m: m.__setitem__("material", "gear_cutter"))
+        self.assertIn("'gear_cutter' is gear, not a material", self.errors())
 
-    def test_modification_only_for_fittable_kinds(self):
+    def test_modification_applies_to_gear_only(self):
         self.modification("mod_reinforced", lambda m: m["applies_to"].__setitem__("kinds", ["material"]))
-        self.assertIn("applies_to.kinds[0]: must be one of", self.errors())
+        self.assertIn("applies_to: unknown field 'kinds'", self.errors())
 
     def test_modification_must_add_something(self):
         self.modification("mod_reinforced", lambda m: m.__setitem__("adds", {}))
@@ -511,20 +553,20 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("unknown field 'mod_slots'", self.errors())
 
     def test_too_many_mod_slots(self):
-        self.item("frame_light", lambda i: i.__setitem__("mod_slots", 9))
+        self.item("gear_light_suit", lambda i: i.__setitem__("mod_slots", 9))
         self.assertIn("mod_slots: must be at most 5", self.errors())
 
     def test_repair_needs_condition(self):
-        self.item("module_shield", lambda i: i.__setitem__("repair", {"inputs": [{"item": "material_scrap"}]}))
+        self.item("gear_shield", lambda i: i.__setitem__("repair", {"inputs": [{"item": "material_scrap"}]}))
         self.assertIn("has repair costs but no condition", self.errors())
 
     def test_dismantling_cannot_return_itself(self):
-        self.item("module_cutter", lambda i: i["salvage"]["yields"].append({"item": "module_cutter"}))
+        self.item("gear_cutter", lambda i: i["dismantle"]["yields"].append({"item": "gear_cutter"}))
         self.assertIn("dismantling it can't give back the item itself", self.errors())
 
-    def test_fabricate_needs_inputs(self):
-        self.item("module_cutter", lambda i: i["fabricate"].__setitem__("inputs", []))
-        self.assertIn("fabricate.inputs: needs at least 1 item(s)", self.errors())
+    def test_make_needs_inputs(self):
+        self.item("gear_cutter", lambda i: i["make"].__setitem__("inputs", []))
+        self.assertIn("make.inputs: needs at least 1 item(s)", self.errors())
 
     def test_workshop_services(self):
         self.edit("objects.json", lambda d: next(e for e in d["entries"] if e["id"] == "obj_bench")
@@ -540,8 +582,8 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("has contents but no storage", self.errors())
 
     def test_contents_must_fit(self):
-        self.placement("loc_workshop", "workshop_locker", lambda p: p.__setitem__("contents", [{"item": "frame_light"}]))
-        self.assertIn("'frame_light' is too big for it (holds_size 2)", self.errors())
+        self.placement("loc_workshop", "workshop_locker", lambda p: p.__setitem__("contents", [{"item": "gear_light_suit"}]))
+        self.assertIn("'gear_light_suit' is too big for it (holds_size 2)", self.errors())
 
     def test_contents_within_storage(self):
         self.placement("loc_workshop", "workshop_locker", lambda p: p.__setitem__("contents", [{"item": "misc_keycard", "count": 7}]))

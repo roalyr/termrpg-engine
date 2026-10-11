@@ -63,55 +63,63 @@ class TextTest(unittest.TestCase):
 
 
 class BudgetsTest(unittest.TestCase):
-    ROLES = {"power": "pwr", "mass": "mas", "heat": "hot", "cargo": "car"}
+    STATS = {"pwr": {"budget": True}, "mas": {"budget": True}, "hot": {"kind": "pool", "fills": True},
+             "car": {"role": "cargo"}, "arm": {}}
     ITEMS = {
-        "suit": {"kind": "frame", "stats": {"pwr": 4, "mas": 6, "hot": 5, "car": 1, "arm": 2},
+        "suit": {"kind": "gear", "slot_type": "worn", "worn_size": 5,
+                 "stats": {"pwr": 4, "mas": 6, "hot": 5, "car": 1, "arm": 2},
                  "slots": [{"slot_type": "hand", "count": 2}]},
-        "drill": {"kind": "module", "slot_type": "hand", "uses": {"power": 3, "mass": 2, "heat": 1}},
-        "eye": {"kind": "implant", "slot_type": "head", "stats": {"arm": 1}},
+        "drill": {"kind": "gear", "slot_type": "hand", "uses": {"pwr": 3, "mas": 2, "hot": 1}},
+        "eye": {"kind": "gear", "slot_type": "head", "stats": {"arm": 1}},
         "scrap": {"kind": "material", "stack": 10},
     }
     SKILLS = {"lift": {"levels": [{"level": 1}, {"level": 2, "stats": {"mas": 4}}, {"level": 3, "stats": {"mas": 9}}]}}
 
     def fit(self, **char):
-        char.setdefault("body", {"stats": {"car": 1}, "slots": [{"slot_type": "head"}]})
-        return budgets.loadout(char, self.ITEMS, self.ROLES, self.SKILLS)
+        char.setdefault("body", {"size": 3, "stats": {"car": 1}, "slots": [{"slot_type": "worn"}, {"slot_type": "head"}]})
+        return budgets.loadout(char, self.ITEMS, self.STATS, self.SKILLS)
 
     def test_slots_numbers_and_totals(self):
-        fit = self.fit(frame="suit", fitted=["drill"], implants=["eye"], skills={"lift": 2},
-                       inventory=[{"item": "scrap", "count": 11}])
-        self.assertEqual(fit.slots, [budgets.Slot("frame", "hand", "drill", 0), budgets.Slot("frame", "hand", None, -1),
-                                     budgets.Slot("body", "head", "eye", 0)])
-        self.assertEqual(fit.used, {"power": 3, "mass": 2, "heat": 1, "cargo": 2})     # 11 scrap is two stacks
-        self.assertEqual(fit.provided, {"power": 4, "mass": 10, "heat": 5, "cargo": 2})  # level 2 lifts, not 3
+        fit = self.fit(equipped=["suit", "drill", "eye"], skills={"lift": 2}, inventory=[{"item": "scrap", "count": 11}])
+        self.assertEqual(fit.slots, [budgets.Slot(budgets.BODY, "worn", "suit", 0), budgets.Slot(budgets.BODY, "head", "eye", 2),
+                                     budgets.Slot(0, "hand", "drill", 1), budgets.Slot(0, "hand", None, -1)])
+        self.assertEqual(fit.used, {"pwr": 3, "mas": 2, "hot": 1, "car": 2})       # 11 scrap is two stacks
+        self.assertEqual(fit.provided, {"pwr": 4, "mas": 10, "hot": 5, "car": 2})   # level 2 lifts, not 3
         self.assertEqual(fit.totals["arm"], 3)
+        self.assertEqual(fit.size, 5)                                              # the suit's worn_size
+        self.assertEqual(self.fit(equipped=["eye"]).size, 3)                       # without one, the body's
         self.assertEqual(fit.problems, [])
+        self.assertEqual(list(budgets.budget_stats(self.STATS)), ["pwr", "mas", "hot", "car"])
 
     def test_each_limit(self):
-        over = self.fit(frame="suit", fitted=["drill", "drill"], inventory=[{"item": "scrap", "count": 30}]).problems
-        self.assertEqual([(p.what, p.role, p.used, p.provided) for p in over],
-                         [("over", "power", 6, 4), ("over", "cargo", 3, 2)])
-        self.assertFalse(budgets.over("heat", 0, 0))            # no load, no maximum: fine
-        self.assertTrue(budgets.over("heat", 5, 5))             # heat must stay below its maximum
-        self.assertFalse(budgets.over("power", 5, 5))
+        over = self.fit(equipped=["suit", "drill", "drill"], inventory=[{"item": "scrap", "count": 30}]).problems
+        self.assertEqual([(p.what, p.stat, p.used, p.provided) for p in over],
+                         [("over", "pwr", 6, 4), ("over", "car", 3, 2)])
+        self.assertFalse(budgets.over(True, 0, 0))             # no load, no maximum: fine
+        self.assertTrue(budgets.over(True, 5, 5))              # a filling pool must stay below its maximum
+        self.assertFalse(budgets.over(False, 5, 5))
 
     def test_what_doesnt_fit(self):
-        fit = self.fit(frame="drill", fitted=["drill", "eye", "nope"], implants=["eye", "eye"])
-        self.assertEqual([(p.what, p.item, p.kind, p.group) for p in fit.problems],
-                         [("not_frame", "drill", "module", ""), ("no_slot", "drill", "module", "fitted"),
-                          ("wrong_kind", "eye", "implant", "fitted"), ("no_item", "nope", "", "fitted"),
-                          ("no_slot", "eye", "implant", "implants"),
-                          ("over", "", "", ""), ("over", "", "", ""), ("over", "", "", "")])
-        self.assertEqual([p.role for p in fit.problems[-3:]], ["power", "mass", "heat"])     # nothing provides them
-        self.assertIsNone(fit.frame)
-        self.assertEqual([s.item for s in fit.extra], ["drill", "eye", "nope", "eye"])
-        self.assertEqual([p.what for p in self.fit(fitted=["drill"]).problems], ["no_frame", "no_slot", "over", "over", "over"])
+        fit = self.fit(equipped=["drill", "suit", "scrap", "nope", "eye", "eye"])
+        self.assertEqual([(p.what, p.item, p.kind, p.slot_type) for p in fit.problems],
+                         [("not_gear", "scrap", "material", ""), ("no_item", "nope", "", ""),
+                          ("no_slot", "drill", "gear", "hand"),            # listed before the suit that adds hands
+                          ("no_slot", "eye", "gear", "head")])
+        self.assertEqual([s.item for s in fit.extra], ["drill", "scrap", "nope", "eye"])
+        self.assertEqual([p.stat for p in self.fit(equipped=["drill"], body={"slots": [{"slot_type": "hand"}]}).problems],
+                         ["pwr", "mas", "hot"])                            # nothing provides them
 
     def test_bad_numbers_are_skipped(self):
-        items = dict(self.ITEMS, drill=dict(self.ITEMS["drill"], uses={"power": "lots"}))
-        fit = budgets.loadout({"frame": "suit", "fitted": ["drill"], "body": {"stats": {"pwr": "x"}}},
-                              items, self.ROLES, {})
-        self.assertEqual((fit.used["power"], fit.provided["power"]), (0, 4))
+        items = dict(self.ITEMS, drill=dict(self.ITEMS["drill"], uses={"pwr": "lots"}))
+        fit = budgets.loadout({"equipped": ["suit", "drill"], "body": {"stats": {"pwr": "x"}, "slots": [{"slot_type": "worn"}]}},
+                              items, self.STATS, {})
+        self.assertEqual((fit.used["pwr"], fit.provided["pwr"]), (0, 4))
+
+    def test_place_puts_gear_in_order(self):
+        slots, unplaced = budgets.place({"worn": 1}, [self.ITEMS["drill"] | {"id": "drill"}, self.ITEMS["suit"] | {"id": "suit"},
+                                                     None])
+        self.assertEqual(unplaced, [0, 2])                                   # the drill came first; None isn't gear
+        self.assertEqual([s.slot_type for s in slots], ["worn", "hand", "hand"])
 
 
 if __name__ == "__main__":

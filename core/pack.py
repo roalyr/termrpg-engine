@@ -52,8 +52,8 @@ VOCAB_NAMESPACES = {
     "factions": "faction", "flags": "flag", "grades": "grade",
 }
 
-STAT_ROLES = ("health", "power", "mass", "heat", "initiative", "cargo")
-POOL_ROLES = ("health", "heat")
+STAT_ROLES = ("health", "initiative", "cargo")
+POOL_ROLES = ("health",)
 
 Entries = Dict[str, Dict[str, dict]]  # kind -> id -> entry
 
@@ -168,8 +168,10 @@ def _collect(result: schema.Result, label: str, errors: List[str], warnings: Lis
 
 
 def _a(word: Any) -> str:
-    """'a module', 'an implant'."""
+    """'a material', 'an item'."""
     word = str(word)
+    if word == "gear":                     # a mass noun: 'is gear', not 'is a gear'
+        return word
     return f"{'an' if word[:1] in 'aeiou' else 'a'} {word}"
 
 
@@ -232,6 +234,15 @@ def _check_vocab_rules(manifest: dict, vocab: Dict[str, Any], errors: List[str],
             errors.append(f"vocab: stat role '{role}' must be given to exactly one stat ({found})")
         elif role in POOL_ROLES and next(s for s in stats if s["id"] == holders[0]).get("kind") != "pool":
             errors.append(f"vocab: stat '{holders[0]}' has role '{role}' and must be a pool")
+    for stat in stats:
+        pool = stat.get("kind") == "pool"
+        if stat.get("budget") and pool:
+            errors.append(f"vocab: stat '{stat['id']}' is a pool, so it can't be a budget (make it fill instead)")
+        for key in ("fills", "per_round"):
+            if key in stat and stat[key] is not False and not pool:
+                errors.append(f"vocab: stat '{stat['id']}' sets {key} but isn't a pool")
+        if stat.get("fills") and stat.get("role") == "health":
+            errors.append(f"vocab: stat '{stat['id']}' is health, which drains; it can't fill")
 
     for status in vocab.get("statuses", []):
         if "max_stacks" in status and status.get("stacking") != "stack":
@@ -363,21 +374,25 @@ def _check_art_rules(entries: Entries, where: Dict[Tuple[str, str], str], errors
 
 def _check_item_rules(entries: Entries, vocab: Dict[str, Any], where: Dict[Tuple[str, str], str],
                       errors: List[str]) -> None:
-    hosts = {s["id"]: s.get("host") for s in vocab.get("slot_types", [])}
+    stats = {s["id"]: s for s in vocab.get("stats", [])}
+    loadout_stats = {s for s, record in stats.items() if record.get("budget") or record.get("fills")}
+
+    def check_uses(uses: Any, label: str) -> None:
+        for stat_id in (uses or {}) if isinstance(uses, dict) else ():
+            if stat_id in stats and stat_id not in loadout_stats:
+                errors.append(f"{label}: uses '{stat_id}', which is neither a budget nor a filling pool")
+
     for item_id, item in entries.get("items", {}).items():
         label = where[("items", item_id)]
-        wanted = "body" if item.get("kind") == "implant" else "frame"
-        slot_types = [item.get("slot_type")] + [s.get("slot_type") for s in item.get("slots", []) or []
-                                                 if isinstance(s, dict)]
-        for slot_type in slot_types:
-            if slot_type in hosts and hosts[slot_type] != wanted:
-                errors.append(f"{label}: slot type '{slot_type}' is a {hosts[slot_type]} slot; "
-                              f"{_a(item.get('kind'))} needs a {wanted} slot")
+        own = [s.get("slot_type") for s in item.get("slots", []) or [] if isinstance(s, dict)]
+        if item.get("slot_type") in own:
+            errors.append(f"{label}: adds slots of its own type '{item['slot_type']}'")
+        check_uses(item.get("uses"), label)
         if item.get("stack", 1) > 1 and "condition" in item:
             errors.append(f"{label}: items that stack can't have a condition (worn items don't stack)")
         if "repair" in item and "condition" not in item:
             errors.append(f"{label}: has repair costs but no condition, so it never wears")
-        yields = (item.get("salvage", {}) or {}).get("yields", []) if isinstance(item.get("salvage"), dict) else []
+        yields = (item.get("dismantle", {}) or {}).get("yields", []) if isinstance(item.get("dismantle"), dict) else []
         if any(isinstance(y, dict) and y.get("item") == item_id for y in yields):
             errors.append(f"{label}: dismantling it can't give back the item itself")
 
@@ -387,6 +402,20 @@ def _check_item_rules(entries: Entries, vocab: Dict[str, Any], where: Dict[Tuple
         if material is not None and material.get("kind") != "material":
             errors.append(f"{where[('modifications', mod_id)]}: '{mod['material']}' is {_a(material.get('kind'))}, "
                           f"not a material")
+        adds = mod.get("adds") if isinstance(mod.get("adds"), dict) else {}
+        check_uses(adds.get("uses"), where[("modifications", mod_id)])
+
+    pools = {s for s, record in stats.items() if record.get("kind") == "pool"}
+    for action_id, action in entries.get("actions", {}).items():
+        cost = action.get("cost") if isinstance(action.get("cost"), dict) else {}
+        for stat_id in cost.get("pools", {}) if isinstance(cost.get("pools"), dict) else ():
+            if stat_id in stats and stat_id not in pools:
+                errors.append(f"{where[('actions', action_id)]}: costs '{stat_id}', which isn't a pool")
+
+    for obj_id, obj in entries.get("objects", {}).items():
+        shop = obj.get("workshop") if isinstance(obj.get("workshop"), dict) else {}
+        if shop.get("equip_slot_types") and "equip" not in (shop.get("services") or []):
+            errors.append(f"{where[('objects', obj_id)]}: lists equip_slot_types but doesn't offer 'equip'")
 
 
 def _check_skill_rules(manifest: dict, entries: Entries, where: Dict[Tuple[str, str], str],
@@ -409,23 +438,21 @@ def _check_skill_rules(manifest: dict, entries: Entries, where: Dict[Tuple[str, 
                 errors.append(f"{label}.levels[{i}]: level 1 needs 0 xp")
 
 
-def _loadout_problem(problem: budgets.Problem) -> str:
+def _loadout_problem(problem: budgets.Problem, stats: Dict[str, dict]) -> str:
     """A loadout problem as the checker words it; '' for unknown items (reported as bad references)."""
-    if problem.what == "not_frame":
-        return f"'{problem.item}' is worn as a frame but is {_a(problem.kind)}"
-    if problem.what == "no_frame":
-        return "has fitted modules but wears no frame"
-    if problem.what == "wrong_kind":
-        expected = "module" if problem.group == "fitted" else "implant"
-        return f"{problem.group} lists '{problem.item}', which is {_a(problem.kind)}, not {_a(expected)}"
+    record = stats.get(problem.stat, {})
+    if problem.what == "not_gear":
+        return f"equipped lists '{problem.item}', which is {_a(problem.kind)}, not gear"
     if problem.what == "no_slot":
-        return f"no free '{problem.slot_type}' slot in the {problem.host} for '{problem.item}'"
-    if problem.what == "over" and problem.role == "heat":
-        return f"constant heat {problem.used:g} leaves no room below maximum heat {problem.provided:g}"
-    if problem.what == "over" and problem.role == "cargo":
+        return (f"no free '{problem.slot_type}' slot for '{problem.item}' "
+                f"(slots come from the body and from gear listed before it)")
+    if problem.what == "over" and record.get("fills"):
+        return (f"constant load {problem.used:g} on '{problem.stat}' leaves no room below its maximum "
+                f"{problem.provided:g}")
+    if problem.what == "over" and record.get("role") == "cargo":
         return f"inventory needs {problem.used:g} cargo stacks, the loadout carries {problem.provided:g}"
     if problem.what == "over":
-        return f"fitted gear needs {problem.used:g} {problem.role}, the loadout provides {problem.provided:g}"
+        return f"equipped gear needs {problem.used:g} {problem.stat}, the loadout provides {problem.provided:g}"
     return ""
 
 
@@ -434,8 +461,7 @@ def _check_character_rules(manifest: dict, entries: Entries, vocab: Dict[str, An
     items = entries.get("items", {})
     locations = entries.get("locations", {})
     characters = entries.get("characters", {})
-    role_stat = {s.get("role"): s["id"] for s in vocab.get("stats", []) if s.get("role")}
-    hosts = {s["id"]: s.get("host") for s in vocab.get("slot_types", [])}
+    stats = {s["id"]: s for s in vocab.get("stats", [])}
     settings = manifest.get("settings", {}) if isinstance(manifest.get("settings"), dict) else {}
     max_level = settings.get("skill_max_level", 5)
     occupied: Dict[Tuple[str, int, int], str] = {}
@@ -453,12 +479,8 @@ def _check_character_rules(manifest: dict, entries: Entries, vocab: Dict[str, An
             _check_standing(char, char_id, label, locations, occupied, errors)
         _check_leader_chain(char_id, characters, label, errors)
 
-        body = char.get("body", {}) if isinstance(char.get("body"), dict) else {}
-        for slot in body.get("slots", []) or []:
-            if isinstance(slot, dict) and slot.get("slot_type") and hosts.get(slot["slot_type"], "body") != "body":
-                errors.append(f"{label}: body slot '{slot['slot_type']}' is not a body slot type")
-        fit = budgets.loadout(char, items, role_stat, entries.get("skills", {}))
-        errors += [f"{label}: {words}" for words in map(_loadout_problem, fit.problems) if words]
+        fit = budgets.loadout(char, items, stats, entries.get("skills", {}))
+        errors += [f"{label}: {words}" for words in (_loadout_problem(p, stats) for p in fit.problems) if words]
 
         for skill_id, level in (char.get("skills", {}) or {}).items():
             if isinstance(level, int) and isinstance(max_level, int) and level > max_level:

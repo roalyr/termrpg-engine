@@ -2,17 +2,19 @@
 What a character is right now, derived from content and state: stats, tags, size,
 budgets and cargo. Nothing here is stored; it is computed on demand.
 
-Sources of a character's stats: the body, the worn frame, fitted modules, implants
-(all only while not broken), skill levels, and stat changes from effects. A pool
-stat's derived value is its maximum; its current value lives in CharState.pools.
+Sources of a character's stats: the body, equipped gear (only while not broken), skill
+levels, and stat changes from effects. A pool stat's derived value is its maximum; its
+current value lives in CharState.pools. A filling pool (heat) rests at what equipped
+gear uses of it; a draining pool (health, mana) rests at its maximum.
 """
 from typing import Dict, Iterator, List, Mapping, Optional, Tuple
 
 from engine.content import Content
 from engine.frozen import Record, freeze
 from engine.state import CharState, ItemInst
+from lib import budgets
 
-Slot = Tuple[str, int]  # ('frame'|'fitted'|'implants'|'inventory', index)
+Slot = Tuple[str, int]  # ('equipped'|'inventory', index)
 
 
 # --- Items ---------------------------------------------------------------------
@@ -59,19 +61,15 @@ def is_broken(inst: ItemInst) -> bool:
 
 
 def held(cs: CharState) -> Iterator[Tuple[Slot, ItemInst]]:
-    """Every item a character has, with where it is: worn, fitted, implanted, then carried."""
-    if cs.frame is not None:
-        yield ("frame", 0), cs.frame
-    for i, inst in enumerate(cs.fitted):
-        yield ("fitted", i), inst
-    for i, inst in enumerate(cs.implants):
-        yield ("implants", i), inst
+    """Every item a character has, with where it is: equipped, then carried."""
+    for i, inst in enumerate(cs.equipped):
+        yield ("equipped", i), inst
     for i, inst in enumerate(cs.inventory):
         yield ("inventory", i), inst
 
 
 def active(cs: CharState) -> Iterator[Tuple[Slot, ItemInst]]:
-    """Worn, fitted and implanted items that aren't broken: the ones that count."""
+    """Equipped items that aren't broken: the ones that count."""
     for slot, inst in held(cs):
         if slot[0] != "inventory" and not is_broken(inst):
             yield slot, inst
@@ -79,8 +77,6 @@ def active(cs: CharState) -> Iterator[Tuple[Slot, ItemInst]]:
 
 def item_at(cs: CharState, slot: Slot) -> Optional[ItemInst]:
     where, index = slot
-    if where == "frame":
-        return cs.frame
     items = getattr(cs, where)
     return items[index] if 0 <= index < len(items) else None
 
@@ -88,8 +84,6 @@ def item_at(cs: CharState, slot: Slot) -> Optional[ItemInst]:
 def with_item(cs: CharState, slot: Slot, inst: Optional[ItemInst]) -> CharState:
     """The character with the item at a slot replaced (or removed, when inst is None)."""
     where, index = slot
-    if where == "frame":
-        return cs._replace(frame=inst)
     items = list(getattr(cs, where))
     if inst is None:
         items.pop(index)
@@ -145,13 +139,19 @@ def _clamp(content: Content, stat_id: str, value: float) -> float:
     return value
 
 
+def fills(content: Content, stat_id: str) -> bool:
+    """Whether a pool fills (heat, fatigue) rather than drains (health, mana)."""
+    return bool(content.get("stat", stat_id).get("fills"))
+
+
+def rest(content: Content, cs: CharState, stat_id: str) -> float:
+    """Where a pool rests: a filling pool at its constant load, a draining one at its maximum."""
+    return budget_used(content, cs, stat_id) if fills(content, stat_id) else stat(content, cs, stat_id)
+
+
 def fill_pools(content: Content, cs: CharState) -> CharState:
-    """Pools at their starting values: full, except heat, which starts at the constant heat load."""
-    heat = content.stat_roles.get("heat")
-    pools = {}
-    for stat_id in content.all("stat"):
-        if is_pool(content, stat_id):
-            pools[stat_id] = budget_used(content, cs, "heat") if stat_id == heat else stat(content, cs, stat_id)
+    """Pools at their starting values: each at rest."""
+    pools = {s: rest(content, cs, s) for s in content.all("stat") if is_pool(content, s)}
     return cs._replace(pools=freeze(pools))
 
 
@@ -165,23 +165,18 @@ def clamp_pools(content: Content, cs: CharState) -> CharState:
 
 def own_tags(content: Content, cs: CharState, source: str) -> List[str]:
     """
-    Tags from one source: 'fitted' (worn frame and fitted modules), 'carried'
-    (inventory), 'body' (implants, skill levels and the character's own tags).
-    Broken items give no tags.
+    Tags from one source: 'equipped' (gear in slots), 'carried' (inventory), 'body'
+    (skill levels and the character's own tags). Broken items give no tags.
     """
     tags: List[str] = []
-    if source == "fitted":
-        for (where, _), inst in active(cs):
-            if where in ("frame", "fitted"):
-                tags += item_view(content, inst)["tags"]
+    if source == "equipped":
+        for _, inst in active(cs):
+            tags += item_view(content, inst)["tags"]
     elif source == "carried":
         for (where, _), inst in held(cs):
             if where == "inventory" and not is_broken(inst):
                 tags += item_view(content, inst)["tags"]
     elif source == "body":
-        for (where, _), inst in active(cs):
-            if where == "implants":
-                tags += item_view(content, inst)["tags"]
         for lv in skill_levels(content, cs):
             tags += list(lv.get("tags", ()))
         tags += list(content.get("character", cs.source).get("tags", ()))
@@ -189,24 +184,54 @@ def own_tags(content: Content, cs: CharState, source: str) -> List[str]:
 
 
 def size(content: Content, cs: CharState) -> int:
-    """A character's size: their frame's size, or their body's without one."""
-    if cs.frame is not None:
-        return item_view(content, cs.frame)["size"]
-    return content.get("character", cs.source)["body"]["size"]
+    """A character's size: the largest worn_size of their equipped gear, or their body's without any."""
+    sizes = [content.get("item", inst.item)["worn_size"] for inst in cs.equipped
+             if content.get("item", inst.item).get("worn_size") is not None]
+    return max(sizes) if sizes else content.get("character", cs.source)["body"]["size"]
 
 
-def budget_provided(content: Content, cs: CharState, role: str) -> float:
-    """What the loadout provides of a budget role: power, mass, heat (maximum) or cargo."""
-    stat_id = content.stat_roles.get(role)
-    return stat(content, cs, stat_id) if stat_id else 0
+def sized_by(content: Content, cs: CharState) -> Optional[ItemInst]:
+    """The equipped gear that sets the character's size (the largest worn_size), if any."""
+    sized = [inst for inst in cs.equipped if content.get("item", inst.item).get("worn_size") is not None]
+    return max(sized, key=lambda inst: content.get("item", inst.item)["worn_size"]) if sized else None
 
 
-def budget_used(content: Content, cs: CharState, budget: str) -> float:
-    """What fitted modules use of 'power', 'mass' or 'heat' (the constant heat load)."""
-    return sum(item_view(content, inst)["uses"].get(budget, 0)
-               for (where, _), inst in active(cs) if where == "fitted")
+def slots(content: Content, cs: CharState, equipped: Optional[Tuple[ItemInst, ...]] = None):
+    """
+    Where equipped gear sits (lib.budgets.place): the slots, body first, then each
+    piece's, and the indexes of gear with no free slot (none in a valid state).
+    """
+    gear = [dict(content.get("item", inst.item), id=inst.item) for inst in (cs.equipped if equipped is None else equipped)]
+    return budgets.place(cs.body_slots, gear)
+
+
+def budget_stats(content: Content) -> List[str]:
+    """The stats a loadout is measured against: budgets, filling pools, then cargo."""
+    return list(budgets.budget_stats(content.all("stat")))
+
+
+def over(content: Content, stat_id: str, used: float, provided: float) -> bool:
+    return budgets.over(fills(content, stat_id), used, provided)
+
+
+def budget_provided(content: Content, cs: CharState, stat_id: str) -> float:
+    """What the loadout provides of a budget stat (a filling pool: its maximum)."""
+    return stat(content, cs, stat_id)
+
+
+def budget_used(content: Content, cs: CharState, stat_id: str) -> float:
+    """What equipped gear uses of a budget stat (a filling pool: its constant load); cargo: stacks carried."""
+    if stat_id == content.stat_roles.get("cargo"):
+        return len(cs.inventory)
+    return sum(item_view(content, inst)["uses"].get(stat_id, 0) for _, inst in active(cs))
+
+
+def cargo_capacity(content: Content, cs: CharState) -> float:
+    """How many item stacks the character can carry."""
+    cargo = content.stat_roles.get("cargo")
+    return stat(content, cs, cargo) if cargo else 0
 
 
 def cargo_free(content: Content, cs: CharState) -> int:
     """How many more item stacks the character can carry."""
-    return int(budget_provided(content, cs, "cargo")) - len(cs.inventory)
+    return int(cargo_capacity(content, cs)) - len(cs.inventory)

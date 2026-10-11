@@ -3,7 +3,7 @@
   "$id": "vocab.schema.json",
   "title": "Vocabulary",
   "description": "Everything a pack declares for the rest of its data to refer to: tags, stats, damage types, statuses, slot types, size and rank names, object states, day phases, factions and flags. The schemas fix the structure; the vocabulary fixes the words.",
-  "x-schema-version": 2,
+  "x-schema-version": 3,
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -28,7 +28,7 @@
           },
           "name": {
             "$ref": "common.schema.json#/$defs/label",
-            "description": "Noun phrase used in hints, e.g. 'a pry-bar' in 'Needs a pry-bar or a heavier frame.'"
+            "description": "Noun phrase used in hints, e.g. 'a pry-bar' in 'Needs a pry-bar or a heavier suit.'"
           },
           "notes": {
             "$ref": "common.schema.json#/$defs/notes"
@@ -55,7 +55,7 @@
       "description": "Stats.",
       "items": {
         "type": "object",
-        "description": "A number characters, frames, items or objects can have.",
+        "description": "A number characters, gear, items or objects can have.",
         "properties": {
           "id": {
             "$ref": "common.schema.json#/$defs/id"
@@ -81,18 +81,30 @@
               "pool"
             ],
             "default": "value",
-            "description": "'value' is a plain number. 'pool' has a current value and a maximum, like health or heat."
+            "description": "'value' is a plain number. 'pool' has a current value and a maximum, like health, mana or heat."
           },
           "role": {
             "enum": [
               "health",
-              "power",
-              "mass",
-              "heat",
               "initiative",
               "cargo"
             ],
-            "description": "Tells the engine this stat has a built-in meaning. health: a character is down at 0. power, mass: fitting budgets a frame provides and gear uses. heat: builds up with actions; at its maximum the frame overheats. initiative: who acts first in an encounter. cargo: how many item stacks a character can carry, provided by the body, frames and cargo modules. Each role must be given to exactly one stat."
+            "description": "Tells the engine this stat has a built-in meaning. health: a character is down at 0. initiative: who acts first in an encounter. cargo: how many item stacks a character can carry, provided by the body and gear. Each role must be given to exactly one stat."
+          },
+          "budget": {
+            "type": "boolean",
+            "default": false,
+            "description": "A loadout budget, e.g. power or weight: what the body, gear and skill levels add is available, and what equipped gear 'uses' must stay within it. Only for 'value' stats."
+          },
+          "fills": {
+            "type": "boolean",
+            "default": false,
+            "description": "For pools: costs raise it instead of lowering it (heat, fatigue). At its maximum the character loses their next action and it falls back to its resting value: what equipped gear 'uses' of it. Without it, a pool drains (health, mana): an action it can't pay is refused."
+          },
+          "per_round": {
+            "type": "number",
+            "minimum": 0,
+            "description": "For pools: how far it moves back each encounter round, toward its resting value for a filling pool and toward its maximum for a draining one."
           },
           "min": {
             "type": "number",
@@ -215,7 +227,7 @@
       "description": "Slot types.",
       "items": {
         "type": "object",
-        "description": "A kind of slot gear can be fitted into.",
+        "description": "A kind of slot gear is equipped in. Slots come from bodies and from gear.",
         "properties": {
           "id": {
             "$ref": "common.schema.json#/$defs/id"
@@ -226,22 +238,19 @@
           "notes": {
             "$ref": "common.schema.json#/$defs/notes"
           },
-          "host": {
-            "enum": [
-              "frame",
-              "body"
-            ],
-            "description": "'frame' slots belong to suits; 'body' slots are implant slots in a character."
-          },
           "description": {
             "$ref": "common.schema.json#/$defs/text"
+          },
+          "equip_at_workshop": {
+            "type": "boolean",
+            "default": false,
+            "description": "Gear in this slot type is equipped or taken off only within reach of a workshop offering 'equip', e.g. suits or implants. Without it, gear changes anywhere."
           }
         },
         "additionalProperties": false,
         "required": [
           "id",
-          "name",
-          "host"
+          "name"
         ]
       },
       "uniqueItems": true

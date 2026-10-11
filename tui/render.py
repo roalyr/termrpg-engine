@@ -18,7 +18,7 @@ def render(content: Content, state: GameState, columns: int, rows: int = 60,
            panel: Optional[str] = None, colour: bool = True, selected: Optional[int] = None,
            page: int = 0, ui: Optional[UI] = None, scroll: int = 0, screen: Optional[str] = None,
            log: tuple = (), cursor: Optional[tuple] = None) -> str:
-    """Draws the screen; 'screen' picks a full screen of the world (such as 'fitting'), 'log' is a conversation's
+    """Draws the screen; 'screen' picks a full screen of the world (such as 'gear'), 'log' is a conversation's
     history, 'cursor' the map's cursor."""
     frame = _frame(content, state, panel, colour, selected, page, ui, scroll, screen, log, cursor)
     if not _fits(frame, columns, rows):

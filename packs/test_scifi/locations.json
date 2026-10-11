@@ -154,10 +154,10 @@
           ],
           "contents": [
             {
-              "item": "frame_heavy"
+              "item": "gear_heavy_suit"
             },
             {
-              "item": "implant_eye"
+              "item": "gear_eye_implant"
             }
           ]
         },
@@ -198,7 +198,7 @@
             "not": {
               "check": "has_tag",
               "tag": "tag_filter",
-              "source": "fitted"
+              "source": "equipped"
             }
           },
           "then": [

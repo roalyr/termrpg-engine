@@ -69,7 +69,7 @@ def with_history():
 
 def carrying_a_cutter():
     s = new_game(CONTENT, 1)
-    return run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "give_item", "item": "module_cutter", "count": 1, "subject": "self"})])
+    return run(CONTENT, s, Ctx(self_id=s.player), [freeze({"op": "give_item", "item": "gear_cutter", "count": 1, "subject": "self"})])
 
 
 def bench_state():
@@ -93,10 +93,10 @@ def screens():
         ("board picked", new_game(CONTENT, 1), {"panel": "pack", "selected": 3}),
         ("sheet", new_game(CONTENT, 1), {"screen": "character"}),
         ("inspect", bench_state(), {"panel": "inspect"}),
-        ("fitting", bench_state(), {"screen": "fitting", "selected": 1}),
-        ("fitting modify", bench_state(), {"screen": "fitting", "selected": 1, "panel": "modify"}),
-        ("fitting details", bench_state(), {"screen": "fitting", "selected": 1, "panel": "item"}),
-        ("fitting away", new_game(CONTENT, 1), {"screen": "fitting"}),
+        ("gear", bench_state(), {"screen": "gear", "selected": 1}),
+        ("gear modify", bench_state(), {"screen": "gear", "selected": 1, "panel": "modify"}),
+        ("gear details", bench_state(), {"screen": "gear", "selected": 1, "panel": "item"}),
+        ("gear away", new_game(CONTENT, 1), {"screen": "gear"}),
         ("talk", walk(new_game(CONTENT, 1), "as"), {"screen": "talk"}),
         ("card question", requested("event_grudge"), {}),
         ("card text", requested("event_rescue"), {}),
@@ -200,7 +200,7 @@ class TestFitting(unittest.TestCase):
     def test_hints_wrap_between_entries(self):
         lines = plain(new_game(CONTENT, 1), 52, 60).splitlines()[-4:]
         self.assertGreater(len([line for line in lines if line.startswith("│ ")]), 1)   # the hints wrap
-        for hint in ("WASD move", ". wait", "P pack", "F fitting", "C char", "Q quit"):
+        for hint in ("WASD move", ". wait", "P pack", "F gear", "C char", "Q quit"):
             self.assertTrue(any(hint in line for line in lines), hint)               # each one whole
 
     def test_kept_zones_stay_when_empty(self):
@@ -336,12 +336,12 @@ class TestItemDetails(unittest.TestCase):
 
     def test_details_open_from_a_picked_item_and_go_back(self):
         s = carrying_a_cutter()
-        picked = self.pick(s, "module_cutter")
+        picked = self.pick(s, "gear_cutter")
         self.assertIn("I Details", plain(s, panel="pack", selected=picked))
         _, view, _ = app.handle(CONTENT, s, "i", app.View("pack", picked), UI)
         self.assertEqual((view.panel, view.selected), ("item", picked))
         frame = plain(s, panel="item", selected=picked)
-        for words in ("Cutter", "Module · Hand slot", "Condition 4/4", "A hand cutter", "Uses", "PWR 1  MAS 2",
+        for words in ("Cutter", "Gear · Hand slot", "Condition 4/4", "A hand cutter", "Uses", "PWR 1  MAS 2",
                       "Counts as", "a tool", "Strike", "1 free of 1", "Takes apart", "Scrap x2", "design not known",
                       "Scrap for +2", "X back"):
             self.assertIn(words, frame)
@@ -354,22 +354,22 @@ class TestItemDetails(unittest.TestCase):
     def test_stored_gear_shows_what_it_needs(self):
         s = walk(run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"),
                      [freeze({"op": "move_to", "location": "loc_storage", "subject": "self"})]), "ssa")
-        frame = plain(s, panel="item", selected=self.pick(s, "frame_heavy", "storage"))
-        for words in ("Heavy suit", "Suit · Fine", "Needs", "Salvage 2", "an air filter", "Hand x2, Back x3", "large"):
+        frame = plain(s, panel="item", selected=self.pick(s, "gear_heavy_suit", "storage"))
+        for words in ("Heavy suit", "Gear · Suit slot · Fine", "Needs", "Salvage 2", "an air filter", "Hand x2, Back x3", "large"):
             self.assertIn(words, frame)
 
     def test_mods_designs_and_broken_items(self):
         s = run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"), [
-            freeze({"op": "learn_design", "item": "module_cutter", "subject": "self"}),
-            freeze({"op": "wear", "pick": {"item": "module_cutter"}, "amount": 99, "subject": "self"})])
+            freeze({"op": "learn_design", "item": "gear_cutter", "subject": "self"}),
+            freeze({"op": "wear", "pick": {"item": "gear_cutter"}, "amount": 99, "subject": "self"})])
         me = s.characters[s.player]
-        modded = me.frame._replace(mods=("mod_reinforced",))
-        s = s._replace(characters=freeze({**s.characters, s.player: me._replace(frame=modded)}))
-        frame = plain(s, panel="item", selected=0, screen="fitting")      # fitted gear: from the fitting screen
+        modded = me.equipped[0]._replace(mods=("mod_reinforced",))
+        s = s._replace(characters=freeze({**s.characters, s.player: me._replace(equipped=(modded,) + me.equipped[1:])}))
+        frame = plain(s, panel="item", selected=0, screen="gear")      # equipped gear: from the gear screen
         self.assertIn("Light suit (Reinforced)", frame)
         self.assertIn("Reinforced, 1 free of 2", frame)
         self.assertIn("ARM +1", frame)
-        cutter = plain(s, panel="item", selected=1, screen="fitting")
+        cutter = plain(s, panel="item", selected=1, screen="gear")
         self.assertIn("Broken", cutter)
         self.assertIn("design known", cutter)
 
@@ -383,13 +383,13 @@ class TestItemDetails(unittest.TestCase):
 
     def test_long_details_scroll(self):
         s = carrying_a_cutter()
-        picked = self.pick(s, "module_cutter")
+        picked = self.pick(s, "gear_cutter")
         self.assertGreater(render.max_scroll(CONTENT, s, 48, 24, "item", picked), 0)
         self.assertIn("↑↓ scroll", plain(s, 48, 24, panel="item", selected=picked))
 
 
-class TestFittingScreen(unittest.TestCase):
-    """Step 3: the fitting screen, where planning and building happen."""
+class TestGearScreen(unittest.TestCase):
+    """Step 3: the gear screen, where planning and building happen."""
 
     def open(self, state):
         _, view, _ = app.handle(CONTENT, state, "f", app.View(), UI)
@@ -397,12 +397,12 @@ class TestFittingScreen(unittest.TestCase):
 
     def test_empty_slots_are_listed_but_never_picked(self):
         s = bench_state()
-        frame = plain(s, screen="fitting")
+        frame = plain(s, screen="gear")
         self.assertEqual(frame.count("· empty"), 2)                 # a free hand slot, the free head slot
         view = self.open(s)
         seen = []
         for _ in range(6):
-            row = build.fitting_rows(CONTENT, s)[widgets.picks(CONTENT, s)[view.selected]]
+            row = build.gear_rows(CONTENT, s)[widgets.picks(CONTENT, s)[view.selected]]
             seen.append(row.slot)
             _, view, _ = app.handle(CONTENT, s, "s", view, UI)
         self.assertNotIn(None, seen)
@@ -410,35 +410,35 @@ class TestFittingScreen(unittest.TestCase):
 
     def test_away_from_a_workshop_it_is_for_planning(self):
         s = new_game(CONTENT, 1)
-        frame = plain(s, screen="fitting", selected=1)
+        frame = plain(s, screen="gear", selected=1)
         self.assertIn("Planning only", frame)
-        self.assertIn("R Remove - Needs a refit workshop.", frame)
-        after, _, _ = app.handle(CONTENT, s, "r", app.View(screen="fitting", selected=1), UI)
-        self.assertEqual(after.characters[s.player].fitted, s.characters[s.player].fitted)
+        self.assertIn("R Remove - Needs a workshop that can change", frame)
+        after, _, _ = app.handle(CONTENT, s, "r", app.View(screen="gear", selected=1), UI)
+        self.assertEqual(after.characters[s.player].equipped, s.characters[s.player].equipped)
 
     def test_gear_fits_straight_from_storage(self):
         s = walk(run(CONTENT, new_game(CONTENT, 1), Ctx(self_id="char_player"),
                      [freeze({"op": "move_to", "location": "loc_storage", "subject": "self"})]), "ssa")
-        rows = build.fitting_rows(CONTENT, s)
+        rows = build.gear_rows(CONTENT, s)
         pickable = widgets.picks(CONTENT, s)
         eye = next(n for n, i in enumerate(pickable) if rows[i].where and
-                   build.entry_at(CONTENT, s, rows[i].slot).item == "implant_eye")
-        self.assertIn("in Suit bay", plain(s, screen="fitting", selected=eye))
-        s, view, _ = app.handle(CONTENT, s, "f", app.View(screen="fitting", selected=eye), UI)
+                   build.entry_at(CONTENT, s, rows[i].slot).item == "gear_eye_implant")
+        self.assertIn("in Suit bay", plain(s, screen="gear", selected=eye))
+        s, view, _ = app.handle(CONTENT, s, "f", app.View(screen="gear", selected=eye), UI)
         self.assertIn("Fitted Eye implant.", [m.text for m in s.messages])
-        self.assertEqual([i.item for i in s.storage["storage_bay"]], ["frame_heavy"])
-        row = build.fitting_rows(CONTENT, s)[widgets.picks(CONTENT, s)[view.selected]]
+        self.assertEqual([i.item for i in s.storage["storage_bay"]], ["gear_heavy_suit"])
+        row = build.gear_rows(CONTENT, s)[widgets.picks(CONTENT, s)[view.selected]]
         self.assertEqual((row.group, row.slot_type), ("worn", "slot_head"))   # the pick followed it
 
     def test_what_an_action_would_change_and_why_not(self):
         s = run(CONTENT, bench_state(), Ctx(self_id="char_player"), [
-            freeze({"op": "give_item", "item": "module_cutter", "count": 1, "subject": "self"}),
+            freeze({"op": "give_item", "item": "gear_cutter", "count": 1, "subject": "self"}),
             freeze({"op": "modify_stat", "stat": "stat_power", "amount": -2, "subject": "self"})])
         spare = len(widgets.picks(CONTENT, s)) - 1
-        frame = plain(s, screen="fitting", selected=spare)
-        self.assertIn("Fit: PWR 4→5/4", frame)
-        self.assertIn("F Fit - ", frame)                              # greyed out, with the reason
-        coloured = render.render(CONTENT, s, 52, 60, screen="fitting", selected=spare, ui=UI)
+        frame = plain(s, screen="gear", selected=spare)
+        self.assertIn("Equip: PWR 4→5/4", frame)
+        self.assertIn("F Equip - ", frame)                              # greyed out, with the reason
+        coloured = render.render(CONTENT, s, 52, 60, screen="gear", selected=spare, ui=UI)
         self.assertIn(Style(True, UI.tokens["styles"]).role("PWR 4→5/4", "danger"), coloured)
 
     def test_modify_applies_with_a_digit(self):
@@ -446,25 +446,25 @@ class TestFittingScreen(unittest.TestCase):
         view = self.open(s)._replace(selected=1)                      # the cutter
         _, view, _ = app.handle(CONTENT, s, "m", view, UI)
         self.assertEqual(view.panel, "modify")
-        self.assertIn("1 Reinforced", plain(s, screen="fitting", selected=1, panel="modify"))
+        self.assertIn("1 Reinforced", plain(s, screen="gear", selected=1, panel="modify"))
         s, view, _ = app.handle(CONTENT, s, "1", view, UI)
         self.assertIsNone(view.panel)
-        self.assertEqual(s.characters[s.player].fitted[0].mods, ("mod_reinforced",))
+        self.assertEqual(s.characters[s.player].equipped[1].mods, ("mod_reinforced",))
 
     def test_details_and_back(self):
         s = bench_state()
         view = self.open(s)._replace(selected=1)
         _, view, _ = app.handle(CONTENT, s, "i", view, UI)
-        self.assertEqual((view.screen, view.panel), ("fitting", "item"))
-        self.assertIn("A hand cutter", plain(s, screen="fitting", selected=1, panel="item"))
+        self.assertEqual((view.screen, view.panel), ("gear", "item"))
+        self.assertIn("A hand cutter", plain(s, screen="gear", selected=1, panel="item"))
         _, view, _ = app.handle(CONTENT, s, "x", view, UI)
-        self.assertEqual((view.screen, view.panel, view.selected), ("fitting", None, 1))
+        self.assertEqual((view.screen, view.panel, view.selected), ("gear", None, 1))
         _, view, _ = app.handle(CONTENT, s, "x", view, UI)
         self.assertEqual(view, app.View())
 
     def test_the_pick_shows_without_colour(self):
-        frame = render.render(CONTENT, bench_state(), 52, 60, colour=False, screen="fitting", selected=1, ui=UI)
-        self.assertIn(UI.tokens["glyphs"]["cursor"] + "   Hand  2 Cutter", frame)
+        frame = render.render(CONTENT, bench_state(), 52, 60, colour=False, screen="gear", selected=1, ui=UI)
+        self.assertIn(UI.tokens["glyphs"]["cursor"] + "     Hand  2 Cutter", frame)   # the suit's slots sit under it
 
 
 class TestCharacterScreen(unittest.TestCase):
@@ -827,7 +827,7 @@ class TestPolish(unittest.TestCase):
         self.assertIn("I Details", lines[medkit + 2])
 
     def test_lists_keep_room_on_short_terminals(self):
-        frame = plain(bench_state(), 48, 24, screen="fitting", selected=1)
+        frame = plain(bench_state(), 48, 24, screen="gear", selected=1)
         self.assertIn("1 Light suit", frame)
         self.assertIn("Hand  2 Cutter", frame)
         self.assertIn("Hand  · empty", frame)
@@ -849,7 +849,7 @@ class TestPolish(unittest.TestCase):
         self.assertIn(style.colour_of("Scrap", common), frame)
         self.assertNotIn(style.colour_of("Medkit", common), frame)    # ungraded: as it is
         fine = CONTENT.get("grade", "grade_fine")["colour"]
-        fitting = render.render(CONTENT, bench_state(), 52, 60, screen="fitting", selected=2, ui=UI)
+        fitting = render.render(CONTENT, bench_state(), 52, 60, screen="gear", selected=2, ui=UI)
         self.assertIn(style.colour_of("Shield", fine), fitting)
         picked = render.render(CONTENT, new_game(CONTENT, 1), 52, 60, panel="pack", selected=1, ui=UI)
         self.assertIn(style.key("2 Scrap x10"), picked)              # the highlight isn't broken by the colour
@@ -861,12 +861,12 @@ class TestPolish(unittest.TestCase):
 
 
 class TestWorkshopMenu(unittest.TestCase):
-    def test_a_workshop_offers_the_fitting_board_on_the_uis_fitting_key(self):
+    def test_a_workshop_offers_the_gear_screen_on_the_uis_gear_key(self):
         frame = plain(bench_state(), 52, 40)
-        self.assertIn("F Open the fitting board", frame)
-        s, view, _ = app.handle(CONTENT, bench_state(), UI.bindings["fitting"], app.View(), UI)
-        self.assertEqual(view.screen, "fitting")
-        self.assertNotIn("fitting board", plain(menu_state(), 52, 40))     # a door isn't a workshop
+        self.assertIn("F Change gear", frame)
+        s, view, _ = app.handle(CONTENT, bench_state(), UI.bindings["gear"], app.View(), UI)
+        self.assertEqual(view.screen, "gear")
+        self.assertNotIn("Change gear", plain(menu_state(), 52, 40))     # a door isn't a workshop
 
 
 class TestMap(unittest.TestCase):
@@ -981,15 +981,15 @@ class TestRegionMap(unittest.TestCase):
         self.assertIn("M map", plain(new_game(CONTENT, 1)))
         self.assertIn("map", UI.word("key_map"))
 
-    def test_m_still_lists_modifications_on_the_fitting_screen(self):
+    def test_m_still_lists_modifications_on_the_gear_screen(self):
         s, view = self.keys(bench_state(), app.View(), "f")
-        rows = build.fitting_rows(CONTENT, s)
+        rows = build.gear_rows(CONTENT, s)
         tool = next(n for n, i in enumerate(widgets.picks(CONTENT, s)) if rows[i].slot is not None
                     and build.entry_at(CONTENT, s, rows[i].slot) is not None
                     and any(o.kind == "modify" for o in build.item_options(CONTENT, s, rows[i].slot, UI.bound_keys,
-                                                                            "fitting")))
+                                                                            "gear")))
         s, view = self.keys(s, view._replace(selected=tool), "m")
-        self.assertEqual((view.screen, view.panel), ("fitting", "modify"))
+        self.assertEqual((view.screen, view.panel), ("gear", "modify"))
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):
@@ -1080,7 +1080,7 @@ class TestCustomUIPack(unittest.TestCase):
         with redirect_stdout(out):
             code = app.run(ROOT / "packs" / "test_scifi", Path(self.tmp.name) / "save.json", 1, True, ui_dir=self.dir)
         self.assertEqual(code, 1)
-        self.assertIn("the engine's key for 'fit'", out.getvalue())
+        self.assertIn("the engine's key for 'equip'", out.getvalue())
 
 
 if __name__ == "__main__":

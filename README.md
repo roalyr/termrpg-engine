@@ -1,7 +1,7 @@
 # CLI Space RPG
 
 An engine and toolkit for terminal RPGs, built with the Python 3 standard library
-only. Characters are built from pieces (frames, modules, implants, skills), tested by
+only. Characters are built from pieces (gear in slots, skills), tested by
 dangerous places and encounters, improved through crafting, and live in a world that
 runs on its own rules. Games are content packs: folders of JSON data, written with the
 pack tools and editors here and played in the terminal.
@@ -51,7 +51,7 @@ timestamps can make Python run stale cached bytecode.
 | `core/pack.py` | Pack validator: files, references and game rules |
 | `core/uipack.py` | UI pack validator |
 | `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
-| `engine/` | The engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `craft.py` workshops, `events.py` the living world, `atlas.py` the map the player knows, `save.py` saves, `rng.py` seeded randomness |
+| `engine/` | The engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` equipping and storage, `encounter.py` fights, `craft.py` workshops, `events.py` the living world, `atlas.py` the map the player knows, `save.py` saves, `rng.py` seeded randomness |
 | `lib/` | Code the game and the tools share: `text.py` styles, colours, bars, wrapping and keys, `ui.py` loading a UI pack, `term.py` the key loop and the text editor, `graph.py` region maps, `tiles.py` a room's tiles and how they're drawn, `pixels.py` pictures in half-block pixels, `budgets.py` whether a loadout fits (slots, power, mass, heat, cargo), for the checker and the loadout editor. It depends only on the validator (`core/pack.py`, `core/uipack.py`) |
 | `tui/`, `play.py` | The terminal UI, and how to start it |
 | `tools/`, `editor.py` | Terminal tools for editing packs, all reached from `python3 editor.py` (see `tools/README.md`) |
@@ -65,7 +65,7 @@ The engine never names a room, item, person or tag, and prints no text of its ow
 Everything comes from a **pack**: a folder of JSON data checked against the schemas.
 
 - **Test pack** (`purpose: "test"`): small, generic content (`loc_workshop`,
-  `module_cutter`) for engine work and automated tests.
+  `gear_cutter`) for engine work and automated tests.
 - **Game pack** (`purpose: "game"`): the real world, names and writing.
 
 Features are added schema first: schema, then test pack, then engine, then game pack.
@@ -88,7 +88,7 @@ its schema:
 | `locations` | `world.schema.json` | `location`, `placement` | Rooms and their placed objects |
 | `zones` | `world.schema.json` | `zone` | Procedural areas (reserved) |
 | `objects` | `object.schema.json` | `object` | Object templates |
-| `items` | `item.schema.json` | `item` | Everything carried, fitted or implanted |
+| `items` | `item.schema.json` | `item` | Everything carried or equipped |
 | `actions` | `action.schema.json` | `action` | Encounter actions |
 | `skills` | `skill.schema.json` | `skill` | Skills and their levels |
 | `characters` | `character.schema.json` | `character` | Everyone, the player included |
@@ -188,7 +188,7 @@ written:
 | Encounter effects | The player | — | — |
 | Event `when` and effects | The player (cast members are `{"role": …}`) | — | — |
 | Event cast `when` | The candidate for the role | — | — |
-| `fit_requires`, modification `requires`, `salvage.learn_requires` | The character fitting or crafting | — | — |
+| `equip_requires`, modification `requires`, `dismantle.learn_requires` | The character equipping or crafting | — | — |
 | Loot entry `when` | Who receives the loot | — | — |
 
 #### Amounts
@@ -217,8 +217,8 @@ An **item pick** says which of the subject's items is meant:
 | Form | Picks |
 |---|---|
 | `{"item": "id"}` | That item |
-| `{"tag": "id"}` | The first carried or fitted item with that tag |
-| `{"slot_type": "id"}` | The item fitted in a slot of that type |
+| `{"tag": "id"}` | The first carried or equipped item with that tag |
+| `{"slot_type": "id"}` | The item equipped in a slot of that type |
 | `{"used": true}` | The item that satisfied the requirement of the interaction or action being performed: the first item with the tag a passing `has_tag` asked for, from where that check looked (its `source`) |
 
 #### Conditions
@@ -228,12 +228,12 @@ other conditions; the leaves are checks, picked by the `check` field.
 
 | Check | Fields | True when |
 |---|---|---|
-| `has_tag` | `tag`, `subject`, `source` | The subject has the tag. `source` narrows where it may come from: `any` (default), `fitted` (suit gear), `carried`, `body` (implants and skills), `party` (companions) |
-| `has_item` | `item`, `count` (1), `source` (`carried`), `subject` | The subject holds at least `count` of the item: `carried` (what `take_item` can take), `fitted` (worn frame, modules, implants) or `any` |
+| `has_tag` | `tag`, `subject`, `source` | The subject has the tag. `source` narrows where it may come from: `any` (default), `equipped` (gear in slots), `carried`, `body` (skills and the character's own tags), `party` (companions) |
+| `has_item` | `item`, `count` (1), `source` (`carried`), `subject` | The subject holds at least `count` of the item: `carried` (what `take_item` can take), `equipped` (gear in slots) or `any` |
 | `skill` | `skill`, `min`, `subject` | The skill is at least level `min` |
 | `stat` | `stat`, `min`, `max`, `subject` | The stat's current value is within bounds |
 | `item_condition` | `pick`, `min`, `max`, `subject` | A picked item's condition is within bounds (items that don't wear always pass) |
-| `knows_design` | `item`, `subject` | The subject can fabricate the item |
+| `knows_design` | `item`, `subject` | The subject can make the item |
 | `status` | `status`, `subject` | The subject has the status |
 | `flag` | `flag`, `min`, `max` | A world flag is within bounds (unset flags are 0) |
 | `location` | `location`, `subject` | The subject is in the location |
@@ -250,7 +250,7 @@ other conditions; the leaves are checks, picked by the `check` field.
 
 Bounds (`min`, `max`) are inclusive, and at least one must be given.
 
-Example: "has a pry-bar, or wears a frame of size 5 or more".
+Example: "has a pry-bar, or is size 5 or more (a heavy suit)".
 
 ```json
 { "any": [ { "check": "has_tag", "tag": "force_lever" },
@@ -269,9 +269,9 @@ in order.
 | | `roll_loot` | `table`, `rolls` (1), `subject` | Rolls a loot table for the subject |
 | | `wear` | `pick`, `amount`, `subject` | Lowers an item's condition (negative repairs). At 0 the item is broken |
 | | `modify_item` | `pick`, `add_tags`, `remove_tags`, `stats`, `max_condition`, `name_suffix` | Permanently changes one item into a unique variant |
-| | `learn_design` | `item`, `subject` | The subject can now fabricate the item |
+| | `learn_design` | `item`, `subject` | The subject can now make the item |
 | Stats | `damage` | `amount`, `damage_type`, `subject` (default `target`) | Deals damage; the damage type's resisting stat reduces it |
-| | `restore` | `stat`, `amount`, `subject` | Brings a pool back to normal: health and charges up toward their maximum, heat down toward 0 |
+| | `restore` | `stat`, `amount`, `subject` | Brings a pool back to normal: a draining pool (health, mana) up toward its maximum, a filling pool (heat) down toward its resting value |
 | | `modify_stat` | `stat`, `amount`, `subject`, `duration` | Adds to a stat; temporary with a duration, otherwise permanent |
 | | `apply_status` | `status`, `subject` (default `target`), `duration`, `stacks` | Puts a status on the subject |
 | | `remove_status` | `status`, `subject` | Removes a status |
@@ -287,7 +287,7 @@ in order.
 | | `leave_party` | `subject` | The subject leaves their party |
 | | `change_relation` | `of`, `toward` (default `player`), `amount`, `mutual` | Changes how `of` regards `toward`; `mutual` changes both views |
 | | `change_rank` | `amount`, `subject` | Raises or lowers rank |
-| | `unlock_slot` | `slot_type`, `count`, `subject` | Opens implant slots in the body |
+| | `unlock_slot` | `slot_type`, `count`, `subject` | Opens new slots of a type in the body |
 | Flow | `message` | `text`, `kind` | Shows a line; `kind` is `plain`, `gain` (bold), `danger` (warning colour) or `quiet` (dimmed) |
 | | `if` | `if`, `then`, `else` | Runs `then` when the condition holds, otherwise `else` |
 | | `choose` | `prompt`, `options` (1–4) | The player picks one option; each has `label`, `condition`, `hint`, `effects` |
@@ -309,14 +309,17 @@ Rules the engine follows that the schemas alone don't spell out:
   them passes: the party can open a door if anyone has the tool. An effect on a group
   applies to **each** member. A subject that names nobody (no target, a role not
   cast, a character not in play) makes a check fail and an effect do nothing.
-- **Derived stats.** A character's stat is the sum of their body, worn frame, fitted
-  modules, implants, reached skill levels and active stat changes, kept within the
-  stat's `min` and `max`. For a pool this sum is the maximum.
-- **Pools** start full, except the heat pool, which starts at the loadout's constant
-  heat load. Lowering a maximum lowers the current value with it; raising it doesn't.
+- **Derived stats.** A character's stat is the sum of their body, equipped gear,
+  reached skill levels and active stat changes, kept within the stat's `min` and
+  `max`. For a pool this sum is the maximum.
+- **Pools** drain (health, mana: costs and harm lower them) or fill (`"fills": true`:
+  heat, fatigue; costs raise them). They start at rest: a draining pool full, a
+  filling pool at its constant load (what equipped gear `uses` of it). Lowering a
+  maximum lowers the current value with it; raising it doesn't.
 - **Broken items** (condition 0) count for nothing: no stats, tags or actions until
   repaired.
-- **Size.** A character's size is their frame's, or their body's without one.
+- **Size.** A character's size is the largest `worn_size` of their equipped gear, or
+  their body's without any.
   `holds_size` left out means *no limit* on locations and objects, and *holds
   nothing* on items.
 - **Items.** Plain items stack up to their `stack`; items with a condition,
@@ -367,20 +370,25 @@ Rules the engine follows that the schemas alone don't spell out:
   player pauses time, and a second `choose` while one waits is skipped.
 - **Saves** go to `saves/<pack folder>/<slot>.json` and hold only the state. A save
   only loads with the same pack and the same major pack version.
-- **Refitting.** Frames, modules and implants are fitted or removed only within reach
-  (the player's tile or next to it) of a workshop offering `refit`. A fit needs a free
-  slot, the item's `fit_requires`, power and mass within what the loadout provides,
-  constant heat below maximum heat, and for a frame, a size that fits the current
-  location. A frame comes off only after its modules. Removed items go to the
-  inventory, which must still fit in cargo afterwards (a frame often provides cargo).
-  When a pool's maximum changes, its current value moves with it, never below 1, so
-  putting on a suit adds its health. Gear in storage within reach can be fitted
-  straight from there (it's taken and fitted in one go).
+- **Slots.** Slots come from the body and from equipped gear. Equipped gear is placed
+  in order: each piece takes a free slot of its type from the body or from gear placed
+  before it, then adds its own slots. Gear whose slots hold something can't come off
+  until they're empty.
+- **Equipping.** Gear in a slot type marked `equip_at_workshop` is equipped or taken
+  off only within reach (the player's tile or next to it) of a workshop offering
+  `equip` (for that slot type, if it lists `equip_slot_types`); other gear changes
+  anywhere. Equipping needs a free slot, the item's `equip_requires`, every budget
+  within what the loadout provides, each filling pool's constant load below its
+  maximum, and a size (`worn_size`) that fits the current location. Removed items go
+  to the inventory, which must still fit in cargo afterwards (a suit often provides
+  cargo). When a pool's maximum changes, its current value moves with it, never below
+  1, so putting on a suit adds its health. Gear in storage within reach can be
+  equipped straight from there (it's taken and equipped in one go).
 - **Where it happens.** The pack panel is for carrying: what you carry and storage
-  within reach, with take, store and use. The fitting screen is for building: the
-  loadout by slot, spare gear and designs, with fit, remove and the workshop
-  services. It opens anywhere for planning; its actions work only next to a workshop
-  offering them, and elsewhere they're greyed out with the reason.
+  within reach, with take, store and use. The gear screen is for building: the
+  loadout by slot, spare gear and designs, with equip, remove and the workshop
+  services. It opens anywhere for planning; actions that need a workshop work only
+  next to one, and elsewhere they're greyed out with the reason.
 - **Size at exits.** Going through an exit needs the traveller's size to fit the exit
   placement's `holds_size` and the destination's.
 - **Storage.** Objects with `storage` within reach take and give whole stacks;
@@ -409,9 +417,13 @@ Rules the engine follows that the schemas alone don't spell out:
   went down is replaced by another. Using it pays the costs, runs the effects against
   each target (`self` is the user, `target` the one aimed at), and gives the user the
   experience in `trains`.
-- **Heat.** `cost.heat` goes into the user's heat pool. Reaching the maximum
-  overheats them: they lose their next action and cool to their constant heat load.
-  Characters without heat capacity (no heat stat from body or items) ignore heat.
+- **Pool costs.** `cost.pools` names pools and amounts. A draining pool (mana) pays
+  the amount; an action it can't pay is refused (a rolled cost must be affordable at
+  its top, and a health cost can't take its payer to 0). A filling pool (heat) rises by
+  the amount; reaching its maximum costs the user their next action, and the pool
+  falls back to its resting value. Characters without capacity in a filling pool
+  ignore it. At the end of each round, pools with `per_round` move back that far:
+  filling pools toward rest, draining pools toward their maximum.
 - **Statuses** with `blocks_actions` make the fighter lose their action.
 - **AI.** An AI fighter weighs its usable actions by `ai.weight`, skipping those whose
   `ai.when` fails, and picks with the seed; enemy targets are random, ally targets the
@@ -423,7 +435,7 @@ Rules the engine follows that the schemas alone don't spell out:
   `loot` for the player. Then `on_win`, `on_lose` or `on_escape` runs, and after it
   `on_defeat` for everyone who went down (during the fight it waits). A player still
   down after all that comes back with 1 health: losing is never a game over.
-  Spawned copies leave, and everyone's heat cools to their constant load.
+  Spawned copies leave, and everyone's filling pools fall back to their resting values.
 - **What the player reads.** A fight opens on a clean message area. After each
   round, the log of that round is shown under "Round N:" (the header already shows
   the next round): each action as "who: action on whom" (or "who uses action" when it
@@ -451,7 +463,7 @@ these effects":
 | `key` | Suggested single key in the menu; the engine may reassign it |
 | `shown_if` | Hidden unless this holds |
 | `requires` | Shown but unavailable unless this holds |
-| `hint` | Shown when `requires` fails, e.g. "Needs a cutter or a heavier frame." |
+| `hint` | Shown when `requires` fails, e.g. "Needs a cutter or a heavier suit." |
 | `time` | Turns it takes (default 1) |
 | `repeat` | `always` (default), `once`, or `daily` (available again each new day) |
 | `effects` | What happens |
@@ -479,10 +491,10 @@ required.
 | Section | Declares | Fields |
 |---|---|---|
 | `tags` | Tags things carry | `id`, `name` (a noun phrase used in hints, e.g. "a pry-bar"), `description`, `hazard` (shown as a danger on locations) |
-| `stats` | Numbers | `id`, `name`, `short` (≤4 chars), `kind` (`value`, or `pool` with a current and a maximum), `role`, `min`, `max` |
+| `stats` | Numbers | `id`, `name`, `short` (≤4 chars), `kind` (`value`, or `pool` with a current and a maximum), `role`, `budget` (a loadout budget, for values), `fills` (a pool that costs raise, like heat), `per_round` (how far a pool recovers each fight round), `min`, `max` |
 | `damage_types` | Kinds of harm | `id`, `name`, `resisted_by` (a stat that reduces it point for point) |
 | `statuses` | Temporary conditions | `id`, `name`, `glyph`, `harmful`, `stacking` (`refresh`, `stack`, `ignore`), `max_stacks`, `blocks_actions`, `on_apply`, `on_turn`, `on_expire` |
-| `slot_types` | Slots | `id`, `name`, `host` (`frame` for suits, `body` for implants) |
+| `slot_types` | Slots, from bodies and gear | `id`, `name`, `equip_at_workshop` (gear here changes only at a workshop offering `equip`) |
 | `grades` | Item tiers | `id`, `name`, `colour`, `order` |
 | `sizes` | Size class names | `size` (0–9), `name` |
 | `ranks` | Rank names | `rank`, `name` |
@@ -497,12 +509,16 @@ Each role must be given to exactly one stat:
 
 | Role | Meaning | Kind |
 |---|---|---|
-| `health` | A character is down at 0 | pool |
-| `heat` | Builds up with actions; at its maximum the frame overheats | pool |
-| `power` | Fitting budget: provided by the loadout, used by modules | value |
-| `mass` | Fitting budget: provided by the loadout, used by modules | value |
+| `health` | A character is down at 0; it drains | pool |
 | `initiative` | Who acts first in an encounter | value |
 | `cargo` | How many item stacks a character can carry | value |
+
+**Budgets and pools are the game's own.** Any number of value stats can be budgets
+(`"budget": true`): power and mass for a suit, weight or attunement for armour. What
+the body, gear and skill levels add is available; what equipped gear `uses` must fit.
+A pool either drains (health, mana: an action whose cost it can't pay is refused) or
+fills (`"fills": true`: heat, fatigue: at its maximum the character loses their next
+action). Gear's `uses` on a filling pool is a constant load, its resting value.
 
 **Grade colours** come from the engine's palette: `grey`, `white`, `green`, `cyan`,
 `blue`, `violet`, `yellow`, `orange`, `red`.
@@ -565,8 +581,8 @@ A **placement** puts an object template at a grid position:
 An **exit** leads to a `location` (or, reserved, a `zone`). It may name an `entry`
 placement in the destination, a `label` (default "Go to …"), a `requires` condition
 with a `hint`, and a `time`. The engine offers the "go" interaction by itself, and on
-an object with a `workshop` block an option that opens the fitting screen (shown with
-the UI's fitting key).
+an object with a `workshop` block an option that opens the gear screen (shown with
+the UI's gear key).
 
 ```json
 { "id": "workshop_door", "object": "obj_door", "at": [0, 2],
@@ -596,7 +612,7 @@ machines, bunks.
 | `state_glyphs` | A different glyph per state, e.g. an open hatch |
 | `storage` | It holds this many item stacks (a locker, a suit bay) |
 | `contents` | What it holds at the start: items with counts. A placement's `contents` replace the template's |
-| `workshop` | It is a workshop: `services` (`refit`, `dismantle`, `fabricate`, `modify`, `repair`) and an optional `max_grade`. Frames, modules and implants can only be changed where `refit` is offered |
+| `workshop` | It is a workshop: `services` (`equip`, `dismantle`, `make`, `modify`, `repair`), `equip_slot_types` (the slot types its `equip` can change; all when left out) and an optional `max_grade`. Gear in slot types marked `equip_at_workshop` changes only where `equip` is offered |
 | `interactions` | What characters can do with it; `this` is the placed object |
 
 ### Items (`item.schema.json`)
@@ -608,46 +624,45 @@ Every item has a `kind` that decides which extra fields it takes.
 | Field | Meaning |
 |---|---|
 | `id`, `kind`, `name`, `size` | Required |
-| `description`, `grade`, `tags` | Tags count for `has_tag` while carried, fitted or implanted |
-| `holds_size` | For items that hold things (a bag, a cargo module): the largest size that fits. Without it nothing fits |
-| `stats` | Added to the holder while the item is active (worn, fitted, implanted) |
+| `description`, `grade`, `tags` | Tags count for `has_tag` while carried or equipped |
+| `holds_size` | For items that hold things (a bag, a cargo rack): the largest size that fits. Without it nothing fits |
+| `stats` | Added to the holder while the item is equipped |
 | `actions` | Encounter actions it gives while active |
 | `interactions` | What the holder can do with it from the pack |
 | `value` | Rough trade value |
 | `stack` | How many fit in one cargo stack (default 1) |
 | `condition` | Maximum condition. Items with one wear down and break at 0; items without one never wear. Stacking items can't have one |
-| `salvage` | Dismantling: `yields` (items and counts), `learn` (whether it teaches the design, default yes), `learn_requires` |
-| `fabricate` | Making a copy: `inputs`, `requires`, `time` |
+| `dismantle` | Dismantling: `yields` (items and counts), `learn` (whether it teaches the design, default yes), `learn_requires` |
+| `make` | Making a copy: `inputs`, `requires`, `time` |
 | `repair` | Restoring condition: `inputs`, `amount` (full repair if left out). Only for items with a condition |
 
 **Kinds and their extra fields:**
 
 | Kind | What it is | Extra fields |
 |---|---|---|
-| `frame` | A suit or piloted machine. Its size is the wearer's size | `slots` (slot types with counts), `mod_slots`, `fit_requires` |
-| `module` | Anything fitted into a frame slot. **Gear** is a module in a limb or hand slot | `slot_type`, `uses`, `mod_slots`, `fit_requires` |
-| `implant` | Fitted into a body slot; stays when changing suits | `slot_type`, `mod_slots`, `fit_requires` |
+| `gear` | Anything equipped in a slot: suits and armour in a worn slot, tools and weapons in hands, implants and blessings in body slots | `slot_type` (required), `slots` (slots it adds), `worn_size` (its wearer's size while equipped), `uses` (budget stat id to amount), `mod_slots`, `equip_requires` |
 | `material` | Scrap, ore, exotic matter | none |
 | `consumable` | Each use of one of its interactions spends one | none |
 | `misc` | Keys, passes, data, keepsakes, trade goods | none |
 
-**How fitting works.** The stats of the body, frame, modules and implants together
-*provide* the budgets: the stat with the `power` role gives power, and so on. Each
-module's `uses` takes `power` and `mass` from those budgets, and both must fit.
-`heat` in `uses` is a constant load that lowers how much heat can build up before
-overheating, and it must stay below maximum heat. Carried items must fit in cargo,
-counted in stacks. Frame traits such as sealing, limbs or thrusters are tags.
+**How a loadout works.** Slots come from the body and from equipped gear: a suit
+adds hand and back slots, a belt adds pouches. The stats of the body, gear and skill
+levels together *provide* each budget stat; each piece of gear's `uses` takes from
+them, and every budget must fit. `uses` on a filling pool (heat) is a constant load
+that lowers how far it can rise before it's full, and it must stay below the maximum.
+Carried items must fit in cargo, counted in stacks. Traits such as sealing, limbs or
+thrusters are tags.
 
 ```json
-{ "id": "module_shield", "kind": "module", "name": "System A", "size": 2,
-  "slot_type": "slot_back", "uses": { "power": 3, "mass": 3, "heat": 2 },
+{ "id": "gear_shield", "kind": "gear", "name": "Shield", "size": 2,
+  "slot_type": "slot_back", "uses": { "stat_power": 3, "stat_mass": 3, "stat_heat": 2 },
   "stats": { "stat_armor": 2 }, "mod_slots": 2 }
 ```
 
 ### Actions (`action.schema.json`)
 
 Actions are what characters do in encounters, shown as tiles. They are not cards:
-nothing is drawn or shuffled. A character's actions come from fitted items, skill
+nothing is drawn or shuffled. A character's actions come from equipped gear, skill
 levels, their own `actions` list, and innate actions.
 
 | Field | Meaning |
@@ -655,7 +670,7 @@ levels, their own `actions` list, and innate actions.
 | `name`, `short` | `short` (≤8 chars) is the tile's label |
 | `description`, `glyph`, `tags` | Tags say what kind of action it is (attack, defence…) |
 | `target` | `self`, `enemy` (default), `ally`, `all_enemies`, `all_allies` |
-| `cost` | `heat` (an amount), `cooldown` (whole rounds it can't be used after the round it was used in), `charges` (per encounter), `consumes` (`item` or `tag`, `count`) |
+| `cost` | `pools` (pool stat id to an amount: mana spent, heat added), `cooldown` (whole rounds it can't be used after the round it was used in), `charges` (per encounter), `consumes` (`item` or `tag`, `count`) |
 | `requires`, `hint` | Usable only when the condition holds; otherwise the tile is greyed out with the hint |
 | `priority` | -3 to 3: acts earlier or later in the round than initiative alone would put it |
 | `effects` | Required. Damage defaults to the target |
@@ -666,7 +681,7 @@ levels, their own `actions` list, and innate actions.
 
 ### Skills (`skill.schema.json`)
 
-The suit is your stats; you are your skills. Skills rise with use.
+Gear makes your stats; you are your skills. Skills rise with use.
 
 | Field | Meaning |
 |---|---|
@@ -690,10 +705,10 @@ One record serves the player's character, NPCs, companions and enemies.
 | `template` | Generic character that encounters and zones spawn copies of; has no location |
 | `location`, `at` | Where a unique character starts; `at` must be a free floor tile |
 | `leader` | Starts in this character's party |
-| `body` | Required: `size`, `stats` (base health, cargo…), `slots` (implant slots unlocked at the start) |
-| `frame`, `fitted`, `implants` | Worn suit, modules in its slots, implants in the body |
+| `body` | Required: `size`, `stats` (base health, cargo…), `slots` (the body's slots of any type: a worn slot, hands, implant slots) |
+| `equipped` | Gear equipped at the start, placed in order: list a suit before the tools that go in its slots |
 | `inventory` | Carried items with counts |
-| `designs` | Items they can fabricate at the start |
+| `designs` | Items they can make at the start |
 | `skills` | Starting levels: `{"skill_salvage": 2}` |
 | `actions` | Actions of their own, e.g. a drone's claws |
 | `views` | Starting relations: `toward` (an agent) and `value` |
@@ -809,14 +824,15 @@ All text the engine prints comes from the pack.
 | `cannot_fit` | `{thing}`, `{container}` |
 | `skill_up` | `{skill}`, `{level}`, `{text}` |
 | `party_join` | `{character}`, `{leader}` |
-| `party_leave`, `character_down`, `overheated` | `{character}` |
+| `party_leave`, `character_down` | `{character}` |
+| `pool_full` | `{character}`, `{stat}` |
 | `encounter_start`, `encounter_won`, `encounter_lost`, `encounter_escaped` | `{encounter}` |
 | `status_applied`, `status_ended` | `{character}`, `{status}` |
 | `day_start` | `{day}` |
 | `phase_start` | `{phase}`, `{day}` |
 | `already_used`, `unavailable`, `game_saved` | none |
-| `refit_needed`, `frame_worn`, `frame_needed`, `remove_modules_first` | none |
-| `no_free_slot`, `cannot_use`, `item_fitted`, `item_removed` | `{item}` |
+| `workshop_needed` | none |
+| `no_free_slot`, `cannot_use`, `item_equipped`, `item_removed`, `empty_slots_first` | `{item}` |
 | `over_budget` | `{stat}`, `{need}`, `{have}` |
 | `storage_full` | `{container}` |
 | `item_stored`, `item_taken` | `{item}`, `{container}` |
@@ -829,7 +845,8 @@ All text the engine prints comes from the pack.
 | `needs_item` | `{item}` |
 | `skips_turn`, `fled` | `{character}` |
 | `no_charges`, `needs_service` | none |
-| `too_advanced`, `no_mod_slot`, `not_damaged`, `design_learned`, `design_not_learned`, `item_fabricated`, `item_repaired` | `{item}` |
+| `cannot_pay` | `{stat}` |
+| `too_advanced`, `no_mod_slot`, `not_damaged`, `design_learned`, `design_not_learned`, `item_made`, `item_repaired` | `{item}` |
 | `needs_materials` | `{items}` |
 | `already_modified`, `item_modified` | `{item}`, `{modification}` |
 | `item_dismantled` | `{item}`, `{items}` |
@@ -838,28 +855,29 @@ All text the engine prints comes from the pack.
 ### Modifications (`modification.schema.json`)
 
 Crafting is mostly about improving found items, and the results are predictable.
-Dismantling, fabricating and repairing are described on the items themselves.
+Dismantling, making and repairing are described on the items themselves.
 Modifications are the only separate crafting data.
 
-A modification applies a material to a matching item and always adds the same
-thing. It takes one of the item's mod slots, permanently.
+A modification applies a material to matching gear and always adds the same thing.
+It takes one of the gear's mod slots, permanently. Only gear has mod slots.
 
 | Field | Meaning |
 |---|---|
 | `name` | Added to the item's name, e.g. "Reinforced" |
 | `material`, `count` | The material used (must be a `material`) and how many |
-| `applies_to` | `kinds` (required: `frame`, `module`, `implant`), and optionally `tags` (any of) and `slot_types`. An item must match every field given |
+| `applies_to` | Optionally `tags` (any of) and `slot_types`. Gear must match every field given; with none, any gear with a free mod slot |
 | `requires` | Needed to apply it, e.g. a skill level |
-| `adds` | At least one of `stats`, `tags`, `actions`, `max_condition`, `uses` (a change to a module's power, mass or heat use; negative lowers it) |
+| `adds` | At least one of `stats`, `tags`, `actions`, `max_condition`, `uses` (a change to what the gear uses of budget stats, by stat id; negative lowers it) |
 | `once` | Can be applied to the same item only once (default yes) |
 
-Refitting and crafting happen at **workshops** (objects with a `workshop` block).
-**Refit** lets characters change frames, modules and implants; parking a suit is
-storing it in an object whose `holds_size` fits it. The four crafting services:
+Changing some gear and crafting happen at **workshops** (objects with a `workshop`
+block). **Equip** lets characters change gear in slot types marked
+`equip_at_workshop` (suits, implants); parking a suit is storing it in an object whose
+`holds_size` fits it. The four crafting services:
 
-- **Dismantle** destroys an item, gives its `salvage.yields`, and teaches its design
-  if `salvage.learn_requires` holds.
-- **Fabricate** makes a copy of a known design from `fabricate.inputs`.
+- **Dismantle** destroys an item, gives its `dismantle.yields`, and teaches its design
+  if `dismantle.learn_requires` holds.
+- **Make** makes a copy of a known design from `make.inputs`.
 - **Modify** applies a modification.
 - **Repair** restores condition from `repair.inputs`.
 
@@ -867,15 +885,15 @@ How the engine runs them:
 
 - A service works only within reach (the player's tile or next to it) of a workshop
   offering it, and only on items whose grade is at most the workshop's `max_grade`
-  (ungraded items always qualify). `max_grade` doesn't limit `refit`.
-- **Dismantle** takes one carried item. Its design is learned when `salvage.learn`
+  (ungraded items always qualify). `max_grade` doesn't limit `equip`.
+- **Dismantle** takes one carried item. Its design is learned when `dismantle.learn`
   is on and `learn_requires` holds; otherwise the player is told it's beyond them.
-- **Fabricate** needs the design, `fabricate.requires`, and the inputs carried; it
-  takes `fabricate.time` turns. Known designs are listed on the fitting screen.
-- **Modify** works on carried or fitted items that match `applies_to` and have a free
-  mod slot; the material must be carried. Modifying a fitted item must leave the
+- **Make** needs the design, `make.requires`, and the inputs carried; it takes
+  `make.time` turns. Known designs are listed on the gear screen.
+- **Modify** works on carried or equipped gear that matches `applies_to` and has a
+  free mod slot; the material must be carried. Modifying equipped gear must leave the
   loadout within its budgets.
-- **Repair** works on carried or fitted items below their maximum condition, by
+- **Repair** works on carried or equipped items below their maximum condition, by
   `amount` or fully.
 - Inputs and materials come from plain (unmodified) carried items. Whatever an action
   produces must fit in cargo, or the action is refused, so nothing is lost. Each
@@ -936,7 +954,7 @@ win key by key; word entries add up):
 | `slots` | The save slots, to load a game or start a new one in | Load; New game when every slot is used |
 | `help` | The keys, how the interface works, the game's own help | Help |
 | `world` | The room, status, legend, messages and menus; the pack panel and the shared panel (Inspect, item details, the message log, cards) open in its message zone | Playing |
-| `fitting` | The loadout by slot, spare gear and designs, and building | F |
+| `gear` | The loadout by slot, spare gear and designs, and building | F |
 | `character` | The portrait, identity, skills, stats, conditions, party and standing | C |
 | `map` | A region's map: where you've been, where those places' exits lead | M |
 | `talk` | A conversation: the speaker, what was said, your responses | Talk in a person's menu |
@@ -955,7 +973,7 @@ When a screen is taller than the terminal, in order:
 1. zones are dropped, highest `priority` first (0 is never dropped);
 2. the screen is drawn again with the widgets' compact forms (action tiles as a list,
    fighters without the gap between the sides, the enemy's picture without its frame,
-   the fitting screen's picked entry without its kind and status lines);
+   the gear screen's picked entry without its kind and status lines);
 3. `scroll` zones keep only their last lines (at least one), so the newest messages
    and the menu stay in view;
 4. as a last resort the tallest zones lose their last lines.
@@ -1007,14 +1025,14 @@ store, use, details) right under it. After an action the panel keeps the same it
 picked at its new number, or drops the pick when it's gone; the message log above it
 says what happened.
 
-#### The fitting screen (F)
+#### The gear screen (F)
 
 A full screen for planning and building:
-- the title names the worn suit and where you are ("At: Workbench", or "Planning
-  only": actions then greyed out with the reason);
-- `budgets` shows power, mass, heat and cargo as bars;
-- `loadout` lists what's worn by slot (the frame, each of its slots, the body's
-  implant slots; empty ones as "· empty", never picked), spare gear carried or in
+- the title, and where you are ("At: Workbench", or "Planning only": actions that need
+  a workshop then greyed out with the reason);
+- `budgets` shows each budget, each filling pool's constant load, and cargo as bars;
+- `loadout` lists what's equipped by slot (the body's slots, then the slots each piece
+  of gear adds, indented under it; empty ones as "· empty", never picked), spare gear carried or in
   storage within reach, and known designs with their costs. Up and down move the
   pick, digits 1-9 jump, and the `cursor` glyph marks it so it shows without colour;
 - `pick` shows the picked entry: what its action would change ("Remove: PWR
@@ -1026,7 +1044,7 @@ A full screen for planning and building:
 #### The character screen (C)
 
 The character's picture (their `art`) beside the identity (name, title, faction and
-rank, health and heat), then a body that scrolls: skills with their progress and next
+rank, and the pool bars), then a body that scrolls: skills with their progress and next
 level, stats in columns, conditions with the turns they have left, the party with
 their health, and standing. The art zone keeps its place without a picture, sized by
 `art_width` and `art_height`.
@@ -1079,7 +1097,7 @@ into a game.
 Colour always means something, and everything reads without it. Styles come by role
 (warnings in `danger`, greyed-out options in `unavailable`, key hints in `hint`…).
 Item names are drawn in their grade's colour (the vocabulary's `grades` → `colour`)
-on the pack panel, the fitting screen and in item details; ungraded items as they
+on the pack panel, the gear screen and in item details; ungraded items as they
 are. Picks are drawn inverse and also marked with a glyph (the cursor, the heavy
 tile border), so they show without colour.
 
@@ -1094,15 +1112,15 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `keys` | Key hints for the current context, built from the bindings | all | — |
 | `log` | Messages in order | all | `round_heading` |
 | `grid` | The room | world | — |
-| `status` | Day and phase, pool bars, statuses, party | world | `pools` (`all` or stat roles), `day`, `statuses`, `party` |
+| `status` | Day and phase, pool bars, statuses, party | world | `pools` (`all`, or groups in order: `health`, `draining`, `filling`), `day`, `statuses`, `party` |
 | `legend` | What each glyph is | world | — |
 | `menu` | What can be done with the thing in focus | world | `hints` |
 | `choice` | A choice waiting for an answer (on the world, shown as a card) | world, encounter | `hints` |
 | `board` | The pack panel | world | `budgets` |
-| `panel` | The shared panel: Inspect, item details, the message log, cards | world, fitting | `slider` |
-| `budgets` | Power, mass, heat and cargo as bars | fitting | — |
-| `loadout` | The fitting list: worn by slot, spare gear, designs | fitting | — |
-| `pick` | The picked entry, what its action would change, its keys; or its modifications | fitting | — |
+| `panel` | The shared panel: Inspect, item details, the message log, cards | world, gear | `slider` |
+| `budgets` | Each budget, each filling pool's constant load, and cargo as bars | gear | — |
+| `loadout` | The gear list: equipped by slot (slots that gear adds under it), spare gear, designs | gear | — |
+| `pick` | The picked entry, what its action would change, its keys; or its modifications | gear | — |
 | `portrait` | The player's picture (the speaker's in a conversation) in half-block pixels, in the art zone | character, talk | `frame` |
 | `identity` | Name, title, faction and rank, the pool bars; in a conversation the speaker and their trust | character, talk | — |
 | `skills` | Each skill: level, a bar to the next level, what the next level brings | character | — |
@@ -1113,7 +1131,7 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `conversation` | The last exchanges, the speaker's line, numbered responses with what trades give and take, Leave | talk | `trades` |
 | `art` | The enemy's picture in half-block pixels, in the art zone (the default UI pack draws it without a frame) | encounter | `frame` |
 | `fighters` | Both sides with bars, statuses and intents; while aiming, the targets marked `▸` | encounter | `intent` |
-| `tiles` | Action tiles: the number in the top border, the name inside, costs as symbols (`▲` heat, `⟳` cooldown, `×` uses left) | encounter | `per_row` (0 = fit) |
+| `tiles` | Action tiles: the number in the top border, the name inside, costs as symbols (`▲` and the amount for a filling pool, the pool's short name and the amount for a draining one, `⟳` cooldown, `×` uses left) | encounter | `per_row` (0 = fit) |
 | `action` | The picked action's details in words | encounter | — |
 | `start_menu` | The start screen's choices; Continue shows what it resumes | start | — |
 | `description` | The game pack's description | start | — |
@@ -1124,10 +1142,10 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 #### Key bindings and hints
 
 The input actions are fixed by the engine: `move_north`, `move_west`, `move_south`,
-`move_east`, `wait`, `pack`, `fitting`, `character`, `map`, `history`, `close`, `quit`,
+`move_east`, `wait`, `pack`, `gear`, `character`, `map`, `history`, `close`, `quit`,
 `next_page`. Bindings are lower case (keys match either case). `hints` lists, per
 context (`walk`, `menu`, `choice`, `card`, `history`, `pack`, `panel`, `item`,
-`fitting`, `modify`, `sheet`, `map`, `talk`, `encounter`, `picked`, `target`, `debrief`,
+`gear`, `modify`, `sheet`, `map`, `talk`, `encounter`, `picked`, `target`, `debrief`,
 `start`, `slots`, `help`, `quit`), entries that show some actions' keys joined
 (`WASD`), the arrow keys instead for move actions (`arrows`: `↑↓`), the picked
 action tile's number (`picked`: "3 again: use"), or `1-9` (`digits`, shown as the
@@ -1142,8 +1160,8 @@ then:
 
 - each widget only on the screens that allow it, at most once per screen;
 - no two actions on one key, and none on a key the engine's menus use (`g t i`, the
-  item keys `f r o k v e b` and `m` for modify), except that the fitting screen's key
-  may share `f` with Fit, since the two are never active at once;
+  item keys `f r o k v e b` and `m` for modify), except that the gear screen's key
+  may share `f` with Equip, since the two are never active at once;
 - hint labels that exist, and a hint shows actions or digits, not both;
 - words with only their own placeholders;
 - the world screen fits the minimum width: outer borders + the largest room in its
@@ -1174,8 +1192,9 @@ locations.json: entries[0].placements[1]: position [9, 9] is outside the grid
 - **Ids and references:** duplicate ids in a namespace (across files too); references
   to ids that don't exist; sizes that the vocabulary doesn't name; `@id` texts that
   don't exist.
-- **Vocabulary:** each stat role held by exactly one stat; `health` and `heat` are
-  pools; ranks and relation bands don't repeat; relation settings make sense.
+- **Vocabulary:** each stat role held by exactly one stat; `health` is a pool that
+  drains; budgets are values, and only pools fill or recover `per_round`; ranks and
+  relation bands don't repeat; relation settings make sense.
 - **World:**
   - placements inside the grid, one per tile;
   - `rows` matching the grid size;
@@ -1185,7 +1204,10 @@ locations.json: entries[0].placements[1]: position [9, 9] is outside the grid
   - object states that belong to the object;
   - zone room pools made of templates.
 - **Items and crafting:**
-  - frames and modules use frame slots, implants use body slots;
+  - gear doesn't add slots of its own type, and `uses` names budgets or filling
+    pools;
+  - action costs name pools;
+  - workshops list `equip_slot_types` only when they offer `equip`;
   - stacking items don't wear;
   - repair costs only on items that wear;
   - dismantling never returns the item itself;
@@ -1193,10 +1215,10 @@ locations.json: entries[0].placements[1]: position [9, 9] is outside the grid
 - **Skills:** levels listed once each, lowest first; experience rising; level 1 at 0
   experience; no level above `skill_max_level`.
 - **Characters:**
-  - the worn frame is a frame, fitted items are modules, implants are implants;
-  - no slot over-filled;
-  - power and mass within the budgets;
-  - constant heat below maximum heat;
+  - everything equipped is gear, and each piece finds a free slot of its type (from
+    the body or gear listed before it);
+  - every budget within what the loadout provides;
+  - each filling pool's constant load below its maximum;
   - inventory within cargo;
   - skill levels within the maximum;
   - templates without a location, standing characters on free floor tiles;
@@ -1221,7 +1243,7 @@ locations.json: entries[0].placements[1]: position [9, 9] is outside the grid
 ## Glossary
 
 **Action.** Something a character can do in an encounter, shown as a tile. Comes
-from fitted items, skill levels, the character's own list, or is innate.
+from equipped gear, skill levels, the character's own list, or is innate.
 
 **Agent.** Anyone who can hold a view of others: a character, a faction, or a
 subject word. Used by relations.
@@ -1232,10 +1254,10 @@ stat or skill.
 **Art.** A picture in pixels, kept in the pack's art files and used by id: a
 character's `art` shows on the character screen, in conversations and in fights.
 
-**Body.** A character without a suit: size, base stats and implant slots.
+**Body.** A character without any gear: size, base stats and the body's slots.
 
-**Budget.** The power and mass a loadout provides and its modules use, and the heat
-limit that constant heat load eats into.
+**Budget.** A stat marked `budget` (power, mass, weight): what the loadout provides
+and its gear `uses`. Every budget must fit.
 
 **Cargo.** How many item stacks a character can carry. A stat role.
 
@@ -1254,13 +1276,16 @@ are distinguished by context: `requires` and `when` fields hold the first,
 **Content.** Everything in a pack: the world, items, people, text. Opposite of the
 engine.
 
-**Design.** Knowing how to fabricate an item. Learned by dismantling one (skill
+**Design.** Knowing how to make an item. Learned by dismantling one (skill
 permitting) or through `learn_design`.
 
 **Dismantle.** Destroying an item at a workshop for materials, and possibly its
 design.
 
 **Effect.** One thing that happens, picked by its `op` field.
+
+**Equip.** Putting gear into a free slot of its type, within the loadout's budgets.
+Some slot types change only at a workshop offering `equip`.
 
 **Encounter.** A fight or confrontation, played with actions.
 
@@ -1273,20 +1298,15 @@ arrivals appear in a location.
 
 **Exit.** A placement block that leads to another location or zone.
 
-**Fabricate.** Making a copy of a known design from materials at a workshop.
-
 **Faction.** A group characters belong to and hold views of.
-
-**Fitting.** Putting modules into a frame's slots within its budgets.
 
 **Flag.** A named world number (0 when unset) that checks read and effects change.
 
-**Frame.** A suit or piloted machine, from a rugged vacuum suit to a suit-ship hybrid.
-Its size becomes the wearer's size.
-
 **Game pack.** A pack with the real game content.
 
-**Gear.** A module fitted in a limb or hand slot: tools and weapons.
+**Gear.** The item kind for everything equipped in a slot: suits and armour, tools and
+weapons, implants and blessings. Gear can add slots of its own and set its wearer's
+size (`worn_size`).
 
 **Glyph.** The character drawn for something on the map.
 
@@ -1300,7 +1320,7 @@ location's `on_turn` effects.
 
 **`holds_size`.** The largest size class that fits in, through or onto something.
 
-**Implant.** An item fitted into a body slot. Stays across suit changes.
+**Implant.** Gear in a body slot. It stays when the suit changes.
 
 **Innate.** An action every character has.
 
@@ -1312,12 +1332,14 @@ conditions, a hint and effects.
 **Item pick.** A way to say which item an effect means: by id, by tag, by slot type,
 or the one just used.
 
-**Kind.** (1) The type of an item (`frame`, `module`…). (2) The type of a data file
+**Kind.** (1) The type of an item (`gear`, `material`…). (2) The type of a data file
 in the manifest (`items`, `locations`…).
 
 **Label.** A short name that fits a narrow screen.
 
-**Loadout.** A character's frame, fitted modules and implants together.
+**Loadout.** A character's equipped gear together, and the budgets it uses.
+
+**Make.** Making a copy of a known design from materials at a workshop.
 
 **Location.** A room or area on a grid.
 
@@ -1329,8 +1351,6 @@ in the manifest (`items`, `locations`…).
 
 **Modification.** A material applied to an item that always adds the same thing.
 Permanent.
-
-**Module.** An item fitted into a frame slot.
 
 **Namespace.** The set of ids of one kind (`item`, `placement`, `tag`…) that
 references point into.
@@ -1355,7 +1375,9 @@ character.
 
 **Placement.** An object template put at a grid position, with a pack-unique id.
 
-**Pool.** A stat with a current value and a maximum, such as health.
+**Pool.** A stat with a current value and a maximum. It drains (health, mana: costs
+and harm lower it) or fills (heat, fatigue: costs raise it, and a full pool costs the
+next action).
 
 **Rank.** A character's standing in the Registry.
 
@@ -1371,25 +1393,25 @@ character.
 
 **Role.** (1) A named part in an event's cast. (2) A stat role (below).
 
-**Salvage.** What dismantling an item gives.
-
 **Schema.** A JSON Schema file describing one kind of content.
 
 **Schema version.** The version of the schemas a pack targets.
 
-**Size.** A size class from 0 to 9 for anything: items, objects, characters, frames,
+**Size.** A size class from 0 to 9 for anything: items, objects, characters, suits,
 locations. A shorthand for volume.
 
 **Skill.** Know-how that rises with use. Each level adds one clear thing.
 
-**Slot type.** A kind of slot, on a frame or in the body.
+**Slot.** A place for one piece of gear, from the body or from other gear.
+
+**Slot type.** A kind of slot: a worn slot, a hand, an implant socket.
 
 **Stack.** A group of identical items in one cargo space.
 
 **Stat.** A number on characters, items and objects.
 
-**Stat role.** The built-in meaning the engine gives one stat: health, power, mass,
-heat, initiative or cargo.
+**Stat role.** The built-in meaning the engine gives one stat: health, initiative or
+cargo. Budgets and pools are the pack's own.
 
 **Status.** A temporary condition on a character, such as burning.
 
@@ -1415,6 +1437,9 @@ rules.
 
 **Vocabulary.** The pack's declared words: tags, stats, statuses and so on.
 
-**Workshop.** An object where crafting happens.
+**Workshop.** An object where crafting happens, and where gear in some slot types is
+changed.
+
+**Worn size.** The size gear gives its wearer while equipped: a heavy suit, a mount.
 
 **Zone.** A procedural area built from template rooms. Reserved.

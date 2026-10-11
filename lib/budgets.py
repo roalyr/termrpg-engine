@@ -1,58 +1,55 @@
 """
-Whether a character's loadout fits, as a pack writes it: which slots of the frame and
-the body each module and implant takes, what the loadout provides and uses of power,
-mass, heat and cargo, and what doesn't fit. The checker reports the problems as errors
-and the loadout editor shows them, each in its own words, so both count the same way.
+Whether a character's loadout fits, as a pack writes it: which slot each piece of gear
+takes, what the loadout provides and uses of each budget, and what doesn't fit. The
+checker reports the problems as errors and the loadout editor shows them, each in its
+own words, so both count the same way.
 
-The rules: modules take the frame's slots and implants the body's, one each, by slot
-type. Power and mass used by fitted gear must not go over what the body, frame, items
-and reached skill levels provide; constant heat must stay below maximum heat; the
-inventory's stacks must fit in cargo. (The game counts a running loadout itself, in
-engine/stats.py: its items can be modified or broken, which a pack's can't.)
+The rules: slots come from the body and from equipped gear. Gear is placed in the order
+it is listed: each piece takes a free slot of its type from the body or from gear placed
+before it, then adds its own slots. What equipped gear uses of a budget stat must not go
+over what the body, gear and reached skill levels provide; its constant load on a
+filling pool must stay below the pool's maximum; the inventory's stacks must fit in
+cargo. (The game counts a running loadout itself, in engine/stats.py: its items can be
+modified or broken, which a pack's can't.)
 """
-from typing import Any, Dict, List, Mapping, NamedTuple, Optional
+from typing import Any, Dict, Iterable, List, Mapping, NamedTuple, Optional, Sequence, Tuple
 
-BUDGETS = ("power", "mass", "heat", "cargo")
-HOSTS = {"module": "frame", "implant": "body"}           # an item kind -> what it's fitted into
-GROUPS = {"module": "fitted", "implant": "implants"}     # an item kind -> the character's list of them
+BODY = -1    # the host of a body slot
 
 
 class Slot(NamedTuple):
-    """One slot of a frame or a body, and the item in it (None when empty)."""
-    host: str                 # 'frame' or 'body'
-    slot_type: str            # '' for an item that isn't a module or implant
+    """One slot and the gear in it (None when empty)."""
+    host: int                 # BODY, or the index in 'equipped' of the gear that adds the slot
+    slot_type: str            # '' for gear with no free slot or that isn't gear
     item: Optional[str]
-    index: int                # the item's place in 'fitted' or 'implants'; -1 when empty
+    index: int                # the gear's place in 'equipped'; -1 when empty
 
 
 class Problem(NamedTuple):
     """
     What doesn't fit, for the caller to put in words:
-      'no_item'      item, worn as the frame or listed in 'group', isn't in the pack
-      'not_frame'    item is worn as the frame but is of kind 'kind'
-      'no_frame'     there are fitted modules but no frame
-      'wrong_kind'   item in 'group' is of kind 'kind', not the one the list takes
-      'no_slot'      no free 'slot_type' slot in the 'host' for item
-      'over'         'role' uses 'used' of 'provided' (heat: reaches it)
+      'no_item'      item listed in 'equipped' isn't in the pack
+      'not_gear'     item listed in 'equipped' is of kind 'kind'
+      'no_slot'      no free 'slot_type' slot for item
+      'over'         stat 'stat' uses 'used' of 'provided' (a filling pool: reaches it;
+                     the cargo stat: inventory stacks)
     """
     what: str
     item: str = ""
     kind: Any = ""
-    group: str = ""
-    host: str = ""
     slot_type: str = ""
-    role: str = ""
+    stat: str = ""
     used: float = 0
     provided: float = 0
 
 
 class Loadout(NamedTuple):
-    frame: Optional[str]          # the frame worn; None without one, or when it isn't a frame
-    slots: List[Slot]             # the frame's slots, then the body's, by slot type
-    extra: List[Slot]             # items with no free slot, or not of their list's kind
-    used: Dict[str, float]        # power, mass, heat (constant load), cargo (inventory stacks)
-    provided: Dict[str, float]    # each budget role the vocabulary has a stat for
-    totals: Dict[str, float]      # every stat, totalled over body, frame, items and skill levels
+    slots: List[Slot]             # the body's slots, then each placed gear's, in order
+    extra: List[Slot]             # listed items with no free slot, or that aren't gear
+    used: Dict[str, float]        # budget and filling-pool stat -> what gear uses; cargo stat -> stacks
+    provided: Dict[str, float]    # the same stats -> what the loadout provides
+    totals: Dict[str, float]      # every stat, totalled over body, gear and skill levels
+    size: Optional[int]           # the largest worn_size of placed gear, else the body's size
     problems: List[Problem]
 
 
@@ -61,7 +58,7 @@ def _number(value: Any) -> bool:
 
 
 def slot_counts(holder: Optional[Mapping]) -> Dict[str, int]:
-    """Slot type -> how many, as a frame or a body lists them."""
+    """Slot type -> how many, as a body or a piece of gear lists them."""
     counts: Dict[str, int] = {}
     for slot in (holder or {}).get("slots", []) or []:
         if isinstance(slot, Mapping) and slot.get("slot_type"):
@@ -69,77 +66,91 @@ def slot_counts(holder: Optional[Mapping]) -> Dict[str, int]:
     return counts
 
 
-def over(role: str, used: float, provided: float) -> bool:
-    """Whether a budget doesn't fit: heat must stay below its maximum, the rest within."""
-    if role == "heat":
+def over(fills: bool, used: float, provided: float) -> bool:
+    """Whether a budget doesn't fit: a filling pool's load must stay below its maximum, the rest within."""
+    if fills:
         return bool(used) and used >= provided
     return used > provided
 
 
-def loadout(char: Mapping, items: Mapping[str, Mapping], roles: Mapping[str, str],
+def place(body_slots: Mapping[str, int], gear: Sequence[Optional[Mapping]]) -> Tuple[List[Slot], List[int]]:
+    """
+    Gear placed into slots, in order: the slots (body first, then each placed piece's),
+    and the indexes of gear that found no free slot. None stands for something that isn't
+    gear, which is never placed.
+    """
+    slots = [Slot(BODY, t, None, -1) for t, count in body_slots.items() for _ in range(count)]
+    unplaced: List[int] = []
+    for index, piece in enumerate(gear):
+        free = next((n for n, s in enumerate(slots) if s.item is None and piece is not None
+                     and s.slot_type == piece.get("slot_type")), None)
+        if free is None:
+            unplaced.append(index)
+            continue
+        slots[free] = slots[free]._replace(item=str(piece.get("id", "")), index=index)
+        slots += [Slot(index, t, None, -1) for t, count in slot_counts(piece).items() for _ in range(count)]
+    return slots, unplaced
+
+
+def loadout(char: Mapping, items: Mapping[str, Mapping], stats: Mapping[str, Mapping],
             skills: Mapping[str, Mapping]) -> Loadout:
     """
-    A character's loadout. 'items' and 'skills' are the pack's entries by id, 'roles' the
-    vocabulary's budget roles (role -> stat id).
+    A character's loadout. 'items', 'stats' and 'skills' are the pack's entries by id (the
+    vocabulary's stats for 'stats').
     """
     body = char.get("body", {}) if isinstance(char.get("body"), Mapping) else {}
     problems: List[Problem] = []
-    frame = items.get(char.get("frame")) if "frame" in char else None
-    if "frame" in char and (frame is None or frame.get("kind") != "frame"):
-        if frame is not None:
-            problems.append(Problem("not_frame", char["frame"], frame.get("kind")))
-        elif char.get("frame"):
-            problems.append(Problem("no_item", char["frame"], group="frame"))
-        frame = None
-    if char.get("fitted") and "frame" not in char:
-        problems.append(Problem("no_frame"))
-    worn: List[Mapping] = [body] + ([frame] if frame else [])
-    slots: List[Slot] = []
-    extra: List[Slot] = []
-    used: Dict[str, float] = {"power": 0.0, "mass": 0.0, "heat": 0.0}
-    for kind, host in HOSTS.items():
-        capacity = slot_counts(frame if host == "frame" else body)
-        filled: Dict[str, List[int]] = {t: [] for t in capacity}
-        ids = char.get(GROUPS[kind], []) or []
-        for index, item_id in enumerate(ids):
-            item = items.get(item_id)
-            if item is None or item.get("kind") != kind:
-                extra.append(Slot(host, "", item_id, index))
-                problems.append(Problem("wrong_kind", item_id, item.get("kind"), GROUPS[kind]) if item is not None
-                                else Problem("no_item", item_id, group=GROUPS[kind]))
-                continue
-            worn.append(item)
-            slot_type = item.get("slot_type", "")
-            if len(filled.get(slot_type, [])) < capacity.get(slot_type, 0):
-                filled[slot_type].append(index)
-            else:
-                extra.append(Slot(host, slot_type, item_id, index))
-                problems.append(Problem("no_slot", item_id, kind, GROUPS[kind], host, slot_type))
-            for budget, amount in (item.get("uses", {}) or {}).items():
-                if _number(amount):
-                    used[budget] = used.get(budget, 0.0) + amount
-        for slot_type, count in capacity.items():
-            taken = filled[slot_type]
-            slots += [Slot(host, slot_type, ids[taken[n]], taken[n]) if n < len(taken) else Slot(host, slot_type, None, -1)
-                      for n in range(count)]
+    ids = [i for i in (char.get("equipped", []) or [])]
+    gear: List[Optional[Mapping]] = []
+    for item_id in ids:
+        item = items.get(item_id)
+        if item is None:
+            problems.append(Problem("no_item", item_id))
+        elif item.get("kind") != "gear":
+            problems.append(Problem("not_gear", item_id, item.get("kind")))
+        gear.append(dict(item, id=item_id) if item is not None and item.get("kind") == "gear" else None)
+    slots, unplaced = place(slot_counts(body), gear)
+    extra = [Slot(BODY, (gear[i] or {}).get("slot_type", ""), ids[i], i) for i in unplaced]
+    problems += [Problem("no_slot", ids[i], "gear", gear[i].get("slot_type", "")) for i in unplaced if gear[i]]
+
+    placed = [gear[s.index] for s in slots if s.item is not None]
+    worn: List[Mapping] = [body] + placed
     for skill_id, level in (char.get("skills", {}) or {}).items():         # skill levels add stats too
         for lv in (skills.get(skill_id) or {}).get("levels", []) or []:
             if isinstance(lv, Mapping) and isinstance(level, int) and lv.get("level", 0) <= level:
                 worn.append(lv)
     totals: Dict[str, float] = {}
     for thing in worn:
-        stats = thing.get("stats")
-        for stat_id, value in (stats.items() if isinstance(stats, Mapping) else ()):
+        values = thing.get("stats")
+        for stat_id, value in (values.items() if isinstance(values, Mapping) else ()):
             if _number(value):
                 totals[stat_id] = totals.get(stat_id, 0) + value
-    stacks = 0
-    for entry in char.get("inventory", []) or []:
-        item = items.get(entry.get("item")) if isinstance(entry, Mapping) else None
-        if item is not None:
-            stacks += -(-entry.get("count", 1) // item.get("stack", 1))
-    used["cargo"] = stacks
-    provided = {role: totals.get(roles[role], 0) for role in BUDGETS if role in roles}
-    for role, have in provided.items():
-        if over(role, used[role], have):
-            problems.append(Problem("over", role=role, used=used[role], provided=have))
-    return Loadout(char.get("frame") if frame else None, slots, extra, used, provided, totals, problems)
+
+    counted = [s for s, record in stats.items() if record.get("budget") or record.get("fills")]
+    used: Dict[str, float] = {s: 0.0 for s in counted}
+    for piece in placed:
+        for stat_id, amount in (piece.get("uses", {}) or {}).items():
+            if _number(amount):
+                used[stat_id] = used.get(stat_id, 0.0) + amount
+    cargo = next((s for s, record in stats.items() if record.get("role") == "cargo"), None)
+    if cargo is not None:
+        stacks = 0
+        for entry in char.get("inventory", []) or []:
+            item = items.get(entry.get("item")) if isinstance(entry, Mapping) else None
+            if item is not None:
+                stacks += -(-entry.get("count", 1) // item.get("stack", 1))
+        used[cargo] = stacks
+    provided = {s: totals.get(s, 0) for s in used}
+    for stat_id, have in provided.items():
+        if over(bool((stats.get(stat_id) or {}).get("fills")), used[stat_id], have):
+            problems.append(Problem("over", stat=stat_id, used=used[stat_id], provided=have))
+    sizes = [p["worn_size"] for p in placed if _number(p.get("worn_size"))]
+    size = max(sizes) if sizes else body.get("size")
+    return Loadout(slots, extra, used, provided, totals, size, problems)
+
+
+def budget_stats(stats: Mapping[str, Mapping]) -> Iterable[str]:
+    """The stats a loadout is measured against, in vocabulary order: budgets, filling pools, then cargo."""
+    yield from (s for s, r in stats.items() if r.get("budget"))
+    yield from (s for s, r in stats.items() if r.get("fills"))
+    yield from (s for s, r in stats.items() if r.get("role") == "cargo")

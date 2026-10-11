@@ -1,7 +1,7 @@
 """
 The terminal game: one key at a time, autosaving after every turn.
 
-Keys come from the UI pack's bindings: moving, waiting, the fitting board, the
+Keys come from the UI pack's bindings: moving, waiting, the gear screen, the
 character sheet, closing, quitting and the board's next page. Number keys pick
 numbered entries (a choice's options, board items, action tiles, targets); the letters
 shown in menus act. Any key leaves the after-action screen.
@@ -36,8 +36,8 @@ class View(NamedTuple):
                                      # encounter the action tile waiting for a target
     page: int = 0                    # the board's page
     scroll: int = 0                  # how far a scrolling sub-window (inspect, character) is scrolled
-    screen: Optional[str] = None     # a full screen of the world: 'fitting', 'character' or 'talk'; on the
-                                     # fitting screen 'selected' is the pick and 'panel' its sub-window
+    screen: Optional[str] = None     # a full screen of the world: 'gear', 'character' or 'talk'; on the
+                                     # gear screen 'selected' is the pick and 'panel' its sub-window
     log: tuple = ()                  # a conversation's history: what you said and what followed
     back: Optional[object] = None    # on the quit question: the view to go back to
     cursor: Optional[tuple] = None   # on the map: the cursor's cell (x, y); 'page' is the region shown
@@ -88,8 +88,8 @@ def _handle(content: Content, state: GameState, key: str, view: View, ui: UI):
     if state.encounter is not None:
         state, view = _fight(content, state, key, action, view)
         return events.settle(content, state), view, False
-    if view.screen == "fitting":
-        state, view = _fitting(content, state, key, action, view, ui)
+    if view.screen == "gear":
+        state, view = _gear(content, state, key, action, view, ui)
     elif view.screen == "character":
         state, view = state, _character(action, view)
     elif view.screen == "map":
@@ -141,8 +141,8 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
         return state, _history(action, view)
     if action == "history" and view.panel is None:
         return state, View("history")
-    if action == "fitting" and view.panel is None:
-        return state, View(screen="fitting", selected=0)
+    if action == "gear" and view.panel is None:
+        return state, View(screen="gear", selected=0)
     if action == "character" and view.panel is None:
         return state, View(screen="character")
     if action == "map" and view.panel is None:
@@ -187,14 +187,14 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
     return world.act(content, state, key, ui.bound_keys), View()
 
 
-def _fitting(content: Content, state: GameState, key: str, action: Optional[str], view: View, ui: UI):
+def _gear(content: Content, state: GameState, key: str, action: Optional[str], view: View, ui: UI):
     """
-    The fitting screen. Up and down move the pick, digits jump to an entry, the picked
+    The gear screen. Up and down move the pick, digits jump to an entry, the picked
     entry's letters act on it (fit, remove, repair, take apart, make), M lists its
     modifications, I opens its details, and close goes back a level.
     """
     pickable = widgets.picks(content, state)
-    rows = build.fitting_rows(content, state)
+    rows = build.gear_rows(content, state)
     selected = max(0, min(view.selected or 0, len(pickable) - 1)) if pickable else 0
     slot = rows[pickable[selected]].slot if pickable else None
     if view.panel == "item":                                  # the details: scroll, or back to the list
@@ -206,16 +206,16 @@ def _fitting(content: Content, state: GameState, key: str, action: Optional[str]
     if view.panel == "modify":                                # the modifications: a digit applies one
         if action == "close":
             return state, view._replace(panel=None)
-        mods = [o for o in build.item_options(content, state, slot, ui.bound_keys, "fitting") if o.kind == "modify"]
+        mods = [o for o in build.item_options(content, state, slot, ui.bound_keys, "gear") if o.kind == "modify"]
         if slot is not None and _digit(key) and _digit(key) <= len(mods):
-            after = build.item_act(content, state, slot, mods[_digit(key) - 1].key, ui.bound_keys, "fitting")
+            after = build.item_act(content, state, slot, mods[_digit(key) - 1].key, ui.bound_keys, "gear")
             return after, view._replace(panel=None, selected=_follow_pick(content, state, after, slot, selected))
         return state, view
     if slot is not None:
-        options = build.item_options(content, state, slot, ui.bound_keys, "fitting")
+        options = build.item_options(content, state, slot, ui.bound_keys, "gear")
         option = next((o for o in options if o.key == key and o.kind != "modify"), None)
         if option is not None:
-            after = build.item_act(content, state, slot, key, ui.bound_keys, "fitting")
+            after = build.item_act(content, state, slot, key, ui.bound_keys, "gear")
             return after, view._replace(selected=_follow_pick(content, state, after, slot, selected))
         if key == world.MENU_KEYS["inspect"]:
             return state, view._replace(panel="item", scroll=0)
@@ -235,7 +235,7 @@ def _fitting(content: Content, state: GameState, key: str, action: Optional[str]
 def _follow_pick(content: Content, before: GameState, after: GameState, slot, selected: int) -> int:
     """The pick after an action: the same item wherever it went (fitted, removed, taken), else the same place."""
     old = build.entry_at(content, before, slot)
-    rows = build.fitting_rows(content, after)
+    rows = build.gear_rows(content, after)
     pickable = [i for i, row in enumerate(rows) if row.slot is not None]
     for number, index in enumerate(pickable):
         if old is not None and build.entry_at(content, after, rows[index].slot) == old:

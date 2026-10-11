@@ -1,7 +1,7 @@
 # Design: a genre-agnostic engine (milestone 8)
 
-Status: the big picture is **Decided** (Q1–Q3 answered 2026-10-11). The details below
-are **Proposed**: nothing is built until the user agrees them.
+Status: **Decided** (2026-10-11): the big picture (Q1–Q3) and the details below.
+
 
 ## Goal
 
@@ -86,7 +86,7 @@ features proven in both packs.
 - **Q4.** Open: the fantasy pack's shape above is a working draft, to revisit while
   writing it.
 
-## Details (proposed)
+## Details
 
 ### The new words
 

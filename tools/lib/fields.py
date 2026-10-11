@@ -32,7 +32,7 @@ PREFIXES = {"regions": "reg_", "locations": "loc_", "zones": "zone_", "objects":
 VOCAB_PREFIXES = {"tags": "tag_", "stats": "stat_", "damage_types": "dmg_", "statuses": "status_",
                   "slot_types": "slot_", "grades": "grade_", "object_states": "state_", "phases": "phase_",
                   "factions": "faction_", "flags": "flag_"}
-ITEM_PREFIXES = {"frame": "frame_", "module": "module_", "implant": "implant_", "material": "material_",
+ITEM_PREFIXES = {"gear": "gear_", "material": "material_",
                  "consumable": "consumable_", "misc": "misc_"}
 
 

@@ -131,7 +131,7 @@ class Option(NamedTuple):
     """
     One menu option. 'label' is the content's own label; when it's None the UI words the
     option from its 'kind' ('go', 'talk', 'workshop', 'inspect') and 'params' (e.g. the
-    destination). A 'workshop' option has no key of its own: the UI's fitting key opens it.
+    destination). A 'workshop' option has no key of its own: the UI's gear key opens it.
     """
     key: str
     label: Optional[str]
@@ -216,7 +216,7 @@ def menu(content: Content, state: GameState, bindings: Optional[frozenset] = Non
         options.append(Option(MENU_KEYS["go"], label, ok, hint, "go", None,
                               freeze({"destination": _destination_name(content, exit_)})))
     if kind == "placement" and content.get("placement", ref).get("workshop"):
-        # The fitting screen does the work; the UI shows its own fitting key for this option.
+        # The gear screen does the work; the UI shows its own gear key for this option.
         options.append(Option("", None, True, None, "workshop", None))
     if kind == "character" and content.get("character", state.characters[ref].source).get("talk"):
         options.append(Option(MENU_KEYS["talk"], None, True, None, "talk", None))
@@ -326,8 +326,8 @@ def _go(content: Content, state: GameState) -> GameState:
     size = stats.size(content, state.characters[state.player])
     for container in (placed, content.get("location", exit_["location"])):
         if container.get("holds_size") is not None and size > container["holds_size"]:
-            frame = state.characters[state.player].frame
-            thing = stats.item_view(content, frame)["name"] if frame else \
+            sizer = stats.sized_by(content, state.characters[state.player])
+            thing = stats.item_view(content, sizer)["name"] if sizer else \
                 content.get("character", state.characters[state.player].source)["name"]
             return _say(state, "plain", content.message("cannot_fit", thing=thing, container=container["name"]))
     state = state._replace(focus=None)
@@ -398,8 +398,7 @@ def used_item(content: Content, state: GameState, ctx: Ctx, cond: Optional[Mappi
 
 
 # The slots each has_tag source looks in ('any' looks everywhere; 'party' is others' items).
-USED_FROM = {"any": None, "fitted": ("frame", "fitted"), "carried": ("inventory",), "body": ("implants",),
-             "party": ()}
+USED_FROM = {"any": None, "equipped": ("equipped",), "carried": ("inventory",), "body": (), "party": ()}
 
 
 def _has_tag_leaves(cond: Mapping) -> List[Mapping]:

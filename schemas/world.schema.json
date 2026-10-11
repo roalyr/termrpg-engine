@@ -3,7 +3,7 @@
   "$id": "world.schema.json",
   "title": "World (regions, locations, zones)",
   "description": "The shape of the world. Regions group locations and can nest; locations are grids with placed objects, exits and per-turn effects; zones are procedural areas built from template locations. The pack lists regions, locations and zones as separate file kinds; each file is validated against the matching *_file definition.",
-  "x-schema-version": 2,
+  "x-schema-version": 3,
   "$defs": {
     "regions_file": {
       "type": "object",
@@ -166,7 +166,7 @@
         },
         "holds_size": {
           "$ref": "common.schema.json#/$defs/size",
-          "description": "Largest size class that can be inside, e.g. living quarters keep heavy suits out."
+          "description": "Largest size class that can be inside, e.g. living quarters keep heavy suits or horses out."
         },
         "grid": {
           "type": "object",
@@ -328,7 +328,7 @@
         },
         "on_turn": {
           "$ref": "common.schema.json#/$defs/effects",
-          "description": "Run every turn for each character here. 'self' is that character. Hazards live here, e.g. damage unless a sealed suit is fitted."
+          "description": "Run every turn for each character here. 'self' is that character. Hazards live here, e.g. damage unless the right gear is equipped."
         },
         "map": {
           "type": "object",

@@ -102,7 +102,7 @@ def pick(content: Content, state: GameState, ctx: Ctx, char_id: str, item_pick: 
             return slot
         if "tag" in item_pick and item_pick["tag"] in view["tags"]:
             return slot
-        if "slot_type" in item_pick and slot[0] in ("fitted", "implants") \
+        if "slot_type" in item_pick and slot[0] == "equipped" \
                 and view["slot_type"] == item_pick["slot_type"]:
             return slot
     return None

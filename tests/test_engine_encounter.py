@@ -87,7 +87,7 @@ class TestBegin(unittest.TestCase):
         tiles = encounter.tiles(CONTENT, fight())
         self.assertEqual([(t.key, t.action) for t in tiles],
                          [("1", "action_strike"), ("2", "action_guard"), ("3", "action_retreat")])
-        self.assertEqual(tiles[0].cost, "1")
+        self.assertEqual(tiles[0].cost, (("stat_heat", "1"),))
 
 
 class TestOutcomes(unittest.TestCase):

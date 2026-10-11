@@ -12,7 +12,7 @@ game's start screen. With more than one pack in `packs/` it asks which to open f
 | Map | The world by region: where locations lie, how they connect, what needs fixing | `python3 -m tools.map <pack>` |
 | Room | One location's layout: tiles, size, objects, entry point, doors, open edges | `python3 -m tools.room <pack>` |
 | Entries | Any entry by kind (objects, items, characters, actions, events…), field by field | `python3 -m tools.entries <pack>` |
-| Loadout | A character's frame, modules, implants and inventory, against their budgets | `python3 -m tools.loadout <pack>` |
+| Loadout | A character's equipped gear and inventory, against their budgets | `python3 -m tools.loadout <pack>` |
 | Overview | The pack's files, entry counts by kind, the checker's report | `python3 -m tools.overview <pack>` |
 | Art | The pack's pictures in pixels: paint, mirror, undo, colours | `python3 -m tools.art <pack>` |
 
@@ -239,7 +239,7 @@ Up and down pick a field; Enter edits it, with the input that suits it:
 | Numbers | A line, checked as a number in its range |
 | Yes or no | Enter switches it |
 | One of a few words, a size, an id of another entry | A list to pick from (ids with their names, sizes with theirs) |
-| A list of ids (tags, actions, fitted modules…) | The list: Enter on one takes it out, **Add…** picks one more, Esc is done |
+| A list of ids (tags, actions, equipped gear…) | The list: Enter on one takes it out, **Add…** picks one more, Esc is done |
 | Colours | The colour picker, with Default first |
 | Descriptions and notes | The text editor, as plain text |
 | Anything bigger (effects, conditions, dialogue, interactions, stats, a grid) | The text editor, as JSON. A mistake isn't lost: edit again, or drop the change |
@@ -262,14 +262,14 @@ E lists what works on the whole entry:
 
 **At a glance.** Items and objects show a few lines above their fields:
 
-- an item: its kind, its slot (or a frame's slots), what it uses and gives
+- an item: its kind, its slot and the slots it adds, what it uses and gives
   (`PWR 3 MAS 3 HT 2 · ARM +2`), and where the player gets it. When nothing gives
-  it, that line is red: no loot, storage, gift, salvage or starting gear;
+  it, that line is red: no loot, storage, gift, dismantling or starting gear;
 - an object: its glyph in its map colour and in each state (`◆ closed  ◇ open`), its
   workshop services and grade, its storage, and the rooms it's placed in.
 
 **U lists where the entry is used**, with what each use is: "holds it at the start",
-"gives it", "needed to fabricate it", "placed there". For an item, the ways to get it
+"gives it", "needed to make it", "placed there". For an item, the ways to get it
 come first, marked `+`:
 
 | Counts as a way to get it | When |
@@ -278,7 +278,7 @@ come first, marked `+`:
 | Storage contents, a `give_item` effect | Always |
 | Dismantling another item | When that item can be had |
 | The player's starting gear | The pack's `start.player` |
-| Fabricating it | When the player knows the design, something teaches it, or dismantling it teaches it and it can be had |
+| Making it | When the player knows the design, something teaches it, or dismantling it teaches it and it can be had |
 
 A would-be way that doesn't work says why (`but nothing rolls this table`). Enter on a
 use opens that entry; X comes back.
@@ -296,27 +296,26 @@ entries goes back to the sections.
 X goes back to the entry list, Esc to the kinds; Esc on the kinds leaves, asking to
 save if anything changed.
 
-### Loadout: what a character wears and carries (ready)
+### Loadout: what a character has equipped and carries (ready)
 
 Pick a character (templates included). The top shows who they are: title, size, where
-they stand (the player: the pack's start), then **power, mass, heat and cargo** as bars
-of what the loadout uses against what it provides, and their other stats added up
-(body, frame, modules, implants, skill levels). With the room to spare (about 40 rows
+they stand (the player: the pack's start), then **each budget, filling pool and cargo**
+as bars of what the loadout uses against what it provides, and their other stats added
+up (body, gear, skill levels). With the room to spare (about 40 rows
 at 48 columns) their picture sits beside it; V hides or shows it.
 
 Below, one line per thing:
 
 | Line | Enter | R |
 |---|---|---|
-| The frame | Another frame, or none | Takes it off (fitted modules then have nowhere to go) |
-| A frame or body slot, filled or `(empty)` | The modules (implants) of that slot type, each with what it uses and gives | Takes it out |
-| A fitted item with no slot, in red | Another item | Takes it out |
+| A slot of the body or of equipped gear (indented under it), filled or `(empty)` | The gear of that slot type, each with what it uses and gives | Takes it off (gear in its slots then has nowhere to go, in red) |
+| Equipped gear with no slot, in red | Other gear | Takes it off |
 | A carried stack, with its cargo stacks | Its count; 0 takes it out | Takes it out |
 | Carry another item… | An item, then how many (added to a stack it already has) | |
 
 The bars and the problems below the list follow every change before anything is
 saved. They're counted by the same code as the checker's (`lib/budgets.py`: slots,
-power, mass, constant heat below maximum heat, cargo stacks), so a loadout with no
+budgets, constant loads below their pools' maximum, cargo stacks), so a loadout with no
 problems here passes the check; `tests/test_tools.py` holds the two to the same verdicts.
 
 G opens the character's room in the room editor, the cursor on them; X there comes

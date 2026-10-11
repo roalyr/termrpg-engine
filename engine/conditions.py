@@ -57,8 +57,8 @@ def _has_tag(content: Content, state: GameState, ctx: Ctx, cond: Mapping) -> Res
     def has(cid: str) -> bool:
         cs = state.characters[cid]
         tags = []
-        if source in ("any", "fitted"):
-            tags += stats.own_tags(content, cs, "fitted")
+        if source in ("any", "equipped"):
+            tags += stats.own_tags(content, cs, "equipped")
         if source in ("any", "carried"):
             tags += stats.own_tags(content, cs, "carried")
         if source in ("any", "body"):
@@ -66,7 +66,7 @@ def _has_tag(content: Content, state: GameState, ctx: Ctx, cond: Mapping) -> Res
         if source in ("any", "party"):
             for other in context.party_of(state, cid)[1:]:
                 ocs = state.characters[other]
-                for own in ("fitted", "carried", "body"):
+                for own in ("equipped", "carried", "body"):
                     tags += stats.own_tags(content, ocs, own)
         return cond["tag"] in tags
     return _any_subject(state, ctx, cond, has)

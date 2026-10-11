@@ -79,17 +79,17 @@ class PackCopy:
 
 class TestModifyItem(unittest.TestCase):
     def test_rolled_stat_amounts_are_kept_as_numbers(self):           # finding 1
-        s = do(new_game(CONTENT, 1), {"op": "modify_item", "pick": {"item": "frame_light"},
+        s = do(new_game(CONTENT, 1), {"op": "modify_item", "pick": {"item": "gear_light_suit"},
                                       "stats": {"stat_armor": {"min": 1, "max": 2}}, "subject": "self"})
-        armor = stats.item_view(CONTENT, me(s).frame)["stats"]["stat_armor"]
+        armor = stats.item_view(CONTENT, me(s).equipped[0])["stats"]["stat_armor"]
         self.assertIn(armor, (1, 2))
         self.assertGreaterEqual(stats.stat(CONTENT, me(s), "stat_armor"), 1)
 
     def test_one_off_a_stack_needs_a_cargo_stack(self):                 # finding 11
         s = new_game(CONTENT, 1)
-        free = int(stats.budget_provided(CONTENT, me(s), "cargo")) - len(me(s).inventory)
+        free = int(stats.cargo_capacity(CONTENT, me(s))) - len(me(s).inventory)
         s = do(s, *[{"op": "give_item", "item": "misc_keycard", "count": 1, "subject": "self"}] * free)
-        self.assertEqual(len(me(s).inventory), stats.budget_provided(CONTENT, me(s), "cargo"))   # full
+        self.assertEqual(len(me(s).inventory), stats.cargo_capacity(CONTENT, me(s)))   # full
         before = me(s).inventory
         s = do(s, {"op": "modify_item", "pick": {"item": "consumable_medkit"}, "name_suffix": "Odd", "subject": "self"})
         self.assertEqual(me(s).inventory, before)
@@ -167,12 +167,13 @@ class TestKeys(unittest.TestCase):
 class TestRestore(unittest.TestCase):
     def test_restoring_heat_cools(self):                                # finding 5
         s = new_game(CONTENT, 1)
-        s = do(s, {"op": "modify_stat", "stat": "stat_heat", "amount": 0, "subject": "self"})
-        hot = stats.current(CONTENT, me(s), "stat_heat")
+        chars = dict(s.characters)
+        chars[PLAYER] = me(s)._replace(pools=freeze({**me(s).pools, "stat_heat": 6}))
+        s = s._replace(characters=freeze(chars))
         s = do(s, {"op": "restore", "stat": "stat_heat", "amount": 1, "subject": "self"})
-        self.assertEqual(stats.current(CONTENT, me(s), "stat_heat"), max(0, hot - 1))
+        self.assertEqual(stats.current(CONTENT, me(s), "stat_heat"), 5)
         s = do(s, {"op": "restore", "stat": "stat_heat", "amount": 99, "subject": "self"})
-        self.assertEqual(stats.current(CONTENT, me(s), "stat_heat"), 0)
+        self.assertEqual(stats.current(CONTENT, me(s), "stat_heat"), 2)    # heat rests at the constant load
 
 
 class TestUniqueEnemies(unittest.TestCase):
@@ -241,23 +242,23 @@ class TestBudgets(unittest.TestCase):
         s = new_game(CONTENT, 1)
         s = do(s, {"op": "move_to", "location": "loc_storage", "subject": "self"})
         chars = dict(s.characters)
-        chars[PLAYER] = me(s)._replace(at=(2, 2))                    # by the bay, a refit workshop
+        chars[PLAYER] = me(s)._replace(at=(2, 2))                    # by the bay, an equip workshop
         s = s._replace(characters=freeze(chars))
-        s = do(s, {"op": "modify_item", "pick": {"item": "module_cutter"}, "stats": {"stat_power": 4},
+        s = do(s, {"op": "modify_item", "pick": {"item": "gear_cutter"}, "stats": {"stat_power": 4},
                    "subject": "self"},
                {"op": "modify_stat", "stat": "stat_power", "amount": -4, "subject": "self"})
-        tool = slot_of(s, "module_cutter", "fitted")
+        tool = slot_of(s, "gear_cutter", "equipped")
         self.assertIn("Power", build.remove_problem(CONTENT, s, tool) or "")
-        self.assertIsNone(build.remove_problem(CONTENT, s, slot_of(s, "module_shield", "fitted")))
+        self.assertIsNone(build.remove_problem(CONTENT, s, slot_of(s, "gear_shield", "equipped")))
 
 
 class TestUsedItem(unittest.TestCase):
     def test_the_used_item_comes_from_where_the_check_looked(self):    # finding 12
-        s = do(new_game(CONTENT, 1), {"op": "give_item", "item": "module_cutter", "count": 1, "subject": "self"})
+        s = do(new_game(CONTENT, 1), {"op": "give_item", "item": "gear_cutter", "count": 1, "subject": "self"})
         carried = {"check": "has_tag", "tag": "tag_tool", "source": "carried"}
-        fitted = {"check": "has_tag", "tag": "tag_tool", "source": "fitted"}
+        fitted = {"check": "has_tag", "tag": "tag_tool", "source": "equipped"}
         self.assertEqual(world.used_item(CONTENT, s, Ctx(self_id=PLAYER), freeze(carried))[1], "inventory")
-        self.assertEqual(world.used_item(CONTENT, s, Ctx(self_id=PLAYER), freeze(fitted))[1], "fitted")
+        self.assertEqual(world.used_item(CONTENT, s, Ctx(self_id=PLAYER), freeze(fitted))[1], "equipped")
 
 
 class TestPlacement(unittest.TestCase):
@@ -285,15 +286,15 @@ class TestValidator(unittest.TestCase):
     def test_skill_levels_count_toward_budgets(self):                  # finding 15
         pack = PackCopy()
         try:
-            pack.edit("items.json", lambda d: pack.entry(d, "frame_light")["stats"].update(stat_power=3))
+            pack.edit("items.json", lambda d: pack.entry(d, "gear_light_suit")["stats"].update(stat_power=3))
             errors = validate_pack(pack.dir).errors
-            self.assertTrue(any("fitted gear needs 4 power" in e for e in errors), errors)
+            self.assertTrue(any("equipped gear needs 4 stat_power" in e for e in errors), errors)
 
             def level_one_power(data):
                 pack.entry(data, "skill_salvage")["levels"][0]["stats"] = {"stat_power": 1}
             pack.edit("skills.json", level_one_power)
             errors = validate_pack(pack.dir).errors
-            self.assertFalse(any("fitted gear needs 4 power" in e for e in errors), errors)
+            self.assertFalse(any("equipped gear needs 4 stat_power" in e for e in errors), errors)
         finally:
             pack.close()
 

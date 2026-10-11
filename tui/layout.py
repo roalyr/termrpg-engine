@@ -17,7 +17,7 @@ A frame never overflows the terminal.
 An open sub-window (Inspect, the character sheet) changes this: its zone is flexible.
 Low-priority zones still make room for it first; then it takes every row the other
 zones leave, shows the part at the scroll offset, and draws a slider at its right edge
-when its content is longer than that. On a list screen (fitting) with no sub-window
+when its content is longer than that. On a list screen (gear) with no sub-window
 open, the list's zone is the flexible one, and it scrolls to keep the pick in view.
 """
 from typing import Any, List, Mapping, NamedTuple, Optional, Tuple

@@ -2,8 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "item.schema.json",
   "title": "Items (items.json)",
-  "description": "Everything that can be carried, fitted or implanted. Every item has a 'kind' that decides its extra fields: frame (a suit), module (fitted into frame slots; gear is a module in a limb or hand slot), implant, material, consumable, misc.",
-  "x-schema-version": 2,
+  "description": "Everything that can be carried or equipped. Every item has a 'kind' that decides its extra fields: gear (equipped in a slot: armour, suits, tools, weapons, implants), material, consumable, misc.",
+  "x-schema-version": 3,
   "$ref": "#/$defs/items_file",
   "$defs": {
     "items_file": {
@@ -32,13 +32,7 @@
       "x-discriminator": "kind",
       "oneOf": [
         {
-          "$ref": "#/$defs/frame"
-        },
-        {
-          "$ref": "#/$defs/module"
-        },
-        {
-          "$ref": "#/$defs/implant"
+          "$ref": "#/$defs/gear"
         },
         {
           "$ref": "#/$defs/material"
@@ -51,31 +45,9 @@
         }
       ]
     },
-    "budget": {
+    "gear": {
       "type": "object",
-      "description": "How much of the frame's budgets this uses while fitted. Power and mass must fit within what the frame and other gear provide; heat is a constant load that lowers how much heat can build up before overheating.",
-      "properties": {
-        "power": {
-          "type": "number",
-          "minimum": 0,
-          "default": 0
-        },
-        "mass": {
-          "type": "number",
-          "minimum": 0,
-          "default": 0
-        },
-        "heat": {
-          "type": "number",
-          "minimum": 0,
-          "default": 0
-        }
-      },
-      "additionalProperties": false
-    },
-    "frame": {
-      "type": "object",
-      "description": "A suit or piloted machine: the body a character works in. Its stats set the budgets modules draw on.",
+      "description": "Anything equipped in a slot: armour and suits in a worn slot, tools and weapons in hands, implants and blessings in body slots. Slots come from the body and from other gear.",
       "properties": {
         "id": {
           "$ref": "common.schema.json#/$defs/id"
@@ -88,11 +60,11 @@
         },
         "size": {
           "$ref": "common.schema.json#/$defs/size",
-          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+          "description": "How big it is: whether it fits into containers, holds and doors."
         },
         "holds_size": {
           "$ref": "common.schema.json#/$defs/size",
-          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
+          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo rack). Without it nothing fits."
         },
         "grade": {
           "$ref": "common.schema.json#/$defs/id",
@@ -101,11 +73,11 @@
         },
         "tags": {
           "$ref": "common.schema.json#/$defs/tags",
-          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
+          "description": "Count for has_tag checks while carried or equipped (see the check's 'source')."
         },
         "stats": {
           "type": "object",
-          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
+          "description": "Stat id to amount this adds to its holder while it is equipped. Budget stats added here are what gear can use.",
           "propertyNames": {
             "$ref": "common.schema.json#/$defs/id"
           },
@@ -146,7 +118,7 @@
           "minimum": 1,
           "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
         },
-        "salvage": {
+        "dismantle": {
           "type": "object",
           "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
           "properties": {
@@ -189,7 +161,7 @@
             "yields"
           ]
         },
-        "fabricate": {
+        "make": {
           "type": "object",
           "description": "What making a copy costs at a workshop. Needs the design.",
           "properties": {
@@ -276,11 +248,28 @@
           "$ref": "common.schema.json#/$defs/notes"
         },
         "kind": {
-          "const": "frame"
+          "const": "gear"
+        },
+        "slot_type": {
+          "$ref": "common.schema.json#/$defs/id",
+          "x-ref": "slot_type",
+          "description": "The slot it is equipped in."
+        },
+        "uses": {
+          "type": "object",
+          "description": "Budget stat id to how much of it this uses while equipped, e.g. power or weight. On a filling pool (heat) it is a constant load: the pool's resting value.",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          },
+          "x-ref-keys": "stat"
         },
         "slots": {
           "type": "array",
-          "description": "The slots modules are fitted into.",
+          "description": "Slots it adds while equipped, e.g. a suit's hand slots or a belt's pouches. It can't be taken off while something is in them.",
           "items": {
             "type": "object",
             "description": "Slots of one type.",
@@ -288,7 +277,7 @@
               "slot_type": {
                 "$ref": "common.schema.json#/$defs/id",
                 "x-ref": "slot_type",
-                "description": "Must be a frame slot type."
+                "description": "Not its own slot type."
               },
               "count": {
                 "type": "integer",
@@ -303,258 +292,13 @@
           },
           "minItems": 1
         },
-        "mod_slots": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 5,
-          "default": 0,
-          "description": "How many modifications it can take. Modifications are permanent."
+        "worn_size": {
+          "$ref": "common.schema.json#/$defs/size",
+          "description": "While it is equipped, its wearer counts as this size class (doors, rooms, the size check), e.g. a powered suit or a mount. The largest counts."
         },
-        "fit_requires": {
+        "equip_requires": {
           "$ref": "common.schema.json#/$defs/condition",
-          "description": "Who can fit, wear or implant it, e.g. a skill level. Checked with 'self' as the character."
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "kind",
-        "name",
-        "size",
-        "slots"
-      ]
-    },
-    "module": {
-      "type": "object",
-      "description": "Anything fitted into a frame slot: tools and weapons in limb or hand slots, systems in others.",
-      "properties": {
-        "id": {
-          "$ref": "common.schema.json#/$defs/id"
-        },
-        "name": {
-          "$ref": "common.schema.json#/$defs/label"
-        },
-        "description": {
-          "$ref": "common.schema.json#/$defs/text"
-        },
-        "size": {
-          "$ref": "common.schema.json#/$defs/size",
-          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
-        },
-        "holds_size": {
-          "$ref": "common.schema.json#/$defs/size",
-          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
-        },
-        "grade": {
-          "$ref": "common.schema.json#/$defs/id",
-          "x-ref": "grade",
-          "description": "Quality or strangeness tier, shown as the item's colour."
-        },
-        "tags": {
-          "$ref": "common.schema.json#/$defs/tags",
-          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
-        },
-        "stats": {
-          "type": "object",
-          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
-          "propertyNames": {
-            "$ref": "common.schema.json#/$defs/id"
-          },
-          "additionalProperties": {
-            "type": "number"
-          },
-          "x-ref-keys": "stat"
-        },
-        "actions": {
-          "type": "array",
-          "description": "Actions it gives its holder in encounters while active.",
-          "items": {
-            "$ref": "common.schema.json#/$defs/id",
-            "x-ref": "action"
-          },
-          "uniqueItems": true
-        },
-        "interactions": {
-          "type": "array",
-          "description": "What its holder can do with it from the pack. 'self' is the holder; the item pick {'used': true} is this item.",
-          "items": {
-            "$ref": "common.schema.json#/$defs/interaction"
-          }
-        },
-        "value": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Rough trade value."
-        },
-        "stack": {
-          "type": "integer",
-          "minimum": 1,
-          "default": 1,
-          "description": "How many fit in one cargo stack."
-        },
-        "condition": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
-        },
-        "salvage": {
-          "type": "object",
-          "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
-          "properties": {
-            "yields": {
-              "type": "array",
-              "description": "A list of items with counts. Results are always the same: no rolls.",
-              "items": {
-                "type": "object",
-                "description": "Items and how many.",
-                "properties": {
-                  "item": {
-                    "$ref": "common.schema.json#/$defs/id",
-                    "x-ref": "item"
-                  },
-                  "count": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "item"
-                ]
-              },
-              "minItems": 1
-            },
-            "learn": {
-              "type": "boolean",
-              "default": true,
-              "description": "Dismantling can teach its design."
-            },
-            "learn_requires": {
-              "$ref": "common.schema.json#/$defs/condition",
-              "description": "Needed to learn the design, e.g. a skill level. Without it you still get the materials."
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "yields"
-          ]
-        },
-        "fabricate": {
-          "type": "object",
-          "description": "What making a copy costs at a workshop. Needs the design.",
-          "properties": {
-            "inputs": {
-              "type": "array",
-              "description": "A list of items with counts. Results are always the same: no rolls.",
-              "items": {
-                "type": "object",
-                "description": "Items and how many.",
-                "properties": {
-                  "item": {
-                    "$ref": "common.schema.json#/$defs/id",
-                    "x-ref": "item"
-                  },
-                  "count": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "item"
-                ]
-              },
-              "minItems": 1
-            },
-            "requires": {
-              "$ref": "common.schema.json#/$defs/condition",
-              "description": "Needed besides knowing the design, e.g. a skill level."
-            },
-            "time": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 1,
-              "description": "Turns it takes."
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "inputs"
-          ]
-        },
-        "repair": {
-          "type": "object",
-          "description": "What restoring its condition costs at a workshop. Only for items with a condition.",
-          "properties": {
-            "inputs": {
-              "type": "array",
-              "description": "A list of items with counts. Results are always the same: no rolls.",
-              "items": {
-                "type": "object",
-                "description": "Items and how many.",
-                "properties": {
-                  "item": {
-                    "$ref": "common.schema.json#/$defs/id",
-                    "x-ref": "item"
-                  },
-                  "count": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "item"
-                ]
-              },
-              "minItems": 1
-            },
-            "amount": {
-              "type": "integer",
-              "minimum": 1,
-              "description": "Condition restored per repair. Fully repaired if left out."
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "inputs"
-          ]
-        },
-        "notes": {
-          "$ref": "common.schema.json#/$defs/notes"
-        },
-        "kind": {
-          "const": "module"
-        },
-        "slot_type": {
-          "$ref": "common.schema.json#/$defs/id",
-          "x-ref": "slot_type",
-          "description": "Must be a frame slot type."
-        },
-        "uses": {
-          "type": "object",
-          "description": "How much of the frame's budgets this uses while fitted. Power and mass must fit within what the frame and other gear provide; heat is a constant load that lowers how much heat can build up before overheating.",
-          "properties": {
-            "power": {
-              "type": "number",
-              "minimum": 0,
-              "default": 0
-            },
-            "mass": {
-              "type": "number",
-              "minimum": 0,
-              "default": 0
-            },
-            "heat": {
-              "type": "number",
-              "minimum": 0,
-              "default": 0
-            }
-          },
-          "additionalProperties": false
+          "description": "Who can equip it, e.g. a skill level. Checked with 'self' as the character."
         },
         "mod_slots": {
           "type": "integer",
@@ -562,241 +306,6 @@
           "maximum": 5,
           "default": 0,
           "description": "How many modifications it can take. Modifications are permanent."
-        },
-        "fit_requires": {
-          "$ref": "common.schema.json#/$defs/condition",
-          "description": "Who can fit, wear or implant it, e.g. a skill level. Checked with 'self' as the character."
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "kind",
-        "name",
-        "size",
-        "slot_type"
-      ]
-    },
-    "implant": {
-      "type": "object",
-      "description": "Fitted into a character's body. Stays when the character changes suits.",
-      "properties": {
-        "id": {
-          "$ref": "common.schema.json#/$defs/id"
-        },
-        "name": {
-          "$ref": "common.schema.json#/$defs/label"
-        },
-        "description": {
-          "$ref": "common.schema.json#/$defs/text"
-        },
-        "size": {
-          "$ref": "common.schema.json#/$defs/size",
-          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
-        },
-        "holds_size": {
-          "$ref": "common.schema.json#/$defs/size",
-          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
-        },
-        "grade": {
-          "$ref": "common.schema.json#/$defs/id",
-          "x-ref": "grade",
-          "description": "Quality or strangeness tier, shown as the item's colour."
-        },
-        "tags": {
-          "$ref": "common.schema.json#/$defs/tags",
-          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
-        },
-        "stats": {
-          "type": "object",
-          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
-          "propertyNames": {
-            "$ref": "common.schema.json#/$defs/id"
-          },
-          "additionalProperties": {
-            "type": "number"
-          },
-          "x-ref-keys": "stat"
-        },
-        "actions": {
-          "type": "array",
-          "description": "Actions it gives its holder in encounters while active.",
-          "items": {
-            "$ref": "common.schema.json#/$defs/id",
-            "x-ref": "action"
-          },
-          "uniqueItems": true
-        },
-        "interactions": {
-          "type": "array",
-          "description": "What its holder can do with it from the pack. 'self' is the holder; the item pick {'used': true} is this item.",
-          "items": {
-            "$ref": "common.schema.json#/$defs/interaction"
-          }
-        },
-        "value": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Rough trade value."
-        },
-        "stack": {
-          "type": "integer",
-          "minimum": 1,
-          "default": 1,
-          "description": "How many fit in one cargo stack."
-        },
-        "condition": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
-        },
-        "salvage": {
-          "type": "object",
-          "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
-          "properties": {
-            "yields": {
-              "type": "array",
-              "description": "A list of items with counts. Results are always the same: no rolls.",
-              "items": {
-                "type": "object",
-                "description": "Items and how many.",
-                "properties": {
-                  "item": {
-                    "$ref": "common.schema.json#/$defs/id",
-                    "x-ref": "item"
-                  },
-                  "count": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "item"
-                ]
-              },
-              "minItems": 1
-            },
-            "learn": {
-              "type": "boolean",
-              "default": true,
-              "description": "Dismantling can teach its design."
-            },
-            "learn_requires": {
-              "$ref": "common.schema.json#/$defs/condition",
-              "description": "Needed to learn the design, e.g. a skill level. Without it you still get the materials."
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "yields"
-          ]
-        },
-        "fabricate": {
-          "type": "object",
-          "description": "What making a copy costs at a workshop. Needs the design.",
-          "properties": {
-            "inputs": {
-              "type": "array",
-              "description": "A list of items with counts. Results are always the same: no rolls.",
-              "items": {
-                "type": "object",
-                "description": "Items and how many.",
-                "properties": {
-                  "item": {
-                    "$ref": "common.schema.json#/$defs/id",
-                    "x-ref": "item"
-                  },
-                  "count": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "item"
-                ]
-              },
-              "minItems": 1
-            },
-            "requires": {
-              "$ref": "common.schema.json#/$defs/condition",
-              "description": "Needed besides knowing the design, e.g. a skill level."
-            },
-            "time": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 1,
-              "description": "Turns it takes."
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "inputs"
-          ]
-        },
-        "repair": {
-          "type": "object",
-          "description": "What restoring its condition costs at a workshop. Only for items with a condition.",
-          "properties": {
-            "inputs": {
-              "type": "array",
-              "description": "A list of items with counts. Results are always the same: no rolls.",
-              "items": {
-                "type": "object",
-                "description": "Items and how many.",
-                "properties": {
-                  "item": {
-                    "$ref": "common.schema.json#/$defs/id",
-                    "x-ref": "item"
-                  },
-                  "count": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "default": 1
-                  }
-                },
-                "additionalProperties": false,
-                "required": [
-                  "item"
-                ]
-              },
-              "minItems": 1
-            },
-            "amount": {
-              "type": "integer",
-              "minimum": 1,
-              "description": "Condition restored per repair. Fully repaired if left out."
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "inputs"
-          ]
-        },
-        "notes": {
-          "$ref": "common.schema.json#/$defs/notes"
-        },
-        "kind": {
-          "const": "implant"
-        },
-        "slot_type": {
-          "$ref": "common.schema.json#/$defs/id",
-          "x-ref": "slot_type",
-          "description": "Must be a body slot type."
-        },
-        "mod_slots": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 5,
-          "default": 0,
-          "description": "How many modifications it can take. Modifications are permanent."
-        },
-        "fit_requires": {
-          "$ref": "common.schema.json#/$defs/condition",
-          "description": "Who can fit, wear or implant it, e.g. a skill level. Checked with 'self' as the character."
         }
       },
       "additionalProperties": false,
@@ -823,11 +332,11 @@
         },
         "size": {
           "$ref": "common.schema.json#/$defs/size",
-          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+          "description": "How big it is: whether it fits into containers, holds and doors."
         },
         "holds_size": {
           "$ref": "common.schema.json#/$defs/size",
-          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
+          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo rack). Without it nothing fits."
         },
         "grade": {
           "$ref": "common.schema.json#/$defs/id",
@@ -836,11 +345,11 @@
         },
         "tags": {
           "$ref": "common.schema.json#/$defs/tags",
-          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
+          "description": "Count for has_tag checks while carried or equipped (see the check's 'source')."
         },
         "stats": {
           "type": "object",
-          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
+          "description": "Stat id to amount this adds to its holder while it is equipped. Budget stats added here are what gear can use.",
           "propertyNames": {
             "$ref": "common.schema.json#/$defs/id"
           },
@@ -881,7 +390,7 @@
           "minimum": 1,
           "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
         },
-        "salvage": {
+        "dismantle": {
           "type": "object",
           "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
           "properties": {
@@ -924,7 +433,7 @@
             "yields"
           ]
         },
-        "fabricate": {
+        "make": {
           "type": "object",
           "description": "What making a copy costs at a workshop. Needs the design.",
           "properties": {
@@ -1037,11 +546,11 @@
         },
         "size": {
           "$ref": "common.schema.json#/$defs/size",
-          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+          "description": "How big it is: whether it fits into containers, holds and doors."
         },
         "holds_size": {
           "$ref": "common.schema.json#/$defs/size",
-          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
+          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo rack). Without it nothing fits."
         },
         "grade": {
           "$ref": "common.schema.json#/$defs/id",
@@ -1050,11 +559,11 @@
         },
         "tags": {
           "$ref": "common.schema.json#/$defs/tags",
-          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
+          "description": "Count for has_tag checks while carried or equipped (see the check's 'source')."
         },
         "stats": {
           "type": "object",
-          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
+          "description": "Stat id to amount this adds to its holder while it is equipped. Budget stats added here are what gear can use.",
           "propertyNames": {
             "$ref": "common.schema.json#/$defs/id"
           },
@@ -1095,7 +604,7 @@
           "minimum": 1,
           "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
         },
-        "salvage": {
+        "dismantle": {
           "type": "object",
           "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
           "properties": {
@@ -1138,7 +647,7 @@
             "yields"
           ]
         },
-        "fabricate": {
+        "make": {
           "type": "object",
           "description": "What making a copy costs at a workshop. Needs the design.",
           "properties": {
@@ -1251,11 +760,11 @@
         },
         "size": {
           "$ref": "common.schema.json#/$defs/size",
-          "description": "How big it is: whether it fits into containers, holds and hatches. For a frame, also the size of whoever wears it."
+          "description": "How big it is: whether it fits into containers, holds and doors."
         },
         "holds_size": {
           "$ref": "common.schema.json#/$defs/size",
-          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo module). Without it nothing fits."
+          "description": "Largest size class that fits in or onto it, for items that hold things (a bag, a cargo rack). Without it nothing fits."
         },
         "grade": {
           "$ref": "common.schema.json#/$defs/id",
@@ -1264,11 +773,11 @@
         },
         "tags": {
           "$ref": "common.schema.json#/$defs/tags",
-          "description": "Count for has_tag checks while carried, fitted or implanted (see the check's 'source')."
+          "description": "Count for has_tag checks while carried or equipped (see the check's 'source')."
         },
         "stats": {
           "type": "object",
-          "description": "Stat id to amount this adds to its holder while it is active (a frame worn, a module fitted, an implant implanted). A frame's stats also provide the budgets: power, mass, heat and cargo.",
+          "description": "Stat id to amount this adds to its holder while it is equipped. Budget stats added here are what gear can use.",
           "propertyNames": {
             "$ref": "common.schema.json#/$defs/id"
           },
@@ -1309,7 +818,7 @@
           "minimum": 1,
           "description": "Maximum condition. Items with a condition wear down and break at 0; items without one never wear."
         },
-        "salvage": {
+        "dismantle": {
           "type": "object",
           "description": "What dismantling it at a workshop gives. Dismantling destroys the item.",
           "properties": {
@@ -1352,7 +861,7 @@
             "yields"
           ]
         },
-        "fabricate": {
+        "make": {
           "type": "object",
           "description": "What making a copy costs at a workshop. Needs the design.",
           "properties": {

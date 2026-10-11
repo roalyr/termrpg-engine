@@ -23,13 +23,13 @@ class TestLoadPack(unittest.TestCase):
             self.assertTrue(self.content.all(namespace), namespace)
 
     def test_lookup(self):
-        self.assertEqual(self.content.get("item", "frame_light")["kind"], "frame")
+        self.assertEqual(self.content.get("item", "gear_light_suit")["kind"], "gear")
         with self.assertRaisesRegex(KeyError, "unknown item 'nope'"):
             self.content.get("item", "nope")
         self.assertEqual(self.content.all("no_such_namespace"), {})
 
     def test_records_are_read_only(self):
-        item = self.content.get("item", "frame_light")
+        item = self.content.get("item", "gear_light_suit")
         with self.assertRaises(TypeError):
             item["name"] = "Changed"
         self.assertIsInstance(item["slots"], tuple)
@@ -37,12 +37,13 @@ class TestLoadPack(unittest.TestCase):
             self.content.index["item"]["new"] = {}
 
     def test_defaults_from_the_schemas(self):
-        tool = self.content.get("item", "module_cutter")
+        tool = self.content.get("item", "gear_cutter")
         self.assertEqual(tool["stack"], 1)
-        self.assertEqual(tool["salvage"]["learn"], True)
-        system = self.content.get("item", "module_shield")
-        self.assertEqual(system["uses"]["power"], 3)
-        self.assertEqual(self.content.get("item", "module_cutter")["uses"]["heat"], 0)
+        self.assertEqual(tool["dismantle"]["learn"], True)
+        self.assertEqual(tool["mod_slots"], 1)
+        self.assertEqual(self.content.get("item", "gear_shield")["uses"]["stat_power"], 3)
+        self.assertEqual(self.content.get("slot_type", "slot_hand")["equip_at_workshop"], True)
+        self.assertEqual(self.content.get("stat", "stat_armor")["budget"], False)
         search = self.content.get("object", "obj_crate")["interactions"][0]
         self.assertEqual(search["repeat"], "daily")
         door = self.content.get("object", "obj_door")["interactions"][1]
@@ -114,11 +115,11 @@ class TestLoadPack(unittest.TestCase):
             pack = Path(tmp) / "pack"
             shutil.copytree(TEST_PACK, pack)
             vocab = json.loads((pack / "vocab.json").read_text())
-            vocab["stats"][0]["role"] = "power"
+            vocab["stats"][0]["role"] = "cargo"
             (pack / "vocab.json").write_text(json.dumps(vocab))
             with self.assertRaises(PackError) as caught:
                 load_pack(pack)
-        self.assertIn("stat role 'power' must be given to exactly one stat", str(caught.exception))
+        self.assertIn("stat role 'cargo' must be given to exactly one stat", str(caught.exception))
         self.assertTrue(caught.exception.report.errors)
 
 

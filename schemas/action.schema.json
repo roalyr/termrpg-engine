@@ -2,8 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "action.schema.json",
   "title": "Actions (actions.json)",
-  "description": "Encounter actions. Characters get them from fitted items, skill levels and innate actions; the encounter screen shows them as tiles. Not a deck: nothing is drawn or shuffled.",
-  "x-schema-version": 2,
+  "description": "Encounter actions. Characters get them from equipped gear, skill levels and innate actions; the encounter screen shows them as tiles. Not a deck: nothing is drawn or shuffled.",
+  "x-schema-version": 3,
   "$ref": "#/$defs/actions_file",
   "$defs": {
     "actions_file": {
@@ -69,9 +69,16 @@
           "type": "object",
           "description": "What using it costs.",
           "properties": {
-            "heat": {
-              "$ref": "common.schema.json#/$defs/amount",
-              "description": "Heat added to the user. At maximum heat the frame overheats."
+            "pools": {
+              "type": "object",
+              "description": "Pool stat id to amount. A draining pool (mana) pays it and refuses the action when it can't; a filling pool (heat) rises by it.",
+              "propertyNames": {
+                "$ref": "common.schema.json#/$defs/id"
+              },
+              "additionalProperties": {
+                "$ref": "common.schema.json#/$defs/amount"
+              },
+              "x-ref-keys": "stat"
             },
             "cooldown": {
               "type": "integer",

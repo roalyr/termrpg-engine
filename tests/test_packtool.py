@@ -31,7 +31,7 @@ class TestPackTool(unittest.TestCase):
     def test_ids_of_a_namespace(self):
         code, out = run("ids", TEST_PACK, "item")
         self.assertEqual(code, 0)
-        self.assertIn("frame_light", out)
+        self.assertIn("gear_light_suit", out)
         self.assertIn("items.json: entries[0]", out)
 
     def test_ids_unknown_namespace(self):
@@ -59,7 +59,7 @@ class TestPackTool(unittest.TestCase):
                     self.assertIn("Fields (* required):", out, key)
 
     def test_explain_item_kinds_and_definitions(self):
-        for topic in (["item", "frame"], ["item", "module"], ["location"], ["placement"], ["event"],
+        for topic in (["item", "gear"], ["item", "material"], ["location"], ["placement"], ["event"],
                       ["character"], ["vocab", "stats"], ["pack"], ["modification"]):
             code, out = run("explain", *topic)
             self.assertEqual(code, 0, topic)

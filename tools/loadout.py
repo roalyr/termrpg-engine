@@ -1,11 +1,12 @@
 """
-The loadout editor: what a character wears, fits and carries, with the budgets the
+The loadout editor: what a character has equipped and carries, with the budgets the
 checker holds it to. Pick a character; the top shows their picture (when the screen
-has the room), size, place, power, mass, heat and cargo as bars, and their other
-stats. Below, the frame, every slot of the frame and the body, and the inventory.
+has the room), size, place, each budget, filling pool and cargo as bars, and their
+other stats. Below, every slot of the body and of equipped gear (slots that gear adds
+under it), and the inventory.
 
-Enter changes the picked line: another frame, the item in a slot (only items that go
-in it are offered, with what they use), a stack's count, or a new item to carry.
+Enter changes the picked line: the gear in a slot (only gear that goes in it is
+offered, with what it uses), a stack's count, or a new item to carry.
 R takes it out. The bars and the problems follow every change, before saving.
 G opens the character's room, V shows or hides the picture.
 
@@ -15,7 +16,7 @@ G opens the character's room, V shows or hides the picture.
 import sys
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
-from lib import budgets, pixels, term
+from lib import pixels, term
 from lib.text import bar as text_bar
 from tools.lib import forms, loadout, screen
 from lib.budgets import Slot
@@ -29,8 +30,8 @@ MOVES = {"up": -1, "down": 1}
 
 
 class Row(NamedTuple):
-    """A line of the list: a heading, the frame, a slot, a carried stack, or 'add'."""
-    kind: str                  # 'heading', 'frame', 'slot', 'item', 'add'
+    """A line of the list: a heading, a slot, a carried stack, or 'add'."""
+    kind: str                  # 'heading', 'slot', 'item', 'add'
     text: str
     right: str = ""
     slot: Optional[Slot] = None
@@ -40,7 +41,7 @@ class Row(NamedTuple):
 
 class Loadout:
     name = "Loadout"
-    about = "A character's frame, modules, implants and inventory, against their power, mass, heat and cargo."
+    about = "A character's equipped gear and inventory, against their budgets, pools and cargo."
 
     def __init__(self, pack: PackFiles, look: screen.Look, character_id: Optional[str] = None):
         self.pack, self.look = pack, look
@@ -153,7 +154,7 @@ class Loadout:
 
     def info(self, sheet: Sheet, width: int) -> List[str]:
         style, char = self.look.style, self.char
-        size = self.item(sheet.frame).get("size") if sheet.frame else char.get("body", {}).get("size")
+        size = sheet.size
         if char.get("template"):
             where = "template"
         elif self.location_id():
@@ -193,25 +194,22 @@ class Loadout:
     def rows(self, sheet: Sheet) -> List[Row]:
         known = loadout.items(self.pack)
         words = loadout.vocab(self.pack)
-        rows = [Row("heading", "Frame")]
-        frame = known.get(sheet.frame, {})
-        rows.append(Row("frame", frame.get("name", sheet.frame) if sheet.frame else "(no frame)",
-                        f"size {frame.get('size')}" if sheet.frame else ""))
-        for host in ("frame", "body"):
-            slots = [s for s in sheet.slots if s.host == host]
-            extra = [s for s in sheet.extra if s.host == host]
-            if host == "body" and (slots or extra):
-                rows.append(Row("heading", "Body"))
-            names = [self.slot_name(s.slot_type) for s in slots + extra]
-            name_width = max((len(n) for n in names), default=0)
-            for slot in slots:
-                label = self.slot_name(slot.slot_type).ljust(name_width)
-                item = known.get(slot.item, {})
-                text = f"{label}  {item.get('name', slot.item)}" if slot.item else f"{label}  (empty)"
-                rows.append(Row("slot", text, loadout.uses_text(item, words) if slot.item else "", slot))
-            for slot in extra:
-                text = f"{self.slot_name(slot.slot_type).ljust(name_width)}  {self.item_name(slot.item)}  (no slot)"
-                rows.append(Row("slot", text, "", slot, danger=True))
+        rows = [Row("heading", "Equipped")]
+        depth = {}                                     # equipped index -> how deep its slot is
+        for slot in sheet.slots:
+            if slot.item is not None:
+                depth[slot.index] = depth.get(slot.host, -1) + 1 if slot.host >= 0 else 0
+        labels = ["  " * (depth.get(s.host, -1) + 1 if s.host >= 0 else 0) + self.slot_name(s.slot_type)
+                  for s in sheet.slots] + [self.slot_name(s.slot_type) for s in sheet.extra]
+        name_width = max((len(n) for n in labels), default=0)
+        for slot, label in zip(sheet.slots, labels):
+            item = known.get(slot.item, {})
+            label = label.ljust(name_width)
+            text = f"{label}  {item.get('name', slot.item)}" if slot.item else f"{label}  (empty)"
+            rows.append(Row("slot", text, loadout.uses_text(item, words) if slot.item else "", slot))
+        for slot in sheet.extra:
+            text = f"{self.slot_name(slot.slot_type).ljust(name_width)}  {self.item_name(slot.item)}  (no slot)"
+            rows.append(Row("slot", text, "", slot, danger=True))
         rows.append(Row("heading", "Inventory"))
         for index, entry in enumerate(self.char.get("inventory", []) or []):
             item_id = entry.get("item") if isinstance(entry, dict) else None
@@ -252,9 +250,7 @@ class Loadout:
         style = self.look.style
         row = rows[self.selected] if rows else None
         item_id = None
-        if row is not None and row.kind == "frame":
-            item_id = sheet.frame
-        elif row is not None and row.kind == "slot":
+        if row is not None and row.kind == "slot":
             item_id = row.slot.item
         elif row is not None and row.kind == "item":
             item_id = self.char["inventory"][row.index].get("item")
@@ -323,8 +319,6 @@ class Loadout:
     # --- changing ------------------------------------------------------------------------
 
     def change(self, row: Row) -> None:
-        if row.kind == "frame":
-            return self.choose_frame()
         if row.kind == "slot":
             return self.choose_for_slot(row.slot)
         if row.kind == "item":
@@ -333,9 +327,6 @@ class Loadout:
             return self.choose_new_item()
 
     def remove(self, row: Row) -> None:
-        if row.kind == "frame" and "frame" in self.char:
-            name = self.item_name(self.char.pop("frame"))
-            return self.changed(f"Took off the {name}." + (" Its modules have nowhere to go now." if self.char.get("fitted") else ""))
         if row.kind == "slot" and row.slot.item is not None:
             return self.put_in_slot(row.slot, None)
         if row.kind == "item":
@@ -345,49 +336,37 @@ class Loadout:
             return self.changed(f"No longer carries {self.item_name(entry.get('item'))}.")
         self.say("Nothing to remove there.")
 
-    def item_choices(self, kind: str, slot_type: Optional[str] = None) -> List[forms.Choice]:
+    def item_choices(self, slot_type: Optional[str] = None) -> List[forms.Choice]:
         words = loadout.vocab(self.pack)
         return [forms.Choice(item.get("name", item_id), item_id, loadout.uses_text(item, words), item.get("description", ""))
                 for item_id, item in loadout.items(self.pack).items()
-                if item.get("kind") == kind and (slot_type is None or item.get("slot_type") == slot_type)]
-
-    def choose_frame(self) -> None:
-        choices = [forms.Choice("(no frame)", NONE)] + self.item_choices("frame")
-
-        def done(picked):
-            if picked is NONE:
-                return self.remove(Row("frame", ""))
-            self.char["frame"] = picked
-            self.changed(f"Wears the {self.item_name(picked)}.")
-        self.ask(forms.Picker(self.look, "Frame", choices, self.char.get("frame")), done)
+                if item.get("kind") == "gear" and (slot_type is None or item.get("slot_type") == slot_type)]
 
     def choose_for_slot(self, slot: Slot) -> None:
-        kind = "module" if slot.host == "frame" else "implant"
-        choices = self.item_choices(kind, slot.slot_type or None)
+        choices = self.item_choices(slot.slot_type or None)
         if slot.item is not None:
             choices.insert(0, forms.Choice("(empty)", NONE))
         if not choices:
-            return self.say(f"No {kind} goes in a {self.slot_name(slot.slot_type)} slot.")
-        title = f"{self.slot_name(slot.slot_type)} slot" if slot.slot_type else f"A {kind}"
+            return self.say(f"No gear goes in a {self.slot_name(slot.slot_type)} slot.")
+        title = f"{self.slot_name(slot.slot_type)} slot" if slot.slot_type else "Gear"
         self.ask(forms.Picker(self.look, title, choices, slot.item),
                  lambda picked: self.put_in_slot(slot, None if picked is NONE else picked))
 
     def put_in_slot(self, slot: Slot, item_id: Optional[str]) -> None:
-        group = budgets.GROUPS["module" if slot.host == "frame" else "implant"]
-        listed = list(self.char.get(group, []))
+        listed = list(self.char.get("equipped", []))
         if slot.index >= 0 and item_id is None:
             gone = listed.pop(slot.index)
-            words = f"Took out the {self.item_name(gone)}."
+            words = f"Took off the {self.item_name(gone)}."
         elif slot.index >= 0:
             listed[slot.index] = item_id
-            words = f"Fitted the {self.item_name(item_id)}."
+            words = f"Equipped the {self.item_name(item_id)}."
         else:
             listed.append(item_id)
-            words = f"Fitted the {self.item_name(item_id)}."
+            words = f"Equipped the {self.item_name(item_id)}."
         if listed:
-            self.char[group] = listed
+            self.char["equipped"] = listed
         else:
-            self.char.pop(group, None)
+            self.char.pop("equipped", None)
         self.changed(words)
 
     def count_field(self, title: str, start: int, done: Callable[[int], None], zero: bool) -> None:

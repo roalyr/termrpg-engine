@@ -59,7 +59,7 @@ class TestPlaythrough(unittest.TestCase):
         s = new_game(CONTENT, 1)
         self.assertEqual(me(s).at, (2, 4))
 
-        # Walk to the closed door and open it with the fitted tool, which wears.
+        # Walk to the closed door and open it with the equipped tool, which wears.
         s = keys(s, "aaww")
         self.assertEqual(me(s).at, (0, 2))
         self.assertEqual(s.focus, ("placement", "workshop_door"))
@@ -67,7 +67,7 @@ class TestPlaythrough(unittest.TestCase):
         self.assertEqual(option(s, "Go to Storage").hint, "The door is closed.")
         s = keys(s, "u")
         self.assertEqual(s.object_states["workshop_door"], "state_open")
-        self.assertEqual(me(s).fitted[0].condition, 3)
+        self.assertEqual(me(s).equipped[1].condition, 3)
 
         # Through to room B: the hazard hurts every turn there.
         s = keys(s, "g")

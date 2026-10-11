@@ -79,12 +79,12 @@ All commands run from the project root.
 | `python3 -m core.packtool check packs/test_scifi` | Validate a pack. Prints every error and warning with its file and path |
 | `python3 -m core.packtool ids packs/test_scifi` | See which namespaces exist and how many ids each has |
 | `python3 -m core.packtool ids packs/test_scifi item` | List every id in a namespace and where it's declared |
-| `python3 -m core.packtool refs packs/test_scifi module_cutter` | See where an id is declared and every place it's used |
+| `python3 -m core.packtool refs packs/test_scifi gear_cutter` | See where an id is declared and every place it's used |
 | `python3 -m core.packtool explain` | List the topics you can look up |
 | `python3 -m core.packtool explain ops` / `explain checks` | List every effect or check with a one-line description |
 | `python3 -m core.packtool explain op damage` | Show one effect's fields, which are required, defaults and limits |
 | `python3 -m core.packtool explain check relation` | The same for a check |
-| `python3 -m core.packtool explain item frame` | The fields of an item kind |
+| `python3 -m core.packtool explain item gear` | The fields of an item kind |
 | `python3 -m core.packtool explain location` | Any schema definition: `placement`, `exit`, `character`, `event`, `encounter`, `modification`… |
 | `python3 -m core.packtool explain vocab stats` | A vocabulary section |
 | `python3 -m core.packtool check packs/ui/default` | Validate a UI pack |
@@ -176,26 +176,35 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   arrivals on the nearest free floor tile.
 - Interaction keys `w a s d . p f c m l x q ]` (the UI pack's bindings), `g t i` and the
   digits are taken by the game; pick another letter for `key`, or the engine picks one.
-- Players can change frames, modules and implants only next to a workshop offering
-  `refit`. Put one where players should be able to refit, and make sure the room's
-  `holds_size` fits the frames meant to be worn there.
-- A frame's size is its wearer's size: a size-5 suit can't pass a door or enter a
-  room whose `holds_size` is smaller. Plan where heavy suits can go.
+- Gear in a slot type marked `equip_at_workshop` changes only next to a workshop
+  offering `equip` (for that slot type, if the workshop lists `equip_slot_types`); all
+  other gear changes anywhere. Put such workshops where players should be able to
+  change suits or implants, and make sure the room's `holds_size` fits what is meant to
+  be worn there.
+- Gear with a `worn_size` sets its wearer's size: a size-5 suit can't pass a door or
+  enter a room whose `holds_size` is smaller. Plan where heavy suits (or horses) can go.
 - Starting items in lockers and bays go in `contents`; they must fit the object's
   `storage` (stacks) and `holds_size`.
 
 **Items and characters**
 
-- `has_item` checks carried items unless its `source` says `fitted` or `any`; that is
+- `has_item` checks carried items unless its `source` says `equipped` or `any`; that is
   what `take_item` can take, so a "requires it, then takes it" trade can't be cheated.
-- An item's `kind` decides its fields. Only frames, modules and implants take
-  `slot_type`, `slots`, `mod_slots` and `fit_requires`. Only modules take `uses`.
-- Modules go into `frame` slot types, implants into `body` slot types.
+- An item's `kind` decides its fields. Only `gear` takes `slot_type`, `slots`,
+  `worn_size`, `uses`, `mod_slots` and `equip_requires`.
+- Slots come from the body (`body.slots`) and from equipped gear (`slots`). A
+  character's `equipped` list is placed in order: each piece takes a free slot of its
+  type from the body or from gear listed before it. List the suit or armour before the
+  tools that go in its slots. Gear can't add slots of its own type.
+- `uses` names budget stats (`"budget": true`, such as power or weight) and filling
+  pools (`"fills": true`, such as heat: there it is a constant load). Action costs
+  (`cost.pools`) name pool stats: a draining pool (mana) pays, a filling pool (heat)
+  rises.
 - Items that stack (`stack` above 1) can't have a `condition`. Only items with a
   `condition` can have `repair`.
-- A character's loadout must fit: free slots for every module and implant, power and
-  mass `uses` within what the body, frame, modules and implants provide, constant
-  heat below maximum heat, inventory stacks within cargo. The checker shows the
+- A character's loadout must fit: a free slot for every piece of gear, each budget's
+  `uses` within what the body, gear and skill levels provide, each filling pool's
+  constant load below its maximum, inventory stacks within cargo. The checker shows the
   numbers when it doesn't fit.
 - `template: true` characters (enemies spawned in numbers) have no `location`. In
   encounters, only templates take a `count`.
@@ -223,15 +232,15 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 **Crafting**
 
 - Crafting happens only next to a workshop offering the service (`dismantle`,
-  `fabricate`, `modify`, `repair`), on items up to its `max_grade`. Place workshops
+  `make`, `modify`, `repair`), on items up to its `max_grade`. Place workshops
   with the services and grade a place should have: a field bench, a proper shop.
-- Designs are learned by dismantling (when `salvage.learn_requires` holds) or by the
-  `learn_design` effect. An item without `salvage` can never be learned that way.
-- Make every input obtainable: `fabricate.inputs`, `repair.inputs` and a
+- Designs are learned by dismantling (when `dismantle.learn_requires` holds) or by the
+  `learn_design` effect. An item without `dismantle` can never be learned that way.
+- Make every input obtainable: `make.inputs`, `repair.inputs` and a
   modification's `material` must come from somewhere the player can reach (loot,
-  storage, salvage, trades).
+  storage, dismantling, trades).
 - A modification fills one of the item's `mod_slots`; items without `mod_slots`
-  can't be modified. `applies_to.kinds` is required; `tags` and `slot_types` narrow
+  can't be modified. Only gear has mod slots; `applies_to`'s `tags` and `slot_types` narrow
   it further.
 - What crafting produces must fit in the player's cargo, or the action is refused.
 
@@ -304,9 +313,7 @@ Prefixes make ids easy to read and search. Use them in game packs:
 | Location | `loc_` | `loc_bunkroom` |
 | Placement | the location's name without `loc_`, then what it is | `bunkroom_hatch_berth` |
 | Object | `obj_` | `obj_hatch` |
-| Frame | `frame_` | `frame_vacuum_suit` |
-| Module (tools, weapons, systems) | `module_` | `module_cutter` |
-| Implant | `implant_` | `implant_eye` |
+| Gear (suits, armour, tools, weapons, implants) | `gear_` | `gear_vacuum_suit`, `gear_cutter` |
 | Material | `material_` | `material_scrap` |
 | Consumable | `consumable_` | `consumable_ration` |
 | Misc item | `misc_` | `misc_work_pass` |
@@ -316,7 +323,7 @@ Prefixes make ids easy to read and search. Use them in game packs:
 | Encounter | `enc_` | `enc_loader_ambush` |
 | Loot table | `loot_` | `loot_scrap_bin` |
 | Event | `event_` | `event_grudge` |
-| Modification | `mod_` (not to be confused with `module_`) | `mod_reinforced` |
+| Modification | `mod_` | `mod_reinforced` |
 | Tag, stat, status | `tag_`, `stat_`, `status_` | `tag_sealed`, `stat_armor`, `status_burning` |
 | Damage type, slot type, grade | `dmg_`, `slot_`, `grade_` | `dmg_kinetic`, `slot_hand`, `grade_exotic` |
 | Object state, phase, faction, flag | `state_`, `phase_`, `faction_`, `flag_` | `state_open`, `phase_night` |
@@ -376,7 +383,7 @@ The `hazard` tag shows the warning; `on_turn` does the harm. Note `"subject": "s
       "grid": { "width": 5, "height": 5, "floor": "·", "wall": "░" },
       "on_turn": [
         { "op": "if",
-          "if": { "not": { "check": "has_tag", "tag": "tag_filter", "source": "fitted" } },
+          "if": { "not": { "check": "has_tag", "tag": "tag_filter", "source": "equipped" } },
           "then": [ { "op": "damage", "amount": 1, "damage_type": "dmg_toxic", "subject": "self" } ] }
       ] }
   ]
@@ -427,31 +434,34 @@ character's interactions it's the other way round:** `self` is whoever interacts
 
 ### Add a suit, a tool, and someone wearing them
 
-The frame's stats provide the budgets; the module's `uses` spends them. Check the
-numbers: power 2 of 8, mass 3 of 12, heat 0 of 10, cargo 1 stack of 3 + 2.
+A suit is gear in a worn slot that adds hand slots and sets its wearer's size; the
+tool goes in one of those hand slots. The suit's stats provide the budgets and the
+tool's `uses` spends them. List the suit first, so its slots exist for the tool. Check
+the numbers: power 2 of 8, mass 3 of 12, heat 0 of 10, cargo 1 stack of 3 + 2.
 
 <!-- recipe -->
 ```json
 {
   "items": [
-    { "id": "frame_work", "kind": "frame", "name": "Work suit", "size": 3, "grade": "grade_common",
-      "description": "A light work suit.",
+    { "id": "gear_work_suit", "kind": "gear", "name": "Work suit", "size": 3, "grade": "grade_common",
+      "description": "A light work suit.", "slot_type": "slot_worn", "worn_size": 3,
       "stats": { "stat_health": 25, "stat_power": 8, "stat_mass": 12, "stat_heat": 10, "stat_cargo": 3 },
       "slots": [ { "slot_type": "slot_hand", "count": 2 } ],
       "mod_slots": 1, "condition": 10,
       "repair": { "inputs": [ { "item": "material_scrap", "count": 2 } ] } },
-    { "id": "module_drill", "kind": "module", "name": "Drill", "size": 1, "grade": "grade_common",
-      "tags": ["tag_tool"], "slot_type": "slot_hand",
-      "uses": { "power": 2, "mass": 3 },
+    { "id": "gear_drill", "kind": "gear", "name": "Drill", "size": 1, "grade": "grade_common",
+      "description": "A hand drill.", "tags": ["tag_tool"], "slot_type": "slot_hand",
+      "uses": { "stat_power": 2, "stat_mass": 3 },
       "actions": ["action_strike"], "condition": 5,
-      "salvage": { "yields": [ { "item": "material_scrap", "count": 2 } ],
-                   "learn_requires": { "check": "skill", "skill": "skill_salvage", "min": 2 } },
-      "fabricate": { "inputs": [ { "item": "material_scrap", "count": 4 } ] } }
+      "dismantle": { "yields": [ { "item": "material_scrap", "count": 2 } ],
+                     "learn_requires": { "check": "skill", "skill": "skill_salvage", "min": 2 } },
+      "make": { "inputs": [ { "item": "material_scrap", "count": 4 } ] } }
   ],
   "characters": [
     { "id": "char_worker", "name": "Worker",
-      "body": { "size": 3, "stats": { "stat_health": 10, "stat_cargo": 2 } },
-      "frame": "frame_work", "fitted": ["module_drill"],
+      "body": { "size": 3, "stats": { "stat_health": 10, "stat_cargo": 2 },
+                "slots": [ { "slot_type": "slot_worn" } ] },
+      "equipped": ["gear_work_suit", "gear_drill"],
       "inventory": [ { "item": "material_scrap", "count": 5 } ],
       "skills": { "skill_salvage": 2 } }
   ]
@@ -555,9 +565,9 @@ good.
   "modifications": [
     { "id": "mod_lightened", "name": "Lightened", "material": "material_odd_metal", "count": 1,
       "description": "Strange metal, lighter than it should be.",
-      "applies_to": { "kinds": ["module"], "slot_types": ["slot_hand"] },
+      "applies_to": { "slot_types": ["slot_hand"] },
       "requires": { "check": "skill", "skill": "skill_salvage", "min": 2 },
-      "adds": { "uses": { "mass": -1 }, "tags": ["tag_filter"] } }
+      "adds": { "uses": { "stat_mass": -1 }, "tags": ["tag_filter"] } }
   ]
 }
 ```
@@ -575,9 +585,9 @@ good.
 | `needs 'check', or one of: all, any, not` | A condition must be a check or a combination |
 | `unknown size class 'n'` | Name that size in `vocab.json` → `sizes` |
 | `position [r, c] is outside the grid` / `already taken` / `not a floor tile` | Pick another tile. Rows first, then columns |
-| `fitted gear needs N power, the loadout provides M` | Remove a module, lower its `uses`, or use a stronger frame |
+| `equipped gear needs N stat_power, the loadout provides M` | Remove some gear, lower its `uses`, or use gear that adds more |
 | `inventory needs N cargo stacks, the loadout carries M` | Carry less, or add cargo |
-| `no free 'slot' slot in the frame` | The frame lacks that slot type or it's full |
+| `no free 'slot' slot for 'item'` | Nothing gives that slot type, it's full, or the gear that adds it is listed after the item |
 | `role 'x' is not in the event's cast` | Add the role to `cast`, or fix the name |
 | `unknown placeholder {x}` | Use only the placeholders `explain engine` lists for that message |
 | `unknown string '@x'` | Add the entry to `strings.json`, or fix the id |
@@ -590,7 +600,7 @@ good.
 - **Second person, short sentences, plain words.** Units are fine (kPa, °C); jargon
   and technobabble are not.
 - **No emoji.** Map glyphs are single characters.
-- **Hints say what's needed,** in plain words: "Needs a cutter or a heavier frame."
+- **Hints say what's needed,** in plain words: "Needs a cutter or a heavier suit."
 - **Write trades as top-level `take_item` and `give_item` effects** of an interaction
   (not inside an `if`): the conversation screen reads them to show "You give" and
   "You get". `self` is the player, `target` the person.

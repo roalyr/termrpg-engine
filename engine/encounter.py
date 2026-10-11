@@ -9,20 +9,23 @@ runs. Each round:
      enemies' choices show as intent.
   2. The player chooses an action tile (and a target when there is a choice).
   3. All chosen actions resolve in order: priority, then initiative, ties to the
-     player's side. Costs are paid (heat, cooldown, charges, consumed items), effects
+     player's side. Costs are paid (pools, cooldown, charges, consumed items), effects
      run against the targets, and the action trains its skills.
-  4. Cooldowns count down and one world turn passes (statuses, hazards).
+  4. Cooldowns count down, pools with per_round recover, and one world turn passes
+     (statuses, hazards).
 
-Heat goes into the actor's heat pool; reaching the maximum overheats them: they lose
-their next action and cool to their constant load. Characters with no heat capacity
-don't track heat. AI never ends the encounter for its side: below its flee_below
-health share it flees alone.
+A cost on a draining pool (mana) is paid from it; an action it can't pay is refused (a
+rolled cost must be affordable at its top, and a health cost can't take its payer to 0).
+A cost on a filling pool (heat) raises it; reaching the maximum costs the actor their
+next action, and the pool falls back to its resting value. Characters with no capacity
+in a filling pool don't track it. AI never ends the encounter for its side: below its
+flee_below health share it flees alone.
 
 On a defeat during an encounter, on_defeat waits until the encounter ends. The end
 runs on_win / on_lose / on_escape, then on_defeat for everyone who is down; a player
 still down afterwards comes back with 1 health. Winning rolls the encounter's loot
-and each defeated enemy's. Spawned characters leave, and heat cools to the constant
-load.
+and each defeated enemy's. Spawned characters leave, and filling pools fall back to
+their resting values.
 """
 from typing import Dict, List, Mapping, NamedTuple, Optional, Tuple
 
@@ -42,7 +45,7 @@ class EncounterState(NamedTuple):
     intents: Mapping[str, Tuple[str, Optional[str]]] = freeze({})   # AI actor -> (action, target)
     cooldowns: Mapping[str, Mapping[str, int]] = freeze({})        # actor -> action -> rounds left
     charges: Mapping[str, Mapping[str, int]] = freeze({})          # actor -> action -> uses so far
-    skip: Tuple[str, ...] = ()                        # overheated: lose their next action
+    skip: Tuple[str, ...] = ()                        # a filling pool hit its maximum: lose their next action
     fled: Tuple[str, ...] = ()
     result: Optional[str] = None                      # 'won', 'lost', 'escaped' (for the player's side)
     log_round: int = 0                                # the round the messages describe
@@ -54,7 +57,7 @@ class Tile(NamedTuple):
     label: str
     available: bool
     hint: Optional[str]
-    cost: str
+    cost: Tuple[Tuple[str, str], ...]   # (pool stat id, amount as text: '2', '2-3') for each pool it costs
 
 
 # --- Helpers ----------------------------------------------------------------------------
@@ -201,6 +204,15 @@ def usable(content: Content, state: GameState, cid: str, action_id: str) -> Tupl
             what = content.get("item", consumes["item"])["name"] if consumes.get("item") \
                 else content.get("tag", consumes["tag"])["name"]
             return False, content.message("needs_item", item=what), state
+    cs = state.characters[cid]
+    for stat_id, amount in cost.get("pools", {}).items():
+        if stats.fills(content, stat_id):
+            continue
+        need = amount["max"] if isinstance(amount, Mapping) and "max" in amount \
+            else context.amount(content, state, Ctx(self_id=cid), amount)[0]
+        have = stats.current(content, cs, stat_id)
+        if need > have or (stat_id == content.stat_roles.get("health") and need >= have):
+            return False, content.message("cannot_pay", stat=content.get("stat", stat_id)["name"]), state
     ok, state = conditions.holds(content, state, Ctx(self_id=cid), action.get("requires"))
     if not ok:
         return False, content.text(action["hint"]) if action.get("hint") else content.message("unavailable"), state
@@ -215,9 +227,8 @@ def tiles(content: Content, state: GameState) -> List[Tile]:
     for number, action_id in enumerate(actions_of(content, state, state.player)[:9], 1):
         action = content.get("action", action_id)
         ok, hint, state = usable(content, state, state.player, action_id)
-        heat = action.get("cost", {}).get("heat")
-        cost = "" if not heat else (f"{heat}" if isinstance(heat, (int, float)) else f"{heat['min']}-{heat['max']}"
-                                     if "min" in heat else "")
+        cost = tuple((stat_id, _amount_text(amount)) for stat_id, amount in action.get("cost", {}).get("pools", {}).items()
+                     if _amount_text(amount))
         label = action.get("short") or action["name"][:8]
         result.append(Tile(str(number), action_id, label, ok, hint, cost))
     return result
@@ -344,6 +355,7 @@ def _resolve(content: Content, state: GameState) -> GameState:
     # End of round: cooldowns count down, one world turn passes.
     cooldowns = {cid: {a: n - 1 for a, n in acts.items() if n > 1} for cid, acts in _enc(state).cooldowns.items()}
     state = _with_enc(state, cooldowns=freeze(cooldowns), round=_enc(state).round + 1)
+    state = _recover(content, state)
     before = len(state.messages)
     state = turns.advance(content, state, 1)
     if len(state.messages) > before:                  # say why hazards and statuses hit now
@@ -408,21 +420,54 @@ def _pay(content: Content, state: GameState, cid: str, action_id: str) -> GameSt
         c = cost["consumes"]
         effect = {"op": "take_item", "count": c["count"], "subject": "self", **({"item": c["item"]} if c.get("item") else {"tag": c["tag"]})}
         state = run(content, state, Ctx(self_id=cid), [freeze(effect)])
-    if cost.get("heat") is not None:
-        heat = content.stat_roles["heat"]
+    for stat_id, cost_amount in cost.get("pools", {}).items():
         cs = state.characters[cid]
-        top = stats.stat(content, cs, heat)
-        if top > 0:
-            amount, state = context.amount(content, state, Ctx(self_id=cid), cost["heat"])
-            cs = state.characters[cid]
-            now = stats.current(content, cs, heat) + amount
-            if now >= top:
-                load = stats.budget_used(content, cs, "heat")
-                state = _set(state, cs._replace(pools=freeze({**cs.pools, heat: load})))
+        top = stats.stat(content, cs, stat_id)
+        if top <= 0 and stats.fills(content, stat_id):
+            continue                                   # no capacity: not tracked
+        amount, state = context.amount(content, state, Ctx(self_id=cid), cost_amount)
+        cs = state.characters[cid]
+        if not stats.fills(content, stat_id):
+            now = max(0, stats.current(content, cs, stat_id) - amount)
+            state = _set(state, cs._replace(pools=freeze({**cs.pools, stat_id: now})))
+            continue
+        now = stats.current(content, cs, stat_id) + amount
+        if now >= top:
+            state = _set(state, cs._replace(pools=freeze({**cs.pools, stat_id: stats.rest(content, cs, stat_id)})))
+            if cid not in _enc(state).skip:
                 state = _with_enc(state, skip=_enc(state).skip + (cid,))
-                state = _say(state, "danger", content.message("overheated", character=_name(content, state, cid)))
+            state = _say(state, "danger", content.message("pool_full", character=_name(content, state, cid),
+                                                          stat=content.get("stat", stat_id)["name"]))
+        else:
+            state = _set(state, cs._replace(pools=freeze({**cs.pools, stat_id: now})))
+    return state
+
+
+def _amount_text(amount) -> str:
+    """A cost as a tile shows it: '3', '2-4'; '' for a scaled amount."""
+    if isinstance(amount, (int, float)):
+        return f"{amount:g}"
+    if isinstance(amount, Mapping) and "min" in amount:
+        return f"{amount['min']:g}-{amount['max']:g}"
+    return ""
+
+
+def _recover(content: Content, state: GameState) -> GameState:
+    """End of round: pools with per_round move back toward rest (filling) or their maximum (draining)."""
+    moving = [s for s, record in content.all("stat").items() if record.get("kind") == "pool" and record.get("per_round")]
+    if not moving:
+        return state
+    for cid in living(state, "allies") + living(state, "enemies"):
+        cs = state.characters[cid]
+        pools = dict(cs.pools)
+        for stat_id in moving:
+            step = content.get("stat", stat_id)["per_round"]
+            now = stats.current(content, cs, stat_id)
+            if stats.fills(content, stat_id):
+                pools[stat_id] = max(stats.rest(content, cs, stat_id), now - step) if now > stats.rest(content, cs, stat_id) else now
             else:
-                state = _set(state, cs._replace(pools=freeze({**cs.pools, heat: now})))
+                pools[stat_id] = min(stats.stat(content, cs, stat_id), now + step)
+        state = _set(state, cs._replace(pools=freeze(pools)))
     return state
 
 
@@ -475,12 +520,12 @@ def _finish(content: Content, state: GameState) -> GameState:
         state = _set(state, player._replace(down=False, pools=freeze({**player.pools, health: 1})))
     # The after-action screen holds the last round and everything the end brought.
     state = state._replace(debrief=Debrief(title, result, enc.log_round, state.messages), messages=())
-    heat = content.stat_roles["heat"]
+    filling = [s for s in content.all("stat") if stats.is_pool(content, s) and stats.fills(content, s)]
     chars = {}
     for cid, cs in state.characters.items():
         if cid in enc.spawned:
             continue
-        if cid in participants and heat in cs.pools:
-            cs = cs._replace(pools=freeze({**cs.pools, heat: stats.budget_used(content, cs, "heat")}))
+        if cid in participants:
+            cs = cs._replace(pools=freeze({**cs.pools, **{s: stats.rest(content, cs, s) for s in filling if s in cs.pools}}))
         chars[cid] = cs
     return state._replace(characters=freeze(chars))

@@ -45,11 +45,9 @@ class CharState(NamedTuple):
     source: str                        # content character id (differs for template copies)
     location: Optional[str] = None
     at: Optional[Pos] = None
-    frame: Optional[ItemInst] = None
-    fitted: Tuple[ItemInst, ...] = ()
-    implants: Tuple[ItemInst, ...] = ()
+    equipped: Tuple[ItemInst, ...] = ()          # gear in slots, in the order it was placed
     inventory: Tuple[ItemInst, ...] = ()
-    body_slots: Mapping[str, int] = freeze({})   # implant slot type -> unlocked count
+    body_slots: Mapping[str, int] = freeze({})   # slot type -> how many the body has
     skills: Mapping[str, int] = freeze({})       # skill -> level
     xp: Mapping[str, int] = freeze({})           # skill -> experience
     designs: Tuple[str, ...] = ()
@@ -76,7 +74,7 @@ class Ctx(NamedTuple):
     target: Optional[str] = None
     this: Optional[str] = None
     roles: Mapping[str, str] = freeze({})
-    used: Optional[Tuple[str, str, int]] = None   # (character, 'frame'|'fitted'|'implants'|'inventory', index)
+    used: Optional[Tuple[str, str, int]] = None   # (character, 'equipped'|'inventory', index)
 
 
 class Pending(NamedTuple):
@@ -251,9 +249,7 @@ def character_from(content: Content, state_id: str, source_id: str) -> CharState
         source=source_id,
         location=char.get("location"),
         at=tuple(char["at"]) if char.get("at") else None,
-        frame=new_item(content, char["frame"]) if char.get("frame") else None,
-        fitted=tuple(new_item(content, i) for i in char.get("fitted", ())),
-        implants=tuple(new_item(content, i) for i in char.get("implants", ())),
+        equipped=tuple(new_item(content, i) for i in char.get("equipped", ())),
         inventory=inventory,
         body_slots=freeze(slots),
         skills=freeze(skills),

@@ -681,13 +681,13 @@ class EntriesTest(unittest.TestCase):
 
     def test_new_duplicate_and_delete(self):
         ed = Entries(self.pack, LOOK, "items")
-        self.keys(ed, *"new", "enter", *"module", "enter", *"probe", "enter")
-        self.assertEqual(ed.entry, {"id": "module_probe", "kind": "module"})
+        self.keys(ed, *"new", "enter", *"gear", "enter", *"probe", "enter")
+        self.assertEqual(ed.entry, {"id": "gear_probe", "kind": "gear"})
         self.assertIn("missing required field 'name'", ed.render(48, 24))
         self.keys(ed, "e", *"duplicate", "enter", "enter")
-        self.assertEqual(ed.entry["id"], "module_probe_2")
+        self.assertEqual(ed.entry["id"], "gear_probe_2")
         self.keys(ed, "e", *"delete", "enter", "y")
-        self.assertIsNone(self.pack.find("items", "module_probe_2"))
+        self.assertIsNone(self.pack.find("items", "gear_probe_2"))
         crate = self.editor()
         self.keys(crate, "e", *"delete", "enter")                # still placed in rooms
         self.assertIn("Still used", crate.render(48, 24))
@@ -715,7 +715,7 @@ class EntriesTest(unittest.TestCase):
                     fields.summary(spec, ed.entry.get(spec.name), 30)
 
 
-LOADOUT_ERRORS = ("fitted gear needs", "cargo stacks", "constant heat", "no free", "has fitted modules but wears no frame")
+LOADOUT_ERRORS = ("equipped gear needs", "cargo stacks", "constant load", "no free", "not gear")
 
 
 class LoadoutTest(unittest.TestCase):
@@ -745,24 +745,25 @@ class LoadoutTest(unittest.TestCase):
     def test_the_numbers_are_the_engines(self):
         player = self.pack.find("characters", "char_player").entry
         sheet = loadout.sheet(self.pack, player)
-        numbers = {b.role: (b.used, b.provided) for b in sheet.budgets}
+        numbers = {b.stat: (b.used, b.provided) for b in sheet.budgets}
         # light suit 6 power, 10 mass, 8 heat, 4 cargo, plus the body's 2 cargo; cutter 1/2, shield 3/3/2
-        self.assertEqual(numbers, {"power": (4, 6), "mass": (5, 10), "heat": (2, 8), "cargo": (4, 6)})
+        self.assertEqual(numbers, {"stat_power": (4, 6), "stat_mass": (5, 10), "stat_heat": (2, 8), "stat_cargo": (4, 6)})
         self.assertEqual(sheet.stats, {"stat_health": 30, "stat_armor": 2})
+        self.assertEqual(sheet.size, 3)
         self.assertEqual([(s.slot_type, s.item) for s in sheet.slots],
-                         [("slot_hand", "module_cutter"), ("slot_hand", None), ("slot_back", "module_shield"),
-                          ("slot_head", None)])
+                         [("slot_worn", "gear_light_suit"), ("slot_head", None), ("slot_hand", "gear_cutter"),
+                          ("slot_hand", None), ("slot_back", "gear_shield")])
         self.assertEqual(sheet.problems, [])
 
     def test_problems_agree_with_the_checker(self):
         def items(pack):
             return {f.entry["id"]: f for f in pack.entries("items")}
         breakages = [
-            lambda c, i: c.update(fitted=["module_shield", "module_shield", "module_cutter"]),   # one back slot
-            lambda c, i: c.update(frame="frame_heavy", inventory=[{"item": "material_scrap", "count": 200}]),
-            lambda c, i: i["module_shield"].entry["uses"].update(power=10, heat=8),             # power, heat
-            lambda c, i: c.pop("frame"),                                                        # modules, no frame
-            lambda c, i: c.update(implants=["implant_eye", "implant_eye"]),                     # one head slot
+            lambda c, i: c.update(equipped=["gear_light_suit", "gear_shield", "gear_shield", "gear_cutter"]),  # one back slot
+            lambda c, i: c.update(equipped=["gear_heavy_suit"], inventory=[{"item": "material_scrap", "count": 200}]),
+            lambda c, i: i["gear_shield"].entry["uses"].update(stat_power=10, stat_heat=8),   # power, heat
+            lambda c, i: c["equipped"].remove("gear_light_suit"),                              # tools, no suit
+            lambda c, i: c["equipped"].extend(["gear_eye_implant", "gear_eye_implant"]),       # one head slot
         ]
         for n, breaking in enumerate(breakages):
             with self.subTest(n):
@@ -772,7 +773,7 @@ class LoadoutTest(unittest.TestCase):
                 player = self.pack.find("characters", "char_player")
                 breaking(player.entry, items(self.pack))
                 self.pack.touch(player.file)
-                self.pack.touch(items(self.pack)["module_shield"].file)
+                self.pack.touch(items(self.pack)["gear_shield"].file)
                 problems = loadout.sheet(self.pack, player.entry).problems
                 self.assertTrue(problems)
                 self.assertEqual(len(problems), len(self.checker_says()), problems)
@@ -783,19 +784,19 @@ class LoadoutTest(unittest.TestCase):
         for found in self.pack.entries("characters"):
             self.assertEqual(loadout.sheet(self.pack, found.entry).problems, [], found.entry["id"])
 
-    def test_fit_a_slot_change_the_frame_and_carry(self):
+    def test_fill_a_slot_change_the_suit_and_carry(self):
         tool = Loadout(self.pack, LOOK, "char_player")
         char = tool.char
-        self.pick(tool, "Hand  (empty)")
-        self.keys(tool, "enter", "enter")                        # the only hand module: a second cutter
-        self.assertEqual(char["fitted"], ["module_cutter", "module_shield", "module_cutter"])
+        self.pick(tool, "  Hand  (empty)")
+        self.keys(tool, "enter", "enter")                        # the only hand gear: a second cutter
+        self.assertEqual(char["equipped"], ["gear_light_suit", "gear_cutter", "gear_shield", "gear_cutter"])
         self.assertIn("PWR  ███████░ 5/6", tool.render(48, 24))
-        self.pick(tool, "Back  Shield")
+        self.pick(tool, "  Back  Shield")
         self.keys(tool, "r")
-        self.assertEqual(char["fitted"], ["module_cutter", "module_cutter"])
-        self.pick(tool, "Light suit")
+        self.assertEqual(char["equipped"], ["gear_light_suit", "gear_cutter", "gear_cutter"])
+        self.pick(tool, "Suit    Light suit")
         self.keys(tool, "enter", *"heavy", "enter")
-        self.assertEqual(char["frame"], "frame_heavy")
+        self.assertEqual(char["equipped"], ["gear_heavy_suit", "gear_cutter", "gear_cutter"])
         self.pick(tool, "Scrap x12")
         self.keys(tool, "enter", "backspace", "backspace", *"200", "enter")
         self.assertEqual(char["inventory"][1], {"item": "material_scrap", "count": 200})
@@ -812,19 +813,20 @@ class LoadoutTest(unittest.TestCase):
         self.assertFalse(tool.handle("y"))
         self.assertEqual(self.pack.check().errors, ())
 
-    def test_takes_off_and_puts_back_implants_and_frames(self):
+    def test_takes_off_and_puts_back_implants_and_suits(self):
         tool = Loadout(self.pack, LOOK, "char_juno")
         self.pick(tool, "Head  Eye")
         self.keys(tool, "r")
-        self.assertNotIn("implants", tool.char)
+        self.assertNotIn("equipped", tool.char)
         self.pick(tool, "Head  (empty)")
         self.keys(tool, "enter", "enter")
-        self.assertEqual(tool.char["implants"], ["implant_eye"])
-        self.pick(tool, "(no frame)")
-        self.keys(tool, "enter", "down", "enter")
-        self.assertEqual(tool.char["frame"], "frame_light")
+        self.assertEqual(tool.char["equipped"], ["gear_eye_implant"])
+        self.pick(tool, "Suit  (empty)")
+        self.keys(tool, "enter", "enter")                        # the first suit offered: the light one
+        self.assertEqual(tool.char["equipped"], ["gear_eye_implant", "gear_light_suit"])
+        self.pick(tool, "Suit    Light suit")              # its hand and back slots now show under it
         self.keys(tool, "r")
-        self.assertNotIn("frame", tool.char)
+        self.assertEqual(tool.char["equipped"], ["gear_eye_implant"])
 
     def test_opens_the_room_and_comes_back(self):
         tool = Loadout(self.pack, LOOK, "char_juno")
@@ -836,7 +838,7 @@ class LoadoutTest(unittest.TestCase):
 
     def test_picture_shows_when_there_is_room(self):
         tool = Loadout(self.pack, LOOK, "char_juno")
-        self.assertNotIn("█", tool.render(48, 24).split("Frame")[0].replace("░", ""))
+        self.assertNotIn("█", tool.render(48, 24).split("Equipped")[0].replace("░", ""))
         self.assertIn("████", tool.render(48, 40))
         self.keys(tool, "v")
         self.assertNotIn("████", tool.render(48, 40))
@@ -878,7 +880,7 @@ class SourcesTest(unittest.TestCase):
                     ("loot_crate", "can be drawn from it"), ("loot_drone", "always in it")]:
             self.assertIn(way, said)
         others = [(u.name, u.words) for u in sources.item_uses(self.pack, "material_scrap") if not u.source]
-        self.assertIn(("Cutter", "needed to fabricate it"), others)
+        self.assertIn(("Cutter", "needed to make it"), others)
         self.assertIn(("Reinforced", "its material"), others)
 
     def test_an_item_nobody_gives_and_dead_ends(self):
@@ -886,27 +888,27 @@ class SourcesTest(unittest.TestCase):
         self.assertEqual(sources.item_uses(self.pack, "material_lost"), [])
         self.assertIn("Nobody can get it", "".join(glance.lines(self.pack, LOOK, "items", self.pack.find(
             "items", "material_lost").entry, 44)))
-        # a table nothing rolls, salvage of something nobody has, a design nobody teaches: not sources
+        # a table nothing rolls, dismantling something nobody has, a design nobody teaches: not sources
         self.pack.add("loot_tables", {"id": "loot_lost", "entries": [{"item": "material_lost"}]})
         self.add_item({"id": "misc_husk", "kind": "misc", "name": "Husk",
-                       "salvage": {"yields": [{"item": "material_lost"}]}})
-        self.add_item({"id": "material_made", "name": "Made", "fabricate": {"inputs": [{"item": "material_scrap"}]}})
+                       "dismantle": {"yields": [{"item": "material_lost"}]}})
+        self.add_item({"id": "material_made", "name": "Made", "make": {"inputs": [{"item": "material_scrap"}]}})
         self.assertEqual(sources.sources(self.pack, "material_lost"), [])
         problems = {u.name: u.problem for u in sources.item_uses(self.pack, "material_lost")}
         self.assertEqual(problems, {"loot_lost": "but nothing rolls this table", "Husk": "but nobody can get that"})
         self.assertEqual(sources.sources(self.pack, "material_made"), [])
         self.pack.find("characters", "char_player").entry["designs"] = ["material_made"]
-        self.assertEqual(self.said("material_made"), [("Made", "fabricated once its design is known")])
+        self.assertEqual(self.said("material_made"), [("Made", "made once its design is known")])
         self.pack.find("characters", "char_drone").entry["loot"] = "loot_lost"
         self.assertEqual(self.said("material_lost"), [("loot_lost", "can be drawn from it")])
 
     def test_glances(self):
         def glance_of(kind, ident):
             return "\n".join(glance.lines(self.pack, LOOK, kind, self.pack.find(kind, ident).entry, 44))
-        self.assertIn("Module · Back slot\nPWR 3 MAS 3 HT 2 · ARM +2", glance_of("items", "module_shield"))
-        self.assertIn("Frame · Hand x2, Back", glance_of("items", "frame_light"))
+        self.assertIn("Gear · Back slot · PWR 3 MAS 3 HT 2 · ARM +2", glance_of("items", "gear_shield"))
+        self.assertIn("Gear · Suit slot · Hand x2, Back", glance_of("items", "gear_light_suit"))
         self.assertIn("◆ Door   ◆ closed  ◇ open", glance_of("objects", "obj_door"))
-        self.assertIn("Workshop: refit, dismantle", glance_of("objects", "obj_bench"))
+        self.assertIn("Workshop: equip, dismantle", glance_of("objects", "obj_bench"))
         self.assertIn("Stores 6 stacks · Placed 1x: Storage", glance_of("objects", "obj_bay"))
         self.pack.add("objects", {"id": "obj_spare", "name": "Spare", "glyph": "s"})
         self.assertIn("Not placed anywhere", glance_of("objects", "obj_spare"))

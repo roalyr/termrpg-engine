@@ -65,13 +65,12 @@ class TestNewGame(unittest.TestCase):
 
     def test_loadout_and_pools(self):
         p = char(fresh())
-        self.assertEqual(p.frame.item, "frame_light")
-        self.assertEqual([i.item for i in p.fitted], ["module_cutter", "module_shield"])
-        self.assertEqual(p.fitted[0].condition, 4)
+        self.assertEqual([i.item for i in p.equipped], ["gear_light_suit", "gear_cutter", "gear_shield"])
+        self.assertEqual(p.equipped[1].condition, 4)
         self.assertEqual(p.pools["stat_health"], 30)        # body 10 + frame 20
         self.assertEqual(p.pools["stat_heat"], 2)           # starts at the constant heat load
-        self.assertEqual(stats.budget_used(CONTENT, p, "power"), 4)
-        self.assertEqual(stats.budget_provided(CONTENT, p, "power"), 6)
+        self.assertEqual(stats.budget_used(CONTENT, p, "stat_power"), 4)
+        self.assertEqual(stats.budget_provided(CONTENT, p, "stat_power"), 6)
         self.assertEqual(stats.stat(CONTENT, p, "stat_armor"), 2)
         self.assertEqual(stats.cargo_free(CONTENT, p), 2)   # cargo 2 + 4, four stacks carried
 
@@ -102,7 +101,7 @@ class TestChecks(unittest.TestCase):
     def test_has_tag_sources(self):
         s = do(fresh(), {"op": "take_item", "item": "misc_keycard"})   # leave only the fitted tool with tool
         self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_tool"}))
-        self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_tool", "source": "fitted"}))
+        self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_tool", "source": "equipped"}))
         self.assertFalse(check(s, {"check": "has_tag", "tag": "tag_tool", "source": "carried"}))
         s = do(s, {"op": "give_item", "item": "misc_keycard", "subject": {"character": NPC}})
         self.assertFalse(check(s, {"check": "has_tag", "tag": "tag_tool", "source": "party"}))
@@ -118,10 +117,10 @@ class TestChecks(unittest.TestCase):
         self.assertTrue(check(s, {"check": "has_item", "item": "consumable_medkit", "count": 3}))
         self.assertFalse(check(s, {"check": "has_item", "item": "consumable_medkit", "count": 4}))
         # carried by default (what take_item can take); fitted only when asked for
-        self.assertFalse(check(s, {"check": "has_item", "item": "module_cutter"}))
-        self.assertTrue(check(s, {"check": "has_item", "item": "module_cutter", "source": "fitted"}))
-        self.assertTrue(check(s, {"check": "has_item", "item": "module_cutter", "source": "any"}))
-        self.assertFalse(check(s, {"check": "has_item", "item": "consumable_medkit", "source": "fitted"}))
+        self.assertFalse(check(s, {"check": "has_item", "item": "gear_cutter"}))
+        self.assertTrue(check(s, {"check": "has_item", "item": "gear_cutter", "source": "equipped"}))
+        self.assertTrue(check(s, {"check": "has_item", "item": "gear_cutter", "source": "any"}))
+        self.assertFalse(check(s, {"check": "has_item", "item": "consumable_medkit", "source": "equipped"}))
 
     def test_skill(self):
         s = fresh()
@@ -136,19 +135,19 @@ class TestChecks(unittest.TestCase):
 
     def test_item_condition(self):
         s = fresh()
-        tool = {"check": "item_condition", "pick": {"item": "module_cutter"}, "min": 4}
+        tool = {"check": "item_condition", "pick": {"item": "gear_cutter"}, "min": 4}
         self.assertTrue(check(s, tool))
-        s = do(s, {"op": "wear", "pick": {"item": "module_cutter"}, "amount": 1})
+        s = do(s, {"op": "wear", "pick": {"item": "gear_cutter"}, "amount": 1})
         self.assertFalse(check(s, tool))
-        self.assertTrue(check(s, {"check": "item_condition", "pick": {"item": "module_shield"}, "max": 0}))  # never wears
-        self.assertFalse(check(s, {"check": "item_condition", "pick": {"item": "frame_heavy"}, "min": 0}))      # not held
+        self.assertTrue(check(s, {"check": "item_condition", "pick": {"item": "gear_shield"}, "max": 0}))  # never wears
+        self.assertFalse(check(s, {"check": "item_condition", "pick": {"item": "gear_heavy_suit"}, "min": 0}))      # not held
 
     def test_knows_design(self):
         s = fresh()
-        self.assertFalse(check(s, {"check": "knows_design", "item": "module_cutter"}))
-        s = do(s, {"op": "learn_design", "item": "module_cutter"})
-        self.assertTrue(check(s, {"check": "knows_design", "item": "module_cutter"}))
-        self.assertFalse(check(s, {"check": "knows_design", "item": "module_shield"}))
+        self.assertFalse(check(s, {"check": "knows_design", "item": "gear_cutter"}))
+        s = do(s, {"op": "learn_design", "item": "gear_cutter"})
+        self.assertTrue(check(s, {"check": "knows_design", "item": "gear_cutter"}))
+        self.assertFalse(check(s, {"check": "knows_design", "item": "gear_shield"}))
 
     def test_status(self):
         s = fresh()
@@ -179,18 +178,20 @@ class TestChecks(unittest.TestCase):
         s = fresh()
         self.assertTrue(check(s, {"check": "size", "min": 3, "max": 3}))
         self.assertFalse(check(s, {"check": "size", "min": 5}))
-        heavy = s._replace(characters=freeze({**s.characters, PLAYER: char(s)._replace(frame=ItemInst("frame_heavy"))}))
+        heavy = s._replace(characters=freeze({**s.characters, PLAYER: char(s)._replace(
+            equipped=(ItemInst("gear_heavy_suit"),) + char(s).equipped[1:])}))
         self.assertTrue(check(heavy, {"check": "size", "min": 5}))
 
     def test_fits(self):
         s = fresh()
         self.assertTrue(check(s, {"check": "fits", "into_location": "loc_workshop"}))
-        heavy = s._replace(characters=freeze({**s.characters, PLAYER: char(s)._replace(frame=ItemInst("frame_heavy"))}))
+        heavy = s._replace(characters=freeze({**s.characters, PLAYER: char(s)._replace(
+            equipped=(ItemInst("gear_heavy_suit"),) + char(s).equipped[1:])}))
         self.assertFalse(check(heavy, {"check": "fits", "into_location": "loc_workshop"}))         # holds 3, frame is 5
         self.assertTrue(check(heavy, {"check": "fits", "into_location": "loc_side_room"}))  # no limit set
-        self.assertTrue(check(s, {"check": "fits", "item": "module_cutter", "into_object": "workshop_locker"}))
-        self.assertFalse(check(s, {"check": "fits", "item": "frame_light", "into_object": "workshop_locker"}))
-        self.assertFalse(check(s, {"check": "fits", "item": "misc_keycard", "into_item": "module_cutter"}))  # holds nothing
+        self.assertTrue(check(s, {"check": "fits", "item": "gear_cutter", "into_object": "workshop_locker"}))
+        self.assertFalse(check(s, {"check": "fits", "item": "gear_light_suit", "into_object": "workshop_locker"}))
+        self.assertFalse(check(s, {"check": "fits", "item": "misc_keycard", "into_item": "gear_cutter"}))  # holds nothing
 
     def test_in_party(self):
         s = fresh()
@@ -262,26 +263,26 @@ class TestEffects(unittest.TestCase):
 
     def test_wear_breaks_and_broken_items_count_for_nothing(self):
         s = do(fresh(), {"op": "wear", "pick": {"tag": "tag_tool"}, "amount": 4})
-        self.assertEqual(char(s).fitted[0].condition, 0)
+        self.assertEqual(char(s).equipped[1].condition, 0)
         self.assertIn("Cutter breaks.", texts(s))
-        self.assertFalse(check(s, {"check": "has_tag", "tag": "tag_tool", "source": "fitted"}))
-        s = do(s, {"op": "wear", "pick": {"item": "module_cutter"}, "amount": -2})   # negative repairs
-        self.assertEqual(char(s).fitted[0].condition, 2)
-        self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_tool", "source": "fitted"}))
+        self.assertFalse(check(s, {"check": "has_tag", "tag": "tag_tool", "source": "equipped"}))
+        s = do(s, {"op": "wear", "pick": {"item": "gear_cutter"}, "amount": -2})   # negative repairs
+        self.assertEqual(char(s).equipped[1].condition, 2)
+        self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_tool", "source": "equipped"}))
 
     def test_wear_the_used_item(self):
         s = fresh()
-        ctx = Ctx(self_id=PLAYER, used=(PLAYER, "fitted", 0))
+        ctx = Ctx(self_id=PLAYER, used=(PLAYER, "equipped", 1))
         s = do(s, {"op": "wear", "pick": {"used": True}, "amount": 1}, ctx=ctx)
-        self.assertEqual(char(s).fitted[0].condition, 3)
+        self.assertEqual(char(s).equipped[1].condition, 3)
 
     def test_modify_item(self):
         s = do(fresh(), {"op": "modify_item", "pick": {"slot_type": "slot_back"},
                          "stats": {"stat_armor": 3}, "add_tags": ["tag_filter"], "name_suffix": "Tuned"})
-        system = char(s).fitted[1]
+        system = char(s).equipped[2]
         self.assertEqual(stats.item_view(CONTENT, system)["name"], "Shield (Tuned)")
         self.assertEqual(stats.stat(CONTENT, char(s), "stat_armor"), 5)
-        self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_filter", "source": "fitted"}))
+        self.assertTrue(check(s, {"check": "has_tag", "tag": "tag_filter", "source": "equipped"}))
 
     def test_modify_item_takes_one_off_a_stack(self):
         s = do(fresh(), {"op": "modify_item", "pick": {"item": "consumable_medkit"}, "name_suffix": "Odd"})
@@ -289,8 +290,8 @@ class TestEffects(unittest.TestCase):
         self.assertEqual([(i.count, bool(i.changes)) for i in consumables], [(2, False), (1, True)])
 
     def test_learn_design(self):
-        s = do(fresh(), {"op": "learn_design", "item": "module_shield"})
-        self.assertTrue(check(s, {"check": "knows_design", "item": "module_shield"}))
+        s = do(fresh(), {"op": "learn_design", "item": "gear_shield"})
+        self.assertTrue(check(s, {"check": "knows_design", "item": "gear_shield"}))
 
     def test_roll_loot_is_seeded(self):
         effect = {"op": "roll_loot", "table": "loot_drone"}
@@ -302,7 +303,7 @@ class TestEffects(unittest.TestCase):
         # loot_rare offers the tool only at rank 1 or more; at rank 0 only the implant is possible
         for seed in range(10):
             s = do(fresh(seed), {"op": "roll_loot", "table": "loot_rare"})
-            self.assertFalse(any(i.item == "module_cutter" for i in char(s).inventory))
+            self.assertFalse(any(i.item == "gear_cutter" for i in char(s).inventory))
 
     def test_damage_and_resistance(self):
         s = do(fresh(), {"op": "damage", "amount": 5, "damage_type": "dmg_impact", "subject": "self"})

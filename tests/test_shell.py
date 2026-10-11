@@ -122,7 +122,7 @@ class TestStartScreen(unittest.TestCase):
 class TestHelp(unittest.TestCase):
     def test_keys_how_it_works_and_the_games_help(self):
         frame = draw(shell.Shell("help"), Saves(self).slots(), 72, 60)
-        for words in ("Keys", "WASD, arrows", "move", "F", "fitting", "L", "message log", "X, Esc", "close",
+        for words in ("Keys", "WASD, arrows", "move", "F", "gear", "L", "message log", "X, Esc", "close",
                       "1-9", "How it works", "Walk into things", "Test pack", "mind the gas"):
             self.assertIn(words, frame)
 

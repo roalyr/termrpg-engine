@@ -12,7 +12,7 @@ from tools.lib import loadout, screen, sources
 from tools.lib.fields import ids
 from tools.lib.packfiles import PackFiles
 
-NOWHERE = "Nobody can get it: no loot, storage, gift, salvage or starting gear gives it."
+NOWHERE = "Nobody can get it: no loot, storage, gift, dismantling or starting gear gives it."
 
 
 def lines(pack: PackFiles, look: screen.Look, kind: str, entry: dict, width: int) -> List[str]:
@@ -42,7 +42,7 @@ def item_lines(pack: PackFiles, look: screen.Look, item: dict, width: int) -> Li
     if found:
         names = []
         for use in found:
-            label = "fabricating it" if use.entry_id == item["id"] else use.name
+            label = "making it" if use.entry_id == item["id"] else use.name
             if label not in names:
                 names.append(label)
         out += [style.role(line, "quiet") for line in screen.wrap("From: " + ", ".join(names), width)[:2]]
