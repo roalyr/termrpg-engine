@@ -1,8 +1,8 @@
-# Playtest: the test pack
+# Playtest: the sci-fi test pack
 
-A checklist of everything the engine and interface do so far (milestones 0–7), played
-by hand in the terminal. Each point says what to try and what should happen; how you
-get there is up to you. Tick the box when it works; note anything that doesn't.
+A checklist of everything the engine and interface do, played by hand in the
+terminal. Each point says what to try and what should happen; how you get there is
+up to you. Tick the box when it works; note anything that doesn't.
 Things that depend on chance are marked **(chance)**.
 
 Part A checks the interface screen by screen; part B checks the game's features.

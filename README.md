@@ -1,56 +1,40 @@
 # CLI Space RPG
 
-A text RPG for the terminal, built with the Python 3 standard library only. You are a
-salvager on the frontier of space. You get stronger by recovering, fitting and
-improving strange technology, take on ever more dangerous places, and grow alongside
-the people you meet, while a world that runs on its own rules creates the story
-around you.
+An engine and toolkit for terminal RPGs, built with the Python 3 standard library
+only. Characters are built from pieces (frames, modules, implants, skills), tested by
+dangerous places and encounters, improved through crafting, and live in a world that
+runs on its own rules. Games are content packs: folders of JSON data, written with the
+pack tools and editors here and played in the terminal.
 
-- **What the game is meant to be:** [VISION.md](VISION.md). It takes precedence over
-  every other document.
-- **How to work on the project** (for people and AI agents): [AGENTS.md](AGENTS.md).
-- **The rebuild plan:** [ROADMAP.md](ROADMAP.md).
-- **How the old engine works:** `System Architecture & Game Design Document.md`. It is
-  being pruned as the new engine replaces it.
+Games live in their own repositories. This one holds the engine, the tools, the
+default UI pack and the test packs the engine is built against.
+
+[VISION.md](VISION.md) says what the engine is for and the rules its games follow.
+[AGENTS.md](AGENTS.md) says how to work on the project, for people and AI agents
+alike. This file is the
+reference: how to run things, and every schema, screen and term.
 
 ## Contents
 
-1. [Status](#status)
-2. [Quick start](#quick-start)
-3. [Repository layout](#repository-layout)
-4. [How development works](#how-development-works)
-5. [Schemas](#schemas)
-6. [Glossary](#glossary)
-
-## Status
-
-The project is between two engines.
-
-- **The old engine** (`core/`, `ui/`, `main.py`) is playable, but its content is
-  partly hardcoded and its design (chores, survival meters) was rejected.
-- **The new data layer is complete.** The schemas in `schemas/` describe all game
-  content; a validator checks packs against them; a generic test pack in
-  `packs/test/` uses every part of them.
-- **The new engine** (`engine/`) reads packs and nothing else. Milestones 0–6 are
-  done: the test pack is playable in the terminal with `python3 play.py`, including
-  refitting suits, fighting, crafting and living-world events. See
-  [ROADMAP.md](ROADMAP.md).
+1. [Quick start](#quick-start)
+2. [Repository layout](#repository-layout)
+3. [Engine and content](#engine-and-content)
+4. [Schemas](#schemas)
+5. [Glossary](#glossary)
 
 ## Quick start
 
 ```sh
-python3 play.py                                # play the test pack on the new engine
-python3 play.py --pack packs/test --slot two --new   # a fresh game in another save slot
-python3 main.py                                # play the old engine
-python3 -m core.packtool check packs/test      # validate a content pack
-python3 -m core.packtool ids packs/test item   # list the ids of a kind
-python3 -m core.packtool refs packs/test workshop_door   # where an id is declared and used
+python3 play.py                                # the start screen, with the sci-fi test pack
+python3 play.py --pack packs/test_scifi --slot two --new  # a fresh game in another save slot
+python3 editor.py                              # the pack editors
+python3 -m core.packtool check packs/test_scifi  # validate a content pack
+python3 -m core.packtool ids packs/test_scifi item  # list the ids of a kind
+python3 -m core.packtool refs packs/test_scifi workshop_door  # where an id is declared and used
 python3 -m core.packtool explain op damage     # document any part of the schemas
 python3 -B -m unittest discover -s tests       # run all tests
 python3 -B tests/run.py                        # the same, in parallel
 ```
-
-[PLAYTEST.md](PLAYTEST.md) walks through every feature by hand in the test pack.
 
 Use `-B` when running tests on shared phone storage: the file system's coarse
 timestamps can make Python run stale cached bytecode.
@@ -59,41 +43,33 @@ timestamps can make Python run stale cached bytecode.
 
 | Path | What it holds |
 |---|---|
-| `VISION.md` | The game's direction and design rules |
+| `VISION.md`, `AGENTS.md`, `GEMINI.md`, `ROADMAP.md`, `PLAYTEST.md` | The engine's direction; how to work on it (for agents too); what's next; a hand-played checklist |
 | `schemas/` | JSON Schemas: the contract between engine and content |
-| `packs/test/` | Generic test pack for engine development and tests |
+| `packs/test_scifi/` | Sci-fi test pack: small, plain content for engine development and tests |
 | `packs/ui/default/` | The default UI pack: the standard look, layout, keys and the UI's words |
-| `core/uipack.py` | UI pack validator |
 | `core/schema.py` | Checker for the JSON Schema subset the schemas use |
 | `core/pack.py` | Pack validator: files, references and game rules |
+| `core/uipack.py` | UI pack validator |
 | `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
-| `AGENTS.md`, `GEMINI.md` | Instructions for AI agents |
-| `ROADMAP.md` | The engine rebuild plan |
-| `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `craft.py` workshops, `events.py` the living world, `atlas.py` the map the player knows, `save.py` saves, `rng.py` seeded randomness |
+| `engine/` | The engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `craft.py` workshops, `events.py` the living world, `atlas.py` the map the player knows, `save.py` saves, `rng.py` seeded randomness |
 | `lib/` | Code the game and the tools share: `text.py` styles, colours, bars, wrapping and keys, `ui.py` loading a UI pack, `term.py` the key loop and the text editor, `graph.py` region maps, `tiles.py` a room's tiles and how they're drawn, `pixels.py` pictures in half-block pixels, `budgets.py` whether a loadout fits (slots, power, mass, heat, cargo), for the checker and the loadout editor. It depends only on the validator (`core/pack.py`, `core/uipack.py`) |
-| `tui/`, `play.py` | The terminal UI for the new engine, and how to start it |
+| `tui/`, `play.py` | The terminal UI, and how to start it |
 | `tools/`, `editor.py` | Terminal tools for editing packs, all reached from `python3 editor.py` (see `tools/README.md`) |
-| `core/`, `ui/`, `main.py` | The old engine (being replaced) |
-| `core/data/default-1.0/` | The old engine's content (to be rewritten as a game pack) |
+| `docs/design/` | Design pages for engine work in progress |
+| `archive/` | Material on its way to a repository of its own (the `vanilla` game's design documents) |
 | `tests/` | Unit tests; `tests/test_pack_validation.py` covers the validator |
 
-## How development works
+## Engine and content
 
-**The engine and the content are separate.** The engine never names a room, item,
-person or tag, and prints no text of its own. Everything comes from a **pack**: a
-folder of JSON data checked against the schemas.
+The engine never names a room, item, person or tag, and prints no text of its own.
+Everything comes from a **pack**: a folder of JSON data checked against the schemas.
 
-- **Test pack** (`purpose: "test"`): small, generic content (`loc_workshop`, `item_1`) for
-  engine work and automated tests.
+- **Test pack** (`purpose: "test"`): small, generic content (`loc_workshop`,
+  `module_cutter`) for engine work and automated tests.
 - **Game pack** (`purpose: "game"`): the real world, names and writing.
 
-**Development is schema-first.** The schemas define what the game can contain and
-do. Every feature goes through the same four steps:
-
-1. **Schema:** extend or add the schema.
-2. **Test pack:** add small generic data that uses it.
-3. **Engine:** implement it against the test pack, with tests.
-4. **Game pack:** write the real content.
+Features are added schema first: schema, then test pack, then engine, then game pack.
+AGENTS.md, "Changing the engine or schemas", has the details.
 
 ---
 
@@ -1178,7 +1154,7 @@ then:
 ### The validator
 
 ```sh
-python3 -m core.packtool check packs/test     # or: python3 -m core.pack packs/test
+python3 -m core.packtool check packs/test_scifi     # or: python3 -m core.pack packs/test_scifi
 ```
 
 It prints every error and warning with the file and the path inside it, and exits

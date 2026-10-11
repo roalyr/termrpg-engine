@@ -24,27 +24,37 @@ to check your work, and the rules of the data that are easy to get wrong.
 
 | Document | What it is |
 |---|---|
-| [VISION.md](VISION.md) | What the game is. Overrides everything else |
+| [VISION.md](VISION.md) | What the engine is for and the design rules every game follows. Overrides everything else |
 | [AGENTS.md](AGENTS.md) | How to work on the project (this file) |
 | [README.md](README.md) | Reference for every schema, check, effect and term (glossary) |
 | [ROADMAP.md](ROADMAP.md) | Milestones and what is done |
+| `packs/<id>/docs/` | A game's design documents, starting with its vision, in the game's own repository. They win over the pack's JSON |
+| [PLAYTEST.md](PLAYTEST.md) | A hand-played checklist of every feature, in the test pack |
+| [tools/README.md](tools/README.md) | The pack editors (`python3 editor.py`) |
 | `System Architecture & Game Design Document.md` | The old engine only. Being removed; don't use it for new work |
 
 ## What kind of work you'll do
 
-- **Until version 1.0** the engine is being rebuilt (see ROADMAP.md). Engine and
-  schema work is done by the lead developer. Don't start engine work on your own.
-- **After version 1.0** most work is **writing content packs** under the user's
-  guidance: rooms, objects, items, characters, encounters, events, text. Engine
-  changes are small, incremental, requested by the user, and follow the procedure in
-  [Changing the engine or schemas](#changing-the-engine-or-schemas).
+- **In this repository** the work is the engine, its tools and its test packs, so
+  that makers of any genre get versatile, intuitive tools. Games live in their own
+  repositories.
+- **In a game's repository** most work is **writing content packs** under the user's
+  guidance: rooms, objects, items, characters, encounters, events, text. A game pack
+  is derived from its design documents (`packs/<id>/docs/`), which the user writes
+  and owns: build from what they decide, and when the JSON and the documents
+  disagree, the documents win.
+- **Engine and schema work** is done only when the user asks. Changes are small,
+  incremental and follow the procedure in
+  [Changing the engine or schemas](#changing-the-engine-or-schemas). Don't start
+  engine work on your own.
 
 ## What you may edit
 
 | Path | Content work | Notes |
 |---|---|---|
-| `packs/game/**` (and other game packs) | **Yes** | Your normal workspace |
-| `packs/test/**` | Ask first | Only changes when the engine or schemas change; its ids are used by tests |
+| `packs/<id>/**` in a game's repository | **Yes** | Your normal workspace for content |
+| `packs/<id>/docs/**` | **Yes, when asked** | Design documents. Change **Decided** items only when the user says so |
+| `packs/test_*/**` | Ask first | The test packs (`test_scifi`, `test_fantasy`). Only change when the engine or schemas change; their ids are used by tests |
 | `packs/ui/**` | **Yes, when asked** | The look, layout, keys and the UI's words. Check with `packtool check packs/ui/<id>` |
 | `schemas/**` | Ask first | The contract with the engine. See [Changing the engine or schemas](#changing-the-engine-or-schemas) |
 | `core/schema.py`, `core/pack.py`, `core/packtool.py` | Ask first | The validator and tools |
@@ -57,6 +67,7 @@ to check your work, and the rules of the data that are easy to get wrong.
 | `VISION.md` | **Never**, unless the user says so | |
 | `AGENTS.md` | Only when asked | |
 | Old engine: `core/` (other files), `ui/`, `main.py` | **No** | Being replaced |
+| `archive/**` | **No** | Waiting to move to its own repository |
 | `saves/`, `presets/` | **Never commit** | Local runtime data |
 
 ## Tools
@@ -65,10 +76,10 @@ All commands run from the project root.
 
 | Command | Use it to |
 |---|---|
-| `python3 -m core.packtool check packs/game` | Validate a pack. Prints every error and warning with its file and path |
-| `python3 -m core.packtool ids packs/game` | See which namespaces exist and how many ids each has |
-| `python3 -m core.packtool ids packs/game item` | List every id in a namespace and where it's declared |
-| `python3 -m core.packtool refs packs/game frame_scout` | See where an id is declared and every place it's used |
+| `python3 -m core.packtool check packs/test_scifi` | Validate a pack. Prints every error and warning with its file and path |
+| `python3 -m core.packtool ids packs/test_scifi` | See which namespaces exist and how many ids each has |
+| `python3 -m core.packtool ids packs/test_scifi item` | List every id in a namespace and where it's declared |
+| `python3 -m core.packtool refs packs/test_scifi module_cutter` | See where an id is declared and every place it's used |
 | `python3 -m core.packtool explain` | List the topics you can look up |
 | `python3 -m core.packtool explain ops` / `explain checks` | List every effect or check with a one-line description |
 | `python3 -m core.packtool explain op damage` | Show one effect's fields, which are required, defaults and limits |
@@ -78,7 +89,7 @@ All commands run from the project root.
 | `python3 -m core.packtool explain vocab stats` | A vocabulary section |
 | `python3 -m core.packtool check packs/ui/default` | Validate a UI pack |
 | `python3 -m core.packtool explain widget status` / `explain ui tokens` | A UI widget's options, or a UI pack file's fields |
-| `python3 play.py --pack packs/game --new` | Play the pack in the terminal to see your work: `--new` goes straight into a new game (slot 1, or `--slot name`); without flags the start screen opens |
+| `python3 play.py --pack packs/test_scifi --new` | Play the pack in the terminal to see your work: `--new` goes straight into a new game (slot 1, or `--slot name`); without flags the start screen opens |
 | `python3 -B -m unittest discover -s tests` | Run all tests. Use `-B` on phone storage |
 | `python3 -B tests/run.py` | The same tests in parallel, about twice as fast. `tests/run.py pack` runs only test files with `pack` in the name |
 
@@ -574,9 +585,8 @@ good.
 
 ## Writing game text
 
-- **Tone:** grounded, dry, direct. Everyday life on the frontier; technology that
-  feels real. Strangeness comes slowly, through materials nobody can explain but
-  everyone can use.
+- **Tone:** the game's design documents set it. Test packs use plain names and
+  plain, short sentences.
 - **Second person, short sentences, plain words.** Units are fine (kPa, °C); jargon
   and technobabble are not.
 - **No emoji.** Map glyphs are single characters.
