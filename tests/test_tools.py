@@ -12,6 +12,8 @@ from tools.lib import maps, rooms, screen, term
 from tools.lib.packfiles import PackFiles, dumps
 from tools.art import Art
 from tools.entries import Entries
+from tools.lib import loadout
+from tools.loadout import Loadout
 from tools.lib import fields, refs
 from tools.map import Map
 from tools.overview import Overview
@@ -710,3 +712,139 @@ class EntriesTest(unittest.TestCase):
                 fits(self, ed.render(columns, rows), columns, rows)
                 for spec in ed.specs():
                     fields.summary(spec, ed.entry.get(spec.name), 30)
+
+
+LOADOUT_ERRORS = ("fitted gear needs", "cargo stacks", "constant heat", "no free", "has fitted modules but wears no frame")
+
+
+class LoadoutTest(unittest.TestCase):
+    """The loadout editor on a copy of the test pack: its numbers and problems agree with the checker's."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        shutil.copytree(TEST_PACK, self.tmp / "test")
+        self.pack = PackFiles(self.tmp / "test")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def keys(self, tool, *keys):
+        for key in keys:
+            self.assertTrue(tool.handle(key), key)
+
+    def pick(self, tool, text):
+        """Moves the selection to the first line starting with 'text'."""
+        rows = tool.rows(loadout.sheet(self.pack, tool.char))
+        tool.selected = next(i for i, r in enumerate(rows) if r.text.startswith(text))
+
+    def checker_says(self):
+        self.pack.save()
+        return [e for e in self.pack.check().errors if any(words in e for words in LOADOUT_ERRORS)]
+
+    def test_the_numbers_are_the_engines(self):
+        player = self.pack.find("characters", "char_player").entry
+        sheet = loadout.sheet(self.pack, player)
+        numbers = {b.role: (b.used, b.provided) for b in sheet.budgets}
+        # light suit 6 power, 10 mass, 8 heat, 4 cargo, plus the body's 2 cargo; cutter 1/2, shield 3/3/2
+        self.assertEqual(numbers, {"power": (4, 6), "mass": (5, 10), "heat": (2, 8), "cargo": (4, 6)})
+        self.assertEqual(sheet.stats, {"stat_health": 30, "stat_armor": 2})
+        self.assertEqual([(s.slot_type, s.item) for s in sheet.slots],
+                         [("slot_hand", "module_cutter"), ("slot_hand", None), ("slot_back", "module_shield"),
+                          ("slot_head", None)])
+        self.assertEqual(sheet.problems, [])
+
+    def test_problems_agree_with_the_checker(self):
+        def items(pack):
+            return {f.entry["id"]: f for f in pack.entries("items")}
+        breakages = [
+            lambda c, i: c.update(fitted=["module_shield", "module_shield", "module_cutter"]),   # one back slot
+            lambda c, i: c.update(frame="frame_heavy", inventory=[{"item": "material_scrap", "count": 200}]),
+            lambda c, i: i["module_shield"].entry["uses"].update(power=10, heat=8),             # power, heat
+            lambda c, i: c.pop("frame"),                                                        # modules, no frame
+            lambda c, i: c.update(implants=["implant_eye", "implant_eye"]),                     # one head slot
+        ]
+        for n, breaking in enumerate(breakages):
+            with self.subTest(n):
+                shutil.rmtree(self.tmp / "test")
+                shutil.copytree(TEST_PACK, self.tmp / "test")
+                self.pack = PackFiles(self.tmp / "test")
+                player = self.pack.find("characters", "char_player")
+                breaking(player.entry, items(self.pack))
+                self.pack.touch(player.file)
+                self.pack.touch(items(self.pack)["module_shield"].file)
+                problems = loadout.sheet(self.pack, player.entry).problems
+                self.assertTrue(problems)
+                self.assertEqual(len(problems), len(self.checker_says()), problems)
+        shutil.rmtree(self.tmp / "test")
+        shutil.copytree(TEST_PACK, self.tmp / "test")
+        self.pack = PackFiles(self.tmp / "test")
+        self.assertEqual(self.checker_says(), [])
+        for found in self.pack.entries("characters"):
+            self.assertEqual(loadout.sheet(self.pack, found.entry).problems, [], found.entry["id"])
+
+    def test_fit_a_slot_change_the_frame_and_carry(self):
+        tool = Loadout(self.pack, LOOK, "char_player")
+        char = tool.char
+        self.pick(tool, "Hand  (empty)")
+        self.keys(tool, "enter", "enter")                        # the only hand module: a second cutter
+        self.assertEqual(char["fitted"], ["module_cutter", "module_shield", "module_cutter"])
+        self.assertIn("PWR  ███████░ 5/6", tool.render(48, 24))
+        self.pick(tool, "Back  Shield")
+        self.keys(tool, "r")
+        self.assertEqual(char["fitted"], ["module_cutter", "module_cutter"])
+        self.pick(tool, "Light suit")
+        self.keys(tool, "enter", *"heavy", "enter")
+        self.assertEqual(char["frame"], "frame_heavy")
+        self.pick(tool, "Scrap x12")
+        self.keys(tool, "enter", "backspace", "backspace", *"200", "enter")
+        self.assertEqual(char["inventory"][1], {"item": "material_scrap", "count": 200})
+        text = tool.render(48, 24)
+        self.assertIn("The inventory needs 22 cargo stacks", text)
+        self.pick(tool, "Scrap x200")
+        self.keys(tool, "enter", *["backspace"] * 3, "0", "enter")
+        self.assertNotIn("material_scrap", [e["item"] for e in char["inventory"]])
+        self.pick(tool, "Carry another item")
+        self.keys(tool, "enter", *"odd", "enter", "backspace", "3", "enter")
+        self.assertEqual(char["inventory"][-1], {"item": "material_odd_metal", "count": 3})
+        self.keys(tool, "x", "esc")
+        self.assertIn("Save your changes?", tool.render(48, 24))
+        self.assertFalse(tool.handle("y"))
+        self.assertEqual(self.pack.check().errors, ())
+
+    def test_takes_off_and_puts_back_implants_and_frames(self):
+        tool = Loadout(self.pack, LOOK, "char_juno")
+        self.pick(tool, "Head  Eye")
+        self.keys(tool, "r")
+        self.assertNotIn("implants", tool.char)
+        self.pick(tool, "Head  (empty)")
+        self.keys(tool, "enter", "enter")
+        self.assertEqual(tool.char["implants"], ["implant_eye"])
+        self.pick(tool, "(no frame)")
+        self.keys(tool, "enter", "down", "enter")
+        self.assertEqual(tool.char["frame"], "frame_light")
+        self.keys(tool, "r")
+        self.assertNotIn("frame", tool.char)
+
+    def test_opens_the_room_and_comes_back(self):
+        tool = Loadout(self.pack, LOOK, "char_juno")
+        self.keys(tool, "g")
+        self.assertIn("Room · Workshop", tool.render(48, 24))
+        self.assertEqual(tool.room.cursor, (3, 3))                # on Juno
+        self.keys(tool, "x")
+        self.assertIn("Loadout · Juno", tool.render(48, 24))
+
+    def test_picture_shows_when_there_is_room(self):
+        tool = Loadout(self.pack, LOOK, "char_juno")
+        self.assertNotIn("█", tool.render(48, 24).split("Frame")[0].replace("░", ""))
+        self.assertIn("████", tool.render(48, 40))
+        self.keys(tool, "v")
+        self.assertNotIn("████", tool.render(48, 40))
+
+    def test_every_character_and_screen_fits(self):
+        for found in self.pack.entries("characters"):
+            tool = Loadout(self.pack, LOOK, found.entry["id"])
+            for columns, rows in SIZES:
+                fits(self, tool.render(columns, rows), columns, rows)
+        tool = Loadout(self.pack, LOOK)
+        self.assertIn("Juno", tool.render(48, 24))
+        self.assertFalse(tool.handle("esc"))

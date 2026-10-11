@@ -12,6 +12,7 @@ game's start screen. With more than one pack in `packs/` it asks which to open f
 | Map | The world by region: where locations lie, how they connect, what needs fixing | `python3 -m tools.map <pack>` |
 | Room | One location's layout: tiles, size, objects, entry point, doors, open edges | `python3 -m tools.room <pack>` |
 | Entries | Any entry by kind (objects, items, characters, actions, events…), field by field | `python3 -m tools.entries <pack>` |
+| Loadout | A character's frame, modules, implants and inventory, against their budgets | `python3 -m tools.loadout <pack>` |
 | Overview | The pack's files, entry counts by kind, the checker's report | `python3 -m tools.overview <pack>` |
 | Art | The pack's pictures in pixels: paint, mirror, undo, colours | `python3 -m tools.art <pack>` |
 
@@ -261,3 +262,29 @@ E lists what works on the whole entry:
 
 X goes back to the entry list, Esc to the kinds; Esc on the kinds leaves, asking to
 save if anything changed.
+
+### Loadout: what a character wears and carries (ready)
+
+Pick a character (templates included). The top shows who they are: title, size, where
+they stand (the player: the pack's start), then **power, mass, heat and cargo** as bars
+of what the loadout uses against what it provides, and their other stats added up
+(body, frame, modules, implants, skill levels). With the room to spare (about 40 rows
+at 48 columns) their picture sits beside it; V hides or shows it.
+
+Below, one line per thing:
+
+| Line | Enter | R |
+|---|---|---|
+| The frame | Another frame, or none | Takes it off (fitted modules then have nowhere to go) |
+| A frame or body slot, filled or `(empty)` | The modules (implants) of that slot type, each with what it uses and gives | Takes it out |
+| A fitted item with no slot, in red | Another item | Takes it out |
+| A carried stack, with its cargo stacks | Its count; 0 takes it out | Takes it out |
+| Carry another item… | An item, then how many (added to a stack it already has) | |
+
+The bars and the problems below the list follow every change before anything is
+saved. They count the way the checker counts (slots, power, mass, constant heat below
+maximum heat, cargo stacks), so a loadout with no problems here passes the check;
+`tests/test_tools.py` holds the two to the same verdicts.
+
+G opens the character's room in the room editor, the cursor on them; X there comes
+back. X goes back to the characters; Esc there leaves, asking to save.
