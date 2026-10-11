@@ -12,6 +12,7 @@ from tools.lib.fields import schemas
 from tools.lib.packfiles import PackFiles
 
 PACK_SCHEMA = "pack.schema.json"
+DECLARED = re.compile(r"^sizes\[\d+\]\.size$")
 STEP = re.compile(r"([^.\[\]]+)|\[(\d+)\]")
 
 
@@ -29,6 +30,8 @@ def uses(pack: PackFiles, namespace: str, ident: Any) -> List[Tuple[str, str]]:
     found = []
     for rel, data, target in _files(pack):
         for ref in schema.validate(data, target, schemas()).refs:
+            if target == KIND_SCHEMAS.get("vocab") and DECLARED.match(ref.path):
+                continue                                    # a size class's own number
             if ref.kind == namespace and ref.value == ident:
                 found.append((rel, ref.path))
         if namespace == "string":

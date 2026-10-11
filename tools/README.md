@@ -219,8 +219,8 @@ asking to save if anything changed; Esc on the list leaves.
 
 One editor for every kind of entry: objects, items, characters, actions, skills,
 encounters, loot tables, events, modifications, strings, regions, locations, zones
-and art. Its fields come from the pack schemas, so a field added to a schema shows up
-here by itself. (The vocabulary isn't an entry list and stays in JSON for now.)
+and art, and the vocabulary. Its fields come from the pack schemas, so a field added to
+a schema shows up here by itself.
 
 Pick a kind (with how many entries it has), then an entry (filtered as you type), or
 **New…** last: an id, prefilled with the kind's prefix (`obj_`, `char_`…); for items
@@ -282,6 +282,16 @@ come first, marked `+`:
 
 A would-be way that doesn't work says why (`but nothing rolls this table`). Enter on a
 use opens that entry; X comes back.
+
+**The vocabulary** is the last choice of the kinds, **Vocabulary…**: its sections
+(tags, stats, damage types, statuses, slot types, grades, sizes, ranks, relation
+levels, object states, phases, factions, flags) with how many entries each has. A
+section's entries work like any other: new ones get the section's prefix (`tag_`,
+`stat_`…). Sizes, ranks and relation levels have a number instead of an id: a new one
+gets the next free number, and changing a size's number changes every size that uses
+it, the way renaming an id does. E also moves an entry earlier or later, since order
+matters in some sections (phases follow each other in order). Esc on a section's
+entries goes back to the sections.
 
 X goes back to the entry list, Esc to the kinds; Esc on the kinds leaves, asking to
 save if anything changed.

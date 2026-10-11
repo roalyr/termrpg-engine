@@ -7,7 +7,8 @@ words and numbers in a line, choices and ids from a list, colours from the colou
 picker, descriptions and everything bigger (effects, conditions, dialogue) in your text
 editor ($EDITOR, nano by default) as text or JSON. Leaving a field empty takes it out,
 so its default applies. E lists what works on the whole entry: edit it all as JSON,
-rename its id (every use follows), duplicate, delete, save.
+rename its id (every use follows), duplicate, delete, save. The vocabulary's sections
+(tags, stats, sizes…) are the last choice of kinds, edited the same way.
 
   python3 -m tools.entries packs/test     on its own
   python3 editor.py                       from the editor's menu
@@ -17,12 +18,12 @@ import json
 import sys
 from typing import Any, Callable, List, Optional, Tuple
 
-from core.pack import KIND_NAMESPACES
 from tools.lib import colours, fields, forms, glance, refs, screen, sources, term
 from tools.lib.fields import Spec
 from tools.lib.packfiles import Found, PackFiles
 
 NEW = object()
+VOCABULARY = "vocab"     # the list of vocabulary sections
 NONE = object()          # "take the field out": its default applies
 ADD = object()
 MOVES = {"up": -1, "down": 1}
@@ -30,14 +31,16 @@ ID_ABOUT = "What other entries call it. Enter renames it, and every use changes 
 
 
 def kind_title(kind: str) -> str:
-    return kind.replace("_", " ").capitalize()
+    if kind == VOCABULARY:
+        return "Vocabulary"
+    return kind.split(".")[-1].replace("_", " ").capitalize()
 
 
 class Entries:
     name = "Entries"
     about = "Every entry of the pack by kind: objects, items, characters and the rest, field by field."
 
-    def __init__(self, pack: PackFiles, look: screen.Look, kind: Optional[str] = None, entry_id: Optional[str] = None):
+    def __init__(self, pack: PackFiles, look: screen.Look, kind: Optional[str] = None, entry_id: Any = None):
         self.pack, self.look = pack, look
         self.kind: Optional[str] = None
         self.found: Optional[Found] = None
@@ -48,7 +51,7 @@ class Entries:
         self.closed = False
         self.trail: List[Tuple[str, str]] = []       # (kind, id) of the entries a use was opened from
         self.edit_text = term.edit_text              # tests put a stand-in here
-        if kind and entry_id and pack.find(kind, entry_id):
+        if kind and entry_id is not None and pack.find(kind, entry_id):
             self.kind = kind
             self.open(pack.find(kind, entry_id))
         elif kind:
@@ -64,7 +67,20 @@ class Entries:
 
     @property
     def namespace(self) -> str:
-        return KIND_NAMESPACES[self.kind]
+        return fields.namespace_of(self.kind)
+
+    @property
+    def key(self) -> str:
+        """The field that names the entry: 'id', or a vocabulary section's number ('size', 'rank', 'min')."""
+        return fields.key_field(self.kind)
+
+    @property
+    def ident(self) -> Any:
+        return self.entry.get(self.key)
+
+    @property
+    def vocab(self) -> bool:
+        return self.kind is not None and self.kind.startswith(fields.VOCAB)
 
     def ask(self, form, after: Callable) -> None:
         self.form, self.after = form, after
@@ -76,14 +92,17 @@ class Entries:
         """The entry's fields: the id, then what kind of entry it is, then the rest in the schema's order.
         Reserved fields show only when the entry uses them."""
         specs = [s for s in fields.fields(self.kind, self.entry) if not s.reserved or s.name in self.entry]
-        first = [s for s in specs if s.name == "id"] + [s for s in specs if s.kind == "fixed"]
-        return first + [s for s in specs if s not in first]
+        rest = [s for s in specs if s.name != self.key]
+        first = [fields.key_spec(self.kind)] + [s for s in rest if s.kind == "fixed"]
+        return first + [s for s in rest if s not in first]
 
     def changed(self, words: str) -> None:
         self.pack.touch(self.found.file)
         self.say(words)
 
-    def taken(self, ident: str) -> bool:
+    def taken(self, ident: Any) -> bool:
+        if self.vocab:
+            return self.pack.find(self.kind, ident) is not None
         return any(i == ident for i, _ in fields.ids(self.pack, self.namespace))
 
     # --- choosing --------------------------------------------------------------------
@@ -92,19 +111,31 @@ class Entries:
         self.kind, self.found = None, None
         choices = [forms.Choice(kind_title(kind), kind, str(sum(1 for _ in self.pack.entries(kind))))
                    for kind in fields.EDITABLE_KINDS if kind in self.pack.kinds]
+        if "vocab" in self.pack.kinds:
+            choices.append(forms.Choice("Vocabulary…", VOCABULARY, "tags, stats, sizes…",
+                                        "The words the rest of the pack refers to: tags, stats, slot types, sizes, "
+                                        "factions, flags and the rest."))
         picker = forms.Picker(self.look, "Entries", choices)
         picker.notice = notice
-        self.ask(picker, self.choose_entry)
+        self.ask(picker, lambda kind: self.choose_section() if kind == VOCABULARY else self.choose_entry(kind))
+
+    def choose_section(self, selected: Optional[str] = None) -> None:
+        """The vocabulary's sections, in the schema's order, with how many entries each has."""
+        self.kind, self.found = VOCABULARY, None
+        choices = [forms.Choice(kind_title(kind), kind, str(sum(1 for _ in self.pack.entries(kind))))
+                   for kind in fields.vocab_kinds()]
+        self.ask(forms.Picker(self.look, "Vocabulary", choices, selected), self.choose_entry)
 
     def choose_entry(self, kind: str, selected: Any = None) -> None:
         self.kind, self.found, self.trail = kind, None, []
         choices = []
         for found in self.pack.entries(kind):
             e = found.entry
-            label = e.get("name") or e.get("text") or e.get("id", "?")
+            key = fields.key_field(kind)
+            label = e.get("name") or e.get("text") or e.get(key, "?")
             glyph = e.get("glyph")
-            choices.append(forms.Choice(f"{glyph} {label}" if glyph else str(label), e.get("id"),
-                                        e.get("id", ""), e.get("description", "")))
+            choices.append(forms.Choice(f"{glyph} {label}" if glyph else str(label), e.get(key),
+                                        str(e.get(key, "")), e.get("description", "")))
         choices.append(forms.Choice("New…", NEW))
         self.ask(forms.Picker(self.look, kind_title(kind), choices, selected),
                  lambda picked: self.start_new() if picked is NEW else self.open(self.pack.find(kind, picked)))
@@ -134,7 +165,7 @@ class Entries:
     def heading(self) -> str:
         if self.found is None:
             return f"Entries · {kind_title(self.kind)}" if self.kind else "Entries"
-        return f"{kind_title(self.kind)} · {self.entry.get('name') or self.entry.get('id', '')}"
+        return f"{kind_title(self.kind)} · {self.entry.get('name') or self.ident or ''}"
 
     def body(self, width: int) -> List[str]:
         """One line per field: its name, then its value (or its default, quietly)."""
@@ -166,7 +197,7 @@ class Entries:
         style = self.look.style
         specs = self.specs()
         spec = specs[self.selected] if specs else None
-        about = ID_ABOUT if spec is not None and spec.name == "id" else spec.description if spec else ""
+        about = self.key_about() if spec is not None and spec.name == self.key else spec.description if spec else ""
         lines = screen.wrap(about, width)[:3]
         lines = [style.role(line, "quiet") for line in lines]
         problems = fields.entry_problems(self.kind, self.entry)
@@ -178,6 +209,13 @@ class Entries:
         if text:
             lines += [style.role(line, role) for line in screen.wrap(text, width)]
         return lines
+
+    def key_about(self) -> str:
+        if self.key == "id":
+            return ID_ABOUT
+        if self.namespace:
+            return f"The {self.key} number other entries use. Enter changes it, and every use changes with it."
+        return fields.key_spec(self.kind).description or f"The {self.key} this entry is for."
 
     def hints(self) -> List[str]:
         return ["↑↓ field", "Enter edit", "E entry…", "U uses", f"{self.look.key('back')} back"]
@@ -195,7 +233,9 @@ class Entries:
                 self.form = None
                 if self.kind is None:                       # the kind list: leave the tool
                     return self.leave()
-                if self.found is None:                      # an entry list: back to the kinds
+                if self.found is None and self.vocab:       # a section's entries: back to the sections
+                    self.choose_section(self.kind)
+                elif self.found is None:                    # an entry list or the sections: back to the kinds
                     self.choose_kind()
             elif result is not None:
                 self.form, after = None, self.after
@@ -209,7 +249,7 @@ class Entries:
             self.kind, ident = self.trail.pop()
             self.open(self.pack.find(self.kind, ident) or self.found)
         elif action in ("back", "quit"):
-            self.choose_entry(self.kind, self.entry.get("id"))
+            self.choose_entry(self.kind, self.ident)
         elif key == "enter":
             specs = self.specs()
             if specs:
@@ -224,7 +264,7 @@ class Entries:
 
     def show_uses(self) -> None:
         """Where the entry is used (for items, where it comes from first); Enter opens that entry."""
-        ident = self.entry.get("id")
+        ident = self.ident
         found = sources.item_uses(self.pack, ident) if self.kind == "items" else sources.uses(self.pack, self.namespace, ident)
         if not found:
             return self.say(f"Nothing uses {ident}." + (" " + glance.NOWHERE if self.kind == "items" else ""),
@@ -240,7 +280,7 @@ class Entries:
 
         def picked(where):
             kind, entry_id = where
-            target = self.pack.find(kind, entry_id) if kind in fields.EDITABLE_KINDS else None
+            target = self.pack.find(kind, entry_id) if fields.editable(kind) else None
             if target is None:
                 return self.say("That's in pack.json; edit it there." if kind == "pack" else f"Can't open {entry_id} here.")
             self.trail.append(back)
@@ -253,7 +293,7 @@ class Entries:
 
     def edit(self, spec: Spec) -> None:
         value = self.entry.get(spec.name)
-        if spec.name == "id":
+        if spec.name == self.key:
             return self.start_rename()
         if spec.kind == "fixed":
             return self.say(f"The {spec.name} is chosen when the entry is made.")
@@ -373,11 +413,14 @@ class Entries:
     # --- the whole entry ---------------------------------------------------------------
 
     def entry_actions(self) -> None:
-        actions = [("Edit it all as JSON", self.edit_all), ("Rename the id…", self.start_rename),
+        rename = "Rename the id…" if self.key == "id" else f"Change the {self.key}…"
+        actions = [("Edit it all as JSON", self.edit_all), (rename, self.start_rename),
                    ("Duplicate…", self.start_duplicate), ("Delete", self.start_delete)]
+        if self.vocab:                                       # order matters in some sections (phases, levels)
+            actions += [("Move earlier", lambda: self.move(-1)), ("Move later", lambda: self.move(1))]
         if self.pack.dirty:
             actions.append(("Save changes", self.save))
-        self.ask(forms.Picker(self.look, f"{kind_title(self.kind)} · {self.entry.get('id')}",
+        self.ask(forms.Picker(self.look, f"{kind_title(self.kind)} · {self.ident}",
                               [forms.Choice(label, fn) for label, fn in actions]), lambda fn: fn())
 
     def edit_all(self, text: Optional[str] = None) -> None:
@@ -395,56 +438,83 @@ class Entries:
             question = forms.Question(self.look, f"That isn't a valid entry: {words}. Edit it again, or drop the change?",
                                       [("e", "edit again", True), ("n", "drop it", False)])
             return self.ask(question, lambda again: self.edit_all(edited) if again else self.say("Dropped. Nothing changed."))
-        if new.get("id") != self.entry.get("id"):
-            return self.say("Change the id with Rename, so its uses follow. Nothing changed.", "danger")
+        if new.get(self.key) != self.ident:
+            how = "Rename" if self.key == "id" else f"Change the {self.key}"
+            return self.say(f"Change the {self.key} with {how}, so its uses follow. Nothing changed.", "danger")
         self.entry.clear()
         self.entry.update(new)
         self.changed("Entry changed.")
 
-    def new_id_field(self, title: str, start: str, done: Callable[[str], None], note: str = "") -> None:
-        id_spec = fields.id_spec()
+    def new_id_field(self, title: str, start: Any, done: Callable[[Any], None], note: str = "") -> None:
+        """Asks for a new id (or a section's number) that nothing else has."""
+        key_spec = fields.key_spec(self.kind)
 
         def check(text: str) -> str:
-            return fields.problem(id_spec, text) or (f"{text} is taken." if self.taken(text) else "")
-        self.ask(forms.Field(self.look, title, start, check, note), done)
+            if key_spec.kind == "integer":
+                try:
+                    number = int(text)
+                except ValueError:
+                    return "A whole number."
+                return fields.problem(key_spec, number) or (f"{number} is taken." if self.taken(number) else "")
+            return fields.problem(key_spec, text) or (f"{text} is taken." if self.taken(text) else "")
+        self.ask(forms.Field(self.look, title, str(start), check, note),
+                 lambda text: done(int(text) if key_spec.kind == "integer" else text))
+
+    def next_key(self) -> Any:
+        """A free id like this one's ('_2'…), or the number after the section's highest."""
+        if self.key == "id":
+            return fields.next_free(self.ident or "", lambda i: self.taken(i))
+        numbers = [f.entry.get(self.key) for f in self.pack.entries(self.kind) if isinstance(f.entry.get(self.key), int)]
+        return max(numbers, default=-1) + 1
 
     def start_rename(self) -> None:
-        old = self.entry.get("id")
-        used = refs.uses(self.pack, self.namespace, old)
+        old, key = self.ident, self.key
+        used = refs.uses(self.pack, self.namespace, old) if self.namespace else []
 
-        def done(new: str) -> None:
+        def done(new: Any) -> None:
             if new == old:
                 return
-            count = refs.rename(self.pack, self.namespace, old, new)
-            self.entry["id"] = new
-            self.changed(f"Renamed to {new}; {count} use(s) changed with it. Saved games that know {old} won't "
+            count = refs.rename(self.pack, self.namespace, old, new) if self.namespace else 0
+            self.entry[key] = new
+            if key != "id" and not self.namespace:
+                return self.changed(f"{key}: {new}.")
+            self.changed(f"Changed to {new}; {count} use(s) changed with it. Saved games that know {old} won't "
                          "find it: raise the pack's major version.")
-        self.new_id_field("New id", old, done, f"Used in {len(used)} place(s); they all change with it.")
+        title = "New id" if key == "id" else f"New {key}"
+        note = f"Used in {len(used)} place(s); they all change with it." if self.namespace else ""
+        self.new_id_field(title, old, done, note)
 
     def start_duplicate(self) -> None:
-        start = fields.next_free(self.entry.get("id", ""), lambda i: self.taken(i))
-
-        def done(new: str) -> None:
+        def done(new: Any) -> None:
             twin = copy.deepcopy(self.entry)
-            twin["id"] = new
+            twin[self.key] = new
             self.pack.add(self.kind, twin, self.found.file)
             self.open(self.pack.find(self.kind, new))
             self.say(f"A copy of it as {new}.")
-        self.new_id_field("Id of the copy", start, done)
+        self.new_id_field("Id of the copy" if self.key == "id" else f"The copy's {self.key}", self.next_key(), done)
 
     def start_delete(self) -> None:
-        ident = self.entry.get("id")
-        used = refs.uses(self.pack, self.namespace, ident)
+        ident = self.ident
+        used = refs.uses(self.pack, self.namespace, ident) if self.namespace else []
         if used:
             files = sorted({rel for rel, _ in used})
             return self.say(f"Still used in {len(used)} place(s) ({', '.join(files)}). Change those first.", "danger")
 
         def done(_) -> None:
-            self.pack.data[self.found.file]["entries"].remove(self.entry)
-            self.pack.touch(self.found.file)
+            self.pack.remove(self.kind, self.found)
             self.choose_entry(self.kind)
             self.form.notice = f"Deleted {ident}."
         self.ask(forms.Question(self.look, f"Delete {ident}?", [("y", "delete", True)]), done)
+
+    def move(self, step: int) -> None:
+        """Moves a vocabulary entry earlier or later in its section."""
+        listed = self.pack.siblings(self.kind, self.found)
+        here = next(i for i, e in enumerate(listed) if e is self.entry)
+        there = here + step
+        if not 0 <= there < len(listed):
+            return self.say("It's already " + ("first." if step < 0 else "last."))
+        listed[here], listed[there] = listed[there], listed[here]
+        self.changed(f"Now {there + 1} of {len(listed)} in {kind_title(self.kind).lower()}.")
 
     def start_new(self) -> None:
         variants = fields.variants(self.kind)
@@ -454,16 +524,20 @@ class Entries:
         self.name_new(None)
 
     def name_new(self, variant: Optional[str]) -> None:
-        prefix = fields.ITEM_PREFIXES.get(variant, "") if variant else fields.PREFIXES.get(self.kind, "")
+        prefix = fields.ITEM_PREFIXES.get(variant, "") if variant else fields.prefix_of(self.kind)
+        if self.key != "id":
+            numbers = [f.entry.get(self.key) for f in self.pack.entries(self.kind) if isinstance(f.entry.get(self.key), int)]
+            prefix = max(numbers, default=-1) + 1
 
-        def done(new: str) -> None:
-            entry = {"id": new}
+        def done(new: Any) -> None:
+            entry = {self.key: new}
             if variant:
                 entry[fields.discriminator(self.kind)] = variant
             self.pack.add(self.kind, entry)
             self.open(self.pack.find(self.kind, new))
             self.say("Made. Fill in what it's missing (in red below); Enter edits a field.")
-        self.new_id_field("Id of the new entry", prefix, done, "Lower case, words joined by _.")
+        self.new_id_field("Id of the new entry" if self.key == "id" else f"The new entry's {self.key}", prefix, done,
+                          "Lower case, words joined by _." if self.key == "id" else "")
 
     # --- leaving ------------------------------------------------------------------------
 

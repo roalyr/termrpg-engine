@@ -12,7 +12,7 @@ from typing import Any, List, NamedTuple, Optional, Tuple
 
 from core.pack import KIND_NAMESPACES
 from tools.lib import refs
-from tools.lib.packfiles import PackFiles
+from tools.lib.packfiles import VOCAB, PackFiles, key_field
 
 class Use(NamedTuple):
     kind: str                 # the kind of the entry it sits in ('objects', 'loot_tables'…), or 'pack'
@@ -46,6 +46,10 @@ def _name(entry: dict) -> str:
 def _owner(pack: PackFiles, rel: str, steps: List[Any]) -> Tuple[str, str, str]:
     """(kind, id, name) of the entry a path sits in; a placement is named with its location."""
     kind = _kind_of(pack, rel)
+    if kind == "vocab" and len(steps) >= 2 and isinstance(steps[1], int):        # a vocabulary entry: its section is its kind
+        kind = VOCAB + steps[0]
+        entry = pack.data[rel][steps[0]][steps[1]]
+        return kind, entry.get(key_field(kind)), str(entry.get("name") or entry.get(key_field(kind)))
     if kind == "pack" or len(steps) < 2 or steps[0] != "entries":
         return kind, "", "the pack's start" if kind == "pack" else rel
     entry = pack.data[rel]["entries"][steps[1]]
@@ -66,7 +70,7 @@ def _effect_of(data: Any, steps: List[Any]) -> Optional[dict]:
     return None
 
 
-def describe(pack: PackFiles, rel: str, path: str) -> Use:
+def describe(pack: PackFiles, rel: str, path: str, ident: Any = None) -> Use:
     """One use of an id, in words."""
     steps = _steps(path)
     kind, entry_id, name = _owner(pack, rel, steps)
@@ -77,7 +81,7 @@ def describe(pack: PackFiles, rel: str, path: str) -> Use:
     if op:
         return Use(kind, entry_id, name, {"give_item": "gives it", "take_item": "takes it",
                                           "has_item": "asks for it", "learn_design": "teaches its design",
-                                          "roll_loot": "rolls it", "knows_design": "asks if its design is known"}.get(op, f"{op}"))
+                                          "roll_loot": "rolls it", "knows_design": "asks if its design is known"}.get(op, op.replace("_", " ")))
     if "contents" in keys:
         return Use(kind, entry_id, name, "holds it at the start")
     if "salvage" in keys:
@@ -91,12 +95,15 @@ def describe(pack: PackFiles, rel: str, path: str) -> Use:
                        ("enemies", "fights in it"), ("spawns", "may turn up there")):
         if key in keys[1:]:
             return Use(kind, entry_id, name, words)
-    return Use(kind, entry_id, name, path.split(".", 1)[-1] if "." in path else path)
+    last = keys[-1] if keys else path
+    if last == ident and _node(data, steps) != ident:                      # a map's key: 'stats.stat_armor'
+        return Use(kind, entry_id, name, f"in its {keys[-2].replace('_', ' ')}" if len(keys) > 1 else "uses it")
+    return Use(kind, entry_id, name, last.replace("_", " "))
 
 
 def uses(pack: PackFiles, namespace: str, ident: Any) -> List[Use]:
     """Every use of an id, in words, in pack order."""
-    return [describe(pack, rel, path) for rel, path in refs.uses(pack, namespace, ident)]
+    return [describe(pack, rel, path, ident) for rel, path in refs.uses(pack, namespace, ident)]
 
 
 def player_id(pack: PackFiles) -> str:

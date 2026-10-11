@@ -932,3 +932,115 @@ class SourcesTest(unittest.TestCase):
         ed = Entries(self.pack, LOOK, "objects", "obj_spare")
         self.assertTrue(ed.handle("u"))
         self.assertIn("Nothing uses obj_spare", ed.render(48, 24))
+
+
+class VocabularyTest(unittest.TestCase):
+    """The vocabulary in the entries editor: sections as kinds, ids and numbers that every use follows, order."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        shutil.copytree(TEST_PACK, self.tmp / "test")
+        self.pack = PackFiles(self.tmp / "test")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def keys(self, ed, *keys):
+        for key in keys:
+            self.assertTrue(ed.handle(key), key)
+
+    def saved_clean(self):
+        self.pack.save()
+        self.assertEqual(self.pack.check().errors, ())
+
+    def vocab(self, section):
+        return [e for rel in self.pack.kinds["vocab"] for e in self.pack.data[rel][section]]
+
+    def test_kinds_then_sections_then_entries_and_back(self):
+        ed = Entries(self.pack, LOOK)
+        self.keys(ed, *"vocab", "enter")
+        text = ed.render(48, 24)
+        self.assertIn("Relation levels  3", text)
+        self.keys(ed, *"stats", "enter")
+        self.assertIn("Initiative  stat_initiative", ed.render(48, 24))
+        self.keys(ed, *"armor", "enter")
+        self.assertEqual(ed.heading(), "Stats · Armor")
+        self.assertIn("short       ARM", ed.render(48, 24))
+        self.keys(ed, "x")                                       # back to the stats
+        self.assertIn("New…", ed.render(48, 24))
+        self.keys(ed, "esc")                                     # the sections
+        self.assertIn("Vocabulary", ed.render(48, 24))
+        self.keys(ed, "esc")                                     # the kinds
+        self.assertIn("Vocabulary…", ed.render(48, 24))
+        self.assertFalse(ed.handle("esc"))
+
+    def test_renaming_a_stat_changes_every_use(self):
+        used = len(refs.uses(self.pack, "stat", "stat_armor"))
+        ed = Entries(self.pack, LOOK, "vocab.stats", "stat_armor")
+        self.keys(ed, "enter", *["backspace"] * 5, *"defence", "enter")
+        self.assertEqual(ed.ident, "stat_defence")
+        self.assertIn(f"{used} use(s) changed", ed.render(48, 24))
+        self.assertEqual(refs.uses(self.pack, "stat", "stat_armor"), [])
+        self.assertEqual(len(refs.uses(self.pack, "stat", "stat_defence")), used)
+        self.saved_clean()
+
+    def test_a_size_is_a_number_every_use_follows(self):
+        ed = Entries(self.pack, LOOK, "vocab.sizes", 4)
+        self.assertEqual(ed.specs()[0].name, "size")
+        self.assertIn("every use changes with it", ed.render(48, 24))
+        uses = len(refs.uses(self.pack, "size", 4))
+        self.assertGreater(uses, 0)
+        self.keys(ed, "enter", "backspace", "3", "enter")         # taken
+        self.assertIn("3 is taken.", ed.render(48, 24))
+        self.keys(ed, "backspace", "9", "enter")
+        self.assertEqual(ed.ident, 9)
+        self.assertEqual(len(refs.uses(self.pack, "size", 9)), uses)
+        self.assertEqual(refs.uses(self.pack, "size", 4), [])
+        self.saved_clean()
+
+    def test_new_duplicate_delete_and_order(self):
+        ed = Entries(self.pack, LOOK, "vocab.tags")
+        self.keys(ed, *"new", "enter")
+        self.assertIn("tag_", ed.render(48, 24))
+        self.keys(ed, *"spare", "enter")
+        self.assertEqual(ed.entry, {"id": "tag_spare"})
+        self.assertIn("missing required field 'name'", ed.render(48, 24))
+        self.keys(ed, "down", "enter", *"a spare", "enter")
+        self.keys(ed, "e", *"delete", "enter", "y")
+        self.assertNotIn("tag_spare", [t["id"] for t in self.vocab("tags")])
+        ed = Entries(self.pack, LOOK, "vocab.tags", "tag_tool")
+        self.keys(ed, "e", *"delete", "enter")
+        self.assertIn("Still used", ed.render(48, 24))
+        ed = Entries(self.pack, LOOK, "vocab.ranks", 1)
+        self.keys(ed, "e", *"duplicate", "enter", "enter")        # the next number: 2
+        self.assertEqual(ed.ident, 2)
+        self.keys(ed, "e", *"earlier", "enter")
+        self.assertEqual([r["rank"] for r in self.vocab("ranks")], [0, 2, 1])
+        self.keys(ed, "e", *"earlier", "enter", "e", *"earlier", "enter")
+        self.assertIn("already first", ed.render(48, 24))
+        phases = [p["id"] for p in self.vocab("phases")]
+        ed = Entries(self.pack, LOOK, "vocab.phases", phases[0])
+        self.keys(ed, "e", *"later", "enter")
+        self.assertEqual([p["id"] for p in self.vocab("phases")], phases[::-1])
+        self.saved_clean()
+
+    def test_uses_name_vocabulary_entries_and_open_them(self):
+        ed = Entries(self.pack, LOOK, "vocab.stats", "stat_armor")
+        self.keys(ed, "u")
+        text = ed.render(48, 24)
+        self.assertIn("Impact  resisted by", text)
+        self.assertIn("Shield  in its stats", text)
+        self.keys(ed, "enter")                                   # Impact: a damage type
+        self.assertEqual((ed.kind, ed.heading()), ("vocab.damage_types", "Damage types · Impact"))
+        self.keys(ed, "x")
+        self.assertEqual(ed.heading(), "Stats · Armor")
+
+    def test_every_section_and_screen_fits(self):
+        for kind in fields.vocab_kinds():
+            first = next(self.pack.entries(kind), None)
+            if first is None:
+                continue
+            ed = Entries(self.pack, LOOK, kind, first.entry.get(fields.key_field(kind)))
+            self.assertIsNotNone(ed.found, kind)
+            for columns, rows in SIZES:
+                fits(self, ed.render(columns, rows), columns, rows)

@@ -21,7 +21,7 @@ from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from core import schema
 from core.pack import KIND_NAMESPACES, KIND_SCHEMAS, SCHEMA_DIR, VOCAB_NAMESPACES
-from tools.lib.packfiles import PackFiles
+from tools.lib.packfiles import KEYS, VOCAB, PackFiles, key_field  # noqa: F401  (key_field is for the tools)
 
 COMMON = "common.schema.json"
 LONG_TEXT = 100           # text fields longer than this are edited in the text editor
@@ -29,6 +29,9 @@ EDITABLE_KINDS = [k for k in KIND_SCHEMAS if k != "vocab"]
 PREFIXES = {"regions": "reg_", "locations": "loc_", "zones": "zone_", "objects": "obj_", "actions": "action_",
             "skills": "skill_", "characters": "char_", "encounters": "enc_", "loot_tables": "loot_",
             "events": "event_", "strings": "str_", "modifications": "mod_", "art": "art_"}
+VOCAB_PREFIXES = {"tags": "tag_", "stats": "stat_", "damage_types": "dmg_", "statuses": "status_",
+                  "slot_types": "slot_", "grades": "grade_", "object_states": "state_", "phases": "phase_",
+                  "factions": "faction_", "flags": "flag_"}
 ITEM_PREFIXES = {"frame": "frame_", "module": "module_", "implant": "implant_", "material": "material_",
                  "consumable": "consumable_", "misc": "misc_"}
 
@@ -80,8 +83,32 @@ def _ref_name(node: dict) -> str:
     return fragment.rsplit("/", 1)[-1] if target in ("", COMMON) or target.endswith(COMMON) else ""
 
 
+def vocab_kinds() -> List[str]:
+    """The vocabulary's sections as kinds ('vocab.tags'…), in the schema's order."""
+    root = schemas()[KIND_SCHEMAS["vocab"].partition("#")[0]]
+    return [VOCAB + name for name, node in root.get("properties", {}).items() if node.get("type") == "array"]
+
+
+def editable(kind: str) -> bool:
+    return kind in EDITABLE_KINDS or kind in vocab_kinds()
+
+
+def namespace_of(kind: str) -> str:
+    """The namespace a kind's ids live in; '' for vocabulary sections nothing refers to (ranks, relation levels)."""
+    if kind.startswith(VOCAB):
+        section = kind[len(VOCAB):]
+        return "size" if section == "sizes" else VOCAB_NAMESPACES.get(section, "")
+    return KIND_NAMESPACES[kind]
+
+
+def prefix_of(kind: str) -> str:
+    return VOCAB_PREFIXES.get(kind[len(VOCAB):], "") if kind.startswith(VOCAB) else PREFIXES.get(kind, "")
+
+
 def entry_target(kind: str) -> str:
     """The schema target for one entry of a kind: 'object.schema.json#/$defs/object'."""
+    if kind.startswith(VOCAB):
+        return f"{KIND_SCHEMAS['vocab'].partition('#')[0]}#/properties/{kind[len(VOCAB):]}/items"
     target = KIND_SCHEMAS[kind]
     file, _, fragment = target.partition("#")
     root, file = _follow(schema._resolve(target, file, schemas())[0], file)
@@ -162,6 +189,15 @@ def _spec(name: str, raw: dict, file: str, required: bool) -> Spec:
 def id_spec() -> Spec:
     """The id field, the same for every kind."""
     return _spec("id", {"$ref": f"{COMMON}#/$defs/id"}, COMMON, True)
+
+
+def key_spec(kind: str) -> Spec:
+    """The field that names an entry: the id, or a vocabulary section's number (a size, a rank…)."""
+    key = key_field(kind)
+    if key == "id":
+        return id_spec()
+    spec = next(s for s in fields(kind, {}) if s.name == key)
+    return spec._replace(kind="integer", node={**spec.node, "type": "integer"}, namespace="")
 
 
 # --- values -------------------------------------------------------------------------
