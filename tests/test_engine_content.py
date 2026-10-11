@@ -8,7 +8,7 @@ from pathlib import Path
 from engine.content import Content, PackError, load_pack
 
 ROOT = Path(__file__).resolve().parent.parent
-TEST_PACK = ROOT / "packs" / "test"
+TEST_PACK = ROOT / "packs" / "test_scifi"
 
 
 class TestLoadPack(unittest.TestCase):

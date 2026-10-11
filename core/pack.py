@@ -2,7 +2,7 @@
 Content pack validation: the manifest, every listed data file against its schema,
 unique ids, cross-references between files, and rules a schema alone can't express.
 
-Run from the project root:  python3 -m core.pack packs/test
+Run from the project root:  python3 -m core.pack packs/test_scifi
 """
 import json
 import re

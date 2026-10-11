@@ -9,7 +9,7 @@ interactions) stays in the JSON.
 
 Nothing is written until you leave the room and say yes; then the checker runs.
 
-  python3 -m tools.room packs/test     on its own
+  python3 -m tools.room packs/test_scifi     on its own
   python3 editor.py                    from the editor's menu
 """
 import sys

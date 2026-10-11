@@ -9,7 +9,7 @@ in it are offered, with what they use), a stack's count, or a new item to carry.
 R takes it out. The bars and the problems follow every change, before saving.
 G opens the character's room, V shows or hides the picture.
 
-  python3 -m tools.loadout packs/test     on its own
+  python3 -m tools.loadout packs/test_scifi     on its own
   python3 editor.py                       from the editor's menu
 """
 import sys

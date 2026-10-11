@@ -15,7 +15,7 @@ from engine.frozen import freeze
 from engine.state import Ctx, new_game
 
 ROOT = Path(__file__).resolve().parent.parent
-CONTENT = load_pack(ROOT / "packs" / "test")
+CONTENT = load_pack(ROOT / "packs" / "test_scifi")
 PLAYER = "char_player"
 RIVALS = {"char_dov", "char_ilse", "char_tomas"}
 
@@ -179,7 +179,7 @@ class TestTriggers(unittest.TestCase):
     def test_events_per_trigger_limit(self):
         with tempfile.TemporaryDirectory() as tmp:
             pack = Path(tmp) / "pack"
-            shutil.copytree(ROOT / "packs" / "test", pack)
+            shutil.copytree(ROOT / "packs" / "test_scifi", pack)
             manifest = json.loads((pack / "pack.json").read_text())
             manifest["settings"] = {"events_per_trigger": 1}
             (pack / "pack.json").write_text(json.dumps(manifest))

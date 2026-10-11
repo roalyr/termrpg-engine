@@ -10,7 +10,7 @@ so its default applies. E lists what works on the whole entry: edit it all as JS
 rename its id (every use follows), duplicate, delete, save. The vocabulary's sections
 (tags, stats, sizes…) are the last choice of kinds, edited the same way.
 
-  python3 -m tools.entries packs/test     on its own
+  python3 -m tools.entries packs/test_scifi     on its own
   python3 editor.py                       from the editor's menu
 """
 import copy

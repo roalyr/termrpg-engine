@@ -23,7 +23,7 @@ from lib.ui import default_ui, ui_dir_for
 from tui import app
 
 ROOT = Path(__file__).resolve().parent.parent
-CONTENT = load_pack(ROOT / "packs" / "test")
+CONTENT = load_pack(ROOT / "packs" / "test_scifi")
 PLAYER, NPC = "char_player", "char_juno"
 UI = default_ui()
 
@@ -59,7 +59,7 @@ class PackCopy:
     def __init__(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name) / "test"
-        shutil.copytree(ROOT / "packs" / "test", self.dir)
+        shutil.copytree(ROOT / "packs" / "test_scifi", self.dir)
 
     def edit(self, name, change):
         path = self.dir / name

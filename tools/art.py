@@ -7,7 +7,7 @@ the current colour; Tab steps through the palette and see-through. Enter lists w
 else works: pick the colour under the cursor, mirror left and right, undo, add or
 change a colour, resize, delete an unused picture, save.
 
-  python3 -m tools.art packs/test     on its own
+  python3 -m tools.art packs/test_scifi     on its own
   python3 editor.py                   from the editor's menu
 """
 import re

@@ -24,7 +24,7 @@ from tui.widgets import option_text
 UI = default_ui()
 
 ROOT = Path(__file__).resolve().parent.parent
-CONTENT = load_pack(ROOT / "packs" / "test")
+CONTENT = load_pack(ROOT / "packs" / "test_scifi")
 PLAYER, NPC = "char_player", "char_juno"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -191,7 +191,7 @@ class TestSave(unittest.TestCase):
             self.assertEqual(save.load(CONTENT, path), s)
             text = path.read_text()
             with self.assertRaisesRegex(save.SaveError, "for pack 'other'"):
-                save.from_json(CONTENT, text.replace('"pack": "test"', '"pack": "other"'))
+                save.from_json(CONTENT, text.replace('"pack": "test_scifi"', '"pack": "other"'))
             with self.assertRaisesRegex(save.SaveError, "version 9.0.0"):
                 save.from_json(CONTENT, text.replace(f'"pack_version": "{CONTENT.pack["version"]}"', '"pack_version": "9.0.0"'))
 
@@ -314,7 +314,7 @@ class TestApp(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "slot.json"
             with mock.patch("sys.stdin", io.StringIO("aawwu q")), redirect_stdout(io.StringIO()) as out:
-                code = app.run(ROOT / "packs" / "test", path, seed=1, fresh=True, colour=False)
+                code = app.run(ROOT / "packs" / "test_scifi", path, seed=1, fresh=True, colour=False)
             self.assertEqual(code, 0)
             self.assertIn("Saved.", out.getvalue())
             state = save.load(CONTENT, path)

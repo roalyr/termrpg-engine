@@ -11,7 +11,7 @@ the sides match), move it, make a new location, or place one that has no positio
 yet. X goes back along the exits followed, then to the region list, and leaves from
 there.
 
-  python3 -m tools.map packs/test     on its own
+  python3 -m tools.map packs/test_scifi     on its own
   python3 editor.py                   from the editor's menu
 """
 import re

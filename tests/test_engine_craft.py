@@ -18,7 +18,7 @@ from tui.widgets import option_text
 UI = default_ui()
 
 ROOT = Path(__file__).resolve().parent.parent
-CONTENT = load_pack(ROOT / "packs" / "test")
+CONTENT = load_pack(ROOT / "packs" / "test_scifi")
 PLAYER = "char_player"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 

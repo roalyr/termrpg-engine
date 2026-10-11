@@ -2,7 +2,7 @@
 """
 Play a content pack in the terminal (the new engine).
 
-  python3 play.py                       the start screen of the test pack (saves in saves/test/)
+  python3 play.py                       the start screen of the test pack (saves in saves/test_scifi/)
   python3 play.py --pack packs/game     another pack
   python3 play.py --slot two --new      straight into a fresh game in a save named 'two'
   python3 play.py --new                 straight into a fresh game in slot 1
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Play a content pack.")
-    parser.add_argument("--pack", default=str(ROOT / "packs" / "test"), help="pack folder")
+    parser.add_argument("--pack", default=str(ROOT / "packs" / "test_scifi"), help="pack folder")
     parser.add_argument("--slot", help="go straight into this save (a name, or slot1, slot2...)")
     parser.add_argument("--seed", type=int, help="seed for new games (default: a random one)")
     parser.add_argument("--new", action="store_true", help="go straight into a new game (in --slot, or slot1)")

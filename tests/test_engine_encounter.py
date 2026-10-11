@@ -17,7 +17,7 @@ from engine.state import Ctx, Message, StatusInst, new_game
 from tui import app, render
 
 ROOT = Path(__file__).resolve().parent.parent
-CONTENT = load_pack(ROOT / "packs" / "test")
+CONTENT = load_pack(ROOT / "packs" / "test_scifi")
 PLAYER, NPC = "char_player", "char_juno"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -129,7 +129,7 @@ class TestOutcomes(unittest.TestCase):
     def test_never_a_game_over(self):
         with tempfile.TemporaryDirectory() as tmp:
             pack = Path(tmp) / "pack"
-            shutil.copytree(ROOT / "packs" / "test", pack)
+            shutil.copytree(ROOT / "packs" / "test_scifi", pack)
             data = json.loads((pack / "characters.json").read_text())
             next(c for c in data["entries"] if c["id"] == PLAYER).pop("on_defeat")
             (pack / "characters.json").write_text(json.dumps(data))

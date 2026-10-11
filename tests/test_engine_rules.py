@@ -13,7 +13,7 @@ from engine.frozen import freeze
 from engine.state import Ctx, ItemInst, StatusInst, new_game, phase_of, day_of
 
 ROOT = Path(__file__).resolve().parent.parent
-CONTENT = load_pack(ROOT / "packs" / "test")
+CONTENT = load_pack(ROOT / "packs" / "test_scifi")
 SCHEMAS = schema.load_schemas(ROOT / "schemas")
 
 

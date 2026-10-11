@@ -20,7 +20,7 @@ from lib.text import visible_len
 from lib.ui import default_ui
 
 ROOT = Path(__file__).resolve().parent.parent
-CONTENT = load_pack(ROOT / "packs" / "test")
+CONTENT = load_pack(ROOT / "packs" / "test_scifi")
 UI = default_ui()
 STEPS = int(os.environ.get("RANDOM_PLAY_STEPS", "250"))
 SEEDS = range(1, 7)

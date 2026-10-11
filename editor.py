@@ -3,7 +3,7 @@
 The pack editor: one menu for every tool, laid out like the game's start screen.
 
   python3 editor.py                       pick a pack (or open the only one)
-  python3 editor.py --pack packs/test     open this pack
+  python3 editor.py --pack packs/test_scifi     open this pack
   python3 editor.py --no-colour           plain text
 
 Tools live in tools/ (see tools/README.md); each also runs on its own.

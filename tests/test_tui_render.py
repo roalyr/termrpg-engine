@@ -21,7 +21,7 @@ from lib.ui import UIPackError, default_ui, load_ui, ui_dir_for
 from tui.widgets import Frame, item_details, option_text
 
 ROOT = Path(__file__).resolve().parent.parent
-CONTENT = load_pack(ROOT / "packs" / "test")
+CONTENT = load_pack(ROOT / "packs" / "test_scifi")
 UI = default_ui()
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 SIZES = ((48, 24), (52, 30), (60, 40), (100, 60))
@@ -477,7 +477,7 @@ class TestCharacterScreen(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         folder = Path(tmp.name) / "test"
-        shutil.copytree(ROOT / "packs" / "test", folder)
+        shutil.copytree(ROOT / "packs" / "test_scifi", folder)
         path = folder / file
         data = json.loads(path.read_text(encoding="utf-8"))
         change(next(e for e in data["entries"] if e["id"] == entry_id))
@@ -1078,7 +1078,7 @@ class TestCustomUIPack(unittest.TestCase):
         from contextlib import redirect_stdout
         out = io.StringIO()
         with redirect_stdout(out):
-            code = app.run(ROOT / "packs" / "test", Path(self.tmp.name) / "save.json", 1, True, ui_dir=self.dir)
+            code = app.run(ROOT / "packs" / "test_scifi", Path(self.tmp.name) / "save.json", 1, True, ui_dir=self.dir)
         self.assertEqual(code, 1)
         self.assertIn("the engine's key for 'fit'", out.getvalue())
 

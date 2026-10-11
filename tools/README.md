@@ -5,7 +5,7 @@ the checker (`core.packtool check`) still has the last word.
 
 **Start here:** `python3 editor.py` opens one menu for every tool, laid out like the
 game's start screen. With more than one pack in `packs/` it asks which to open first;
-`--pack packs/test` opens one directly, `--no-colour` draws plain text.
+`--pack packs/test_scifi` opens one directly, `--no-colour` draws plain text.
 
 | Tool | What it does | On its own |
 |---|---|---|

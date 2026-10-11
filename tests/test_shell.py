@@ -19,7 +19,7 @@ from lib.text import visible_len
 from lib.ui import default_ui, load_ui, ui_dir_for
 
 ROOT = Path(__file__).resolve().parent.parent
-CONTENT = load_pack(ROOT / "packs" / "test")
+CONTENT = load_pack(ROOT / "packs" / "test_scifi")
 UI = default_ui()
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -170,7 +170,7 @@ class TestQuitting(unittest.TestCase):
         saves = Saves(self)
         out = io.StringIO()
         with mock.patch("sys.stdin", io.StringIO("1aqy" + "1" + "qy" + "5")), redirect_stdout(out):
-            code = app.run(ROOT / "packs" / "test", seed=1, colour=False, saves_dir=saves.dir)
+            code = app.run(ROOT / "packs" / "test_scifi", seed=1, colour=False, saves_dir=saves.dir)
         self.assertEqual(code, 0)
         self.assertTrue(shell.slot_path(saves.dir, 1).exists())
         printed = ANSI.sub("", out.getvalue())
@@ -181,7 +181,7 @@ class TestQuitting(unittest.TestCase):
         saves = Saves(self)
         path = saves.dir / "two.json"
         with mock.patch("sys.stdin", io.StringIO("a")), redirect_stdout(io.StringIO()):
-            code = app.run(ROOT / "packs" / "test", path, seed=1, fresh=True, colour=False)
+            code = app.run(ROOT / "packs" / "test_scifi", path, seed=1, fresh=True, colour=False)
         self.assertEqual(code, 0)
         self.assertTrue(path.exists())
 

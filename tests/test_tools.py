@@ -23,7 +23,7 @@ from tools.room import Room
 ROOT = Path(__file__).resolve().parent.parent
 LOOK = screen.look(colour=False)
 SIZES = ((48, 24), (60, 40), (100, 60))
-TEST_PACK = ROOT / "packs" / "test"
+TEST_PACK = ROOT / "packs" / "test_scifi"
 
 
 class PackFilesTest(unittest.TestCase):

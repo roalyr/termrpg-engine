@@ -7,7 +7,7 @@ from core import packtool
 from core import schema
 from core.pack import SCHEMA_DIR
 
-TEST_PACK = str(Path(__file__).resolve().parent.parent / "packs" / "test")
+TEST_PACK = str(Path(__file__).resolve().parent.parent / "packs" / "test_scifi")
 
 
 def run(*argv):

@@ -2,7 +2,7 @@
 A pack at a glance: its files and entry counts by kind, and what the checker says.
 The smallest tool, and the template for the others.
 
-  python3 -m tools.overview packs/test     on its own
+  python3 -m tools.overview packs/test_scifi     on its own
   python3 editor.py                        from the editor's menu
 """
 import sys

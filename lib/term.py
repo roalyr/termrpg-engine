@@ -94,7 +94,7 @@ def run_tool(tool_class, argv: List[str]) -> int:
     from tools.lib import screen
     from tools.lib.packfiles import PackFiles
     parser = argparse.ArgumentParser(description=tool_class.about)
-    parser.add_argument("pack", nargs="?", default="packs/test", help="pack folder")
+    parser.add_argument("pack", nargs="?", default="packs/test_scifi", help="pack folder")
     parser.add_argument("--no-colour", action="store_true", help="plain text")
     args = parser.parse_args(argv)
     tool = tool_class(PackFiles(Path(args.pack)), screen.look(not args.no_colour))

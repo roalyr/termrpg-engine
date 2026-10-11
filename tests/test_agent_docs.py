@@ -15,7 +15,7 @@ from core import packtool
 from core.pack import validate_pack
 
 ROOT = Path(__file__).resolve().parent.parent
-TEST_PACK = ROOT / "packs" / "test"
+TEST_PACK = ROOT / "packs" / "test_scifi"
 RECIPE = re.compile(r"<!-- recipe -->\s*```json\n(.*?)```", re.S)
 
 

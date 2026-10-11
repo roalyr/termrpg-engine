@@ -7,7 +7,7 @@ from pathlib import Path
 from core import schema
 from core.pack import validate_pack, SCHEMA_DIR
 
-TEST_PACK = Path(__file__).resolve().parent.parent / "packs" / "test"
+TEST_PACK = Path(__file__).resolve().parent.parent / "packs" / "test_scifi"
 
 
 class TestSchemaFiles(unittest.TestCase):
