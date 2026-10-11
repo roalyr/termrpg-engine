@@ -18,7 +18,7 @@ import sys
 from typing import Any, Callable, List, Optional, Tuple
 
 from core.pack import KIND_NAMESPACES
-from tools.lib import colours, fields, forms, refs, screen, term
+from tools.lib import colours, fields, forms, glance, refs, screen, sources, term
 from tools.lib.fields import Spec
 from tools.lib.packfiles import Found, PackFiles
 
@@ -46,6 +46,7 @@ class Entries:
         self.after: Optional[Callable] = None
         self.message: Tuple[str, str] = ("", "quiet")
         self.closed = False
+        self.trail: List[Tuple[str, str]] = []       # (kind, id) of the entries a use was opened from
         self.edit_text = term.edit_text              # tests put a stand-in here
         if kind and entry_id and pack.find(kind, entry_id):
             self.kind = kind
@@ -96,7 +97,7 @@ class Entries:
         self.ask(picker, self.choose_entry)
 
     def choose_entry(self, kind: str, selected: Any = None) -> None:
-        self.kind, self.found = kind, None
+        self.kind, self.found, self.trail = kind, None, []
         choices = []
         for found in self.pack.entries(kind):
             e = found.entry
@@ -125,9 +126,10 @@ class Entries:
             bands = [screen.title(look, title, right, width), notice + lines,
                      [look.style.role(line, "quiet") for line in about], screen.hints(look, self.form.hints(), width)]
             return screen.draw(look, [b for b in bands if b], columns, rows, flex=1, focus=focus + len(notice)).text
-        bands = [screen.title(look, self.heading(), right, width), self.body(width), self.detail(width),
-                 screen.hints(look, self.hints(), width)]
-        return screen.draw(look, [b for b in bands if b], columns, rows, flex=1, focus=self.selected).text
+        bands = [screen.title(look, self.heading(), right, width), glance.lines(self.pack, look, self.kind, self.entry, width),
+                 self.body(width), self.detail(width), screen.hints(look, self.hints(), width)]
+        flex = 2 if bands[1] else 1
+        return screen.draw(look, [b for b in bands if b], columns, rows, flex=flex, focus=self.selected).text
 
     def heading(self) -> str:
         if self.found is None:
@@ -178,7 +180,7 @@ class Entries:
         return lines
 
     def hints(self) -> List[str]:
-        return ["↑↓ field", "Enter edit", "E entry…", f"{self.look.key('back')} back"]
+        return ["↑↓ field", "Enter edit", "E entry…", "U uses", f"{self.look.key('back')} back"]
 
     # --- keys ------------------------------------------------------------------------
 
@@ -203,6 +205,9 @@ class Entries:
         if action in MOVES:
             self.selected += MOVES[action]
             self.say("")
+        elif action in ("back", "quit") and self.trail:            # opened from a use: back to where it was
+            self.kind, ident = self.trail.pop()
+            self.open(self.pack.find(self.kind, ident) or self.found)
         elif action in ("back", "quit"):
             self.choose_entry(self.kind, self.entry.get("id"))
         elif key == "enter":
@@ -211,7 +216,38 @@ class Entries:
                 self.edit(specs[self.selected])
         elif key.lower() == "e":
             self.entry_actions()
+        elif key.lower() == "u":
+            self.show_uses()
         return True
+
+    # --- where it's used -----------------------------------------------------------------
+
+    def show_uses(self) -> None:
+        """Where the entry is used (for items, where it comes from first); Enter opens that entry."""
+        ident = self.entry.get("id")
+        found = sources.item_uses(self.pack, ident) if self.kind == "items" else sources.uses(self.pack, self.namespace, ident)
+        if not found:
+            return self.say(f"Nothing uses {ident}." + (" " + glance.NOWHERE if self.kind == "items" else ""),
+                            "danger" if self.kind == "items" else "quiet")
+        choices = []
+        for use in found:
+            mark = "+ " if use.source else "  "
+            words = use.words + (f", {use.problem}" if use.problem else "")
+            choices.append(forms.Choice(mark + use.name, (use.kind, use.entry_id), words))
+        picker = forms.Picker(self.look, f"Uses of {ident}", choices)
+        picker.notice = "+ marks where the player gets it." if self.kind == "items" else ""
+        back = (self.kind, ident)
+
+        def picked(where):
+            kind, entry_id = where
+            target = self.pack.find(kind, entry_id) if kind in fields.EDITABLE_KINDS else None
+            if target is None:
+                return self.say("That's in pack.json; edit it there." if kind == "pack" else f"Can't open {entry_id} here.")
+            self.trail.append(back)
+            self.kind = kind
+            self.open(target)
+            self.say(f"{self.look.key('back')} goes back to {back[1]}.")
+        self.ask(picker, picked)
 
     # --- editing a field -------------------------------------------------------------
 

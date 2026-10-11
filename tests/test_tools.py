@@ -12,7 +12,7 @@ from tools.lib import maps, rooms, screen, term
 from tools.lib.packfiles import PackFiles, dumps
 from tools.art import Art
 from tools.entries import Entries
-from tools.lib import loadout
+from tools.lib import glance, loadout, sources
 from tools.loadout import Loadout
 from tools.lib import fields, refs
 from tools.map import Map
@@ -848,3 +848,87 @@ class LoadoutTest(unittest.TestCase):
         tool = Loadout(self.pack, LOOK)
         self.assertIn("Juno", tool.render(48, 24))
         self.assertFalse(tool.handle("esc"))
+
+
+class SourcesTest(unittest.TestCase):
+    """Where items come from and where entries are used; the glance above an item or object; jumping to a use."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        shutil.copytree(TEST_PACK, self.tmp / "test")
+        self.pack = PackFiles(self.tmp / "test")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def add_item(self, entry):
+        self.pack.add("items", dict({"kind": "material", "size": 0}, **entry))
+
+    def said(self, item_id):
+        return [(u.name, u.words) for u in sources.sources(self.pack, item_id)]
+
+    def test_every_test_pack_item_can_be_had(self):
+        for found in self.pack.entries("items"):
+            self.assertTrue(sources.sources(self.pack, found.entry["id"]), found.entry["id"])
+
+    def test_names_the_ways_to_get_scrap(self):
+        said = self.said("material_scrap")
+        for way in [("Cutter", "dismantling it yields it"), ("Player", "starts with it"),
+                    ("loot_crate", "can be drawn from it"), ("loot_drone", "always in it")]:
+            self.assertIn(way, said)
+        others = [(u.name, u.words) for u in sources.item_uses(self.pack, "material_scrap") if not u.source]
+        self.assertIn(("Cutter", "needed to fabricate it"), others)
+        self.assertIn(("Reinforced", "its material"), others)
+
+    def test_an_item_nobody_gives_and_dead_ends(self):
+        self.add_item({"id": "material_lost", "name": "Lost"})
+        self.assertEqual(sources.item_uses(self.pack, "material_lost"), [])
+        self.assertIn("Nobody can get it", "".join(glance.lines(self.pack, LOOK, "items", self.pack.find(
+            "items", "material_lost").entry, 44)))
+        # a table nothing rolls, salvage of something nobody has, a design nobody teaches: not sources
+        self.pack.add("loot_tables", {"id": "loot_lost", "entries": [{"item": "material_lost"}]})
+        self.add_item({"id": "misc_husk", "kind": "misc", "name": "Husk",
+                       "salvage": {"yields": [{"item": "material_lost"}]}})
+        self.add_item({"id": "material_made", "name": "Made", "fabricate": {"inputs": [{"item": "material_scrap"}]}})
+        self.assertEqual(sources.sources(self.pack, "material_lost"), [])
+        problems = {u.name: u.problem for u in sources.item_uses(self.pack, "material_lost")}
+        self.assertEqual(problems, {"loot_lost": "but nothing rolls this table", "Husk": "but nobody can get that"})
+        self.assertEqual(sources.sources(self.pack, "material_made"), [])
+        self.pack.find("characters", "char_player").entry["designs"] = ["material_made"]
+        self.assertEqual(self.said("material_made"), [("Made", "fabricated once its design is known")])
+        self.pack.find("characters", "char_drone").entry["loot"] = "loot_lost"
+        self.assertEqual(self.said("material_lost"), [("loot_lost", "can be drawn from it")])
+
+    def test_glances(self):
+        def glance_of(kind, ident):
+            return "\n".join(glance.lines(self.pack, LOOK, kind, self.pack.find(kind, ident).entry, 44))
+        self.assertIn("Module · Back slot\nPWR 3 MAS 3 HT 2 · ARM +2", glance_of("items", "module_shield"))
+        self.assertIn("Frame · Hand x2, Back", glance_of("items", "frame_light"))
+        self.assertIn("◆ Door   ◆ closed  ◇ open", glance_of("objects", "obj_door"))
+        self.assertIn("Workshop: refit, dismantle", glance_of("objects", "obj_bench"))
+        self.assertIn("Stores 6 stacks · Placed 1x: Storage", glance_of("objects", "obj_bay"))
+        self.pack.add("objects", {"id": "obj_spare", "name": "Spare", "glyph": "s"})
+        self.assertIn("Not placed anywhere", glance_of("objects", "obj_spare"))
+        self.assertEqual(glance.lines(self.pack, LOOK, "skills", next(self.pack.entries("skills")).entry, 44), [])
+
+    def test_entries_lists_uses_and_goes_there_and_back(self):
+        ed = Entries(self.pack, LOOK, "items", "material_scrap")
+        self.assertIn("From: Cutter, Player", ed.render(48, 24))
+        self.assertTrue(ed.handle("u"))
+        text = ed.render(48, 24)
+        self.assertIn("+ Player  starts with it", text)
+        self.assertIn("Burn  uses it up", text)
+        for key in ("enter",):                                      # the first: dismantling the Cutter
+            self.assertTrue(ed.handle(key))
+        self.assertEqual(ed.heading(), "Items · Cutter")
+        self.assertTrue(ed.handle("x"))
+        self.assertEqual(ed.heading(), "Items · Scrap")
+        self.assertTrue(ed.handle("x"))
+        self.assertIsNone(ed.found)                                 # then the item list, as before
+        ed = Entries(self.pack, LOOK, "objects", "obj_crate")
+        self.assertTrue(ed.handle("u"))
+        self.assertIn("Workshop: Crate  placed there", ed.render(48, 24))
+        self.pack.add("objects", {"id": "obj_spare", "name": "Spare", "glyph": "s"})
+        ed = Entries(self.pack, LOOK, "objects", "obj_spare")
+        self.assertTrue(ed.handle("u"))
+        self.assertIn("Nothing uses obj_spare", ed.render(48, 24))

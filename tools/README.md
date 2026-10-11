@@ -260,6 +260,29 @@ E lists what works on the whole entry:
 | Delete | Only when nothing uses it; otherwise the files that still do |
 | Save changes | When there are any |
 
+**At a glance.** Items and objects show a few lines above their fields:
+
+- an item: its kind, its slot (or a frame's slots), what it uses and gives
+  (`PWR 3 MAS 3 HT 2 · ARM +2`), and where the player gets it. When nothing gives
+  it, that line is red: no loot, storage, gift, salvage or starting gear;
+- an object: its glyph in its map colour and in each state (`◆ closed  ◇ open`), its
+  workshop services and grade, its storage, and the rooms it's placed in.
+
+**U lists where the entry is used**, with what each use is: "holds it at the start",
+"gives it", "needed to fabricate it", "placed there". For an item, the ways to get it
+come first, marked `+`:
+
+| Counts as a way to get it | When |
+|---|---|
+| A loot table | Something rolls it: a character's or encounter's loot, a `roll_loot` effect, or a table that is rolled itself |
+| Storage contents, a `give_item` effect | Always |
+| Dismantling another item | When that item can be had |
+| The player's starting gear | The pack's `start.player` |
+| Fabricating it | When the player knows the design, something teaches it, or dismantling it teaches it and it can be had |
+
+A would-be way that doesn't work says why (`but nothing rolls this table`). Enter on a
+use opens that entry; X comes back.
+
 X goes back to the entry list, Esc to the kinds; Esc on the kinds leaves, asking to
 save if anything changed.
 
