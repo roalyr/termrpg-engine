@@ -11,6 +11,8 @@ from tools import tools
 from tools.lib import maps, rooms, screen, term
 from tools.lib.packfiles import PackFiles, dumps
 from tools.art import Art
+from tools.entries import Entries
+from tools.lib import fields, refs
 from tools.map import Map
 from tools.overview import Overview
 from tools.room import Room
@@ -539,3 +541,172 @@ class ArtTest(unittest.TestCase):
             self.keys(*setup)
             for columns, rows in SIZES:
                 fits(self, self.art.render(columns, rows), columns, rows)
+
+
+class EntriesTest(unittest.TestCase):
+    """The entries editor on a copy of the test pack: every field kind, the whole entry, ids; saved entries pass the checker."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        shutil.copytree(TEST_PACK, self.tmp / "test")
+        self.pack = PackFiles(self.tmp / "test")
+        self.edits = []                                          # what the text editor was given
+        self.typed = None                                        # what it gives back
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def editor(self, kind="objects", entry="obj_crate"):
+        ed = Entries(self.pack, LOOK, kind, entry)
+
+        def edit_text(text, suffix=".txt"):
+            self.edits.append(text)
+            return self.typed(text) if callable(self.typed) else self.typed
+        ed.edit_text = edit_text
+        return ed
+
+    def keys(self, ed, *keys):
+        for key in keys:
+            self.assertTrue(ed.handle(key), key)
+
+    def field(self, ed, name):
+        ed.selected = [s.name for s in ed.specs()].index(name)
+
+    def saved_clean(self):
+        self.pack.save()
+        self.assertEqual(self.pack.check().errors, ())
+
+    def test_kinds_then_entries_then_fields(self):
+        ed = Entries(self.pack, LOOK)
+        self.assertIn("Characters", ed.render(48, 24))
+        self.keys(ed, *"objects", "enter", *"crate", "enter")
+        text = ed.render(48, 24)
+        self.assertIn("Objects · Crate", text)
+        self.assertIn("glyph", text)
+        self.keys(ed, "x")                                       # back to the objects
+        self.assertIn("New…", ed.render(48, 24))
+        self.keys(ed, "esc")                                     # back to the kinds
+        self.assertFalse(ed.handle("esc"))                       # nothing changed: leaves
+
+    def test_lines_flags_and_choices(self):
+        ed = self.editor()
+        crate = ed.entry
+        self.field(ed, "name")
+        self.keys(ed, "enter", *["backspace"] * 5, *"Box", "enter")
+        self.assertEqual(crate["name"], "Box")
+        self.field(ed, "solid")
+        self.keys(ed, "enter")                                   # yes -> no: the default, so it's taken out
+        self.assertNotIn("solid", crate)
+        self.keys(ed, "enter")
+        self.assertTrue(crate["solid"])
+        self.field(ed, "size")
+        self.keys(ed, "enter", *"room", "enter")                 # sizes by their vocabulary names
+        self.assertEqual(crate["size"], 4)
+        self.field(ed, "storage")
+        self.keys(ed, "enter", *["backspace"] * 3, *"x", "enter")
+        self.assertIn("A whole number.", ed.render(48, 24))
+        self.keys(ed, "backspace", "enter")                      # empty: taken out
+        self.assertNotIn("storage", crate)
+        self.saved_clean()
+
+    def test_references_and_lists_of_them(self):
+        ed = self.editor("characters", "char_juno")
+        juno = ed.entry
+        self.field(ed, "art")
+        self.keys(ed, "enter", *"drone", "enter")
+        self.assertEqual(juno["art"], "art_drone")
+        self.keys(ed, "enter", *"none", "enter")                 # "(none)" heads the list of an optional ref
+        self.assertNotIn("art", juno)
+        self.field(ed, "wants")
+        before = list(juno.get("wants", []))
+        self.keys(ed, "enter", *"add", "enter", *"filter", "enter")   # Add… then a tag
+        self.assertEqual(juno["wants"], before + ["tag_filter"])
+        self.keys(ed, *"tag_filter", "enter", "esc")             # Enter on it takes it out; Esc is done
+        self.assertEqual(juno.get("wants", []), before)
+        self.saved_clean()
+
+    def test_long_text_and_json_go_to_the_text_editor(self):
+        ed = self.editor()
+        self.field(ed, "description")
+        self.typed = "A crate.\n"
+        self.keys(ed, "enter")
+        self.assertEqual(ed.entry["description"], "A crate.")
+        self.field(ed, "interactions")
+        self.typed = "[ not json"
+        self.keys(ed, "enter")
+        self.assertIn("isn't valid JSON", ed.render(48, 24))
+        self.typed = lambda text: text                            # edit again: given back the broken text
+        self.keys(ed, "e")
+        self.assertEqual(self.edits[-1], "[ not json")
+        self.keys(ed, "n")
+        self.typed = None                                         # the editor didn't save
+        self.keys(ed, "enter")
+        self.assertIn("editor didn't save", ed.render(48, 24))
+        kick = [{"id": "kick", "label": "Kick it", "effects": [{"op": "message", "text": "Thud."}]}]
+        self.typed = json.dumps(kick)
+        self.keys(ed, "enter")
+        self.assertEqual(ed.entry["interactions"], kick)
+        self.saved_clean()
+
+    def test_the_whole_entry_as_json_keeps_its_id(self):
+        ed = self.editor()
+        self.typed = lambda text: text.replace('"obj_crate"', '"obj_box"')
+        self.keys(ed, "e", *"json", "enter")
+        self.assertIn("Change the id with Rename", ed.render(48, 24))
+        self.typed = lambda text: text.replace('"Crate"', '"Big crate"')
+        self.keys(ed, "e", *"json", "enter")
+        self.assertEqual(ed.entry["name"], "Big crate")
+        self.saved_clean()
+
+    def test_rename_changes_every_use(self):
+        ed = self.editor()
+        used = len(refs.uses(self.pack, "object", "obj_crate"))
+        self.assertGreater(used, 0)
+        self.keys(ed, "e", *"rename", "enter", *["backspace"] * 5, *"box", "enter")
+        self.assertEqual(ed.entry["id"], "obj_box")
+        self.assertEqual(refs.uses(self.pack, "object", "obj_crate"), [])
+        self.assertEqual(len(refs.uses(self.pack, "object", "obj_box")), used)
+        self.saved_clean()
+
+    def test_renaming_the_start_location_changes_the_manifest(self):
+        ed = self.editor("locations", self.pack.manifest["start"]["location"])
+        old = ed.entry["id"]
+        self.keys(ed, "e", *"rename", "enter", *["backspace"] * len(old), *"loc_home", "enter")
+        self.assertEqual(self.pack.manifest["start"]["location"], "loc_home")
+        self.saved_clean()
+        self.assertEqual(json.loads((self.tmp / "test" / "pack.json").read_text())["start"]["location"], "loc_home")
+
+    def test_new_duplicate_and_delete(self):
+        ed = Entries(self.pack, LOOK, "items")
+        self.keys(ed, *"new", "enter", *"module", "enter", *"probe", "enter")
+        self.assertEqual(ed.entry, {"id": "module_probe", "kind": "module"})
+        self.assertIn("missing required field 'name'", ed.render(48, 24))
+        self.keys(ed, "e", *"duplicate", "enter", "enter")
+        self.assertEqual(ed.entry["id"], "module_probe_2")
+        self.keys(ed, "e", *"delete", "enter", "y")
+        self.assertIsNone(self.pack.find("items", "module_probe_2"))
+        crate = self.editor()
+        self.keys(crate, "e", *"delete", "enter")                # still placed in rooms
+        self.assertIn("Still used", crate.render(48, 24))
+        self.assertIsNotNone(self.pack.find("objects", "obj_crate"))
+
+    def test_leaving_with_changes_asks(self):
+        ed = Entries(self.pack, LOOK, "objects")
+        self.keys(ed, *"crate", "enter")
+        self.field(ed, "solid")
+        self.keys(ed, "enter", "x", "esc", "esc")
+        self.assertIn("Save your changes?", ed.render(48, 24))
+        self.assertFalse(ed.handle("y"))                         # saved, and the tool closes
+        self.assertFalse(self.pack.dirty)
+        self.assertEqual(self.pack.check().errors, ())
+
+    def test_every_kind_and_screen_fits(self):
+        for kind in fields.EDITABLE_KINDS:
+            first = next(self.pack.entries(kind), None)
+            if first is None:
+                continue
+            ed = Entries(self.pack, LOOK, kind, first.entry["id"])
+            for columns, rows in SIZES:
+                fits(self, ed.render(columns, rows), columns, rows)
+                for spec in ed.specs():
+                    fields.summary(spec, ed.entry.get(spec.name), 30)

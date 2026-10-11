@@ -10,6 +10,8 @@ from typing import Dict, Iterator, List, NamedTuple, Optional, Tuple
 
 from core.pack import Report, validate_pack
 
+MANIFEST = "pack.json"
+
 
 class Found(NamedTuple):
     """An entry and the file it lives in."""
@@ -26,11 +28,12 @@ class PackFiles:
 
     def reload(self) -> None:
         """Reads every file again, dropping unsaved changes."""
-        self.manifest: dict = _read(self.dir / "pack.json")
         self.data: Dict[str, dict] = {}          # file (relative to the pack) -> its JSON
         self.kinds: Dict[str, List[str]] = {}    # kind -> its files, in manifest order
         self.dirty: set = set()
         self.as_read: Dict[str, str] = {}        # file -> its text when read or last saved
+        self.as_read[MANIFEST] = (self.dir / MANIFEST).read_text(encoding="utf-8")
+        self.manifest: dict = json.loads(self.as_read[MANIFEST])
         for kind, files in self.manifest.get("files", {}).items():
             self.kinds[kind] = list(files)
             for rel in files:
@@ -66,7 +69,7 @@ class PackFiles:
         return rel
 
     def touch(self, file: str) -> None:
-        """Marks a file as changed after editing one of its entries in place."""
+        """Marks a file (or 'pack.json', the manifest) as changed after editing it in place."""
         self.dirty.add(file)
 
     def changed_elsewhere(self) -> List[str]:
@@ -83,7 +86,7 @@ class PackFiles:
         """Writes the changed files (each atomically); returns which. Ask about changed_elsewhere() first."""
         written = sorted(self.dirty)
         for rel in written:
-            self.as_read[rel] = _write(self.dir / rel, self.data[rel])
+            self.as_read[rel] = _write(self.dir / rel, self.manifest if rel == MANIFEST else self.data[rel])
         self.dirty.clear()
         return written
 

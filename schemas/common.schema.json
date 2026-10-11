@@ -15,7 +15,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 32,
-      "description": "A short name shown in lists and menus. Must fit a 40-column screen."
+      "description": "A short name shown in lists and menus. Must fit a 48-column screen."
     },
     "text": {
       "type": "string",

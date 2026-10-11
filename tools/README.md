@@ -11,6 +11,7 @@ game's start screen. With more than one pack in `packs/` it asks which to open f
 |---|---|---|
 | Map | The world by region: where locations lie, how they connect, what needs fixing | `python3 -m tools.map <pack>` |
 | Room | One location's layout: tiles, size, objects, entry point, doors, open edges | `python3 -m tools.room <pack>` |
+| Entries | Any entry by kind (objects, items, characters, actions, events…), field by field | `python3 -m tools.entries <pack>` |
 | Overview | The pack's files, entry counts by kind, the checker's report | `python3 -m tools.overview <pack>` |
 | Art | The pack's pictures in pixels: paint, mirror, undo, colours | `python3 -m tools.art <pack>` |
 
@@ -212,3 +213,51 @@ band gives the row and column). Beside it the palette, the current colour marked
 Enter lists these and the rest: removing the current colour (its pixels become
 see-through), deleting a picture nothing uses, saving. X goes back to the list,
 asking to save if anything changed; Esc on the list leaves.
+
+### Entries: any entry, field by field (ready)
+
+One editor for every kind of entry: objects, items, characters, actions, skills,
+encounters, loot tables, events, modifications, strings, regions, locations, zones
+and art. Its fields come from the pack schemas, so a field added to a schema shows up
+here by itself. (The vocabulary isn't an entry list and stays in JSON for now.)
+
+Pick a kind (with how many entries it has), then an entry (filtered as you type), or
+**New…** last: an id, prefilled with the kind's prefix (`obj_`, `char_`…); for items
+first the item's kind, which then sets its fields. A new entry opens with what it's
+missing listed in red.
+
+The entry shows one line per field: its value, or quietly its default; a required
+field not filled in says so. Below are the picked field's description and what the
+schema finds wrong with the entry. Reserved fields only show when the entry uses them.
+
+Up and down pick a field; Enter edits it, with the input that suits it:
+
+| Field | Edited with |
+|---|---|
+| Names, ids in a line, glyphs | A line of text, checked against the schema's limits |
+| Numbers | A line, checked as a number in its range |
+| Yes or no | Enter switches it |
+| One of a few words, a size, an id of another entry | A list to pick from (ids with their names, sizes with theirs) |
+| A list of ids (tags, actions, fitted modules…) | The list: Enter on one takes it out, **Add…** picks one more, Esc is done |
+| Colours | The colour picker, with Default first |
+| Descriptions and notes | The text editor, as plain text |
+| Anything bigger (effects, conditions, dialogue, interactions, stats, a grid) | The text editor, as JSON. A mistake isn't lost: edit again, or drop the change |
+
+Leaving a field empty (or picking Default, `(none)`) takes it out of the file, so its
+default applies: the file keeps only what differs.
+
+**The text editor** is `$VISUAL` or `$EDITOR`, else `nano`. It gets the whole
+terminal; save and close it to come back.
+
+E lists what works on the whole entry:
+
+| Action | What it does |
+|---|---|
+| Edit it all as JSON | The whole entry in the text editor; its id must stay (use Rename) |
+| Rename the id… | Every use in the pack changes with it, `pack.json` included. Old saves won't know the new id: raise the pack's major version |
+| Duplicate… | A copy under a new id (the next free `_2`, `_3` is suggested) |
+| Delete | Only when nothing uses it; otherwise the files that still do |
+| Save changes | When there are any |
+
+X goes back to the entry list, Esc to the kinds; Esc on the kinds leaves, asking to
+save if anything changed.

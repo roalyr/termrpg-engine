@@ -5,9 +5,13 @@ Keys arrive as names: a character, or 'up', 'down', 'left', 'right', 'enter', 'e
 'backspace', 'tab'. Raw keys and styles come from the game's tui.text.
 """
 import argparse
+import os
+import shlex
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 from tui import text
 
@@ -40,6 +44,33 @@ def run(render: Callable[[int, int], str], handle: Callable[[str], bool]) -> int
     finally:
         if interactive:
             sys.stdout.write("\x1b[?25h\x1b[?1049l")
+            sys.stdout.flush()
+
+
+def edit_text(text: str, suffix: str = ".txt") -> Optional[str]:
+    """
+    Opens the text in the user's editor ($VISUAL, $EDITOR, or nano) on the whole terminal and
+    returns what was saved; None if the editor couldn't run or failed. The tool's screen
+    comes back afterwards.
+    """
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "nano"
+    handle, path = tempfile.mkstemp(suffix=suffix, text=True)
+    interactive = sys.stdout.isatty()
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as f:
+            f.write(text)
+        if interactive:
+            sys.stdout.write("\x1b[?25h\x1b[?1049l")             # leave the tool's screen
+            sys.stdout.flush()
+        try:
+            code = subprocess.call(shlex.split(editor) + [path])
+        except OSError:
+            return None
+        return Path(path).read_text(encoding="utf-8") if code == 0 else None
+    finally:
+        os.unlink(path)
+        if interactive:
+            sys.stdout.write("\x1b[?1049h\x1b[?25l")
             sys.stdout.flush()
 
 
