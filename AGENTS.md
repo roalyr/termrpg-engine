@@ -162,7 +162,7 @@ These are the mistakes the checker catches most often, and a few it can't catch.
 - Solid objects (`"solid": true`) are used from the next tile; the player bumps into
   them. Don't make a room's only way through solid. An `entry` on a solid object puts
   arrivals on the nearest free floor tile.
-- Interaction keys `w a s d . p f c x q ]` (the UI pack's bindings), `g t i` and the
+- Interaction keys `w a s d . p f c m l x q ]` (the UI pack's bindings), `g t i` and the
   digits are taken by the game; pick another letter for `key`, or the engine picks one.
 - Players can change frames, modules and implants only next to a workshop offering
   `refit`. Put one where players should be able to refit, and make sure the room's

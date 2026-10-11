@@ -19,6 +19,17 @@
     "pack_designs": "Designs:",
     "pack_more": "Page {page}/{pages}",
     "character_title": "Character · {name}",
+    "map_title": "Map · {region}",
+    "map_regions": "{number} of {count}",
+    "map_here": "You are here.",
+    "map_visited": "You've been here.",
+    "map_known": "You haven't been here yet.",
+    "map_leads": "Leads to: {places}",
+    "map_elsewhere": "Out of this region: {places}",
+    "map_nowhere": "Where you are isn't on this map.",
+    "map_legend_here": "you",
+    "map_legend_visited": "been there",
+    "map_legend_known": "not yet",
     "day_phase": "Day {day} · {phase}",
     "party": "With: {names}",
     "encounter_round": "{encounter} · round {round}",
@@ -140,6 +151,7 @@
     "key_pack": "pack",
     "key_fitting": "fitting",
     "key_character": "character",
+    "key_map": "map",
     "key_history": "message log",
     "key_close": "close",
     "key_quit": "quit",
@@ -168,6 +180,10 @@
     {
       "id": "hint_character",
       "text": "char"
+    },
+    {
+      "id": "hint_map",
+      "text": "map"
     },
     {
       "id": "hint_quit",
@@ -256,6 +272,10 @@
     {
       "id": "hint_choose_entry",
       "text": "choose"
+    },
+    {
+      "id": "hint_next_region",
+      "text": "next region"
     }
   ]
 }

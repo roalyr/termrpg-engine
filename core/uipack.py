@@ -35,8 +35,9 @@ def _engine_keys() -> Dict[str, str]:
 
 
 # A binding may share an engine key when the two are never active at once: the fitting
-# screen's key opens it from the world, while Fit only works on that screen.
-SHARED_KEYS = {("fitting", "fit")}
+# screen's key opens it from the world, while Fit only works on that screen; the map's
+# key opens it from the world, while the modifications list only opens on the fitting screen.
+SHARED_KEYS = {("fitting", "fit"), ("map", "modify")}
 
 
 def is_ui_pack(folder: Path) -> bool:

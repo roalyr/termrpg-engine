@@ -14,10 +14,11 @@ import sys
 from pathlib import Path
 from typing import NamedTuple, Optional
 
-from engine import build, encounter, events, journal, save, turns, world
+from engine import atlas, build, encounter, events, journal, save, turns, world
 from engine.content import Content, PackError, load_pack
 from engine.effects import choose_option
 from engine.state import GameState, Message, new_game
+from lib import graph
 from tui import render, shell, text, widgets
 from tui.ui import ROOT_DIR, UI, UIPackError, default_ui, load_ui, ui_dir_for
 
@@ -40,6 +41,7 @@ class View(NamedTuple):
                                      # fitting screen 'selected' is the pick and 'panel' its sub-window
     log: tuple = ()                  # a conversation's history: what you said and what followed
     back: Optional[object] = None    # on the quit question: the view to go back to
+    cursor: Optional[tuple] = None   # on the map: the cursor's cell (x, y); 'page' is the region shown
 
 
 def _digit(key: str) -> Optional[int]:
@@ -91,6 +93,8 @@ def _handle(content: Content, state: GameState, key: str, view: View, ui: UI):
         state, view = _fitting(content, state, key, action, view, ui)
     elif view.screen == "character":
         state, view = state, _character(action, view)
+    elif view.screen == "map":
+        state, view = state, _map(content, state, action, view)
     elif view.screen == "talk":
         state, view = _talk(content, state, key, action, view, ui)
     else:
@@ -142,6 +146,8 @@ def _world(content: Content, state: GameState, key: str, action: Optional[str], 
         return state, View(screen="fitting", selected=0)
     if action == "character" and view.panel is None:
         return state, View(screen="character")
+    if action == "map" and view.panel is None:
+        return state, _map_view(content, state, 0)
     if action in ("pack", "character"):
         return state, View() if view.panel == action else View(action)
     if action == "close":
@@ -302,6 +308,31 @@ def _character(action: Optional[str], view: View) -> View:
     return view
 
 
+def _map_view(content: Content, state: GameState, page: int) -> View:
+    """The map on a region (by its place in atlas.regions), the cursor on the player or the region's first place."""
+    regions = atlas.regions(content, state)
+    page %= len(regions)
+    shown = atlas.region_map(content, state, regions[page])
+    return View(screen="map", page=page, cursor=atlas.start_cell(content, state, shown))
+
+
+def _map(content: Content, state: GameState, action: Optional[str], view: View) -> View:
+    """The map: moving moves the cursor over the region's cells, the next-page key shows the next region,
+    close or the map's own key leave it."""
+    if action in ("close", "map"):
+        return View()
+    if action == "next_page":
+        return _map_view(content, state, view.page + 1)
+    if action in MOVES:
+        regions = atlas.regions(content, state)
+        shown = atlas.region_map(content, state, regions[view.page % len(regions)])
+        last = graph.extent(shown.places)
+        dx, dy = {"move_north": (0, -1), "move_south": (0, 1), "move_west": (-1, 0), "move_east": (1, 0)}[action]
+        x, y = view.cursor or (0, 0)
+        return view._replace(cursor=(max(0, min(last[0], x + dx)), max(0, min(last[1], y + dy))))
+    return view
+
+
 # Sub-windows that scroll line by line, and the key that closes each besides 'close'.
 SCROLLING = {"inspect": None, "item": "pack"}
 
@@ -386,10 +417,10 @@ def _play(content: Content, ui: UI, save_path: Path, seed: Optional[int], fresh:
             text.clear()
         columns, rows = text.terminal_size()
         limit = render.max_scroll(content, state, columns, rows, view.panel, view.selected, view.page, ui,
-                                  view.screen, view.log)
+                                  view.screen, view.log, view.cursor)
         view = view._replace(scroll=min(view.scroll, limit))
         sys.stdout.write(render.render(content, state, columns, rows, view.panel, colour, view.selected,
-                                       view.page, ui, view.scroll, view.screen, view.log))
+                                       view.page, ui, view.scroll, view.screen, view.log, view.cursor))
         sys.stdout.flush()
         key = text.read_key()
         if key in ("", "\x03", "\x04"):

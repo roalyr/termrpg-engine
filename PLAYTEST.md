@@ -149,6 +149,15 @@ log, X closes, Q quits, `]` next page, digits pick.
   your rank and how the station crew regards you.
 - [ ] Up and down scroll it on a short terminal; C or X closes it.
 
+## A8b. The map
+
+- [ ] M on a new game shows the Lower deck: `@` on the Workshop, linked to a `?`
+  (Storage, not been there yet). Arrows move the cursor; under the map the place's
+  name, "You haven't been here yet." and the legend.
+- [ ] After walking to Storage and through the airlock, M shows Storage as `■`;
+  "Out of this region: Crater rim"; `]` shows the Surface with "2 of 2" in the title.
+- [ ] M or X closes it; on the fitting screen M still lists modifications.
+
 ## A9. The fight and after-action screens
 
 - [ ] The encounter screen shows the round, the enemy's picture in pixels, both sides with

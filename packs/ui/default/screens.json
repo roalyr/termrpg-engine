@@ -198,6 +198,28 @@
       }
     }
   ],
+  "map": [
+    {
+      "content": {
+        "widget": "title"
+      }
+    },
+    {
+      "content": {
+        "widget": "region_map"
+      }
+    },
+    {
+      "content": {
+        "widget": "map_place"
+      }
+    },
+    {
+      "content": {
+        "widget": "keys"
+      }
+    }
+  ],
   "talk": [
     {
       "content": {

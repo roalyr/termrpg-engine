@@ -9,6 +9,7 @@
     "pack": "p",
     "fitting": "f",
     "character": "c",
+    "map": "m",
     "history": "l",
     "close": "x",
     "quit": "q",
@@ -48,6 +49,12 @@
           "character"
         ],
         "label": "hint_character"
+      },
+      {
+        "actions": [
+          "map"
+        ],
+        "label": "hint_map"
       },
       {
         "actions": [
@@ -131,6 +138,30 @@
       {
         "actions": [
           "character"
+        ],
+        "label": "hint_close"
+      }
+    ],
+    "map": [
+      {
+        "actions": [
+          "move_north",
+          "move_west",
+          "move_south",
+          "move_east"
+        ],
+        "arrows": true,
+        "label": "hint_move"
+      },
+      {
+        "actions": [
+          "next_page"
+        ],
+        "label": "hint_next_region"
+      },
+      {
+        "actions": [
+          "map"
         ],
         "label": "hint_close"
       }

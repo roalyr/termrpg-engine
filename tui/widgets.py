@@ -8,9 +8,10 @@ headings from the UI pack. Sizes, glyphs and styles come from the UI pack's toke
 """
 from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional, Tuple
 
-from engine import build, conditions, context, encounter, stats, world
+from engine import atlas, build, conditions, context, encounter, stats, world
 from engine.content import Content
 from engine.state import GameState, ItemInst, Message, char_key, day_of, new_item, phase_of
+from lib import graph
 from tui.text import ANSI, Style, pad, visible_len, wrap
 from tui.ui import UI
 
@@ -30,6 +31,7 @@ class Frame(NamedTuple):
     scrollable: bool = False      # the open sub-window is longer than its space
     log: Tuple = ()               # a conversation's history: Messages ('response' for what you said)
     shell: Any = None             # the start, slots and help screens' data (tui.shell.ShellData); no state there
+    cursor: Optional[Tuple[int, int]] = None   # the map's cursor cell; 'page' is the region shown
 
     @property
     def tokens(self) -> Mapping[str, Any]:
@@ -132,6 +134,12 @@ def title(frame: Frame, width: int, options: Mapping) -> List[str]:
     if frame.screen == "character":
         me = state.characters[state.player]
         return [style.role(frame.ui.word("character_title", name=content.get("character", me.source)["name"]), "title")]
+    if frame.screen == "map":
+        regions = atlas.regions(content, state)
+        shown = regions[frame.page % len(regions)]
+        name = style.role(frame.ui.word("map_title", region=content.get("region", shown)["name"]), "title")
+        count = frame.ui.word("map_regions", number=frame.page % len(regions) + 1, count=len(regions))
+        return [_right(name, style.role(count, "quiet"), width) if len(regions) > 1 else name]
     if frame.screen == "talk":
         name = frame.ui.word("talk_title", name=content.get("character", state.characters[speaker_of(frame)].source)["name"])
         place = content.get("location", state.characters[state.player].location)["name"]
@@ -1190,7 +1198,7 @@ def help_widget(frame: Frame, width: int, options: Mapping) -> List[str]:
     arrows, escape = ui.word("key_arrows"), ui.word("key_escape")
     move = "".join(keys[a].upper() for a in ("move_north", "move_west", "move_south", "move_east"))
     rows = [(f"{move}, {arrows}", ui.word("key_move"))]
-    for action in ("wait", "pack", "fitting", "character", "history", "next_page", "quit"):
+    for action in ("wait", "pack", "fitting", "character", "map", "history", "next_page", "quit"):
         if action in keys:
             rows.append((keys[action].upper(), ui.word(f"key_{action}")))
     rows.append((f"{keys['close'].upper()}, {escape}", ui.word("key_close")))
@@ -1454,6 +1462,65 @@ def _describe(frame: Frame, effects, target_kind: str) -> List[str]:
     return said
 
 
+# --- the map ---------------------------------------------------------------------------
+
+def _shown_map(frame: Frame) -> atlas.RegionMap:
+    regions = atlas.regions(frame.content, frame.state)
+    return atlas.region_map(frame.content, frame.state, regions[frame.page % len(regions)])
+
+
+def _map_glyph(frame: Frame, kind: str) -> str:
+    style, glyphs = frame.style, frame.glyphs
+    if kind == "here":
+        return style.role(glyphs["player"], "map_player")
+    if kind == "visited":
+        return style.role(glyphs["place"], "map_exit")
+    return style.role(glyphs["unexplored"], "quiet")
+
+
+def region_map(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The region's places and the ways between neighbours (lib.graph), the cursor's cell drawn inverse."""
+    shown = _shown_map(frame)
+    cursor = frame.cursor or atlas.start_cell(frame.content, frame.state, shown)
+    across, _ = graph.fit(width, 2)
+    last = graph.extent(list(shown.places) + [cursor])
+    start = graph.origin(cursor, (0, 0), across, last[1] + 1)
+    glyphs = {cell: _map_glyph(frame, place.kind) for cell, place in shown.places.items()}
+    glyphs[cursor] = frame.style.inverse(_plain(glyphs.get(cursor, "·")))   # inverse shows without colour too
+    lines = graph.draw(glyphs, shown.links, start, across, last[1] + 1, last)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    return lines
+
+
+def map_place(frame: Frame, width: int, options: Mapping) -> List[str]:
+    """The place under the cursor: its name, whether you've been, where its exits lead; then the legend."""
+    content, state, style, ui = frame.content, frame.state, frame.style, frame.ui
+    shown = _shown_map(frame)
+    cursor = frame.cursor or atlas.start_cell(content, state, shown)
+    lines: List[str] = []
+    place = shown.places.get(cursor)
+    if place is not None:
+        lines.append(style.role(content.get("location", place.location)["name"], "heading"))
+        lines += styled_lines(ui.word(f"map_{place.kind}"), width, frame, "quiet")
+        if place.kind != "known":
+            leads = [content.get("location", dest)["name"] for dest in atlas.exits(content).get(place.location, [])]
+            if leads:
+                lines += wrap(ui.word("map_leads", places=", ".join(leads)), width)
+    me = state.characters[state.player]
+    if content.get("location", me.location)["region"] == shown.region \
+            and not any(p.kind == "here" for p in shown.places.values()):
+        lines += styled_lines(ui.word("map_nowhere"), width, frame, "quiet")
+    if shown.elsewhere:
+        names = ", ".join(content.get("location", dest)["name"] for dest in shown.elsewhere)
+        lines += styled_lines(ui.word("map_elsewhere", places=names), width, frame, "quiet")
+    if options.get("legend", True):
+        parts = [_map_glyph(frame, kind) + " " + style.role(ui.word(f"map_legend_{kind}"), "hint")
+                 for kind in ("here", "visited", "known")]
+        lines += _pack(parts, width, frame.glyphs["separator"])
+    return lines
+
+
 # --- keys ------------------------------------------------------------------------------
 
 def hint_context(frame: Frame) -> str:
@@ -1474,6 +1541,8 @@ def hint_context(frame: Frame) -> str:
         return "pack"
     if frame.screen == "character":
         return "sheet"
+    if frame.screen == "map":
+        return "map"
     if frame.screen == "talk":
         return "talk"
     if frame.panel == "inspect":
@@ -1561,6 +1630,8 @@ def _works(frame: Frame, context: str, actions) -> bool:
     scrolling = set(actions) <= {"move_north", "move_south", "next_page"}
     if context == "fitting" and scrolling:
         return len(picks(frame.content, frame.state)) > 1
+    if context == "map":
+        return "next_page" not in actions or len(atlas.regions(frame.content, frame.state)) > 1
     if context in ("talk", "card", "choice", "history", "help") and scrolling:
         return frame.scrollable
     if not scrolling or context not in ("panel", "item", "sheet", "pack"):
@@ -1576,7 +1647,7 @@ WIDGETS: Dict[str, Draw] = {
     "art": art, "keys": keys, "panel": panel, "budgets": budgets, "loadout": loadout, "pick": pick,
     "portrait": portrait, "identity": identity, "skills": skills, "stats": stats_widget, "people": people,
     "conversation": conversation, "action": action, "start_menu": start_menu, "description": description,
-    "slots": slots, "help": help_widget, "question": question,
+    "slots": slots, "help": help_widget, "question": question, "region_map": region_map, "map_place": map_place,
 }
 
 # Widgets with a natural width of their own (the rest take the width they're given).

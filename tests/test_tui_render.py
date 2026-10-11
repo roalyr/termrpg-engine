@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from core.pack import validate_pack
-from engine import build, context, encounter, events, journal, save, world
+from engine import atlas, build, context, encounter, events, journal, save, world
 from engine.content import load_pack
 from engine.effects import run
 from engine.frozen import freeze
@@ -76,6 +76,13 @@ def bench_state():
     return walk(new_game(CONTENT, 1), "ss")               # the workbench in focus, below the start
 
 
+def travelled():
+    """A new game that has also been to Storage and the Crater rim (the Surface region)."""
+    s = new_game(CONTENT, 1)
+    me = s.characters[s.player]
+    return s._replace(characters={**s.characters, s.player: me._replace(visited=me.visited + ("loc_storage", "loc_crater_rim"))})
+
+
 def screens():
     """Every screen and panel, as (name, state, render options)."""
     return [
@@ -99,6 +106,8 @@ def screens():
         ("picked", encounter_state(), {"selected": 1}),
         ("target", encounter_state(), {"selected": 0, "panel": "target"}),
         ("debrief", debrief_state(), {}),
+        ("map", new_game(CONTENT, 1), {"screen": "map"}),
+        ("map surface", travelled(), {"screen": "map", "page": 1, "cursor": (1, 0)}),
     ]
 
 
@@ -151,6 +160,8 @@ class TestEveryScreen(unittest.TestCase):
             "picked": ["┏2━━━━━━━┓", "Guard", "ARM +4 on yourself for 1 round.", "2 again: use", "X back"],
             "target": ["1-2 target", "X back"],
             "debrief": ["Won.", "Round", "Any key: continue"],
+            "map": ["Map · Lower deck", "@───?", "You are here.", "Leads to: Storage", "M close"],
+            "map surface": ["Map · Surface", "2 of 2", "Dust flat", "You haven't been here yet.", "] next region"],
         }
         for name, state, options in screens():
             for words in expected.get(name, []):
@@ -918,6 +929,67 @@ class TestMap(unittest.TestCase):
         lines = widgets.status(frame, 14, {})
         self.assertTrue(any(line.startswith("HP") and line.endswith("30/30") for line in lines), lines)
         self.assertTrue(all(visible_len(line) <= 14 for line in lines if line.startswith(("HP", "HT"))), lines)
+
+
+class TestRegionMap(unittest.TestCase):
+    """M opens the map of what the player knows: places been to, where their exits lead, region by region."""
+
+    def keys(self, state, view, keys):
+        for key in keys:
+            state, view, _ = app.handle(CONTENT, state, key, view, UI)
+        return state, view
+
+    def test_a_new_game_knows_its_room_and_where_its_exits_lead(self):
+        s = new_game(CONTENT, 1)
+        self.assertEqual(atlas.known(CONTENT, s), {"loc_workshop": "here", "loc_storage": "known"})
+        shown = atlas.region_map(CONTENT, s, "reg_lower_deck")
+        self.assertEqual({c: p.kind for c, p in shown.places.items()}, {(0, 0): "here", (1, 0): "known"})
+        self.assertEqual(shown.links, {((0, 0), (1, 0))})
+        self.assertEqual(atlas.regions(CONTENT, s), ["reg_lower_deck"])
+
+    def test_places_been_to_widen_the_map(self):
+        s = travelled()
+        self.assertEqual(atlas.regions(CONTENT, s), ["reg_lower_deck", "reg_surface"])
+        deck = atlas.region_map(CONTENT, s, "reg_lower_deck")
+        self.assertEqual(deck.places[(1, 0)].kind, "visited")
+        self.assertEqual(deck.elsewhere, ("loc_crater_rim",))
+        surface = atlas.region_map(CONTENT, s, "reg_surface")
+        self.assertEqual({c: p.kind for c, p in surface.places.items()}, {(0, 0): "visited", (1, 0): "known"})
+        self.assertEqual(surface.links, {((0, 0), (1, 0))})     # eight edge tiles, one way
+
+    def test_keys_open_move_page_and_close(self):
+        s, view = self.keys(travelled(), app.View(), "m")
+        self.assertEqual((view.screen, view.page, view.cursor), ("map", 0, (0, 0)))
+        s, view = self.keys(s, view, "dd")                      # stops at the last place
+        self.assertEqual(view.cursor, (1, 0))
+        self.assertIn("Storage", plain(s, screen="map", page=view.page, cursor=view.cursor))
+        s, view = self.keys(s, view, "]")
+        self.assertEqual((view.page, view.cursor), (1, (0, 0)))
+        self.assertIn("Map · Surface", plain(s, screen="map", page=view.page, cursor=view.cursor))
+        s, view = self.keys(s, view, "]")
+        self.assertEqual(view.page, 0)
+        s, view = self.keys(s, view, "m")
+        self.assertIsNone(view.screen)
+        s, view = self.keys(s, app.View(), "mx")
+        self.assertIsNone(view.screen)
+        self.assertEqual(s.turn, travelled().turn)                # looking at the map takes no time
+
+    def test_next_region_shows_only_with_two(self):
+        self.assertNotIn("next region", plain(new_game(CONTENT, 1), screen="map"))
+
+    def test_help_and_walk_hints_name_the_key(self):
+        self.assertIn("M map", plain(new_game(CONTENT, 1)))
+        self.assertIn("map", UI.word("key_map"))
+
+    def test_m_still_lists_modifications_on_the_fitting_screen(self):
+        s, view = self.keys(bench_state(), app.View(), "f")
+        rows = build.fitting_rows(CONTENT, s)
+        tool = next(n for n, i in enumerate(widgets.picks(CONTENT, s)) if rows[i].slot is not None
+                    and build.entry_at(CONTENT, s, rows[i].slot) is not None
+                    and any(o.kind == "modify" for o in build.item_options(CONTENT, s, rows[i].slot, UI.bound_keys,
+                                                                            "fitting")))
+        s, view = self.keys(s, view._replace(selected=tool), "m")
+        self.assertEqual((view.screen, view.panel), ("fitting", "modify"))
 
 
 class TestEngineOptionsAreWordedByTheUI(unittest.TestCase):

@@ -377,7 +377,7 @@ Rules the engine follows that the schemas alone don't spell out:
   it: its interactions (`shown_if` hides, `requires` greys out with the hint), "go"
   for exits, "talk" for characters with dialogue, and "inspect" (keys G, T and I; the
   UI pack words them). Keys come from each interaction's `key`; the UI pack's key
-  bindings (by default `w a s d . p f c x q ]`), `g t i` and the digits are reserved, so
+  bindings (by default `w a s d . p f c m l x q ]`), `g t i` and the digits are reserved, so
   a clash gets a spare letter.
 - **Repeats.** `once` interactions are used up for good, `daily` ones until the next
   day; the count is per placement or character.
@@ -961,6 +961,7 @@ win key by key; word entries add up):
 | `world` | The room, status, legend, messages and menus; the pack panel and the shared panel (Inspect, item details, the message log, cards) open in its message zone | Playing |
 | `fitting` | The loadout by slot, spare gear and designs, and building | F |
 | `character` | The portrait, identity, skills, stats, conditions, party and standing | C |
+| `map` | A region's map: where you've been, where those places' exits lead | M |
 | `talk` | A conversation: the speaker, what was said, your responses | Talk in a person's menu |
 | `encounter` | A fight: the enemy's picture, both sides, action tiles, the round log | A fight starting |
 | `debrief` | The after-action screen: the result, the last round, the loot | A fight ending |
@@ -1053,6 +1054,17 @@ level, stats in columns, conditions with the turns they have left, the party wit
 their health, and standing. The art zone keeps its place without a picture, sized by
 `art_width` and `art_height`.
 
+#### The map (M)
+
+One region at a time: every place you've been to (`■`), the places their exits lead
+to that you haven't been to yet (`?`), you (`@`), and the ways between neighbouring
+places. Each location sits at its `map` x/y in its region; a location without one
+isn't drawn. Arrows move the cursor; under the map, the place under it (its name,
+whether you've been, where its exits lead), the places in other regions this
+region's exits lead to, and a legend. `]` (the next-page key) shows the next region
+you've been to, M or X closes it. The editor's map draws with the same code
+(`lib/graph.py`).
+
 #### Conversations
 
 Talk in a person's menu opens the conversation (it takes a turn): the speaker's
@@ -1119,6 +1131,8 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 | `skills` | Each skill: level, a bar to the next level, what the next level brings | character | — |
 | `stats` | Derived stats in columns; conditions with the turns they have left | character | — |
 | `people` | The party with their health; your rank and how factions regard you | character | — |
+| `region_map` | A region's map: places you've been, places their exits lead to, the ways between neighbours, you and the cursor | map | — |
+| `map_place` | The place under the map's cursor, exits out of the region, the legend | map | `legend` |
 | `conversation` | The last exchanges, the speaker's line, numbered responses with what trades give and take, Leave | talk | `trades` |
 | `art` | The enemy's picture in half-block pixels, in the art zone (the default UI pack draws it without a frame) | encounter | `frame` |
 | `fighters` | Both sides with bars, statuses and intents; while aiming, the targets marked `▸` | encounter | `intent` |
@@ -1133,10 +1147,10 @@ allowed on some screens only (`python3 -m core.packtool explain widget <name>`):
 #### Key bindings and hints
 
 The input actions are fixed by the engine: `move_north`, `move_west`, `move_south`,
-`move_east`, `wait`, `pack`, `fitting`, `character`, `history`, `close`, `quit`,
+`move_east`, `wait`, `pack`, `fitting`, `character`, `map`, `history`, `close`, `quit`,
 `next_page`. Bindings are lower case (keys match either case). `hints` lists, per
 context (`walk`, `menu`, `choice`, `card`, `history`, `pack`, `panel`, `item`,
-`fitting`, `modify`, `sheet`, `talk`, `encounter`, `picked`, `target`, `debrief`,
+`fitting`, `modify`, `sheet`, `map`, `talk`, `encounter`, `picked`, `target`, `debrief`,
 `start`, `slots`, `help`, `quit`), entries that show some actions' keys joined
 (`WASD`), the arrow keys instead for move actions (`arrows`: `↑↓`), the picked
 action tile's number (`picked`: "3 again: use"), or `1-9` (`digits`, shown as the
