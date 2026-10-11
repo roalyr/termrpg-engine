@@ -18,12 +18,14 @@ derives the pack's JSON from them.
 ```
 
 The documents win over the JSON: if they disagree, fix the JSON, or change the
-document first and then the JSON. VISION.md wins over these documents.
+document first and then the JSON. 00-vision.md wins over the other documents here;
+the project's VISION.md sets the engine's design rules, which they all follow.
 
 ## Documents
 
 | Document | Covers | Status |
 |---|---|---|
+| [00-vision.md](00-vision.md) | The game's vision: feel, pillars, loops, build, world, the player | Decided |
 | [01-scope.md](01-scope.md) | Purpose, length, focus, what "done" means | Decided |
 | [02-setting.md](02-setting.md) | Era, who runs what, history, the exotic material, tone | In progress |
 | [03-world.md](03-world.md) | Regions, the surface grid, bases, routes, points of interest | In progress |
