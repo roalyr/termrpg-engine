@@ -1,4 +1,4 @@
-# CLI Space RPG
+# termrpg-engine
 
 An engine and toolkit for terminal RPGs, built with the Python 3 standard library
 only. Characters are built from pieces (gear in slots, skills), tested by
