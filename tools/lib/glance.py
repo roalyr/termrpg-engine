@@ -6,10 +6,10 @@ it's placed. Kinds without a glance show nothing.
 """
 from typing import List
 
+from lib.tiles import map_glyph
 from tools.lib import loadout, screen, sources
 from tools.lib.fields import ids
 from tools.lib.packfiles import PackFiles
-from tui.widgets import map_glyph
 
 NOWHERE = "Nobody can get it: no loot, storage, gift, salvage or starting gear gives it."
 

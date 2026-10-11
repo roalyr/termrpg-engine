@@ -15,8 +15,9 @@ G opens the character's room, V shows or hides the picture.
 import sys
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
-from lib import term
-from tools.lib import colours, forms, loadout, screen
+from lib import pixels, term
+from lib.text import bar as text_bar
+from tools.lib import forms, loadout, screen
 from tools.lib.loadout import Sheet, Slot
 from tools.lib.packfiles import Found, PackFiles
 from tools.room import Room
@@ -169,8 +170,7 @@ class Loadout:
         glyphs = self.look.glyphs
         bars = []
         for budget, number in zip(sheet.budgets, numbers):
-            filled = 0 if budget.provided <= 0 else round(length * max(0, min(budget.used, budget.provided)) / budget.provided)
-            bar = glyphs["bar_full"] * filled + glyphs["bar_empty"] * (length - filled)
+            bar = text_bar(budget.used, budget.provided, length, glyphs["bar_full"], glyphs["bar_empty"])
             text = screen.pad(f"{budget.short[:4]:<4} {bar}{' ' if bar else ''}{number}", across)
             bars.append(style.role(text, "danger") if budget.over else text)
         step = 2 if pairs else 1
@@ -182,37 +182,12 @@ class Loadout:
 
     def picture(self) -> List[str]:
         """The character's art in half-block pixels, centred in the game's art zone."""
-        style = self.look.style
         art = next((f.entry for f in self.pack.entries("art") if f.entry.get("id") == self.char.get("art")), None)
         size = self.look.ui.tokens["size"]
         pw, ph = size.get("art_width", 24), size.get("art_height", 24)
         ph += ph % 2
-        grid = [[None] * pw for _ in range(ph)]
-        if art:
-            rows, palette = art.get("rows", []), art.get("palette", {})
-            widest = max((len(r) for r in rows), default=0)
-            top, left = (ph - len(rows)) // 2, (pw - widest) // 2
-            for y, row in enumerate(rows):
-                for x, letter in enumerate(row):
-                    if letter not in " ." and 0 <= top + y < ph and 0 <= left + x < pw:
-                        grid[top + y][left + x] = colours.code(palette.get(letter, "white"))
-        lines = []
-        for y in range(0, ph, 2):
-            cells = []
-            for x in range(pw):
-                upper, lower = grid[y][x], grid[y + 1][x]
-                if upper is None and lower is None:
-                    cells.append(" ")
-                elif not style.colour:
-                    cells.append("█" if upper is not None and lower is not None else "▀" if upper is not None else "▄")
-                elif upper is None:
-                    cells.append(style.pixels("▄", lower, None))
-                elif lower is None or lower == upper:
-                    cells.append(style.pixels("█" if lower == upper else "▀", upper, None))
-                else:
-                    cells.append(style.pixels("▀", upper, lower))
-            lines.append("".join(cells))
-        return lines
+        grid = pixels.centred(art.get("rows", []), art.get("palette", {}), pw, ph) if art else [[None] * pw for _ in range(ph)]
+        return pixels.half_blocks(self.look.style, grid)
 
     def rows(self, sheet: Sheet) -> List[Row]:
         known = loadout.items(self.pack)

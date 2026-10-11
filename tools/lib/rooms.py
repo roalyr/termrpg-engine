@@ -13,7 +13,7 @@ Two ways to connect locations:
 """
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
-from core.pack import _tiles
+from lib.tiles import tiles as tile_map
 from tools.lib.packfiles import Found, PackFiles
 
 Pos = Tuple[int, int]
@@ -33,8 +33,8 @@ def size(location: dict) -> Tuple[int, int]:
 def tiles(location: dict) -> Dict[Pos, str]:
     """Every tile; a 'rows' that doesn't match the size reads as the default shape."""
     grid = location["grid"]
-    found = _tiles(grid, "", [])
-    return found if found is not None else _tiles({"width": grid["width"], "height": grid["height"]}, "", [])
+    found = tile_map(grid)
+    return found if found is not None else tile_map({"width": grid["width"], "height": grid["height"]})
 
 
 def tile(location: dict, pos: Pos) -> str:
@@ -216,7 +216,7 @@ def problems(pack: PackFiles, location: dict, pos: Pos) -> List[str]:
 # --- changing ------------------------------------------------------------------------
 
 def default_tiles(width: int, height: int) -> Dict[Pos, str]:
-    return _tiles({"width": width, "height": height}, "", [])
+    return tile_map({"width": width, "height": height})
 
 
 def _write_tiles(found: Found, pack: PackFiles, shape: Dict[Pos, str]) -> None:

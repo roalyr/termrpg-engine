@@ -16,9 +16,9 @@ import sys
 from typing import Callable, List, Optional, Tuple
 
 from lib import term
+from lib.tiles import map_glyph, room_line
 from tools.lib import colours, forms, rooms, screen
 from tools.lib.packfiles import Found, PackFiles
-from tui.widgets import map_glyph, room_line
 
 Pos = Tuple[int, int]
 MOVES = {"up": (-1, 0), "down": (1, 0), "left": (0, -1), "right": (0, 1)}

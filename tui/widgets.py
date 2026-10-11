@@ -11,8 +11,10 @@ from typing import Any, Callable, Dict, List, Mapping, NamedTuple, Optional, Tup
 from engine import atlas, build, conditions, context, encounter, stats, world
 from engine.content import Content
 from engine.state import GameState, ItemInst, Message, char_key, day_of, new_item, phase_of
-from lib import graph
+from lib import graph, pixels
 from lib.text import ANSI, Style, pad, visible_len, wrap
+from lib.text import bar as text_bar
+from lib.tiles import map_glyph, room_line
 from lib.ui import UI
 
 
@@ -63,8 +65,7 @@ FOCUS = "\x00"   # marks the picked line of a list for the layout; never drawn
 # --- Helpers ---------------------------------------------------------------------------
 
 def bar(frame: Frame, value: float, top: float, length: int) -> str:
-    filled = 0 if top <= 0 else round(length * max(0, min(value, top)) / top)
-    return frame.glyphs["bar_full"] * filled + frame.glyphs["bar_empty"] * (length - filled)
+    return text_bar(value, top, length, frame.glyphs["bar_full"], frame.glyphs["bar_empty"])
 
 
 def styled_lines(text: str, width: int, frame: Frame, role: Optional[str]) -> List[str]:
@@ -200,29 +201,6 @@ def grid(frame: Frame, width: int, options: Mapping) -> List[str]:
         lines.append(border["vertical"] + room_line(cells, walls, wall, frame.size["cell_width"]) + border["vertical"])
     lines.append(border["bottom_left"] + border["horizontal"] * inner + border["bottom_right"])
     return lines
-
-
-def room_line(cells: List[str], walls: List[bool], wall: str, cell_width: int) -> str:
-    """
-    One row of a room: one tile per cell, cell_width columns apart. Walls are joined: the gap
-    between two tiles showing wall, and the edge beside one, is the wall glyph too, so walls
-    are solid; a door or anything else in a wall leaves a gap around it.
-    """
-    gap = cell_width - 1
-    line = [wall if walls and walls[0] else " "]
-    for i, cell in enumerate(cells):
-        if i:
-            line.append((wall if walls[i - 1] and walls[i] else " ") * gap)
-        line.append(cell)
-    line.append(wall if walls and walls[-1] else " ")
-    return "".join(line)
-
-
-def map_glyph(style: Style, glyph: str, colour, role: str) -> str:
-    """A map glyph in the pack's colour (a palette colour or a 256-colour number), else in its role's style."""
-    if colour is not None:
-        return style.pixels(glyph, _colour_code(colour), None)
-    return style.role(glyph, role)
 
 
 def _person_role(content: Content, state: GameState, cid: str) -> str:
@@ -889,34 +867,10 @@ def picture_lines(frame: Frame, art_id: Optional[str], stand_in: str, framed: bo
     A picture from the pack's art in half-block pixels, centred in the art zone and cut to
     it; without one, 'stand_in' (an initial, a glyph) in the middle.
     """
-    style = frame.style
     pw, ph = portrait_size(frame)
-    grid = [[None] * pw for _ in range(ph)]                    # colour code per pixel, None = see-through
     picture = frame.content.get("art", art_id) if art_id else None
-    if picture:
-        rows = list(picture["rows"])
-        widest = max(len(r) for r in rows)
-        top, left = (ph - len(rows)) // 2, (pw - widest) // 2
-        for y, row in enumerate(rows):
-            for x, letter in enumerate(row):
-                if letter not in " ." and 0 <= top + y < ph and 0 <= left + x < pw:
-                    grid[top + y][left + x] = _colour_code(picture["palette"][letter])
-    lines = []
-    for y in range(0, ph, 2):
-        cells = []
-        for x in range(pw):
-            upper, lower = grid[y][x], grid[y + 1][x]
-            if upper is None and lower is None:
-                cells.append(" ")
-            elif not style.colour:                              # the shape only
-                cells.append("█" if upper is not None and lower is not None else "▀" if upper is not None else "▄")
-            elif upper is None:
-                cells.append(style.pixels("▄", lower, None))
-            elif lower is None or lower == upper:
-                cells.append(style.pixels("█" if lower == upper else "▀", upper, None))
-            else:
-                cells.append(style.pixels("▀", upper, lower))
-        lines.append("".join(cells))
+    grid = pixels.centred(picture["rows"], picture["palette"], pw, ph) if picture else [[None] * pw for _ in range(ph)]
+    lines = pixels.half_blocks(frame.style, grid)
     if not picture:                                             # the place kept: the stand-in in the middle
         middle = len(lines) // 2
         lines[middle] = pad(" " * ((pw - 1) // 2) + stand_in, pw)
@@ -934,11 +888,6 @@ def portrait(frame: Frame, width: int, options: Mapping) -> List[str]:
     whose = speaker_of(frame) if frame.screen == "talk" else frame.state.player
     record = frame.content.get("character", frame.state.characters[whose].source)
     return picture_lines(frame, record.get("art"), record["name"][0], options.get("frame", True))
-
-
-def _colour_code(colour) -> int:
-    from lib.text import PALETTE
-    return colour if isinstance(colour, int) else PALETTE.get(colour, PALETTE["white"])
 
 
 def identity(frame: Frame, width: int, options: Mapping) -> List[str]:

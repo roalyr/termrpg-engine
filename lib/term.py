@@ -27,9 +27,22 @@ def key_name(raw: str) -> str:
 
 
 def run(render: Callable[[int, int], str], handle: Callable[[str], bool]) -> int:
-    """Draws, reads a key, handles it, until handle() returns False or input ends."""
+    """A tool: draws, reads a key (by name), handles it, until handle() returns False or input ends."""
+    loop(render, handle)
+    return 0
+
+
+def loop(render: Callable[[int, int], str], handle: Callable[[str], bool], names: bool = True,
+         alternate: bool = True) -> bool:
+    """
+    Draws at the terminal's size, reads a key, handles it, until handle() returns False
+    (then False) or input ends: end of input, Ctrl-C, Ctrl-D (then True). With 'names'
+    keys arrive as names ('up', 'enter'…), otherwise as the terminal sent them. With
+    'alternate' it draws on the terminal's alternate screen, so leaving restores what
+    was there.
+    """
     interactive = sys.stdin.isatty()
-    if interactive:
+    if interactive and alternate:
         sys.stdout.write("\x1b[?1049h\x1b[?25l")        # the alternate screen, cursor hidden
     try:
         while True:
@@ -39,10 +52,12 @@ def run(render: Callable[[int, int], str], handle: Callable[[str], bool]) -> int
             sys.stdout.write(render(columns, rows))
             sys.stdout.flush()
             raw = text.read_key()
-            if raw in QUIT_KEYS or not handle(key_name(raw)):
-                return 0
+            if raw in QUIT_KEYS:
+                return True
+            if not handle(key_name(raw) if names else raw):
+                return False
     finally:
-        if interactive:
+        if interactive and alternate:
             sys.stdout.write("\x1b[?25h\x1b[?1049l")
             sys.stdout.flush()
 

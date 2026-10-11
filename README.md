@@ -70,7 +70,7 @@ timestamps can make Python run stale cached bytecode.
 | `AGENTS.md`, `GEMINI.md` | Instructions for AI agents |
 | `ROADMAP.md` | The engine rebuild plan |
 | `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `craft.py` workshops, `events.py` the living world, `atlas.py` the map the player knows, `save.py` saves, `rng.py` seeded randomness |
-| `lib/` | Code the game and the tools share: `text.py` styles, colours, wrapping and keys, `ui.py` loading a UI pack, `term.py` the tools' key loop and the text editor, `graph.py` region maps. It depends only on the validator (`core/pack.py`, `core/uipack.py`) |
+| `lib/` | Code the game and the tools share: `text.py` styles, colours, bars, wrapping and keys, `ui.py` loading a UI pack, `term.py` the key loop and the text editor, `graph.py` region maps, `tiles.py` a room's tiles and how they're drawn, `pixels.py` pictures in half-block pixels. It depends only on the validator (`core/pack.py`, `core/uipack.py`) |
 | `tui/`, `play.py` | The terminal UI for the new engine, and how to start it |
 | `tools/`, `editor.py` | Terminal tools for editing packs, all reached from `python3 editor.py` (see `tools/README.md`) |
 | `core/`, `ui/`, `main.py` | The old engine (being replaced) |

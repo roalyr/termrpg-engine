@@ -10,7 +10,6 @@ When stdin isn't a terminal, keys are read from it one character at a time, so a
 game can be scripted: python3 play.py < keys.txt
 """
 import random
-import sys
 from pathlib import Path
 from typing import NamedTuple, Optional
 
@@ -18,7 +17,7 @@ from engine import atlas, build, encounter, events, journal, save, turns, world
 from engine.content import Content, PackError, load_pack
 from engine.effects import choose_option
 from engine.state import GameState, Message, new_game
-from lib import graph, text
+from lib import graph, term
 from tui import render, shell, widgets
 from lib.ui import ROOT_DIR, UI, UIPackError, default_ui, load_ui, ui_dir_for
 
@@ -378,24 +377,26 @@ def run(pack_dir: Path, save_path: Optional[Path] = None, seed: Optional[int] = 
 
 def _start(content: Content, ui: UI, saves_dir: Path, colour: bool):
     """The start, slots and help screens: returns ('play', path, fresh), 'exit' or 'eof'."""
-    view = shell.Shell()
-    interactive = sys.stdin.isatty()
-    while True:
-        slots = shell.read_slots(content, saves_dir, ui.tokens["size"]["save_slots"])
-        data = shell.ShellData(shell.entries(slots), slots, view.mode)
-        columns, rows = text.terminal_size()
-        view = view._replace(scroll=min(view.scroll, render.shell_scroll_limit(content, ui, view, data, columns, rows)))
-        if interactive:
-            text.clear()
-        sys.stdout.write(render.render_shell(content, ui, view, data, columns, rows, colour))
-        sys.stdout.flush()
-        key = text.read_key()
-        if key in ("", "\x03", "\x04"):
-            return "eof"
+    now = {"view": shell.Shell(), "slots": (), "outcome": "eof"}
+
+    def draw(columns: int, rows: int) -> str:
+        now["slots"] = slots = shell.read_slots(content, saves_dir, ui.tokens["size"]["save_slots"])
+        data = shell.ShellData(shell.entries(slots), slots, now["view"].mode)
+        view = now["view"]
+        now["view"] = view = view._replace(scroll=min(view.scroll, render.shell_scroll_limit(content, ui, view, data,
+                                                                                           columns, rows)))
+        return render.render_shell(content, ui, view, data, columns, rows, colour)
+
+    def press(key: str) -> bool:
         action = FIXED_KEYS.get(key) or ui.action_of(key.lower())
-        view, outcome = shell.handle(view, action, key, slots)
+        now["view"], outcome = shell.handle(now["view"], action, key, now["slots"])
         if outcome is not None:
-            return outcome
+            now["outcome"] = outcome
+            return False
+        return True
+
+    term.loop(draw, press, names=False, alternate=False)
+    return now["outcome"]
 
 
 def _play(content: Content, ui: UI, save_path: Path, seed: Optional[int], fresh: bool, colour: bool) -> str:
@@ -409,31 +410,29 @@ def _play(content: Content, ui: UI, save_path: Path, seed: Optional[int], fresh:
     else:
         state = new_game(content, seed if seed is not None else random.randrange(1, 2 ** 31))
         save.save(content, state, save_path)
-    view = View()
-    interactive = sys.stdin.isatty()
-    outcome = "eof"
-    while True:
-        if interactive:
-            text.clear()
-        columns, rows = text.terminal_size()
+    now = {"state": state, "view": View(), "outcome": "eof"}
+
+    def draw(columns: int, rows: int) -> str:
+        state, view = now["state"], now["view"]
         limit = render.max_scroll(content, state, columns, rows, view.panel, view.selected, view.page, ui,
                                   view.screen, view.log, view.cursor)
-        view = view._replace(scroll=min(view.scroll, limit))
-        sys.stdout.write(render.render(content, state, columns, rows, view.panel, colour, view.selected,
-                                       view.page, ui, view.scroll, view.screen, view.log, view.cursor))
-        sys.stdout.flush()
-        key = text.read_key()
-        if key in ("", "\x03", "\x04"):
-            break
+        now["view"] = view = view._replace(scroll=min(view.scroll, limit))
+        return render.render(content, state, columns, rows, view.panel, colour, view.selected,
+                             view.page, ui, view.scroll, view.screen, view.log, view.cursor)
+
+    def press(key: str) -> bool:
         if key in ("\n", "\r", " "):
-            continue
-        before = state.turn
-        state, view, quit_now = handle(content, state, key, view, ui)
-        if state.turn != before:
-            save.save(content, state, save_path)
+            return True
+        before = now["state"].turn
+        now["state"], now["view"], quit_now = handle(content, now["state"], key, now["view"], ui)
+        if now["state"].turn != before:
+            save.save(content, now["state"], save_path)
         if quit_now:
-            outcome = "menu"
-            break
+            now["outcome"] = "menu"
+        return not quit_now
+
+    term.loop(draw, press, names=False, alternate=False)
+    state, outcome = now["state"], now["outcome"]
     save.save(content, state, save_path)
     print(content.message("game_saved"))
     return outcome

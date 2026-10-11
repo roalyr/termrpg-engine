@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from core import schema
+from lib.tiles import tiles as tile_map
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 SCHEMA_DIR = ROOT_DIR / "schemas"
@@ -652,17 +653,11 @@ def _check_strings(loaded: List[Tuple[str, str, Any]], schemas: schema.Schemas, 
 
 def _tiles(grid: dict, label: str, errors: List[str]) -> Optional[Dict[Tuple[int, int], str]]:
     """Tile map ('#' wall, '.' floor) for a grid, or None if the grid itself is unusable."""
+    found = tile_map(grid)
     width, height = grid.get("width"), grid.get("height")
-    if not (isinstance(width, int) and isinstance(height, int)):
-        return None
-    rows = grid.get("rows")
-    if rows is None:
-        return {(r, c): "#" if r in (0, height - 1) or c in (0, width - 1) else "."
-                for r in range(height) for c in range(width)}
-    if len(rows) != height or any(len(row) != width for row in rows if isinstance(row, str)):
+    if found is None and isinstance(width, int) and isinstance(height, int):
         errors.append(f"{label}.grid: rows must be {height} strings of {width} characters")
-        return None
-    return {(r, c): ch for r, row in enumerate(rows) for c, ch in enumerate(row)}
+    return found
 
 
 def main(argv: List[str]) -> int:

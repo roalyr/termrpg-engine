@@ -55,6 +55,17 @@ class Style:
         return self.role(text, "key", "7")
 
 
+def colour_code(colour) -> int:
+    """A colour as packs write it (a palette name or a 256-colour number) as a terminal colour number."""
+    return colour if isinstance(colour, int) else PALETTE.get(colour, PALETTE["white"])
+
+
+def bar(value: float, top: float, length: int, full: str = "█", empty: str = "░") -> str:
+    """A bar of 'length' steps, filled in proportion to value / top (empty when top is 0 or less)."""
+    filled = 0 if top <= 0 else round(length * max(0, min(value, top)) / top)
+    return full * filled + empty * (length - filled)
+
+
 def visible_len(text: str) -> int:
     return len(ANSI.sub("", text))
 

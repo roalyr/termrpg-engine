@@ -5,22 +5,17 @@ terminal grid.
 """
 from typing import Callable, List
 
+from lib.text import colour_code
 from tools.lib import forms, screen
-from lib.text import PALETTE
 
 NAMED = ("grey", "white", "green", "cyan", "blue", "violet", "yellow", "orange", "red")
 DEFAULT = object()                            # "leave it to the UI pack": the field is removed
 _GRID = object()
 
 
-def code(colour) -> int:
-    """A palette colour (a name or a 256-colour number) as a terminal colour number."""
-    return colour if isinstance(colour, int) else PALETTE.get(colour, PALETTE["white"])
-
-
 def sample(look: screen.Look, colour) -> str:
     """A swatch of the colour; a plain block without colour."""
-    return look.style.pixels("█", code(colour), None) if look.style.colour else "█"
+    return look.style.pixels("█", colour_code(colour), None) if look.style.colour else "█"
 
 
 class ColourGrid:

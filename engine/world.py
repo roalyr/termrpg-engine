@@ -16,6 +16,7 @@ from engine.content import Content
 from engine.effects import run
 from engine.frozen import Record, freeze
 from engine.state import Ctx, GameState, Message, Pos
+from lib import tiles
 
 DIRECTIONS = {"w": (-1, 0), "s": (1, 0), "a": (0, -1), "d": (0, 1)}
 MENU_KEYS = {"go": "g", "talk": "t", "inspect": "i"}   # the engine's own menu options
@@ -33,14 +34,7 @@ def reserved_keys(bindings: Optional[frozenset] = None) -> frozenset:
 
 def tile(content: Content, location_id: str, pos: Pos) -> str:
     """'#' wall, '.' floor, ' ' nothing (also outside the grid)."""
-    grid = content.get("location", location_id)["grid"]
-    row, col = pos
-    if not (0 <= row < grid["height"] and 0 <= col < grid["width"]):
-        return " "
-    if grid.get("rows"):
-        return grid["rows"][row][col]
-    edge = row in (0, grid["height"] - 1) or col in (0, grid["width"] - 1)
-    return "#" if edge else "."
+    return tiles.tile(content.get("location", location_id)["grid"], pos)
 
 
 def placement_at(content: Content, location_id: str, pos: Pos) -> Optional[Record]:

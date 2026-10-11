@@ -14,9 +14,9 @@ import re
 import sys
 from typing import Callable, List, Optional, Tuple
 
-from lib import term
+from lib import pixels, term
+from lib.text import colour_code
 from tools.lib import colours, forms, screen
-from tools.lib.colours import code
 from tools.lib.packfiles import Found, PackFiles
 
 LETTERS = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -135,41 +135,20 @@ class Art:
 
         def pixel(y, x):
             if (y, x) == self.cursor:
-                return "cursor"
+                return CURSOR
             if y >= height or x >= len(rows[y]) or rows[y][x] in " .":
                 return None
-            return code(palette.get(rows[y][x], "white"))
+            return colour_code(palette.get(rows[y][x], "white"))
 
-        out = []
-        for y in range(vy, min(vy + down, height), 2):
-            cells = []
-            for x in range(vx, min(vx + across, width)):
-                upper, lower = pixel(y, x), pixel(y + 1, x) if y + 1 < height else None
-                cursor_here = "cursor" in (upper, lower)
-                if not style.colour:
-                    shape = {(True, True): "█", (True, False): "▀", (False, True): "▄", (False, False): "·"}
-                    cell = shape[(upper is not None, lower is not None)]
-                    cells.append(style.inverse(cell if cell != "·" else " ") if cursor_here else
-                                 (style.role(cell, "quiet") if cell == "·" else cell))
-                    continue
-                upper = CURSOR if upper == "cursor" else upper
-                lower = CURSOR if lower == "cursor" else lower
-                if upper is None and lower is None:
-                    cells.append(style.role("·", "quiet"))
-                elif upper is None:
-                    cells.append(style.pixels("▄", lower, None))
-                elif lower is None or lower == upper:
-                    cells.append(style.pixels("█" if lower == upper else "▀", upper, None))
-                else:
-                    cells.append(style.pixels("▀", upper, lower))
-            out.append("".join(cells))
-        return out
+        grid = [[pixel(y, x) for x in range(vx, min(vx + across, width))] for y in range(vy, min(vy + down, height))]
+        marked = {(self.cursor[0] - vy, self.cursor[1] - vx)}      # without colour the cursor shows inverse
+        return pixels.half_blocks(style, grid, empty=style.role("·", "quiet"), marked=marked)
 
     def palette_lines(self) -> List[str]:
         style, cursor = self.look.style, self.look.glyphs["cursor"]
         lines = []
         for letter, colour in list(self.picture.get("palette", {}).items()) + [(CLEAR, None)]:
-            sample = (style.pixels("█", code(colour), None) if style.colour else "█") if colour is not None else " "
+            sample = (style.pixels("█", colour_code(colour), None) if style.colour else "█") if colour is not None else " "
             words = str(colour) if colour is not None else "see-through"
             mark = cursor if letter == self.current else " "
             lines.append(f"{mark}{letter} {sample} {words}")
