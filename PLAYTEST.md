@@ -303,6 +303,24 @@ All of these happen on the gear screen, next to the workbench.
 
 ---
 
+## Part C: the fantasy test pack
+
+`python3 play.py --pack packs/test_fantasy --new`. The same engine, another genre.
+
+- [ ] You start with a sword in your hand and no armour; the gear screen shows the
+  body's slots (Armour, two Hands, Cloak, Blessing) and WT 2/8, no power or heat.
+- [ ] Leather armour and the buckler go on anywhere, no workshop needed.
+- [ ] The hearth ward from the armour stand only takes at the altar ("Only a priest at
+  an altar can do that." elsewhere); with it, mana and Firebolt appear.
+- [ ] Plate armour needs Smithing 2: practise at the forge's anvil (three times). Then it
+  goes on, but the cellar stairs refuse you.
+- [ ] The cellar's cold hurts every turn, until Hedda's fur cloak (two iron) keeps it out.
+- [ ] Poking the rat hole starts a fight: Slash shows `▲2` (stamina fills, and a full
+  pool costs a turn), Firebolt `MP3` (mana is spent, refused when short); both come
+  back a little each round.
+
+---
+
 ## Still impractical by hand
 
 These work (the automated tests cover them) but are hard to reach on purpose:

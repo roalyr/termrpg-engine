@@ -2,7 +2,7 @@
   "$schema": "../../schemas/pack.schema.json",
   "id": "test_scifi",
   "name": "Test pack: sci-fi",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "schema_version": 3,
   "purpose": "test",
   "description": "Small content for engine development and automated tests: a workshop and a storage room with a gas leak, in plain names.",

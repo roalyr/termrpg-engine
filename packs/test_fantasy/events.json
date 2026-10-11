@@ -1,0 +1,39 @@
+{
+  "$schema": "../../schemas/event.schema.json",
+  "entries": [
+    {
+      "id": "event_bake",
+      "name": "Fresh bread",
+      "trigger": "day_start",
+      "notify": false,
+      "effects": [
+        {
+          "op": "set_state",
+          "object": "smithy_basket",
+          "state": "state_full"
+        }
+      ]
+    },
+    {
+      "id": "event_rest",
+      "name": "Rest",
+      "trigger": "day_start",
+      "notify": false,
+      "notes": "A night's rest: health and mana come back for everyone in the player's party.",
+      "effects": [
+        {
+          "op": "restore",
+          "stat": "stat_health",
+          "amount": 10,
+          "subject": "party"
+        },
+        {
+          "op": "restore",
+          "stat": "stat_mana",
+          "amount": 99,
+          "subject": "party"
+        }
+      ]
+    }
+  ]
+}

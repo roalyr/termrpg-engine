@@ -1,0 +1,71 @@
+{
+  "$schema": "../../schemas/skill.schema.json",
+  "entries": [
+    {
+      "id": "skill_fencing",
+      "name": "Fencing",
+      "short": "FEN",
+      "earned_by": "Fighting with a blade.",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "text": "The basics."
+        },
+        {
+          "level": 2,
+          "xp": 20,
+          "text": "More wind.",
+          "stats": {
+            "stat_stamina": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "skill_smithing",
+      "name": "Smithing",
+      "short": "SMI",
+      "earned_by": "Working at the forge.",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "text": "The basics."
+        },
+        {
+          "level": 2,
+          "xp": 30,
+          "text": "Stronger arms.",
+          "stats": {
+            "stat_weight": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": "skill_sorcery",
+      "name": "Sorcery",
+      "short": "SOR",
+      "earned_by": "Casting spells.",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "text": "Firebolt.",
+          "actions": [
+            "action_firebolt"
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 30,
+          "text": "Deeper mana.",
+          "stats": {
+            "stat_mana": 4
+          }
+        }
+      ]
+    }
+  ]
+}

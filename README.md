@@ -31,6 +31,7 @@ python3 editor.py                              # the pack editors
 python3 -m core.packtool check packs/test_scifi  # validate a content pack
 python3 -m core.packtool ids packs/test_scifi item  # list the ids of a kind
 python3 -m core.packtool refs packs/test_scifi workshop_door  # where an id is declared and used
+python3 play.py --pack packs/test_fantasy --new  # the fantasy test pack
 python3 -m core.packtool explain op damage     # document any part of the schemas
 python3 -B -m unittest discover -s tests       # run all tests
 python3 -B tests/run.py                        # the same, in parallel
@@ -46,6 +47,7 @@ timestamps can make Python run stale cached bytecode.
 | `VISION.md`, `AGENTS.md`, `GEMINI.md`, `ROADMAP.md`, `PLAYTEST.md` | The engine's direction; how to work on it (for agents too); what's next; a hand-played checklist |
 | `schemas/` | JSON Schemas: the contract between engine and content |
 | `packs/test_scifi/` | Sci-fi test pack: small, plain content for engine development and tests |
+| `packs/test_fantasy/` | Fantasy test pack: the same features in another genre (armour, weight, mana, an altar), so the engine stays genre-agnostic |
 | `packs/ui/default/` | The default UI pack: the standard look, layout, keys and the UI's words |
 | `core/schema.py` | Checker for the JSON Schema subset the schemas use |
 | `core/pack.py` | Pack validator: files, references and game rules |
@@ -64,8 +66,9 @@ timestamps can make Python run stale cached bytecode.
 The engine never names a room, item, person or tag, and prints no text of its own.
 Everything comes from a **pack**: a folder of JSON data checked against the schemas.
 
-- **Test pack** (`purpose: "test"`): small, generic content (`loc_workshop`,
-  `gear_cutter`) for engine work and automated tests.
+- **Test packs** (`purpose: "test"`): small, generic content for engine work and
+  automated tests, in two genres: sci-fi (`loc_workshop`, `gear_cutter`) and fantasy
+  (`loc_smithy`, `gear_sword`).
 - **Game pack** (`purpose: "game"`): the real world, names and writing.
 
 Features are added schema first: schema, then test pack, then engine, then game pack.
@@ -1424,7 +1427,8 @@ cargo. Budgets and pools are the pack's own.
 **Template.** (1) A generic character spawned by encounters. (2) A room shape for
 zones. (3) An object definition that placements use.
 
-**Test pack.** A pack with small generic content for engine work and tests.
+**Test pack.** A pack with small generic content for engine work and tests. There are
+two, sci-fi and fantasy, so no genre is built into the engine.
 
 **`this`.** The placed object whose interaction or template is running.
 

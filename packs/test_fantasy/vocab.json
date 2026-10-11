@@ -1,0 +1,235 @@
+{
+  "$schema": "../../schemas/vocab.schema.json",
+  "tags": [
+    {
+      "id": "tag_blade",
+      "name": "a blade"
+    },
+    {
+      "id": "tag_warm",
+      "name": "something warm"
+    },
+    {
+      "id": "tag_damp_cold",
+      "name": "damp cold",
+      "hazard": true
+    },
+    {
+      "id": "tag_beast",
+      "name": "a beast"
+    }
+  ],
+  "stats": [
+    {
+      "id": "stat_health",
+      "name": "Health",
+      "short": "HP",
+      "kind": "pool",
+      "role": "health"
+    },
+    {
+      "id": "stat_mana",
+      "name": "Mana",
+      "short": "MP",
+      "kind": "pool",
+      "per_round": 1,
+      "description": "Spent on spells; a little comes back each round of a fight, and all of it with a night's rest."
+    },
+    {
+      "id": "stat_stamina",
+      "name": "Stamina",
+      "short": "STA",
+      "kind": "pool",
+      "fills": true,
+      "per_round": 1,
+      "description": "Rises with every swing; at its top you lose a turn catching your breath."
+    },
+    {
+      "id": "stat_weight",
+      "name": "Weight",
+      "short": "WT",
+      "budget": true,
+      "description": "How much gear you can bear. Armour and weapons use it."
+    },
+    {
+      "id": "stat_initiative",
+      "name": "Initiative",
+      "short": "INI",
+      "role": "initiative"
+    },
+    {
+      "id": "stat_armor",
+      "name": "Armour",
+      "short": "ARM"
+    },
+    {
+      "id": "stat_cargo",
+      "name": "Pack",
+      "short": "PCK",
+      "role": "cargo"
+    }
+  ],
+  "damage_types": [
+    {
+      "id": "dmg_cut",
+      "name": "Cut",
+      "resisted_by": "stat_armor"
+    },
+    {
+      "id": "dmg_fire",
+      "name": "Fire"
+    },
+    {
+      "id": "dmg_cold",
+      "name": "Cold"
+    }
+  ],
+  "statuses": [
+    {
+      "id": "status_burning",
+      "name": "Burning",
+      "glyph": "*",
+      "stacking": "refresh",
+      "on_turn": [
+        {
+          "op": "damage",
+          "amount": 1,
+          "damage_type": "dmg_fire",
+          "subject": "self"
+        }
+      ]
+    },
+    {
+      "id": "status_dazed",
+      "name": "Dazed",
+      "blocks_actions": true
+    }
+  ],
+  "slot_types": [
+    {
+      "id": "slot_worn",
+      "name": "Armour"
+    },
+    {
+      "id": "slot_hand",
+      "name": "Hand"
+    },
+    {
+      "id": "slot_back",
+      "name": "Cloak"
+    },
+    {
+      "id": "slot_blessing",
+      "name": "Blessing",
+      "equip_at_workshop": true,
+      "description": "A god's mark. Only a priest at an altar can grant or lift one."
+    }
+  ],
+  "grades": [
+    {
+      "id": "grade_common",
+      "name": "Common",
+      "colour": "grey",
+      "order": 0
+    },
+    {
+      "id": "grade_fine",
+      "name": "Fine",
+      "colour": "yellow",
+      "order": 1
+    }
+  ],
+  "sizes": [
+    {
+      "size": 0,
+      "name": "tiny"
+    },
+    {
+      "size": 1,
+      "name": "small"
+    },
+    {
+      "size": 2,
+      "name": "medium"
+    },
+    {
+      "size": 3,
+      "name": "person"
+    },
+    {
+      "size": 4,
+      "name": "armoured"
+    }
+  ],
+  "ranks": [
+    {
+      "rank": 0,
+      "name": "Stranger"
+    },
+    {
+      "rank": 1,
+      "name": "Neighbour"
+    }
+  ],
+  "relation_levels": [
+    {
+      "min": -50,
+      "name": "hostile"
+    },
+    {
+      "min": 0,
+      "name": "wary"
+    },
+    {
+      "min": 30,
+      "name": "friendly"
+    }
+  ],
+  "object_states": [
+    {
+      "id": "state_full",
+      "name": "full"
+    },
+    {
+      "id": "state_empty",
+      "name": "empty"
+    },
+    {
+      "id": "state_quiet",
+      "name": "quiet"
+    },
+    {
+      "id": "state_stirred",
+      "name": "stirred up"
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase_morning",
+      "name": "Morning",
+      "turns": 20
+    },
+    {
+      "id": "phase_evening",
+      "name": "Evening",
+      "turns": 20
+    },
+    {
+      "id": "phase_night",
+      "name": "Night",
+      "turns": 20
+    }
+  ],
+  "factions": [
+    {
+      "id": "faction_village",
+      "name": "Village"
+    }
+  ],
+  "flags": [
+    {
+      "id": "flag_rats_cleared",
+      "description": "The rats in the cellar are dealt with."
+    }
+  ]
+}

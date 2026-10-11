@@ -1,0 +1,22 @@
+{
+  "$schema": "../../schemas/modification.schema.json",
+  "entries": [
+    {
+      "id": "mod_runed",
+      "name": "Runed",
+      "material": "material_rune_dust",
+      "count": 1,
+      "description": "Rune dust worked into a blade: it holds mana for its wielder.",
+      "applies_to": {
+        "tags": [
+          "tag_blade"
+        ]
+      },
+      "adds": {
+        "stats": {
+          "stat_mana": 2
+        }
+      }
+    }
+  ]
+}

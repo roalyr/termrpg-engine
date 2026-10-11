@@ -1,0 +1,133 @@
+{
+  "$schema": "../../schemas/action.schema.json",
+  "entries": [
+    {
+      "id": "action_slash",
+      "name": "Slash",
+      "glyph": "/",
+      "target": "enemy",
+      "cost": {
+        "pools": {
+          "stat_stamina": 2
+        }
+      },
+      "intent": "SLASH",
+      "trains": {
+        "skill_fencing": 3
+      },
+      "effects": [
+        {
+          "op": "damage",
+          "damage_type": "dmg_cut",
+          "amount": 3
+        },
+        {
+          "op": "wear",
+          "pick": {
+            "tag": "tag_blade"
+          },
+          "amount": 1,
+          "subject": "self"
+        }
+      ]
+    },
+    {
+      "id": "action_bash",
+      "name": "Shield bash",
+      "short": "Bash",
+      "glyph": "o",
+      "target": "enemy",
+      "cost": {
+        "pools": {
+          "stat_stamina": 3
+        },
+        "cooldown": 2
+      },
+      "intent": "BASH",
+      "effects": [
+        {
+          "op": "damage",
+          "damage_type": "dmg_cut",
+          "amount": 1
+        },
+        {
+          "op": "apply_status",
+          "status": "status_dazed",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "id": "action_firebolt",
+      "name": "Firebolt",
+      "short": "Fire",
+      "glyph": "*",
+      "target": "enemy",
+      "cost": {
+        "pools": {
+          "stat_mana": 3
+        }
+      },
+      "intent": "FIRE",
+      "trains": {
+        "skill_sorcery": 3
+      },
+      "effects": [
+        {
+          "op": "damage",
+          "damage_type": "dmg_fire",
+          "amount": 4
+        },
+        {
+          "op": "apply_status",
+          "status": "status_burning",
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "id": "action_bite",
+      "name": "Bite",
+      "target": "enemy",
+      "intent": "BITE",
+      "effects": [
+        {
+          "op": "damage",
+          "damage_type": "dmg_cut",
+          "amount": {
+            "min": 1,
+            "max": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "action_flee",
+      "name": "Flee",
+      "target": "self",
+      "innate": true,
+      "priority": -1,
+      "effects": [
+        {
+          "op": "if",
+          "if": {
+            "check": "chance",
+            "p": 0.6
+          },
+          "then": [
+            {
+              "op": "end_encounter",
+              "result": "escaped"
+            }
+          ],
+          "else": [
+            {
+              "op": "message",
+              "text": "You can't get away."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

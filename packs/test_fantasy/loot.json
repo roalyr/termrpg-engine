@@ -1,0 +1,18 @@
+{
+  "$schema": "../../schemas/loot.schema.json",
+  "entries": [
+    {
+      "id": "loot_rat",
+      "rolls": 1,
+      "nothing": 2,
+      "entries": [
+        {
+          "item": "material_rune_dust"
+        },
+        {
+          "item": "consumable_bread"
+        }
+      ]
+    }
+  ]
+}

@@ -73,7 +73,7 @@ features proven in both packs.
 1. Agree this page, then each change in a little more detail.
 2. Schema changes for all four, as one major schema version; the sci-fi pack updated
    to match.
-3. The fantasy test pack, written against the new schemas.
+3. The fantasy test pack, written against the new schemas. ✓ (`packs/test_fantasy`)
 4. Engine, validator, tools and UI, with the tests run against both packs.
 5. README, AGENTS.md (recipes) and the playtest updated.
 

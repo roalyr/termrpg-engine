@@ -1,0 +1,213 @@
+{
+  "$schema": "../../schemas/item.schema.json",
+  "entries": [
+    {
+      "id": "gear_leather_armour",
+      "kind": "gear",
+      "name": "Leather armour",
+      "size": 3,
+      "grade": "grade_common",
+      "description": "Boiled leather over a padded shirt. Light enough to put on anywhere.",
+      "slot_type": "slot_worn",
+      "worn_size": 3,
+      "stats": {
+        "stat_health": 10,
+        "stat_armor": 1
+      },
+      "uses": {
+        "stat_weight": 3
+      },
+      "condition": 8,
+      "mod_slots": 1,
+      "repair": {
+        "inputs": [
+          {
+            "item": "material_iron"
+          }
+        ],
+        "amount": 4
+      }
+    },
+    {
+      "id": "gear_plate_armour",
+      "kind": "gear",
+      "name": "Plate armour",
+      "size": 4,
+      "grade": "grade_fine",
+      "description": "A full harness of steel plate. Too bulky for the cellar stairs, and heavy to bear: wearing it takes some Smithing know-how.",
+      "slot_type": "slot_worn",
+      "worn_size": 4,
+      "stats": {
+        "stat_health": 25,
+        "stat_armor": 3
+      },
+      "uses": {
+        "stat_weight": 7
+      },
+      "equip_requires": {
+        "check": "skill",
+        "skill": "skill_smithing",
+        "min": 2
+      }
+    },
+    {
+      "id": "gear_sword",
+      "kind": "gear",
+      "name": "Sword",
+      "size": 1,
+      "grade": "grade_common",
+      "tags": [
+        "tag_blade"
+      ],
+      "description": "A plain arming sword. It dulls with use; iron at the forge sets it right.",
+      "slot_type": "slot_hand",
+      "uses": {
+        "stat_weight": 2
+      },
+      "actions": [
+        "action_slash"
+      ],
+      "condition": 6,
+      "mod_slots": 1,
+      "dismantle": {
+        "yields": [
+          {
+            "item": "material_iron",
+            "count": 2
+          }
+        ],
+        "learn_requires": {
+          "check": "skill",
+          "skill": "skill_smithing",
+          "min": 2
+        }
+      },
+      "make": {
+        "inputs": [
+          {
+            "item": "material_iron",
+            "count": 3
+          }
+        ],
+        "time": 2
+      },
+      "repair": {
+        "inputs": [
+          {
+            "item": "material_iron"
+          }
+        ],
+        "amount": 3
+      }
+    },
+    {
+      "id": "gear_buckler",
+      "kind": "gear",
+      "name": "Buckler",
+      "size": 1,
+      "grade": "grade_common",
+      "description": "A small round shield for the off hand, good for a bash.",
+      "slot_type": "slot_hand",
+      "uses": {
+        "stat_weight": 2
+      },
+      "stats": {
+        "stat_armor": 1
+      },
+      "actions": [
+        "action_bash"
+      ]
+    },
+    {
+      "id": "gear_fur_cloak",
+      "kind": "gear",
+      "name": "Fur cloak",
+      "size": 2,
+      "grade": "grade_common",
+      "tags": [
+        "tag_warm"
+      ],
+      "description": "A heavy cloak of wolf fur. It keeps the cellar's cold out.",
+      "slot_type": "slot_back",
+      "uses": {
+        "stat_weight": 1
+      }
+    },
+    {
+      "id": "gear_ward_blessing",
+      "kind": "gear",
+      "name": "Hearth ward",
+      "size": 0,
+      "grade": "grade_fine",
+      "description": "The hearth god's ward. It deepens your mana and lets you call fire. Only the altar can grant it.",
+      "slot_type": "slot_blessing",
+      "stats": {
+        "stat_mana": 6
+      },
+      "actions": [
+        "action_firebolt"
+      ]
+    },
+    {
+      "id": "material_iron",
+      "kind": "material",
+      "name": "Iron",
+      "size": 1,
+      "stack": 10,
+      "value": 2,
+      "grade": "grade_common",
+      "description": "Bar iron for the forge: repairs, and new blades."
+    },
+    {
+      "id": "material_rune_dust",
+      "kind": "material",
+      "name": "Rune dust",
+      "size": 0,
+      "stack": 5,
+      "grade": "grade_fine",
+      "description": "Glittering dust from old standing stones. Worked into a blade at the altar, it holds mana."
+    },
+    {
+      "id": "consumable_bread",
+      "kind": "consumable",
+      "name": "Bread",
+      "size": 0,
+      "stack": 5,
+      "description": "A loaf of the smith's bread. Eating one restores a little health.",
+      "interactions": [
+        {
+          "id": "eat",
+          "label": "Eat",
+          "effects": [
+            {
+              "op": "restore",
+              "stat": "stat_health",
+              "amount": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "consumable_mana_draught",
+      "kind": "consumable",
+      "name": "Mana draught",
+      "size": 0,
+      "stack": 3,
+      "description": "A bitter blue draught. It restores mana.",
+      "interactions": [
+        {
+          "id": "drink",
+          "label": "Drink",
+          "effects": [
+            {
+              "op": "restore",
+              "stat": "stat_mana",
+              "amount": 5
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

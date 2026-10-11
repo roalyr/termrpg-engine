@@ -1,0 +1,71 @@
+{
+  "$schema": "../../schemas/art.schema.json",
+  "entries": [
+    {
+      "id": "art_player",
+      "notes": "A young smith: dark hair, a leather apron.",
+      "rows": [
+        "....hhhhhh....",
+        "...hhhhhhhh...",
+        "...hssssssh...",
+        "...seesseeh...",
+        "....ssssss....",
+        "....ssmmss....",
+        ".....ssss.....",
+        "..aaaaaaaaaa..",
+        ".aaaaaaaaaaaa.",
+        "aaaaaaaaaaaaaa"
+      ],
+      "palette": {
+        "h": 94,
+        "s": 223,
+        "e": "grey",
+        "m": 174,
+        "a": 130
+      }
+    },
+    {
+      "id": "art_witch",
+      "notes": "A hedge witch: a pointed hat, grey hair, a green shawl.",
+      "rows": [
+        ".......kk.......",
+        "......kkkk......",
+        ".....kkkkkk.....",
+        "..kkkkkkkkkkkk..",
+        "....gssssssg....",
+        "....gseesesg....",
+        "....gssssssg....",
+        "....ggsmmsgg....",
+        "...cccccccccc...",
+        "..cccccccccccc.."
+      ],
+      "palette": {
+        "k": 237,
+        "g": "grey",
+        "s": 223,
+        "e": "green",
+        "m": 131,
+        "c": 28
+      }
+    },
+    {
+      "id": "art_rat",
+      "notes": "A fat cellar rat side on, with a long tail.",
+      "rows": [
+        ".......bb.......",
+        ".....bbbbbb.....",
+        "...bbbbbbbbbbe..",
+        "..bbbbbbbbbbbbn.",
+        "tbbbbbbbbbbbbb..",
+        "t..bb..bb.......",
+        "tt.............."
+      ],
+      "palette": {
+        "b": 95,
+        "e": "red",
+        "n": 174,
+        "t": 174
+      }
+    }
+  ]
+}

@@ -43,7 +43,7 @@ on the project. What each finished milestone delivered is in the git history.
 The engine should build a sci-fi RPG and a classical fantasy RPG equally well.
 Games, starting with `vanilla` (now in `archive/`), move to their own repositories.
 
-1. **Design, big picture first** ([docs/design/genre-agnostic.md](docs/design/genre-agnostic.md)):
+1. ✓ **Design, big picture first** ([docs/design/genre-agnostic.md](docs/design/genre-agnostic.md)):
    a fantasy test pack, and the generalizations agreed against both genres:
    - gear without a frame: the body provides equipment slots, and the frame (suit,
      armour) becomes an optional worn layer;
@@ -51,10 +51,11 @@ Games, starting with `vanilla` (now in `archive/`), move to their own repositori
    - action costs on any pool stat, either building up to a limit (heat, fatigue) or
      spent down (mana, ammunition);
    - where gear can be changed: per slot type or item kind, not only at workshops.
-2. **Build it schema first,** one change at a time. The changes break existing packs:
+2. ✓ **Build it schema first,** one change at a time. The changes break existing packs:
    one major schema version for all of them.
-3. **Two test packs,** each using every part of the schemas: sci-fi
-   (`packs/test_scifi`) and fantasy (`packs/test_fantasy`). Engine tests run against both.
+3. ✓ **Two test packs:** sci-fi (`packs/test_scifi`, every part of the schemas) and
+   fantasy (`packs/test_fantasy`, the same features in another genre:
+   `tests/test_fantasy_pack.py` covers its rules, screens and random play).
 4. **Delete the old engine** (the `core/` modules the new engine replaced, `ui/`, the
    old `main.py`), the old design document and `tests/test_gdd_sync.py`.
 5. Tag the result as **version 1.0**.

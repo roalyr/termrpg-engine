@@ -1,0 +1,34 @@
+{
+  "$schema": "../../schemas/encounter.schema.json",
+  "entries": [
+    {
+      "id": "enc_rats",
+      "name": "Rats",
+      "intro": "Rats pour out of the hole.",
+      "enemies": [
+        {
+          "character": "char_rat",
+          "count": 2
+        }
+      ],
+      "allies": [
+        {
+          "character": "char_witch"
+        }
+      ],
+      "on_win": [
+        {
+          "op": "set_flag",
+          "flag": "flag_rats_cleared",
+          "value": 1
+        }
+      ],
+      "on_escape": [
+        {
+          "op": "message",
+          "text": "You scramble up the stairs."
+        }
+      ]
+    }
+  ]
+}

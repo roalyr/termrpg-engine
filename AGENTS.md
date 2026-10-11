@@ -29,7 +29,7 @@ to check your work, and the rules of the data that are easy to get wrong.
 | [README.md](README.md) | Reference for every schema, check, effect and term (glossary) |
 | [ROADMAP.md](ROADMAP.md) | Milestones and what is done |
 | `packs/<id>/docs/` | A game's design documents, starting with its vision, in the game's own repository. They win over the pack's JSON |
-| [PLAYTEST.md](PLAYTEST.md) | A hand-played checklist of every feature, in the test pack |
+| [PLAYTEST.md](PLAYTEST.md) | A hand-played checklist of every feature, in the test packs |
 | [tools/README.md](tools/README.md) | The pack editors (`python3 editor.py`) |
 | `System Architecture & Game Design Document.md` | The old engine only. Being removed; don't use it for new work |
 
@@ -330,8 +330,10 @@ Prefixes make ids easy to read and search. Use them in game packs:
 | Custom string | `str_` | `str_kael_greeting` |
 | Art (pictures) | `art_` | `art_kael`, `art_sentry` |
 
-The test pack follows these prefixes too, with plain names (a workshop, a storage room,
-a cutter, scrap), so its ids can be copied as examples.
+The test packs follow these prefixes too, with plain names (a workshop, a cutter,
+scrap; a smithy, a sword, iron), so their ids can be copied as examples. For a game in
+another genre, `packs/test_fantasy` shows the same features with armour, weight, mana
+and an altar.
 
 ## Recipes
 

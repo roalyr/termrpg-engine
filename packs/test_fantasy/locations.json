@@ -1,0 +1,138 @@
+{
+  "$schema": "../../schemas/world.schema.json",
+  "entries": [
+    {
+      "id": "loc_smithy",
+      "name": "Smithy",
+      "region": "reg_village",
+      "size": 4,
+      "description": "A village smithy: a forge, an altar to the hearth god, a rack for armour.",
+      "grid": {
+        "width": 6,
+        "height": 6,
+        "floor": "·",
+        "wall": "▓"
+      },
+      "map": {
+        "x": 0,
+        "y": 0
+      },
+      "placements": [
+        {
+          "id": "smithy_stairs",
+          "object": "obj_stairs",
+          "at": [
+            5,
+            2
+          ],
+          "exit": {
+            "location": "loc_cellar",
+            "entry": "cellar_stairs"
+          }
+        },
+        {
+          "id": "smithy_forge",
+          "object": "obj_forge",
+          "at": [
+            1,
+            4
+          ]
+        },
+        {
+          "id": "smithy_altar",
+          "object": "obj_altar",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "id": "smithy_rack",
+          "object": "obj_rack",
+          "at": [
+            4,
+            1
+          ],
+          "contents": [
+            {
+              "item": "gear_plate_armour"
+            },
+            {
+              "item": "gear_ward_blessing"
+            }
+          ]
+        },
+        {
+          "id": "smithy_basket",
+          "object": "obj_basket",
+          "at": [
+            4,
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "id": "loc_cellar",
+      "name": "Cellar",
+      "region": "reg_village",
+      "size": 3,
+      "tags": [
+        "tag_damp_cold"
+      ],
+      "description": "A low stone cellar under the smithy. The damp cold gets into your bones.",
+      "grid": {
+        "width": 6,
+        "height": 5,
+        "floor": "·",
+        "wall": "▓"
+      },
+      "map": {
+        "x": 0,
+        "y": 1
+      },
+      "on_turn": [
+        {
+          "op": "if",
+          "if": {
+            "not": {
+              "check": "has_tag",
+              "tag": "tag_warm",
+              "source": "equipped"
+            }
+          },
+          "then": [
+            {
+              "op": "damage",
+              "amount": 1,
+              "damage_type": "dmg_cold",
+              "subject": "self"
+            }
+          ]
+        }
+      ],
+      "placements": [
+        {
+          "id": "cellar_stairs",
+          "object": "obj_stairs",
+          "at": [
+            0,
+            2
+          ],
+          "exit": {
+            "location": "loc_smithy",
+            "entry": "smithy_stairs"
+          }
+        },
+        {
+          "id": "cellar_rat_hole",
+          "object": "obj_rat_hole",
+          "at": [
+            3,
+            4
+          ]
+        }
+      ]
+    }
+  ]
+}

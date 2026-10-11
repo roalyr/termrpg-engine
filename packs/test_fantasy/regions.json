@@ -1,0 +1,13 @@
+{
+  "$schema": "../../schemas/world.schema.json",
+  "entries": [
+    {
+      "id": "reg_village",
+      "name": "Village",
+      "map": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ]
+}

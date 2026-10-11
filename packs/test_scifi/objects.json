@@ -196,7 +196,7 @@
     {
       "id": "obj_locker",
       "name": "Locker",
-      "description": "A steel locker with room for six stacks of anything up to medium size: tools, materials, spares. Suits don't fit. Stand next to it and use the fitting board to store or take items, a whole stack at a time.",
+      "description": "A steel locker with room for six stacks of anything up to medium size: tools, materials, spares. Suits don't fit. Stand next to it and use the pack to store or take items, a whole stack at a time.",
       "glyph": "▯",
       "size": 3,
       "holds_size": 2,
@@ -206,7 +206,7 @@
     {
       "id": "obj_bench",
       "name": "Workbench",
-      "description": "A proper workbench: vice, cutters, a small furnace. Stand next to it and use the fitting board to put on or take off suits, modules and implants; repair worn gear with scrap; take items apart for materials, and learn how they're made if your Salvage is good enough; make items you know the design of; and modify gear, which fills one of its mod slots for good. It only works on common-grade gear.",
+      "description": "A proper workbench: vice, cutters, a small furnace. Stand next to it and use the gear screen to put on or take off suits, tools and implants; repair worn gear with scrap; take items apart for materials, and learn how they're made if your Salvage is good enough; make items you know the design of; and modify gear, which fills one of its mod slots for good. It only works on common-grade gear.",
       "glyph": "■",
       "solid": true,
       "workshop": {
@@ -223,7 +223,7 @@
     {
       "id": "obj_bay",
       "name": "Suit bay",
-      "description": "A suit rack with clamps and power lines, big enough for a heavy suit. It stores six stacks, suits included. Stand next to it and use the fitting board to put on or take off suits, modules and implants. It can't repair or make anything.",
+      "description": "A suit rack with clamps and power lines, big enough for a heavy suit. It stores six stacks, suits included. Stand next to it and use the gear screen to put on or take off suits, tools and implants. It can't repair or make anything.",
       "glyph": "▣",
       "solid": true,
       "size": 5,

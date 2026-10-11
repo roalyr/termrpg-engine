@@ -1,0 +1,147 @@
+{
+  "$schema": "../../schemas/object.schema.json",
+  "entries": [
+    {
+      "id": "obj_stairs",
+      "name": "Stairs",
+      "glyph": "≡",
+      "size": 3,
+      "holds_size": 3,
+      "description": "Narrow stone stairs between the smithy and the cellar. Someone in plate won't fit."
+    },
+    {
+      "id": "obj_forge",
+      "name": "Forge",
+      "glyph": "■",
+      "solid": true,
+      "colour": "orange",
+      "description": "A coal forge with an anvil. Repair gear with iron, take it apart for iron and learn how it's made if your Smithing is good enough, and make what you know. Common work only. Practising at the anvil trains Smithing.",
+      "workshop": {
+        "services": [
+          "dismantle",
+          "make",
+          "repair"
+        ],
+        "max_grade": "grade_common"
+      },
+      "interactions": [
+        {
+          "id": "practise",
+          "label": "Practise at the anvil",
+          "key": "n",
+          "time": 3,
+          "effects": [
+            {
+              "op": "grant_xp",
+              "skill": "skill_smithing",
+              "amount": 10
+            },
+            {
+              "op": "message",
+              "text": "Your arms ache, and your hammer falls truer."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "obj_altar",
+      "name": "Altar",
+      "glyph": "†",
+      "solid": true,
+      "colour": "yellow",
+      "description": "The hearth god's altar. Blessings are granted and lifted here, and rune dust can be worked into a blade.",
+      "workshop": {
+        "services": [
+          "equip",
+          "modify"
+        ],
+        "equip_slot_types": [
+          "slot_blessing"
+        ]
+      }
+    },
+    {
+      "id": "obj_rack",
+      "name": "Armour stand",
+      "glyph": "Ж",
+      "solid": true,
+      "size": 4,
+      "holds_size": 4,
+      "storage": 4,
+      "description": "A wooden stand for armour, big enough for plate. It holds four stacks."
+    },
+    {
+      "id": "obj_basket",
+      "name": "Bread basket",
+      "glyph": "o",
+      "solid": true,
+      "size": 1,
+      "description": "The smith's bread basket, filled every morning. Take a loaf once a day.",
+      "states": [
+        "state_full",
+        "state_empty"
+      ],
+      "interactions": [
+        {
+          "id": "take",
+          "label": "Take bread",
+          "key": "h",
+          "repeat": "daily",
+          "requires": {
+            "check": "object_state",
+            "object": "this",
+            "state": "state_full"
+          },
+          "hint": "Empty until morning.",
+          "effects": [
+            {
+              "op": "set_state",
+              "object": "this",
+              "state": "state_empty"
+            },
+            {
+              "op": "give_item",
+              "item": "consumable_bread"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "obj_rat_hole",
+      "name": "Rat hole",
+      "glyph": "○",
+      "solid": true,
+      "description": "A gnawed hole in the cellar wall. Something squeaks inside.",
+      "states": [
+        "state_quiet",
+        "state_stirred"
+      ],
+      "interactions": [
+        {
+          "id": "poke",
+          "label": "Poke it",
+          "key": "u",
+          "requires": {
+            "check": "object_state",
+            "object": "this",
+            "state": "state_quiet"
+          },
+          "hint": "Nothing stirs now.",
+          "effects": [
+            {
+              "op": "set_state",
+              "object": "this",
+              "state": "state_stirred"
+            },
+            {
+              "op": "start_encounter",
+              "encounter": "enc_rats"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

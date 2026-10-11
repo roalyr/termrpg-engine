@@ -1,0 +1,238 @@
+{
+  "$schema": "../../schemas/character.schema.json",
+  "entries": [
+    {
+      "id": "char_player",
+      "name": "Player",
+      "glyph": "@",
+      "art": "art_player",
+      "faction": "faction_village",
+      "description": "You: a smith's apprentice with a sword and no armour yet.",
+      "body": {
+        "size": 3,
+        "slots": [
+          {
+            "slot_type": "slot_worn"
+          },
+          {
+            "slot_type": "slot_hand",
+            "count": 2
+          },
+          {
+            "slot_type": "slot_back"
+          },
+          {
+            "slot_type": "slot_blessing"
+          }
+        ],
+        "stats": {
+          "stat_health": 12,
+          "stat_cargo": 6,
+          "stat_weight": 8,
+          "stat_stamina": 6,
+          "stat_initiative": 1
+        }
+      },
+      "equipped": [
+        "gear_sword"
+      ],
+      "inventory": [
+        {
+          "item": "gear_leather_armour"
+        },
+        {
+          "item": "gear_buckler"
+        },
+        {
+          "item": "material_iron",
+          "count": 4
+        },
+        {
+          "item": "consumable_bread",
+          "count": 2
+        }
+      ],
+      "skills": {
+        "skill_fencing": 1,
+        "skill_smithing": 1
+      },
+      "on_defeat": [
+        {
+          "op": "message",
+          "text": "You black out.",
+          "kind": "danger"
+        },
+        {
+          "op": "move_to",
+          "location": "loc_smithy",
+          "entry": "smithy_basket"
+        },
+        {
+          "op": "restore",
+          "stat": "stat_health",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "id": "char_witch",
+      "name": "Hedda",
+      "title": "Hedge witch",
+      "art": "art_witch",
+      "faction": "faction_village",
+      "location": "loc_smithy",
+      "at": [
+        3,
+        3
+      ],
+      "description": "A hedge witch who trades in furs and draughts. She'll swap her fur cloak for iron, once, and once she likes you she'll come along and throw fire for you.",
+      "body": {
+        "size": 3,
+        "slots": [
+          {
+            "slot_type": "slot_worn"
+          },
+          {
+            "slot_type": "slot_hand",
+            "count": 2
+          },
+          {
+            "slot_type": "slot_back"
+          },
+          {
+            "slot_type": "slot_blessing"
+          }
+        ],
+        "stats": {
+          "stat_health": 10,
+          "stat_cargo": 4,
+          "stat_weight": 6,
+          "stat_mana": 8,
+          "stat_stamina": 4
+        }
+      },
+      "inventory": [
+        {
+          "item": "gear_fur_cloak"
+        },
+        {
+          "item": "consumable_mana_draught",
+          "count": 2
+        }
+      ],
+      "skills": {
+        "skill_sorcery": 1
+      },
+      "wants": [
+        "tag_blade"
+      ],
+      "views": [
+        {
+          "toward": "player",
+          "value": 10
+        }
+      ],
+      "talk": [
+        {
+          "when": {
+            "check": "in_party"
+          },
+          "text": "Lead on, I'll keep the fire lit."
+        },
+        {
+          "when": {
+            "check": "has_item",
+            "item": "material_iron",
+            "count": 2,
+            "subject": "target"
+          },
+          "text": "Is that iron? I'd trade my cloak for it."
+        },
+        {
+          "text": "@str_greeting"
+        }
+      ],
+      "interactions": [
+        {
+          "id": "trade",
+          "label": "Trade iron for a cloak",
+          "key": "b",
+          "repeat": "once",
+          "requires": {
+            "check": "has_item",
+            "item": "material_iron",
+            "count": 2
+          },
+          "hint": "Wants two iron.",
+          "effects": [
+            {
+              "op": "take_item",
+              "item": "material_iron",
+              "count": 2
+            },
+            {
+              "op": "give_item",
+              "item": "gear_fur_cloak"
+            },
+            {
+              "op": "change_relation",
+              "of": "target",
+              "toward": "self",
+              "amount": 20
+            }
+          ]
+        },
+        {
+          "id": "recruit",
+          "label": "Ask her along",
+          "key": "t",
+          "shown_if": {
+            "not": {
+              "check": "in_party",
+              "subject": "target"
+            }
+          },
+          "requires": {
+            "check": "relation",
+            "of": "target",
+            "toward": "self",
+            "min": 25
+          },
+          "hint": "She doesn't know you well enough.",
+          "effects": [
+            {
+              "op": "join_party",
+              "subject": "target",
+              "leader": "self"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "char_rat",
+      "name": "Rat",
+      "template": true,
+      "glyph": "r",
+      "art": "art_rat",
+      "tags": [
+        "tag_beast"
+      ],
+      "description": "A cellar rat the size of a cat.",
+      "body": {
+        "size": 1,
+        "stats": {
+          "stat_health": 4,
+          "stat_initiative": 2
+        }
+      },
+      "actions": [
+        "action_bite"
+      ],
+      "ai": {
+        "flee_below": 0.25
+      },
+      "loot": "loot_rat"
+    }
+  ]
+}
