@@ -19,6 +19,7 @@ import sys
 from collections import Counter
 from typing import Callable, Dict, List, Optional, Tuple
 
+from lib import graph
 from tools.lib import forms, maps, rooms, screen, term
 from tools.lib.packfiles import PackFiles
 from tools.room import Room
@@ -29,7 +30,6 @@ SIDE_OF_STEP = {(0, -1): "north", (0, 1): "south", (-1, 0): "west", (1, 0): "eas
 NODE = "■"
 NEW = object()                             # the region list's "New region" entry
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
-PITCH = 4                                  # columns per cell: the glyph and a link
 
 
 def cut(text: str, width: int) -> str:
@@ -157,22 +157,15 @@ class Map:
 
     def grid(self, facts: maps.Facts, width: int, height: int) -> List[str]:
         style = self.look.style
-        found, joined = self.nodes(), maps.links(self.pack, facts, self.region)
-        across, down = max(1, (width + PITCH - 1) // PITCH), max(1, (height + 1) // 2)
-        vx = min(max(self.view[0], self.cursor[0] - across + 1), self.cursor[0])
-        vy = min(max(self.view[1], self.cursor[1] - down + 1), self.cursor[1])
-        self.view = (vx, vy)
-        last = self.extent()
-        lines = []
-        for y in range(vy, min(vy + down, last[1] + 1)):
-            top, under = "", ""
-            for x in range(vx, min(vx + across, last[0] + 1)):
+        found = self.nodes()
+        across, down = graph.fit(width, height)
+        self.view = graph.origin(self.cursor, self.view, across, down)
+        glyphs = {}
+        for x in range(self.view[0], self.view[0] + across):
+            for y in range(self.view[1], self.view[1] + down):
                 glyph = self.cell_glyph(facts, found.get((x, y)))
-                if (x, y) == self.cursor:
-                    glyph = style.inverse(screen.strip(glyph))
-                top += glyph + ("───" if ((x, y), (x + 1, y)) in joined else "   ")
-                under += ("│" if ((x, y), (x, y + 1)) in joined else " ") + "   "
-            lines += [top.rstrip(), under.rstrip()]
+                glyphs[(x, y)] = style.inverse(screen.strip(glyph)) if (x, y) == self.cursor else glyph
+        lines = graph.draw(glyphs, maps.links(self.pack, facts, self.region), self.view, across, down, self.extent())
         return lines[:height]
 
     def cell_glyph(self, facts: maps.Facts, here) -> str:
