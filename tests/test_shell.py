@@ -15,8 +15,8 @@ from engine import encounter, save, world
 from engine.content import load_pack
 from engine.state import new_game
 from tui import app, render, shell
-from tui.text import visible_len
-from tui.ui import default_ui, load_ui, ui_dir_for
+from lib.text import visible_len
+from lib.ui import default_ui, load_ui, ui_dir_for
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")

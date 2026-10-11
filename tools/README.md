@@ -94,7 +94,7 @@ These hold for every tool. A new tool, or a change to one, follows them.
   (as written, no defaults filled in); `touch(file)` marks a change, `save()` writes
   only changed files, each atomically, and a file written back unchanged is byte for
   byte the same.
-- **Keys** (`tools.lib.term`, `Look.action`): keys arrive as names (a character, or
+- **Keys** (`lib.term`, `Look.action`): keys arrive as names (a character, or
   `up`, `down`, `left`, `right`, `enter`, `esc`, `backspace`, `tab`); `look.action(key)`
   turns the game's bindings into `up`, `down`, `left`, `right`, `back`, `quit`. When
   stdin isn't a terminal, keys are read from it, so a tool can be scripted.

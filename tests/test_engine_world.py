@@ -17,8 +17,8 @@ from engine.effects import run
 from engine.frozen import freeze
 from engine.state import Ctx, StatusInst, new_game
 from tui import app, render
-from tui.text import Style
-from tui.ui import default_ui
+from lib.text import Style
+from lib.ui import default_ui
 from tui.widgets import option_text
 
 UI = default_ui()

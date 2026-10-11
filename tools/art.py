@@ -14,7 +14,8 @@ import re
 import sys
 from typing import Callable, List, Optional, Tuple
 
-from tools.lib import colours, forms, screen, term
+from lib import term
+from tools.lib import colours, forms, screen
 from tools.lib.colours import code
 from tools.lib.packfiles import Found, PackFiles
 

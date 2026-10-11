@@ -2,7 +2,7 @@
 The terminal loop the tools share. A tool is two functions, like the game:
 render(columns, rows) -> the screen as text, and handle(key) -> False to quit.
 Keys arrive as names: a character, or 'up', 'down', 'left', 'right', 'enter', 'esc',
-'backspace', 'tab'. Raw keys and styles come from the game's tui.text.
+'backspace', 'tab'. Raw keys and styles come from lib.text.
 """
 import argparse
 import os
@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from tui import text
+from lib import text
 
 KEY_NAMES = {"\x1b[A": "up", "\x1b[B": "down", "\x1b[C": "right", "\x1b[D": "left",
              "\x1bOA": "up", "\x1bOB": "down", "\x1bOC": "right", "\x1bOD": "left",

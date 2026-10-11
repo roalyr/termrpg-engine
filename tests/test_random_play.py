@@ -16,8 +16,8 @@ from engine.effects import run
 from engine.frozen import freeze
 from engine.state import Ctx, new_game
 from tui import app, render
-from tui.text import visible_len
-from tui.ui import default_ui
+from lib.text import visible_len
+from lib.ui import default_ui
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")

@@ -6,7 +6,7 @@ terminal grid.
 from typing import Callable, List
 
 from tools.lib import forms, screen
-from tui.text import PALETTE
+from lib.text import PALETTE
 
 NAMED = ("grey", "white", "green", "cyan", "blue", "violet", "yellow", "orange", "red")
 DEFAULT = object()                            # "leave it to the UI pack": the field is removed

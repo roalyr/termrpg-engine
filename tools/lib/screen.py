@@ -9,8 +9,8 @@ too tall, the tallest band loses its last lines; a tool keeps its bands short in
 """
 from typing import List, NamedTuple, Optional, Sequence, Tuple
 
-from tui.text import ANSI, Style, pad, visible_len, wrap  # noqa: F401  (wrap is for the tools)
-from tui.ui import UI, default_ui
+from lib.text import ANSI, Style, pad, visible_len, wrap  # noqa: F401  (wrap is for the tools)
+from lib.ui import UI, default_ui
 
 # Input actions every tool understands, besides plain letters.
 ARROWS = {"up": "move_north", "down": "move_south", "left": "move_west", "right": "move_east"}

@@ -9,8 +9,8 @@ from typing import Optional
 from engine.content import Content
 from engine.state import GameState
 from tui.layout import draw_screen, scroll_limit
-from tui.text import Style
-from tui.ui import UI, default_ui
+from lib.text import Style
+from lib.ui import UI, default_ui
 from tui.widgets import Frame, card_shown
 
 

@@ -22,7 +22,7 @@ open, the list's zone is the flexible one, and it scrolls to keep the pick in vi
 """
 from typing import Any, List, Mapping, NamedTuple, Optional, Tuple
 
-from tui.text import pad
+from lib.text import pad
 from tui.widgets import FOCUS, LISTS, NATURAL_WIDTH, SUBWINDOWS, WIDGETS, Frame
 
 

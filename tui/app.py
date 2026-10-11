@@ -18,9 +18,9 @@ from engine import atlas, build, encounter, events, journal, save, turns, world
 from engine.content import Content, PackError, load_pack
 from engine.effects import choose_option
 from engine.state import GameState, Message, new_game
-from lib import graph
-from tui import render, shell, text, widgets
-from tui.ui import ROOT_DIR, UI, UIPackError, default_ui, load_ui, ui_dir_for
+from lib import graph, text
+from tui import render, shell, widgets
+from lib.ui import ROOT_DIR, UI, UIPackError, default_ui, load_ui, ui_dir_for
 
 # The engine's step directions, by input action.
 MOVES = {"move_north": "w", "move_west": "a", "move_south": "s", "move_east": "d"}

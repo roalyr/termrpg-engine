@@ -6,9 +6,10 @@ import unittest
 from pathlib import Path
 
 import editor
-from tui.text import visible_len
+from lib import term
+from lib.text import visible_len
 from tools import tools
-from tools.lib import maps, rooms, screen, term
+from tools.lib import maps, rooms, screen
 from tools.lib.packfiles import PackFiles, dumps
 from tools.art import Art
 from tools.entries import Entries

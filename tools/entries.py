@@ -18,7 +18,8 @@ import json
 import sys
 from typing import Any, Callable, List, Optional, Tuple
 
-from tools.lib import colours, fields, forms, glance, refs, screen, sources, term
+from lib import term
+from tools.lib import colours, fields, forms, glance, refs, screen, sources
 from tools.lib.fields import Spec
 from tools.lib.packfiles import Found, PackFiles
 

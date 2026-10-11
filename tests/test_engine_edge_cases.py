@@ -18,8 +18,9 @@ from engine.content import load_pack
 from engine.effects import choose_option, run
 from engine.frozen import freeze
 from engine.state import Ctx, new_game
-from tui import app, text
-from tui.ui import default_ui, ui_dir_for
+from lib import text
+from lib.ui import default_ui, ui_dir_for
+from tui import app
 
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = load_pack(ROOT / "packs" / "test")

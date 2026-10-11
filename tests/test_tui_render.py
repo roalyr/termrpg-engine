@@ -16,8 +16,8 @@ from engine.effects import run
 from engine.frozen import freeze
 from engine.state import Ctx, Entry, Message, new_game
 from tui import app, render, widgets
-from tui.text import Style, visible_len
-from tui.ui import UIPackError, default_ui, load_ui, ui_dir_for
+from lib.text import Style, visible_len
+from lib.ui import UIPackError, default_ui, load_ui, ui_dir_for
 from tui.widgets import Frame, item_details, option_text
 
 ROOT = Path(__file__).resolve().parent.parent

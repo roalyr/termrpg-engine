@@ -7,7 +7,8 @@ The smallest tool, and the template for the others.
 """
 import sys
 
-from tools.lib import screen, term
+from lib import term
+from tools.lib import screen
 from tools.lib.packfiles import PackFiles
 
 

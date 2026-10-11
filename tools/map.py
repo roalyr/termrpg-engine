@@ -19,8 +19,8 @@ import sys
 from collections import Counter
 from typing import Callable, Dict, List, Optional, Tuple
 
-from lib import graph
-from tools.lib import forms, maps, rooms, screen, term
+from lib import graph, term
+from tools.lib import forms, maps, rooms, screen
 from tools.lib.packfiles import PackFiles
 from tools.room import Room
 

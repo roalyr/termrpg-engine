@@ -15,7 +15,8 @@ Nothing is written until you leave the room and say yes; then the checker runs.
 import sys
 from typing import Callable, List, Optional, Tuple
 
-from tools.lib import colours, forms, rooms, screen, term
+from lib import term
+from tools.lib import colours, forms, rooms, screen
 from tools.lib.packfiles import Found, PackFiles
 from tui.widgets import map_glyph, room_line
 

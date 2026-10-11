@@ -12,8 +12,8 @@ from engine import atlas, build, conditions, context, encounter, stats, world
 from engine.content import Content
 from engine.state import GameState, ItemInst, Message, char_key, day_of, new_item, phase_of
 from lib import graph
-from tui.text import ANSI, Style, pad, visible_len, wrap
-from tui.ui import UI
+from lib.text import ANSI, Style, pad, visible_len, wrap
+from lib.ui import UI
 
 
 class Frame(NamedTuple):
@@ -937,7 +937,7 @@ def portrait(frame: Frame, width: int, options: Mapping) -> List[str]:
 
 
 def _colour_code(colour) -> int:
-    from tui.text import PALETTE
+    from lib.text import PALETTE
     return colour if isinstance(colour, int) else PALETTE.get(colour, PALETTE["white"])
 
 

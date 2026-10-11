@@ -15,7 +15,8 @@ G opens the character's room, V shows or hides the picture.
 import sys
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
-from tools.lib import colours, forms, loadout, screen, term
+from lib import term
+from tools.lib import colours, forms, loadout, screen
 from tools.lib.loadout import Sheet, Slot
 from tools.lib.packfiles import Found, PackFiles
 from tools.room import Room

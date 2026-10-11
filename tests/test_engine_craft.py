@@ -12,7 +12,7 @@ from engine.effects import run
 from engine.frozen import freeze
 from engine.state import Ctx, new_game
 from tui import render
-from tui.ui import default_ui
+from lib.ui import default_ui
 from tui.widgets import option_text
 
 UI = default_ui()

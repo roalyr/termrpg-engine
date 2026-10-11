@@ -69,7 +69,8 @@ timestamps can make Python run stale cached bytecode.
 | `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
 | `AGENTS.md`, `GEMINI.md` | Instructions for AI agents |
 | `ROADMAP.md` | The engine rebuild plan |
-| `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `craft.py` workshops, `events.py` the living world, `save.py` saves, `rng.py` seeded randomness |
+| `engine/` | The new engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` fitting and storage, `encounter.py` fights, `craft.py` workshops, `events.py` the living world, `atlas.py` the map the player knows, `save.py` saves, `rng.py` seeded randomness |
+| `lib/` | Code the game and the tools share: `text.py` styles, colours, wrapping and keys, `ui.py` loading a UI pack, `term.py` the tools' key loop and the text editor, `graph.py` region maps. It depends only on the validator (`core/pack.py`, `core/uipack.py`) |
 | `tui/`, `play.py` | The terminal UI for the new engine, and how to start it |
 | `tools/`, `editor.py` | Terminal tools for editing packs, all reached from `python3 editor.py` (see `tools/README.md`) |
 | `core/`, `ui/`, `main.py` | The old engine (being replaced) |
@@ -928,7 +929,7 @@ A **UI pack** standardises the terminal UI and is shared by game packs. It lives
 `default`). It owns the **look, the layout, the keys and the UI's own words**; the
 game pack keeps the game's voice (what happens, hints, dialogue, results).
 
-The renderer (`tui/`) draws everything from the UI pack: `tui/ui.py` loads and
+The renderer (`tui/`) draws everything from the UI pack: `lib/ui.py` loads and
 validates it (an invalid UI pack is refused at start), `tui/widgets.py` holds the
 widget catalogue, `tui/layout.py` lays out the zones and `tui/shell.py` handles the
 screens before a game is loaded. `python3 play.py --ui <folder>` plays with another
