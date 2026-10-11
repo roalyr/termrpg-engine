@@ -31,7 +31,6 @@ to check your work, and the rules of the data that are easy to get wrong.
 | `packs/<id>/docs/` | A game's design documents, starting with its vision, in the game's own repository. They win over the pack's JSON |
 | [PLAYTEST.md](PLAYTEST.md) | A hand-played checklist of every feature, in the test packs |
 | [tools/README.md](tools/README.md) | The pack editors (`python3 editor.py`) |
-| `System Architecture & Game Design Document.md` | The old engine only. Being removed; don't use it for new work |
 
 ## What kind of work you'll do
 
@@ -66,7 +65,6 @@ to check your work, and the rules of the data that are easy to get wrong.
 | `ROADMAP.md` | When a milestone is done | Tick it off |
 | `VISION.md` | **Never**, unless the user says so | |
 | `AGENTS.md` | Only when asked | |
-| Old engine: `core/` (other files), `ui/`, `main.py` | **No** | Being replaced |
 | `archive/**` | **No** | Waiting to move to its own repository |
 | `saves/`, `presets/` | **Never commit** | Local runtime data |
 

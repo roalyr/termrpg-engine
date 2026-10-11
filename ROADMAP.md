@@ -56,7 +56,7 @@ Games, starting with `vanilla` (now in `archive/`), move to their own repositori
 3. ✓ **Two test packs:** sci-fi (`packs/test_scifi`, every part of the schemas) and
    fantasy (`packs/test_fantasy`, the same features in another genre:
    `tests/test_fantasy_pack.py` covers its rules, screens and random play).
-4. **Delete the old engine** (the `core/` modules the new engine replaced, `ui/`, the
+4. ✓ **Delete the old engine** (the `core/` modules the new engine replaced, `ui/`, the
    old `main.py`), the old design document and `tests/test_gdd_sync.py`.
 5. Tag the result as **version 1.0**.
 
