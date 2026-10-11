@@ -1,6 +1,7 @@
 # Design: a genre-agnostic engine (milestone 8)
 
-Status: **Proposed.** Big picture only; nothing here is built until the user agrees.
+Status: the big picture is **Decided** (Q1–Q3 answered 2026-10-11). The details below
+are **Proposed**: nothing is built until the user agrees them.
 
 ## Goal
 
@@ -35,9 +36,9 @@ or loosens what exists rather than adding a layer.
 **1. Gear without a frame.** Today modules fit only into a frame's slots, and implants
 only into the body's. Proposal: a slot is a slot, wherever it comes from. The body
 and the worn frame both provide slots of any slot type, and any slotted item fits a
-slot of its type. The frame becomes an optional worn layer that adds slots, stats and
-a size. Modules and implants then differ only in their slot types, so they could
-become one kind.
+slot of its type. The frame becomes gear in a worn slot that adds slots, stats and a
+size. Modules and implants then differ only in their slot types, so they become one
+kind.
 
 **2. Budgets the pack declares.** Today the vocabulary must name exactly one stat each
 for power, mass and heat, and an item's `uses` knows only power and mass. Proposal: a
@@ -58,9 +59,8 @@ changes anywhere or only at a workshop offering a given service.
 ## Naming
 
 Field and kind names (`frame`, `module`, `implant`, `refit`, `salvage`, `fitting`) are
-seen by pack authors, not players. The changes above break packs anyway, so this is
-the cheapest moment to rename them to neutral words, for example `outfit`, `gear`,
-`change`. The alternative is to keep them and document them as neutral terms.
+seen by pack authors. The changes above break packs anyway, so they are renamed to
+neutral words now (Q2; see "The new words").
 
 ## Not in this milestone
 
@@ -77,11 +77,90 @@ features proven in both packs.
 4. Engine, validator, tools and UI, with the tests run against both packs.
 5. README, AGENTS.md (recipes) and the playtest updated.
 
-## Open questions
+## Decided
 
-- **Q1.** Merge modules and implants into one kind?
-- **Q2.** Rename the author-facing words now, or keep them?
-- **Q3.** Should the frame stay a special item at all, or become just gear in a "worn"
-  slot that adds slots and size?
-- **Q4.** Does the fantasy pack's shape above cover what you want proven, or should it
-  test something else (for example a party of several heroes)?
+- **Q1.** Modules and implants merge into one kind.
+- **Q2.** Author-facing words are renamed now, in the same schema version.
+- **Q3.** The frame is not a special item: it is gear in a "worn" slot that adds slots
+  and sets its wearer's size.
+- **Q4.** Open: the fantasy pack's shape above is a working draft, to revisit while
+  writing it.
+
+## Details (proposed)
+
+### The new words
+
+| Today | Proposed | Why |
+|---|---|---|
+| item kinds `frame`, `module`, `implant` | one kind, `gear` | Q1 and Q3: anything that goes into a slot |
+| character `frame`, `fitted`, `implants` | one list, `equipped` | Every slot is alike; where an item sits follows from its slot type |
+| `fit_requires` | `equip_requires` | |
+| `has_item` source `fitted` | `equipped` | |
+| workshop service `refit` | `equip` | Changing gear, where a slot type needs a workshop |
+| workshop service `fabricate`, item field `fabricate` | `make` | Neutral: forging, sewing, printing |
+| item field `salvage` | `dismantle` | Matches the service of the same name |
+| effect `unlock_slot` (implant slots) | `unlock_slot` (any body slot) | Same name, wider meaning |
+| stat roles `power`, `mass`, `heat` | removed: budgets and pools are declared (below) | |
+| action `cost.heat` | `cost.pools` | |
+| UI words "Suit", "Fitting", "Module", "Implant" | "Gear", "Equipment" | Default UI pack only; a game pack's UI pack can say "Suit" again |
+
+Code keeps its internal names where renaming would only churn (`build.py`, variable
+names); what authors and players read changes.
+
+### 1. Slots and gear
+
+- **Slot types lose `host`.** A slot type is just a type: `slot_worn`, `slot_hand`,
+  `slot_neural`.
+- **Slots come from the body and from equipped gear.** `body.slots` lists any slot types
+  (today: only implant slots). Gear may have `slots` too: a suit adds hand slots, a belt
+  adds pouch slots.
+- **Gear fits a free slot of its `slot_type`,** wherever the slot comes from. Gear that
+  provides slots can't be taken off while something is in them (as with frames today).
+- **`worn_size`** on gear: while it is equipped, its wearer counts as that size class
+  (doors, rooms, the `size` check). Without any, the body's size counts; with several,
+  the largest.
+- In the sci-fi pack, the body has one worn slot and its implant slots; the suit adds
+  the hand slots, so tools still need a suit. In the fantasy pack, the body has hands,
+  a worn slot and a neck slot.
+
+### 2. Budgets
+
+- **A stat can be a budget** (`"budget": true`). Gear `uses` any budget stats
+  (`"uses": {"stat_weight": 3}`). What the body, gear and skill levels add to a budget
+  stat is what's available; what equipped gear uses must stay within it.
+- Any number of budget stats, or none. The fantasy pack has one (weight); the sci-fi
+  pack keeps power and mass.
+- `health`, `initiative` and `cargo` keep their roles: every genre has them.
+
+### 3. Pools and costs
+
+- **A pool either drains or fills** (`"fills": true` for the second):
+  - *draining* (health, mana, ammunition): costs and damage lower it; an action whose
+    cost it can't pay is refused; at 0 a health pool downs its character;
+  - *filling* (heat, fatigue): costs raise it; at its maximum the character loses
+    their next action and the pool falls back to its resting value (today's
+    overheating).
+- **`uses` on a filling pool is a constant load:** its resting value, as gear's heat is
+  today.
+- **`per_round`** (optional): how far the pool moves back toward rest each round
+  (heat cools, mana returns). After an encounter, filling pools rest; draining pools
+  only return through effects (rest events, potions), as health does today.
+- **An action's cost names its pools:** `"cost": {"pools": {"stat_mana": 4}}`. Cooldown,
+  charges and consumed items stay as they are.
+
+### 4. Where gear changes
+
+- **A slot type may need a workshop:** `"equip_at_workshop": true`. Gear in such a slot
+  is equipped or taken off only within reach of a workshop offering `equip`;
+  everything else changes anywhere.
+- A workshop's `equip` can be limited to some slot types (`"equip_slot_types"`), so a
+  suit bay changes suits but not implants, and an altar gives blessings but not
+  armour.
+
+### What else moves with it
+
+- The sci-fi test pack is migrated to the new words, with the same behaviour.
+- The validator's loadout check (`lib/budgets.py`), the gear screen (today's fitting
+  screen), the loadout and entries editors, README, AGENTS.md's recipes and the
+  playtest follow.
+- One schema version for all of it (3), and a major version of the sci-fi pack.
