@@ -6,6 +6,7 @@ it's placed. Kinds without a glance show nothing.
 """
 from typing import List
 
+from lib import budgets
 from lib.tiles import map_glyph
 from tools.lib import loadout, screen, sources
 from tools.lib.fields import ids
@@ -28,7 +29,7 @@ def item_lines(pack: PackFiles, look: screen.Look, item: dict, width: int) -> Li
     if item.get("slot_type"):
         parts.append(f"{words.slot_types.get(item['slot_type'], {}).get('name', item['slot_type'])} slot")
     if item.get("slots"):
-        counts = loadout.slot_counts(item)
+        counts = budgets.slot_counts(item)
         parts.append(", ".join(f"{words.slot_types.get(t, {}).get('name', t)}" + (f" x{n}" if n > 1 else "")
                                for t, n in counts.items()))
     numbers = loadout.uses_text(item, words)

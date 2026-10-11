@@ -1,7 +1,7 @@
 """lib/: code shared by the game and the pack tools."""
 import unittest
 
-from lib import graph, pixels, tiles
+from lib import budgets, graph, pixels, tiles
 from lib.text import Style, bar, colour_code
 
 
@@ -60,6 +60,58 @@ class TextTest(unittest.TestCase):
         self.assertEqual(bar(3, 6, 4, "#", "-"), "##--")
         self.assertEqual(bar(9, 6, 4), "████")
         self.assertEqual(bar(1, 0, 3), "░░░")
+
+
+class BudgetsTest(unittest.TestCase):
+    ROLES = {"power": "pwr", "mass": "mas", "heat": "hot", "cargo": "car"}
+    ITEMS = {
+        "suit": {"kind": "frame", "stats": {"pwr": 4, "mas": 6, "hot": 5, "car": 1, "arm": 2},
+                 "slots": [{"slot_type": "hand", "count": 2}]},
+        "drill": {"kind": "module", "slot_type": "hand", "uses": {"power": 3, "mass": 2, "heat": 1}},
+        "eye": {"kind": "implant", "slot_type": "head", "stats": {"arm": 1}},
+        "scrap": {"kind": "material", "stack": 10},
+    }
+    SKILLS = {"lift": {"levels": [{"level": 1}, {"level": 2, "stats": {"mas": 4}}, {"level": 3, "stats": {"mas": 9}}]}}
+
+    def fit(self, **char):
+        char.setdefault("body", {"stats": {"car": 1}, "slots": [{"slot_type": "head"}]})
+        return budgets.loadout(char, self.ITEMS, self.ROLES, self.SKILLS)
+
+    def test_slots_numbers_and_totals(self):
+        fit = self.fit(frame="suit", fitted=["drill"], implants=["eye"], skills={"lift": 2},
+                       inventory=[{"item": "scrap", "count": 11}])
+        self.assertEqual(fit.slots, [budgets.Slot("frame", "hand", "drill", 0), budgets.Slot("frame", "hand", None, -1),
+                                     budgets.Slot("body", "head", "eye", 0)])
+        self.assertEqual(fit.used, {"power": 3, "mass": 2, "heat": 1, "cargo": 2})     # 11 scrap is two stacks
+        self.assertEqual(fit.provided, {"power": 4, "mass": 10, "heat": 5, "cargo": 2})  # level 2 lifts, not 3
+        self.assertEqual(fit.totals["arm"], 3)
+        self.assertEqual(fit.problems, [])
+
+    def test_each_limit(self):
+        over = self.fit(frame="suit", fitted=["drill", "drill"], inventory=[{"item": "scrap", "count": 30}]).problems
+        self.assertEqual([(p.what, p.role, p.used, p.provided) for p in over],
+                         [("over", "power", 6, 4), ("over", "cargo", 3, 2)])
+        self.assertFalse(budgets.over("heat", 0, 0))            # no load, no maximum: fine
+        self.assertTrue(budgets.over("heat", 5, 5))             # heat must stay below its maximum
+        self.assertFalse(budgets.over("power", 5, 5))
+
+    def test_what_doesnt_fit(self):
+        fit = self.fit(frame="drill", fitted=["drill", "eye", "nope"], implants=["eye", "eye"])
+        self.assertEqual([(p.what, p.item, p.kind, p.group) for p in fit.problems],
+                         [("not_frame", "drill", "module", ""), ("no_slot", "drill", "module", "fitted"),
+                          ("wrong_kind", "eye", "implant", "fitted"), ("no_item", "nope", "", "fitted"),
+                          ("no_slot", "eye", "implant", "implants"),
+                          ("over", "", "", ""), ("over", "", "", ""), ("over", "", "", "")])
+        self.assertEqual([p.role for p in fit.problems[-3:]], ["power", "mass", "heat"])     # nothing provides them
+        self.assertIsNone(fit.frame)
+        self.assertEqual([s.item for s in fit.extra], ["drill", "eye", "nope", "eye"])
+        self.assertEqual([p.what for p in self.fit(fitted=["drill"]).problems], ["no_frame", "no_slot", "over", "over", "over"])
+
+    def test_bad_numbers_are_skipped(self):
+        items = dict(self.ITEMS, drill=dict(self.ITEMS["drill"], uses={"power": "lots"}))
+        fit = budgets.loadout({"frame": "suit", "fitted": ["drill"], "body": {"stats": {"pwr": "x"}}},
+                              items, self.ROLES, {})
+        self.assertEqual((fit.used["power"], fit.provided["power"]), (0, 4))
 
 
 if __name__ == "__main__":

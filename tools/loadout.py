@@ -15,10 +15,11 @@ G opens the character's room, V shows or hides the picture.
 import sys
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
-from lib import pixels, term
+from lib import budgets, pixels, term
 from lib.text import bar as text_bar
 from tools.lib import forms, loadout, screen
-from tools.lib.loadout import Sheet, Slot
+from lib.budgets import Slot
+from tools.lib.loadout import Sheet
 from tools.lib.packfiles import Found, PackFiles
 from tools.room import Room
 
@@ -372,7 +373,7 @@ class Loadout:
                  lambda picked: self.put_in_slot(slot, None if picked is NONE else picked))
 
     def put_in_slot(self, slot: Slot, item_id: Optional[str]) -> None:
-        group = loadout.GROUPS["module" if slot.host == "frame" else "implant"]
+        group = budgets.GROUPS["module" if slot.host == "frame" else "implant"]
         listed = list(self.char.get(group, []))
         if slot.index >= 0 and item_id is None:
             gone = listed.pop(slot.index)

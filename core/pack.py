@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from core import schema
+from lib import budgets
 from lib.tiles import tiles as tile_map
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -408,6 +409,26 @@ def _check_skill_rules(manifest: dict, entries: Entries, where: Dict[Tuple[str, 
                 errors.append(f"{label}.levels[{i}]: level 1 needs 0 xp")
 
 
+def _loadout_problem(problem: budgets.Problem) -> str:
+    """A loadout problem as the checker words it; '' for unknown items (reported as bad references)."""
+    if problem.what == "not_frame":
+        return f"'{problem.item}' is worn as a frame but is {_a(problem.kind)}"
+    if problem.what == "no_frame":
+        return "has fitted modules but wears no frame"
+    if problem.what == "wrong_kind":
+        expected = "module" if problem.group == "fitted" else "implant"
+        return f"{problem.group} lists '{problem.item}', which is {_a(problem.kind)}, not {_a(expected)}"
+    if problem.what == "no_slot":
+        return f"no free '{problem.slot_type}' slot in the {problem.host} for '{problem.item}'"
+    if problem.what == "over" and problem.role == "heat":
+        return f"constant heat {problem.used:g} leaves no room below maximum heat {problem.provided:g}"
+    if problem.what == "over" and problem.role == "cargo":
+        return f"inventory needs {problem.used:g} cargo stacks, the loadout carries {problem.provided:g}"
+    if problem.what == "over":
+        return f"fitted gear needs {problem.used:g} {problem.role}, the loadout provides {problem.provided:g}"
+    return ""
+
+
 def _check_character_rules(manifest: dict, entries: Entries, vocab: Dict[str, Any],
                            where: Dict[Tuple[str, str], str], errors: List[str]) -> None:
     items = entries.get("items", {})
@@ -433,67 +454,11 @@ def _check_character_rules(manifest: dict, entries: Entries, vocab: Dict[str, An
         _check_leader_chain(char_id, characters, label, errors)
 
         body = char.get("body", {}) if isinstance(char.get("body"), dict) else {}
-        body_slots: Dict[str, int] = {}
         for slot in body.get("slots", []) or []:
-            if isinstance(slot, dict) and slot.get("slot_type"):
-                if hosts.get(slot["slot_type"], "body") != "body":
-                    errors.append(f"{label}: body slot '{slot['slot_type']}' is not a body slot type")
-                body_slots[slot["slot_type"]] = body_slots.get(slot["slot_type"], 0) + slot.get("count", 1)
-
-        worn: List[dict] = [body]
-        frame = items.get(char.get("frame"))
-        if frame is not None and frame.get("kind") != "frame":
-            errors.append(f"{label}: '{char['frame']}' is worn as a frame but is {_a(frame.get('kind'))}")
-            frame = None
-        if frame is not None:
-            worn.append(frame)
-        frame_slots: Dict[str, int] = {}
-        for slot in (frame or {}).get("slots", []) or []:
-            if isinstance(slot, dict) and slot.get("slot_type"):
-                frame_slots[slot["slot_type"]] = frame_slots.get(slot["slot_type"], 0) + slot.get("count", 1)
-        if char.get("fitted") and "frame" not in char:
-            errors.append(f"{label}: has fitted modules but wears no frame")
-
-        used_slots: Dict[str, int] = {}
-        used = {"power": 0.0, "mass": 0.0, "heat": 0.0}
-        for group, kind, capacity in (("fitted", "module", frame_slots), ("implants", "implant", body_slots)):
-            for item_id in char.get(group, []) or []:
-                item = items.get(item_id)
-                if item is None:
-                    continue  # unknown ids are reported as bad references
-                if item.get("kind") != kind:
-                    errors.append(f"{label}: {group} lists '{item_id}', which is {_a(item.get('kind'))}, not {_a(kind)}")
-                    continue
-                worn.append(item)
-                slot_type = item.get("slot_type")
-                used_slots[slot_type] = used_slots.get(slot_type, 0) + 1
-                if used_slots[slot_type] > capacity.get(slot_type, 0):
-                    host = "frame" if kind == "module" else "body"
-                    errors.append(f"{label}: no free '{slot_type}' slot in the {host} for '{item_id}'")
-                for budget, amount in (item.get("uses", {}) or {}).items():
-                    used[budget] = used.get(budget, 0.0) + amount
-
-        # skill levels add stats too, as the engine counts them (stats.stat)
-        for skill_id, level in (char.get("skills", {}) or {}).items():
-            skill = entries.get("skills", {}).get(skill_id)
-            for lv in (skill or {}).get("levels", []) or []:
-                if isinstance(lv, dict) and isinstance(level, int) and lv.get("level", 0) <= level:
-                    worn.append(lv)
-        provided = {role: sum(w.get("stats", {}).get(role_stat[role], 0) for w in worn if isinstance(w.get("stats"), dict))
-                    for role in ("power", "mass", "heat", "cargo") if role in role_stat}
-        for budget in ("power", "mass"):
-            if budget in provided and used[budget] > provided[budget]:
-                errors.append(f"{label}: fitted gear needs {used[budget]:g} {budget}, the loadout provides {provided[budget]:g}")
-        if "heat" in provided and used["heat"] and used["heat"] >= provided["heat"]:
-            errors.append(f"{label}: constant heat {used['heat']:g} leaves no room below maximum heat {provided['heat']:g}")
-        if "cargo" in provided:
-            stacks = 0
-            for entry in char.get("inventory", []) or []:
-                item = items.get(entry.get("item")) if isinstance(entry, dict) else None
-                if item is not None:
-                    stacks += -(-entry.get("count", 1) // item.get("stack", 1))
-            if stacks > provided["cargo"]:
-                errors.append(f"{label}: inventory needs {stacks} cargo stacks, the loadout carries {provided['cargo']:g}")
+            if isinstance(slot, dict) and slot.get("slot_type") and hosts.get(slot["slot_type"], "body") != "body":
+                errors.append(f"{label}: body slot '{slot['slot_type']}' is not a body slot type")
+        fit = budgets.loadout(char, items, role_stat, entries.get("skills", {}))
+        errors += [f"{label}: {words}" for words in map(_loadout_problem, fit.problems) if words]
 
         for skill_id, level in (char.get("skills", {}) or {}).items():
             if isinstance(level, int) and isinstance(max_level, int) and level > max_level:

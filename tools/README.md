@@ -315,9 +315,9 @@ Below, one line per thing:
 | Carry another item… | An item, then how many (added to a stack it already has) | |
 
 The bars and the problems below the list follow every change before anything is
-saved. They count the way the checker counts (slots, power, mass, constant heat below
-maximum heat, cargo stacks), so a loadout with no problems here passes the check;
-`tests/test_tools.py` holds the two to the same verdicts.
+saved. They're counted by the same code as the checker's (`lib/budgets.py`: slots,
+power, mass, constant heat below maximum heat, cargo stacks), so a loadout with no
+problems here passes the check; `tests/test_tools.py` holds the two to the same verdicts.
 
 G opens the character's room in the room editor, the cursor on them; X there comes
 back. X goes back to the characters; Esc there leaves, asking to save.
