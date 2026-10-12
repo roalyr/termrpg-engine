@@ -3,7 +3,7 @@
   "$id": "world.schema.json",
   "title": "World (regions, locations, zones)",
   "description": "The shape of the world. Regions group locations and can nest; locations are grids with placed objects, exits and per-turn effects; zones are procedural areas built from template locations. The pack lists regions, locations and zones as separate file kinds; each file is validated against the matching *_file definition.",
-  "x-schema-version": 3,
+  "x-schema-version": 4,
   "$defs": {
     "regions_file": {
       "type": "object",

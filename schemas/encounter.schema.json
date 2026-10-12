@@ -3,7 +3,7 @@
   "$id": "encounter.schema.json",
   "title": "Encounters (encounters.json)",
   "description": "Encounters started by the start_encounter effect or drawn by zones.",
-  "x-schema-version": 3,
+  "x-schema-version": 4,
   "$ref": "#/$defs/encounters_file",
   "$defs": {
     "encounters_file": {

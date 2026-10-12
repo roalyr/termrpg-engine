@@ -5,7 +5,7 @@ tile, with walls joined across the gaps between tiles.
 """
 from typing import Dict, List, Mapping, Optional, Tuple
 
-from lib.text import Style, colour_code
+from lib.text import Style
 
 Pos = Tuple[int, int]                   # (row, column)
 
@@ -51,7 +51,7 @@ def room_line(cells: List[str], walls: List[bool], wall: str, cell_width: int) -
 
 
 def map_glyph(style: Style, glyph: str, colour, role: str) -> str:
-    """A map glyph in the pack's colour (a palette colour or a 256-colour number), else in its role's style."""
+    """A map glyph in the pack's colour (a name from its palette), else in its role's style."""
     if colour is not None:
-        return style.pixels(glyph, colour_code(colour), None)
+        return style.pixels(glyph, style.code(colour), None)
     return style.role(glyph, role)

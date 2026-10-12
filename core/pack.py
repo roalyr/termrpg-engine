@@ -13,6 +13,7 @@ from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from core import schema
 from lib import budgets
+from lib.text import DEFAULT_COLOURS
 from lib.tiles import tiles as tile_map
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -34,6 +35,7 @@ KIND_SCHEMAS = {
     "events": "event.schema.json",
     "strings": "strings.schema.json",
     "modifications": "modification.schema.json",
+    "palette": "palette.schema.json",
     "art": "art.schema.json",
 }
 
@@ -42,7 +44,7 @@ KIND_NAMESPACES = {
     "regions": "region", "locations": "location", "zones": "zone", "objects": "object", "items": "item",
     "actions": "action", "skills": "skill", "characters": "character", "encounters": "encounter",
     "loot_tables": "loot_table", "events": "event", "strings": "string", "modifications": "modification",
-    "art": "art",
+    "palette": "colour", "art": "art",
 }
 
 # Vocabulary section -> reference namespace.
@@ -92,7 +94,7 @@ def index_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> PackIndex:
     _collect(schema.validate(manifest, "pack.schema.json", schemas), "pack.json", errors, warnings, refs)
 
     ids: Dict[str, Dict[Any, str]] = {}      # namespace -> id -> where it was declared
-    checkable: Set[str] = {"size"}           # namespaces whose ids are known
+    checkable: Set[str] = {"size", "colour"}  # namespaces whose ids are known
     vocab: Dict[str, Any] = {}
     entries: Entries = {}
     where: Dict[Tuple[str, str], str] = {}   # (kind, id) -> "file: entries[i]"
@@ -134,6 +136,8 @@ def index_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> PackIndex:
                                 _declare(ids, "placement", p["id"], f"{label}.placements[{j}]", errors)
     if "vocab" in files:
         checkable.update(VOCAB_NAMESPACES.values())
+    for name in DEFAULT_COLOURS:                # always there; the palette may change them
+        ids.setdefault("colour", {}).setdefault(name, "the default colours")
 
     _check_refs(refs, ids, checkable, errors, warnings)
     _check_vocab_rules(manifest, vocab, errors, warnings)

@@ -57,6 +57,10 @@ class TilesTest(unittest.TestCase):
 class TextTest(unittest.TestCase):
     def test_colours_and_bars(self):
         self.assertEqual((colour_code("grey"), colour_code(42), colour_code("nonsense")), (245, 42, 255))
+        palette = {"rust": 130, "grey": 240}                  # a pack's palette: its own names, a default changed
+        self.assertEqual((colour_code("rust", palette), colour_code("grey", palette), colour_code("red", palette)),
+                         (130, 240, 203))
+        self.assertIn("38;5;130", Style(True, {"danger": {"colour": "rust"}}, palette).role("x", "danger"))
         self.assertEqual(bar(3, 6, 4, "#", "-"), "##--")
         self.assertEqual(bar(9, 6, 4), "████")
         self.assertEqual(bar(1, 0, 3), "░░░")

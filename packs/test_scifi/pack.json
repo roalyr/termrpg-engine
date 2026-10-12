@@ -2,8 +2,8 @@
   "$schema": "../../schemas/pack.schema.json",
   "id": "test_scifi",
   "name": "Test pack: sci-fi",
-  "version": "4.0.1",
-  "schema_version": 3,
+  "version": "4.1.0",
+  "schema_version": 4,
   "purpose": "test",
   "description": "Small content for engine development and automated tests: a workshop and a storage room with a gas leak, in plain names.",
   "help": "Two rooms that show every feature of the engine. Search the crate each morning, open the door to the storage room with your cutter, and mind the gas in there: without an air filter it hurts every turn. The workbench repairs, takes apart, makes and modifies; Juno trades and may join you.",
@@ -54,6 +54,9 @@
     ],
     "modifications": [
       "modifications.json"
+    ],
+    "palette": [
+      "palette.json"
     ],
     "art": [
       "art.json"

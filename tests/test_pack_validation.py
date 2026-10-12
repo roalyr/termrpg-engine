@@ -62,7 +62,7 @@ class TestPackErrors(unittest.TestCase):
 
     def test_wrong_schema_version(self):
         self.edit("pack.json", lambda m: m.__setitem__("schema_version", 1))
-        self.assertIn("schema_version: must be 3", self.errors())
+        self.assertIn("schema_version: must be 4", self.errors())
 
     def test_kind_without_schema(self):
         schemas = Path(self.temp.name) / "schemas"
@@ -170,12 +170,32 @@ class TestPackErrors(unittest.TestCase):
         self.assertIn("grid.width: must be at most 12", errors)
         self.assertIn("grid.height: must be at most 10", errors)
 
-    def test_map_colours_are_palette_names_or_terminal_numbers(self):
-        self.location("loc_storage", lambda loc: loc["grid"].update(wall_colour="pink", floor_colour=256))
-        self.placement("loc_workshop", "workshop_trainer", lambda p: p.__setitem__("colour", "teal"))
+    def test_map_colours_are_names_from_the_palette(self):
+        self.location("loc_storage", lambda loc: loc["grid"].update(wall_colour="pink", floor_colour=240))
+        self.placement("loc_workshop", "workshop_trainer", lambda p: p.__setitem__("colour", "turquoise"))
         errors = self.errors()
-        for field in ("grid.wall_colour", "grid.floor_colour", "placements[5].colour"):
-            self.assertIn(field, errors)
+        self.assertIn("grid.wall_colour: unknown colour 'pink'", errors)
+        self.assertIn("grid.floor_colour: expected string, got the number 240", errors)   # numbers only in the palette
+        self.assertIn("placements[5].colour: unknown colour 'turquoise'", errors)
+
+    def test_palette_names_colours_and_may_change_the_defaults(self):
+        self.edit("palette.json", lambda p: p["entries"].append({"id": "pink", "code": 218}))
+        self.location("loc_storage", lambda loc: loc["grid"].update(wall_colour="pink"))
+        self.assertEqual(self.errors(), "")
+        self.edit("palette.json", lambda p: p.__setitem__("entries", [e for e in p["entries"] if e["id"] != "red"]))
+        self.assertEqual(self.errors(), "")                 # a default left out is still there
+        self.edit("palette.json", lambda p: p["entries"].extend([{"id": "pink", "code": 256}, {"id": "Bad"}]))
+        errors = self.errors()
+        self.assertIn("duplicate colour 'pink'", errors)
+        self.assertIn("entries[", errors)
+        self.assertIn("must be at most 255", errors)
+        self.assertIn("missing required field 'code'", errors)
+
+    def test_a_pack_without_a_palette_has_the_default_colours(self):
+        self.edit("pack.json", lambda m: m["files"].pop("palette"))
+        errors = self.errors()
+        self.assertIn("unknown colour 'rust'", errors)
+        self.assertNotIn("unknown colour 'grey'", errors)
 
     def test_placement_ids_unique_across_locations(self):
         self.placement("loc_storage", "storage_terminal", lambda p: p.__setitem__("id", "workshop_crate"))
@@ -277,7 +297,7 @@ class TestPackErrors(unittest.TestCase):
 
     def test_grade_colour_from_palette(self):
         self.edit("vocab.json", lambda v: v["grades"][0].__setitem__("colour", "pink"))
-        self.assertIn("grades[0].colour: must be one of", self.errors())
+        self.assertIn("grades[0].colour: unknown colour 'pink'", self.errors())
 
     # --- Actions and skills ---
 

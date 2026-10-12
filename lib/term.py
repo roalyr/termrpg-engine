@@ -97,5 +97,6 @@ def run_tool(tool_class, argv: List[str]) -> int:
     parser.add_argument("pack", nargs="?", default="packs/test_scifi", help="pack folder")
     parser.add_argument("--no-colour", action="store_true", help="plain text")
     args = parser.parse_args(argv)
-    tool = tool_class(PackFiles(Path(args.pack)), screen.look(not args.no_colour))
+    pack = PackFiles(Path(args.pack))
+    tool = tool_class(pack, screen.look(not args.no_colour, palette=pack.palette))
     return run(tool.render, tool.handle)

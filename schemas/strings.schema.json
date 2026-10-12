@@ -3,7 +3,7 @@
   "$id": "strings.schema.json",
   "title": "Strings (strings.json)",
   "description": "All text the engine prints comes from here, so the engine names no content and writes no prose. Also holds reusable texts referred to as '@id'.",
-  "x-schema-version": 3,
+  "x-schema-version": 4,
   "$ref": "#/$defs/strings_file",
   "$defs": {
     "strings_file": {

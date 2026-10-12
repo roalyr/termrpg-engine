@@ -17,11 +17,11 @@
         "aaaaaaaaaaaaaa"
       ],
       "palette": {
-        "h": 94,
-        "s": 223,
+        "h": "brown",
+        "s": "peach",
         "e": "grey",
-        "m": 174,
-        "a": 130
+        "m": "salmon",
+        "a": "rust"
       }
     },
     {
@@ -40,12 +40,12 @@
         "..cccccccccccc.."
       ],
       "palette": {
-        "k": 237,
+        "k": "charcoal",
         "g": "grey",
-        "s": 223,
+        "s": "peach",
         "e": "green",
-        "m": 131,
-        "c": 28
+        "m": "brick",
+        "c": "leaf"
       }
     },
     {
@@ -61,10 +61,10 @@
         "tt.............."
       ],
       "palette": {
-        "b": 95,
+        "b": "clay",
         "e": "red",
-        "n": 174,
-        "t": 174
+        "n": "salmon",
+        "t": "salmon"
       }
     }
   ]

@@ -3,7 +3,7 @@
   "$id": "item.schema.json",
   "title": "Items (items.json)",
   "description": "Everything that can be carried or equipped. Every item has a 'kind' that decides its extra fields: gear (equipped in a slot: armour, suits, tools, weapons, implants), material, consumable, misc.",
-  "x-schema-version": 3,
+  "x-schema-version": 4,
   "$ref": "#/$defs/items_file",
   "$defs": {
     "items_file": {

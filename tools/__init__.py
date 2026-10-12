@@ -14,5 +14,6 @@ def tools() -> list:
     from tools.loadout import Loadout
     from tools.map import Map
     from tools.overview import Overview
+    from tools.palette import Palette
     from tools.room import Room
-    return [Map, Room, Entries, Loadout, Art, Overview]
+    return [Map, Room, Entries, Loadout, Art, Palette, Overview]

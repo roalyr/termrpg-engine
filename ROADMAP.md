@@ -58,7 +58,11 @@ Games, starting with `vanilla` (now in `archive/`), move to their own repositori
    `tests/test_fantasy_pack.py` covers its rules, screens and random play).
 4. ✓ **Delete the old engine** (the `core/` modules the new engine replaced, `ui/`, the
    old `main.py`), the old design document and `tests/test_gdd_sync.py`.
-5. Tag the result as **version 1.0**.
+5. ✓ **Palettes** (schema 4): each pack names its colours in `palette.json`, the only
+   place colour numbers are written, with the default colours always there; the
+   palette editor (`tools/palette.py`), and every colour picker in the tools reads
+   from the palette.
+6. Tag the result as **version 1.0**.
 
 ## After 1.0
 

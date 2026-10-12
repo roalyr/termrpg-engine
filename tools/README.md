@@ -15,6 +15,7 @@ game's start screen. With more than one pack in `packs/` it asks which to open f
 | Loadout | A character's equipped gear and inventory, against their budgets | `python3 -m tools.loadout <pack>` |
 | Overview | The pack's files, entry counts by kind, the checker's report | `python3 -m tools.overview <pack>` |
 | Art | The pack's pictures in pixels: paint, mirror, undo, colours | `python3 -m tools.art <pack>` |
+| Palette | The pack's named colours: change one and it changes everywhere | `python3 -m tools.palette <pack>` |
 
 `python3 tools/gen_ui_schema.py` is a script, not an editor: it regenerates
 `schemas/ui.schema.json` (see README.md, "UI packs").
@@ -121,7 +122,7 @@ Pick a location, move the cursor over its grid; Enter lists what works on the ti
 | L | Door to another location: pick the object, the location, then the tile there (a free wall tile facing this one is suggested) | Empty wall tile on a side |
 | O | Open the side to another location: an open edge | A side with nothing on it |
 | T | Wall and floor swap; "Make it nothing" is in the list | Anywhere (people stand on floor) |
-| C | Colour: this placement or every one of its object, the person standing here, or the room's walls or floor. A named colour, a terminal colour (0-255) from the grid, or Default (the UI pack's colour) | Anywhere |
+| C | Colour: this placement or every one of its object, the person standing here, or the room's walls or floor. A colour from the pack's palette, a new one (it joins the palette), or Default (the UI pack's colour) | Anywhere |
 | Z | Room size, `width x height`: 3 to 12 across, 3 to 10 down (a custom shape keeps its top-left part) | Anywhere |
 
 The side panel lists each kind of thing in the room once, with where exits lead.
@@ -191,8 +192,9 @@ Later schemes could colour by kind of place, by region, or by who lives there.
 ### Art: pictures (ready)
 
 Every picture in the game is an entry in the pack's art file (pixel rows and a
-palette, up to 32 by 32); characters use them by id (`art`) on the character screen,
-in conversations and in fights.
+letters, up to 32 by 32); characters use them by id (`art`) on the character screen,
+in conversations and in fights. Each letter is a colour from the pack's palette, by
+name.
 
 The editor opens on the list of pictures: each with its size and who uses it, filtered
 as you type, and **New picture…** last (an id, then a blank 24 by 24 with one colour).
@@ -207,13 +209,38 @@ band gives the row and column). Beside it the palette, the current colour marked
 | K | Pick the colour under the cursor |
 | M | Mirror on or off: painting does the left and right at once |
 | U | Undo (back through every change since the picture was opened) |
-| N | New colour: the next free letter, a named colour or one from the 256-colour grid |
-| C | Change the current colour (every pixel of it changes) |
+| N | New colour: the next free letter, with a colour from the pack's palette, or a new one (picked from the 256-colour grid and named; it joins the palette) |
+| C | Change the current letter's colour (every pixel of it changes), the same way |
 | Z | Size, `width x height` from 2 to 32 (the top-left part is kept; 24 by 24 fills the default art zone) |
 
 Enter lists these and the rest: removing the current colour (its pixels become
 see-through), deleting a picture nothing uses, saving. X goes back to the list,
 asking to save if anything changed; Esc on the list leaves.
+
+### Palette: the pack's colours (ready)
+
+Every colour in a pack is a name from its palette (`palette.json`); the colour numbers
+are written only there. The editor lists the default colours first (grey, white, green,
+cyan, blue, violet, yellow, orange, red), then the pack's own, each with a swatch, its
+terminal number and how many places use it. The detail band says which entries use
+the picked colour, and which of the interface's styles do.
+
+| Key | Action |
+|---|---|
+| C | Change the colour: the 256-colour grid, starting at its number. Every use changes with it |
+| N | New colour: pick it in the grid, then name it |
+| R | Rename (not the defaults): every use is renamed with it |
+
+Enter lists these and the rest: a default colour that was changed can go back to the
+default; deleting one of the pack's own colours asks which colour its uses become (or
+just deletes it when nothing uses it); saving. The defaults can be changed but not
+renamed or deleted, since the interface's styles use them. A pack without a palette
+gets `palette.json`, with the nine defaults, on the first change. The grid tells which
+of the pack's colours a number already is.
+
+The same palette feeds every colour picker in the tools (the art editor's letters, the
+room editor's colours, colour fields in Entries): pick a name, or **New colour…** to add
+one without leaving the tool.
 
 ### Entries: any entry, field by field (ready)
 
@@ -240,7 +267,7 @@ Up and down pick a field; Enter edits it, with the input that suits it:
 | Yes or no | Enter switches it |
 | One of a few words, a size, an id of another entry | A list to pick from (ids with their names, sizes with theirs) |
 | A list of ids (tags, actions, equipped gear…) | The list: Enter on one takes it out, **Add…** picks one more, Esc is done |
-| Colours | The colour picker, with Default first |
+| Colours | The colour picker: Default first, the palette's colours, then **New colour…** (it joins the palette) |
 | Descriptions and notes | The text editor, as plain text |
 | Anything bigger (effects, conditions, dialogue, interactions, stats, a grid) | The text editor, as JSON. A mistake isn't lost: edit again, or drop the change |
 

@@ -360,7 +360,7 @@ path = {"type": "string", "pattern": r"^(?!/)(?!.*\.\.)[A-Za-z0-9_\-/]+\.json$",
 manifest = obj("A UI pack's manifest (ui.json). A UI pack is shared by game packs; it owns the look, layout, keys and the UI's words.", {
    "$schema": SCHEMA_REF, "id": c("id"), "name": c("label"),
    "version": {"type": "string", "pattern": r"^\d+\.\d+\.\d+$", "description": "The UI pack's own version."},
-   "schema_version": {"const": 3, "description": "Schema version the UI pack was written for."},
+   "schema_version": {"const": 4, "description": "Schema version the UI pack was written for."},
    "description": c("text"), "authors": arr({"type": "string", "minLength": 1}, "Credits."),
    "files": obj("Data files by kind; files of one kind are merged.", {k: arr(path, f"{k} files.", minItems=1, uniqueItems=True) for k in KINDS},
                 ("tokens", "keys", "screens", "words")),
@@ -370,7 +370,7 @@ schema = {
  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "ui.schema.json",
  "title": "UI packs",
  "description": "A UI pack standardises the terminal UI: tokens (sizes, glyphs, styles), a fixed catalogue of widgets arranged into screens, key bindings with their hints, and the UI's own words. Every field defaults to the standard look, so a UI pack only writes what it changes. The engine owns the catalogue: screens, widgets and where each may appear, input actions, hint contexts and style roles.",
- "x-schema-version": 3, "$ref": "#/$defs/manifest",
+ "x-schema-version": 4, "$ref": "#/$defs/manifest",
  "$defs": dict({"manifest": manifest, "tokens_file": tokens, "keys_file": keys, "screens_file": screens, "words_file": words,
                 "zone": zone, "layout": layout, "hint": hint, "style": style}, **widget_defs),
 }

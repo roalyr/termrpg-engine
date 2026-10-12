@@ -10,15 +10,19 @@ from lib.text import Style, colour_code
 Pixels = List[List[Optional[int]]]      # rows of terminal colour numbers; None is see-through
 
 
-def centred(rows: Sequence[str], palette: Mapping[str, object], width: int, height: int) -> Pixels:
-    """A picture (pixel letters and their palette; ' ' and '.' see-through) centred in width by height, cut to it."""
+def centred(rows: Sequence[str], palette: Mapping[str, object], width: int, height: int,
+            colours: Optional[Mapping[str, int]] = None) -> Pixels:
+    """
+    A picture (pixel letters and their colour names; ' ' and '.' see-through) centred in
+    width by height, cut to it. 'colours' is the pack's palette (name -> terminal number).
+    """
     grid: Pixels = [[None] * width for _ in range(height)]
     widest = max((len(r) for r in rows), default=0)
     top, left = (height - len(rows)) // 2, (width - widest) // 2
     for y, row in enumerate(rows):
         for x, letter in enumerate(row):
             if letter not in " ." and 0 <= top + y < height and 0 <= left + x < width:
-                grid[top + y][left + x] = colour_code(palette.get(letter, "white"))
+                grid[top + y][left + x] = colour_code(palette.get(letter, "white"), colours)
     return grid
 
 

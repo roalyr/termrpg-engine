@@ -3,7 +3,7 @@
   "$id": "vocab.schema.json",
   "title": "Vocabulary",
   "description": "Everything a pack declares for the rest of its data to refer to: tags, stats, damage types, statuses, slot types, size and rank names, object states, day phases, factions and flags. The schemas fix the structure; the vocabulary fixes the words.",
-  "x-schema-version": 3,
+  "x-schema-version": 4,
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -272,18 +272,8 @@
             "$ref": "common.schema.json#/$defs/notes"
           },
           "colour": {
-            "enum": [
-              "grey",
-              "white",
-              "green",
-              "cyan",
-              "blue",
-              "violet",
-              "yellow",
-              "orange",
-              "red"
-            ],
-            "description": "Colour items of this grade are drawn in. The engine owns the palette."
+            "$ref": "common.schema.json#/$defs/colour",
+            "description": "Colour items of this grade are drawn in."
           },
           "order": {
             "type": "integer",

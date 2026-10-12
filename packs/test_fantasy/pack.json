@@ -2,8 +2,8 @@
   "$schema": "../../schemas/pack.schema.json",
   "id": "test_fantasy",
   "name": "Test pack: fantasy",
-  "version": "1.0.0",
-  "schema_version": 3,
+  "version": "1.1.0",
+  "schema_version": 4,
   "purpose": "test",
   "description": "Small content for engine development and automated tests, in a classical fantasy setting: a smithy and a cold cellar with rats, in plain names. The twin of the sci-fi test pack.",
   "help": "A smithy and its cellar. You start with a sword and no armour: put the leather armour on anywhere, but blessings only take at the altar. The cellar is cold without something warm; the witch trades a fur cloak for iron and may join you. Mana spent on spells comes back a little each round; stamina rises with every swing and falls back as you catch your breath.",
@@ -51,6 +51,9 @@
     ],
     "modifications": [
       "modifications.json"
+    ],
+    "palette": [
+      "palette.json"
     ],
     "art": [
       "art.json"

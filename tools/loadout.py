@@ -188,7 +188,7 @@ class Loadout:
         size = self.look.ui.tokens["size"]
         pw, ph = size.get("art_width", 24), size.get("art_height", 24)
         ph += ph % 2
-        grid = pixels.centred(art.get("rows", []), art.get("palette", {}), pw, ph) if art else [[None] * pw for _ in range(ph)]
+        grid = pixels.centred(art.get("rows", []), art.get("palette", {}), pw, ph, self.look.style.palette) if art else [[None] * pw for _ in range(ph)]
         return pixels.half_blocks(self.look.style, grid)
 
     def rows(self, sheet: Sheet) -> List[Row]:

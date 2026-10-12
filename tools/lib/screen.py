@@ -7,7 +7,7 @@ A screen is a list of bands, each a list of lines. One band may be flexible: it 
 the rows the others leave and scrolls (a long list, a report). When the rest is still
 too tall, the tallest band loses its last lines; a tool keeps its bands short instead.
 """
-from typing import List, NamedTuple, Optional, Sequence, Tuple
+from typing import List, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 from lib.text import ANSI, Style, pad, visible_len, wrap  # noqa: F401  (wrap is for the tools)
 from lib.ui import UI, default_ui
@@ -54,9 +54,10 @@ class Look(NamedTuple):
         return {"back": self.ui.bindings["close"], "quit": self.ui.bindings["quit"]}[action].upper()
 
 
-def look(colour: bool = True, ui: Optional[UI] = None) -> Look:
+def look(colour: bool = True, ui: Optional[UI] = None, palette: Optional[Mapping[str, int]] = None) -> Look:
+    """The tools' look; 'palette' is the open pack's colours (PackFiles.palette)."""
     ui = ui or default_ui()
-    return Look(ui, Style(colour, ui.tokens["styles"]))
+    return Look(ui, Style(colour, ui.tokens["styles"], palette))
 
 
 def title(look: Look, left: str, right: str, width: int) -> List[str]:

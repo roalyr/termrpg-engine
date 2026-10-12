@@ -6,7 +6,7 @@ dicts (as written, no defaults filled in) and written back in the packs' own for
 import json
 import os
 from pathlib import Path
-from typing import Dict, Iterator, List, NamedTuple, Optional, Tuple
+from typing import Dict, Iterator, List, Mapping, NamedTuple, Optional, Tuple
 
 from core.pack import Report, validate_pack
 
@@ -26,11 +26,32 @@ class Found(NamedTuple):
     entry: dict
 
 
+class Palette(Mapping):
+    """The pack's colours as they are in memory, saved or not: name -> terminal number."""
+
+    def __init__(self, pack: "PackFiles"):
+        self.pack = pack
+
+    def _codes(self) -> Dict[str, int]:
+        return {f.entry["id"]: f.entry["code"] for f in self.pack.entries("palette")
+                if isinstance(f.entry.get("id"), str) and isinstance(f.entry.get("code"), int)}
+
+    def __getitem__(self, name: str) -> int:
+        return self._codes()[name]
+
+    def __iter__(self):
+        return iter(self._codes())
+
+    def __len__(self) -> int:
+        return len(self._codes())
+
+
 class PackFiles:
     """The pack's manifest and every file it lists, by kind."""
 
     def __init__(self, pack_dir: Path):
         self.dir = Path(pack_dir)
+        self.palette = Palette(self)       # live: a tool's Style reads colours through it
         self.reload()
 
     def reload(self) -> None:
@@ -85,6 +106,13 @@ class PackFiles:
         self.data[rel].setdefault(section, []).append(entry)
         self.dirty.add(rel)
         return rel
+
+    def add_file(self, kind: str, rel: str, data: dict) -> None:
+        """A new file of a kind, listed in pack.json; both are written on save."""
+        self.manifest.setdefault("files", {}).setdefault(kind, []).append(rel)
+        self.kinds.setdefault(kind, []).append(rel)
+        self.data[rel] = data
+        self.dirty.update((rel, MANIFEST))
 
     def remove(self, kind: str, found: Found) -> None:
         listed = self.siblings(kind, found)

@@ -3,7 +3,7 @@
   "$id": "common.schema.json",
   "title": "Common grammar",
   "description": "Shared building blocks for every pack file: ids and references, text, amounts, conditions, effects and interactions. The lists of checks (check_*) and operations (op_*) are the engine's feature list. Parity rule: nothing here is player-only; any character may be controlled by the player or by the AI. Definitions marked x-status 'reserved' are planned but not implemented by the engine yet.",
-  "x-schema-version": 3,
+  "x-schema-version": 4,
   "$defs": {
     "id": {
       "type": "string",
@@ -30,27 +30,9 @@
       "description": "One character drawn on the map. No emoji."
     },
     "colour": {
-      "description": "A colour: a palette colour, or a 256-colour terminal number.",
-      "anyOf": [
-        {
-          "enum": [
-            "grey",
-            "white",
-            "green",
-            "cyan",
-            "blue",
-            "violet",
-            "yellow",
-            "orange",
-            "red"
-          ]
-        },
-        {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 255
-        }
-      ]
+      "$ref": "#/$defs/id",
+      "x-ref": "colour",
+      "description": "A colour, by its name in the pack's palette (palette.json). The default colours (grey, white, green, cyan, blue, violet, yellow, orange, red) are always there; the palette may change them and add its own."
     },
     "notes": {
       "type": "string",

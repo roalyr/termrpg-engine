@@ -100,6 +100,7 @@ its schema:
 | `events` | `event.schema.json` | `event` | Living-world events |
 | `strings` | `strings.schema.json` | `string` | Engine messages and reusable text |
 | `modifications` | `modification.schema.json` | `modification` | Crafting modifications |
+| `palette` | `palette.schema.json` | `colour` | The pack's named colours (see [Palette](#palette-paletteschemajson)) |
 | `art` | `art.schema.json` | `art` | Pictures in pixels, used by id |
 
 `common.schema.json` holds the shared grammar that all of these use, and
@@ -523,8 +524,7 @@ A pool either drains (health, mana: an action whose cost it can't pay is refused
 fills (`"fills": true`: heat, fatigue: at its maximum the character loses their next
 action). Gear's `uses` on a filling pool is a constant load, its resting value.
 
-**Grade colours** come from the engine's palette: `grey`, `white`, `green`, `cyan`,
-`blue`, `violet`, `yellow`, `orange`, `red`.
+**Grade colours** are names from the pack's [palette](#palette-paletteschemajson).
 
 ### World (`world.schema.json`)
 
@@ -559,8 +559,8 @@ floor. Grid positions are `[row, column]` from the top-left corner. A room is at
 On the map each tile is two columns wide: the glyph and a space, except that wall
 tiles are joined, so walls show as solid runs two glyphs thick at the sides; a door
 or an open edge in a wall leaves a gap. Glyphs
-are coloured: by the pack's `colour` where it gives one (a palette colour or a
-256-colour number, as in pictures), otherwise by the UI pack's map styles (objects,
+are coloured: by the pack's `colour` where it gives one (a name from the
+[palette](#palette-paletteschemajson)), otherwise by the UI pack's map styles (objects,
 exits, people, hostile people, walls, floor). The terminal's background is kept.
 
 ```json
@@ -902,6 +902,32 @@ How the engine runs them:
   produces must fit in cargo, or the action is refused, so nothing is lost. Each
   action takes one turn unless stated.
 
+### Palette (`palette.schema.json`)
+
+The pack's named colours, usually one file, `palette.json`. **Colour numbers are
+written only here:** every other colour in the pack (`colour`, `floor_colour`,
+`wall_colour`, a grade's `colour`, the letters of a picture's `palette`) is a name
+from it. Change a colour here and it changes everywhere it's used.
+
+```json
+{ "$schema": "../../schemas/palette.schema.json",
+  "entries": [ { "id": "grey", "code": 245 }, { "id": "rust", "code": 130, "notes": "hair, suit trim" } ] }
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | The colour's name: plain words (`rust`, `hull`), no prefix |
+| `code` | A 256-colour terminal number: 0-15 the terminal's own colours, 16-231 a 6×6×6 colour cube, 232-255 greys from dark to light |
+| `notes` | What it's for, for authors |
+
+**The default colours** are always there, even without a palette: `grey` 245, `white`
+255, `green` 114, `cyan` 80, `blue` 75, `violet` 141, `yellow` 221, `orange` 208, `red`
+203. List one to change it for this game. The UI pack's styles use these names, so
+changing `red` here also changes the interface's red (hostile people on the map) in this
+game. The defaults can't be renamed or deleted. A new palette starts with all nine
+written out; the palette editor (`python3 -m tools.palette`) makes one on its first
+change.
+
 ### Art (`art.schema.json`)
 
 Pictures in pixels, kept apart from what uses them and referred to by id, so one
@@ -910,7 +936,7 @@ picture can serve many characters. Every picture in the game is one of these.
 | Field | Meaning |
 |---|---|
 | `rows` | Pixel rows, top to bottom, all the same length, up to 32 by 32. Each letter or digit is one pixel; a space or `.` is see-through |
-| `palette` | Each pixel letter to a palette colour (`grey`, `white`, `green`, `cyan`, `blue`, `violet`, `yellow`, `orange`, `red`) or a 256-colour terminal number |
+| `palette` | Each pixel letter to a colour, by its name in the pack's [palette](#palette-paletteschemajson) |
 | `notes` | What it shows, for authors |
 
 Two pixel rows share one line of text (half-block characters), so 24 rows take 12
@@ -944,7 +970,7 @@ win key by key; word entries add up):
 
 | Kind | Holds |
 |---|---|
-| `tokens` | Layout variables. `size`: minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the art zone's width and height in pixels (`art_width`, `art_height`: characters' pictures), `save_slots`, `card_min_lines`. `padding`. `glyphs`: the border set, the picked action tile's heavy border, the list cursor, bar steps, the player cursor, the intent, cost, cooldown and charges marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints. `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`, and on the map `map_player`, `map_person`, `map_hostile`, `map_object`, `map_exit`, `map_wall`, `map_floor`): a palette colour, bold, dim. A game pack's own colours override the map roles |
+| `tokens` | Layout variables. `size`: minimum terminal size, grid cell width, tile width, bar lengths, side panel minimum width, pack panel page size, the art zone's width and height in pixels (`art_width`, `art_height`: characters' pictures), `save_slots`, `card_min_lines`. `padding`. `glyphs`: the border set, the picked action tile's heavy border, the list cursor, bar steps, the player cursor, the intent, cost, cooldown and charges marks, message marks, the legend separator, the slider's track and thumb, the arrow keys as shown in hints. `styles` by role (`title`, `heading`, `danger`, `gain`, `quiet`, `unavailable`, `hint`, `key`, and on the map `map_player`, `map_person`, `map_hostile`, `map_object`, `map_exit`, `map_wall`, `map_floor`): a default colour name (its look comes from the game pack's palette), bold, dim. A game pack's own colours override the map roles |
 | `screens` | Each screen as zones, top to bottom |
 | `keys` | `bindings` (action → key) and `hints` (what each context shows) |
 | `words` | The UI's words: `engine` (labels and headings the widgets use, with fixed placeholders) and `entries` (hint labels by id) |
@@ -1099,6 +1125,8 @@ into a game.
 
 Colour always means something, and everything reads without it. Styles come by role
 (warnings in `danger`, greyed-out options in `unavailable`, key hints in `hint`…).
+A style's colour is one of the default colour names; the game pack's palette decides
+what each name looks like, so a game can retint the interface by changing a default.
 Item names are drawn in their grade's colour (the vocabulary's `grades` → `colour`)
 on the pack panel, the gear screen and in item details; ungraded items as they
 are. Picks are drawn inverse and also marked with a glyph (the cursor, the heavy
@@ -1227,6 +1255,8 @@ locations.json: entries[0].placements[1]: position [9, 9] is outside the grid
   - templates without a location, standing characters on free floor tiles;
   - no leader loops;
   - the start character isn't a template and isn't placed elsewhere.
+- **Colours:** every colour is a name from the palette or a default colour; colour
+  numbers only in the palette.
 - **Art:** every row of a picture the same length; every pixel letter in the palette.
 - **Encounters, loot and events:**
   - only templates take a count;
@@ -1270,6 +1300,9 @@ and its gear `uses`. Every budget must fit.
 the same rules.
 
 **Check.** A leaf of a condition, picked by its `check` field (`has_tag`, `skill`…).
+
+**Colour.** A name from the pack's palette (`palette.json`), such as `rust`; the
+default colours (`grey`, `red`…) are always there.
 
 **Condition.** (1) A true-or-false tree of checks combined with `all`, `any` and
 `not`. (2) An item's wear level; items with a condition break at 0. The two meanings
@@ -1368,6 +1401,9 @@ short records moved by events.
 **Op.** The field that picks an effect.
 
 **Pack.** A folder of content data with a manifest.
+
+**Palette.** The pack's named colours (`palette.json`): the only place colour numbers
+are written. Every other colour in the pack is a name from it.
 
 **Parity.** The rule that the player follows the same rules as every other
 character.

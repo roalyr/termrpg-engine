@@ -1,0 +1,148 @@
+{
+  "$schema": "../../schemas/palette.schema.json",
+  "entries": [
+    {
+      "id": "grey",
+      "code": 245
+    },
+    {
+      "id": "white",
+      "code": 255
+    },
+    {
+      "id": "green",
+      "code": 114
+    },
+    {
+      "id": "cyan",
+      "code": 80
+    },
+    {
+      "id": "blue",
+      "code": 75
+    },
+    {
+      "id": "violet",
+      "code": 141
+    },
+    {
+      "id": "yellow",
+      "code": 221
+    },
+    {
+      "id": "orange",
+      "code": 208
+    },
+    {
+      "id": "red",
+      "code": 203
+    },
+    {
+      "id": "forest",
+      "code": 22
+    },
+    {
+      "id": "teal",
+      "code": 30
+    },
+    {
+      "id": "steel_blue",
+      "code": 31
+    },
+    {
+      "id": "sage",
+      "code": 65
+    },
+    {
+      "id": "maroon",
+      "code": 88
+    },
+    {
+      "id": "brown",
+      "code": 94
+    },
+    {
+      "id": "olive",
+      "code": 107
+    },
+    {
+      "id": "rust",
+      "code": 130,
+      "notes": "hair, suit trim"
+    },
+    {
+      "id": "brick",
+      "code": 131
+    },
+    {
+      "id": "tan",
+      "code": 137
+    },
+    {
+      "id": "crimson",
+      "code": 160
+    },
+    {
+      "id": "burnt_orange",
+      "code": 166
+    },
+    {
+      "id": "gold",
+      "code": 178
+    },
+    {
+      "id": "sand",
+      "code": 180,
+      "notes": "skin"
+    },
+    {
+      "id": "bright_red",
+      "code": 196
+    },
+    {
+      "id": "peach",
+      "code": 223,
+      "notes": "skin, light"
+    },
+    {
+      "id": "blush",
+      "code": 224
+    },
+    {
+      "id": "coal",
+      "code": 236
+    },
+    {
+      "id": "graphite",
+      "code": 238,
+      "notes": "dark metal"
+    },
+    {
+      "id": "iron",
+      "code": 240,
+      "notes": "storage floor"
+    },
+    {
+      "id": "slate",
+      "code": 243
+    },
+    {
+      "id": "pewter",
+      "code": 244,
+      "notes": "station walls"
+    },
+    {
+      "id": "ash",
+      "code": 247
+    },
+    {
+      "id": "silver",
+      "code": 250,
+      "notes": "light floor"
+    },
+    {
+      "id": "fog",
+      "code": 252
+    }
+  ]
+}

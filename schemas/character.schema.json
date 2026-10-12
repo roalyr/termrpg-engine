@@ -3,7 +3,7 @@
   "$id": "character.schema.json",
   "title": "Characters (characters.json)",
   "description": "Everyone: the player's character, NPCs, companions and enemies share one record. Their gear makes their stats; their skills are their own.",
-  "x-schema-version": 3,
+  "x-schema-version": 4,
   "$ref": "#/$defs/characters_file",
   "$defs": {
     "characters_file": {

@@ -182,6 +182,9 @@ log, X closes, Q quits, `]` next page, digits pick.
   border) and a word, and play with `--ui`: the hints, help, input and screen follow.
 - [ ] A broken UI pack (two actions on one key, or the engine's G key) is refused at
   start with the checker's message.
+- [ ] In `palette.json`, change `rust` (Juno's hair) and `red` (hostile people on the
+  map): both show in the new colours. Write a number instead of a name in a room's
+  `wall_colour`: the game refuses the pack with the checker's message.
 
 ---
 

@@ -4,7 +4,7 @@ checker finds references: by the schemas' x-ref marks, plus '@id' texts for stri
 Renaming an id changes every use with it.
 """
 import re
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from core import schema
 from core.pack import KIND_SCHEMAS
@@ -72,3 +72,25 @@ def rename(pack: PackFiles, namespace: str, old: str, new: str) -> int:
             node[last] = new
         pack.touch(rel)
     return len(places)
+
+
+def by_value(pack: PackFiles, namespace: str) -> Dict[Any, List[Tuple[str, str]]]:
+    """Every reference in a namespace, by the id it names: id -> [(file, path)]. One pass over the pack."""
+    found: Dict[Any, List[Tuple[str, str]]] = {}
+    for rel, data, target in _files(pack):
+        for ref in schema.validate(data, target, schemas()).refs:
+            if ref.kind == namespace:
+                found.setdefault(ref.value, []).append((rel, ref.path))
+    return found
+
+
+def owner(pack: PackFiles, rel: str, path: str) -> str:
+    """The entry a reference sits in, by id ('art_juno'), or the file and path when it isn't in an entry."""
+    steps = _steps(path)
+    node = pack.manifest if rel == "pack.json" else pack.data.get(rel, {})
+    if len(steps) >= 2 and isinstance(steps[1], int):
+        listed = node.get(steps[0]) if isinstance(node, dict) else None
+        entry = listed[steps[1]] if isinstance(listed, list) and steps[1] < len(listed) else None
+        if isinstance(entry, dict) and "id" in entry:
+            return str(entry["id"])
+    return f"{rel} {path}"

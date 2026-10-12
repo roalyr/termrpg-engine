@@ -77,6 +77,7 @@ All commands run from the project root.
 | `python3 -m core.packtool check packs/test_scifi` | Validate a pack. Prints every error and warning with its file and path |
 | `python3 -m core.packtool ids packs/test_scifi` | See which namespaces exist and how many ids each has |
 | `python3 -m core.packtool ids packs/test_scifi item` | List every id in a namespace and where it's declared |
+| `python3 -m core.packtool ids packs/test_scifi colour` | The pack's colours (the palette and the defaults) |
 | `python3 -m core.packtool refs packs/test_scifi gear_cutter` | See where an id is declared and every place it's used |
 | `python3 -m core.packtool explain` | List the topics you can look up |
 | `python3 -m core.packtool explain ops` / `explain checks` | List every effect or check with a one-line description |
@@ -154,6 +155,13 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   `rows`, row 0, the last row, column 0 and the last column are walls.
 - A room is at most 12 tiles across and 10 down (it must fit a 48 by 24 screen).
   Bigger spaces are several rooms joined by exits.
+- **Colours are names from the pack's palette** (`palette.json`, kind `palette`). Colour
+  numbers (0-255) are written only there; everywhere else write the name (`"rust"`,
+  never `130`). The default colours (`grey`, `white`, `green`, `cyan`, `blue`, `violet`,
+  `yellow`, `orange`, `red`) always exist. For a new colour, add an entry to the
+  palette first; to retint something everywhere, change its palette entry. Colour names
+  are plain words with no prefix. Changing a default also changes the interface's
+  colour of that name in this game.
 - Map colours are optional: `colour` on an object, placement or character, and
   `floor_colour` / `wall_colour` on a grid. Leave them out to use the UI pack's
   colours (objects, exits, people, hostile people). Use them to make something stand
@@ -271,7 +279,8 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   character's `art` is shown on the character screen, in conversations and in fights.
   One picture can serve many characters (every guard, every drone).
 - A picture is pixel letters plus a palette: every row the same length, every letter
-  in the palette, a space or `.` for see-through; up to 32 by 32 pixels. The default
+  in the picture's `palette` (mapped to a colour name from the pack's palette), a
+  space or `.` for see-through; up to 32 by 32 pixels. The default
   UI pack shows 24 by 24 (12 lines), centred, and cuts what's larger: draw for 24 by
   24. Draw for the shape first: without colour only the silhouette shows.
 - A text that is exactly `@` plus an id shows that entry from `strings.json`.
@@ -327,6 +336,7 @@ Prefixes make ids easy to read and search. Use them in game packs:
 | Object state, phase, faction, flag | `state_`, `phase_`, `faction_`, `flag_` | `state_open`, `phase_night` |
 | Custom string | `str_` | `str_kael_greeting` |
 | Art (pictures) | `art_` | `art_kael`, `art_sentry` |
+| Colour (palette) | none: plain words | `rust`, `hull` |
 
 The test packs follow these prefixes too, with plain names (a workshop, a cutter,
 scrap; a smithy, a sword, iron), so their ids can be copied as examples. For a game in
@@ -489,7 +499,7 @@ in the storage room starts the encounter.
       "..bb..bbbb..bb..",
       "..bb..bb..bb.bb."
       ],
-      "palette": { "a": "grey", "e": "red", "m": 238, "b": 244 } }
+      "palette": { "a": "grey", "e": "red", "m": "graphite", "b": "pewter" } }
   ],
   "loot_tables": [
     { "id": "loot_sentry", "rolls": 1, "nothing": 1,
@@ -591,6 +601,8 @@ good.
 | `role 'x' is not in the event's cast` | Add the role to `cast`, or fix the name |
 | `unknown placeholder {x}` | Use only the placeholders `explain engine` lists for that message |
 | `unknown string '@x'` | Add the entry to `strings.json`, or fix the id |
+| `unknown colour 'x'` | Add it to `palette.json` with its `code`, or use a colour that exists (`ids <pack> colour`) |
+| `expected string, got the number N` on a colour | Colour numbers go only in `palette.json`: name the colour there and use the name |
 | warning: `uses a reserved feature` | Only use reserved features when the user asks; the engine ignores them |
 
 ## Writing game text

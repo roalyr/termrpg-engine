@@ -8,20 +8,27 @@ from typing import List, Mapping, Optional
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 RESET = "\x1b[0m"
 
-# The engine's palette (grade colours and the warning colour), as 256-colour codes.
-PALETTE = {"grey": 245, "white": 255, "green": 114, "cyan": 80, "blue": 75,
-           "violet": 141, "yellow": 221, "orange": 208, "red": 203}
+# The default colours, as 256-colour codes. Every pack's palette has them (it may change
+# them); the UI pack's styles use them.
+DEFAULT_COLOURS = {"grey": 245, "white": 255, "green": 114, "cyan": 80, "blue": 75,
+                   "violet": 141, "yellow": 221, "orange": 208, "red": 203}
 
 
 class Style:
     """
-    Text styles by role, from the UI pack's tokens. With colour off everything is plain
-    except the player's inverse cursor.
+    Text styles by role, from the UI pack's tokens, and colours by name, from the game
+    pack's palette. With colour off everything is plain except the player's inverse cursor.
     """
 
-    def __init__(self, colour: bool = True, styles: Optional[Mapping[str, Mapping]] = None):
+    def __init__(self, colour: bool = True, styles: Optional[Mapping[str, Mapping]] = None,
+                 palette: Optional[Mapping[str, int]] = None):
         self.colour = colour
         self.styles = styles or {}
+        self.palette = palette or {}       # colour name -> terminal number; the defaults fill the gaps
+
+    def code(self, colour) -> int:
+        """A colour by name (the pack's palette, else the defaults) as a terminal colour number."""
+        return colour_code(colour, self.palette)
 
     def _wrap(self, text: str, code: str) -> str:
         return f"\x1b[{code}m{text}{RESET}" if self.colour and text else text
@@ -35,15 +42,15 @@ class Style:
         if spec.get("dim"):
             codes.append("2")
         if spec.get("colour"):
-            codes.append(f"38;5;{PALETTE.get(spec['colour'], PALETTE['white'])}")
+            codes.append(f"38;5;{self.code(spec['colour'])}")
         return self._wrap(text, ";".join(codes)) if codes else text
 
     def inverse(self, text: str) -> str:
         return f"\x1b[7m{text}{RESET}" if text else text
 
     def colour_of(self, text: str, colour: str) -> str:
-        """Text in a palette colour (a grade's colour, say). Plain without colour."""
-        return self._wrap(text, f"38;5;{PALETTE.get(colour, PALETTE['white'])}")
+        """Text in a colour by name (a grade's colour, say). Plain without colour."""
+        return self._wrap(text, f"38;5;{self.code(colour)}")
 
     def pixels(self, text: str, fg: Optional[int], bg: Optional[int]) -> str:
         """Half-block pixels: 'fg' and 'bg' are 256-colour codes (None for none). Plain without colour."""
@@ -55,9 +62,16 @@ class Style:
         return self.role(text, "key", "7")
 
 
-def colour_code(colour) -> int:
-    """A colour as packs write it (a palette name or a 256-colour number) as a terminal colour number."""
-    return colour if isinstance(colour, int) else PALETTE.get(colour, PALETTE["white"])
+def colour_code(colour, palette: Optional[Mapping[str, int]] = None) -> int:
+    """
+    A colour name as a terminal colour number: from the palette, else the defaults, else
+    white. A number is already one.
+    """
+    if isinstance(colour, int):
+        return colour
+    if palette and colour in palette:
+        return palette[colour]
+    return DEFAULT_COLOURS.get(colour, DEFAULT_COLOURS["white"])
 
 
 def bar(value: float, top: float, length: int, full: str = "█", empty: str = "░") -> str:

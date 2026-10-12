@@ -865,7 +865,7 @@ def picture_lines(frame: Frame, art_id: Optional[str], stand_in: str, framed: bo
     """
     pw, ph = portrait_size(frame)
     picture = frame.content.get("art", art_id) if art_id else None
-    grid = pixels.centred(picture["rows"], picture["palette"], pw, ph) if picture else [[None] * pw for _ in range(ph)]
+    grid = pixels.centred(picture["rows"], picture["palette"], pw, ph, frame.style.palette) if picture else [[None] * pw for _ in range(ph)]
     lines = pixels.half_blocks(frame.style, grid)
     if not picture:                                             # the place kept: the stand-in in the middle
         middle = len(lines) // 2

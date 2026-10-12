@@ -40,6 +40,7 @@ class Editor:
 
     def open(self, folder: Path) -> None:
         self.pack, self.screen, self.selected = PackFiles(folder), "menu", 0
+        self.look.style.palette = self.pack.palette          # the tools draw in this pack's colours
 
     def entries(self) -> list:
         """(label, about, what it does) for each menu entry."""

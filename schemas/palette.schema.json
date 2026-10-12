@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "palette.schema.json",
+  "title": "Palette (palette.json)",
+  "description": "The pack's named colours. Every colour a pack uses (on the map, for grades, in pictures) is a name from here; the colour numbers live only in this file. The default colours (grey, white, green, cyan, blue, violet, yellow, orange, red) are always there: list one to change it. The UI pack's styles use the default names, so changing one here changes the interface's colour too, in this game only.",
+  "x-schema-version": 4,
+  "$ref": "#/$defs/palette_file",
+  "$defs": {
+    "palette_file": {
+      "type": "object",
+      "description": "A file of named colours.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/palette"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "palette": {
+      "type": "object",
+      "description": "One colour of the palette: its name, used everywhere a colour goes, and its 256-colour terminal number. The default colours are always there (grey 245, white 255, green 114, cyan 80, blue 75, violet 141, yellow 221, orange 208, red 203); list one to change it.",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id",
+          "description": "The colour's name, e.g. rust or hull. Plain words, no prefix."
+        },
+        "code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "description": "The 256-colour terminal number: 0-15 the terminal's own colours, 16-231 a 6x6x6 colour cube, 232-255 greys from dark to light."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "code"
+      ]
+    }
+  }
+}

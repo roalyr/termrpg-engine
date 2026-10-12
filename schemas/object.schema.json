@@ -3,7 +3,7 @@
   "$id": "object.schema.json",
   "title": "Objects (objects.json)",
   "description": "Templates for things that sit in locations: doors, crates, terminals, machines, bunks. Locations place them; each placement may override the name, state or single interactions.",
-  "x-schema-version": 3,
+  "x-schema-version": 4,
   "$ref": "#/$defs/objects_file",
   "$defs": {
     "objects_file": {

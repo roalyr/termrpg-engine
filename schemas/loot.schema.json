@@ -3,7 +3,7 @@
   "$id": "loot.schema.json",
   "title": "Loot tables (loot.json)",
   "description": "Weighted tables rolled by roll_loot, defeated characters, encounters and containers. Tables may roll other tables.",
-  "x-schema-version": 3,
+  "x-schema-version": 4,
   "$ref": "#/$defs/loot_tables_file",
   "$defs": {
     "loot_tables_file": {

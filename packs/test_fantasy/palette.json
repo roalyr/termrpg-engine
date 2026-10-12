@@ -1,0 +1,75 @@
+{
+  "$schema": "../../schemas/palette.schema.json",
+  "entries": [
+    {
+      "id": "grey",
+      "code": 245
+    },
+    {
+      "id": "white",
+      "code": 255
+    },
+    {
+      "id": "green",
+      "code": 114
+    },
+    {
+      "id": "cyan",
+      "code": 80
+    },
+    {
+      "id": "blue",
+      "code": 75
+    },
+    {
+      "id": "violet",
+      "code": 141
+    },
+    {
+      "id": "yellow",
+      "code": 221
+    },
+    {
+      "id": "orange",
+      "code": 208
+    },
+    {
+      "id": "red",
+      "code": 203
+    },
+    {
+      "id": "leaf",
+      "code": 28
+    },
+    {
+      "id": "brown",
+      "code": 94
+    },
+    {
+      "id": "clay",
+      "code": 95
+    },
+    {
+      "id": "rust",
+      "code": 130,
+      "notes": "hair, suit trim"
+    },
+    {
+      "id": "brick",
+      "code": 131
+    },
+    {
+      "id": "salmon",
+      "code": 174
+    },
+    {
+      "id": "peach",
+      "code": 223,
+      "notes": "skin, light"
+    },
+    {
+      "id": "charcoal",
+      "code": 237
+    }
+  ]
+}

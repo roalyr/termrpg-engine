@@ -18,6 +18,7 @@ from tools.loadout import Loadout
 from tools.lib import fields, refs
 from tools.map import Map
 from tools.overview import Overview
+from tools.palette import Palette
 from tools.room import Room
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -215,8 +216,9 @@ class RoomTest(unittest.TestCase):
         self.keys(room, "c", "up", "enter")                    # the list starts on grey; Default takes it away
         self.assertNotIn("wall_colour", location["grid"])
         room.cursor = (2, 2)
-        self.keys(room, "c", *"terminal", "enter", "right", "right", "enter")   # from the 256-colour grid
-        self.assertEqual(location["grid"]["floor_colour"], 2)
+        self.keys(room, "c", *"new colour", "enter", "right", "right", "enter", *"moss", "enter")   # a new one
+        self.assertEqual(location["grid"]["floor_colour"], "moss")
+        self.assertEqual(self.pack.find("palette", "moss").entry["code"], 2)
         self.assert_saved_clean()
 
     def test_a_door_to_another_room_leads_both_ways(self):
@@ -430,6 +432,98 @@ class MapRegionsTest(unittest.TestCase):
             shutil.rmtree(tmp)
 
 
+class PaletteTest(unittest.TestCase):
+    """The palette editor on a copy of the test pack: change, add, rename and delete colours; every use follows."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        shutil.copytree(TEST_PACK, self.tmp / "test")
+        self.pack = PackFiles(self.tmp / "test")
+        self.tool = Palette(self.pack, LOOK)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def keys(self, *keys):
+        for key in keys:
+            self.assertTrue(self.tool.handle(key), key)
+
+    def pick(self, name):
+        self.tool.selected = [n for n, _ in self.tool.colours()].index(name)
+
+    def saved_clean(self):
+        self.pack.save()
+        self.assertEqual(self.pack.check().errors, ())
+
+    def test_lists_defaults_then_the_packs_colours_with_their_uses(self):
+        text = self.tool.render(48, 24)
+        for words in ("Palette", "grey", "245", "default"):
+            self.assertIn(words, text)
+        self.pick("rust")
+        text = self.tool.render(48, 24)
+        self.assertIn("rust · 130 · used by art_juno", text)
+        self.pick("red")
+        self.assertIn("Interface: map_hostile", self.tool.render(48, 40))
+        self.assertFalse(self.tool.handle("esc"))
+
+    def test_change_a_colour_and_the_default_comes_back(self):
+        self.pick("rust")
+        self.keys("c", "right", "enter")
+        self.assertEqual(self.pack.find("palette", "rust").entry["code"], 131)
+        self.pick("red")
+        self.keys("c", "left", "enter")
+        self.assertEqual(self.pack.find("palette", "red").entry["code"], 202)
+        self.keys("enter")
+        self.tool.form.filter = "back to"
+        self.keys("enter")
+        self.assertEqual(self.pack.find("palette", "red").entry["code"], 203)
+        self.saved_clean()
+
+    def test_new_colour_and_rename_follow_every_use(self):
+        self.pick("rust")
+        self.keys("n", "right", "enter", *"copper", "enter")
+        self.assertEqual(self.pack.find("palette", "copper").entry["code"], 131)
+        self.assertEqual(self.tool.current()[0], "copper")
+        self.pick("rust")
+        self.keys("r", *["backspace"] * 4, *"hair", "enter")
+        self.assertIsNone(self.pack.find("palette", "rust"))
+        juno = self.pack.find("art", "art_juno").entry
+        self.assertEqual(juno["palette"]["r"], "hair")
+        self.pick("red")
+        self.keys("r")                                        # the defaults keep their names: no rename
+        self.assertIsNone(self.tool.form)
+        self.assertFalse(any("Rename" in label for _, label, _ in self.tool.actions()))
+        self.saved_clean()
+
+    def test_deleting_a_used_colour_moves_its_uses(self):
+        self.pick("rust")
+        self.keys("enter")
+        self.tool.form.filter = "delete"
+        self.keys("enter")
+        self.tool.form.filter = "brown"
+        self.keys("enter")
+        self.assertIsNone(self.pack.find("palette", "rust"))
+        self.assertEqual(self.pack.find("art", "art_juno").entry["palette"]["r"], "brown")
+        self.saved_clean()
+
+    def test_a_pack_without_a_palette_gets_one_on_the_first_change(self):
+        manifest = json.loads((self.tmp / "test" / "pack.json").read_text())
+        manifest["files"].pop("palette")
+        (self.tmp / "test" / "pack.json").write_text(dumps(manifest))
+        (self.tmp / "test" / "palette.json").unlink()
+        for name in ("art", "locations"):                     # no pack colours left to use
+            path = self.tmp / "test" / f"{name}.json"
+            path.write_text(path.read_text().replace('"rust"', '"orange"'))
+        self.pack.reload()
+        self.tool = Palette(self.pack, LOOK)
+        self.assertIn("No palette file yet", self.tool.render(48, 24))
+        self.pick("grey")
+        self.keys("c", "right", "enter")
+        self.assertEqual(self.pack.manifest["files"]["palette"], ["palette.json"])
+        self.assertEqual([e["id"] for e in self.pack.data["palette.json"]["entries"]][:3], ["grey", "white", "green"])
+        self.assertEqual(self.pack.find("palette", "grey").entry["code"], 246)
+
+
 class ArtTest(unittest.TestCase):
     """The art editor on a copy of the test pack: painting, colours, new pictures; saved pictures pass the checker."""
 
@@ -484,9 +578,14 @@ class ArtTest(unittest.TestCase):
         letter = self.art.current
         self.assertEqual(self.art.picture["palette"][letter], "grey")
         self.keys("c")
-        self.art.form.filter = "terminal"
-        self.keys("enter", "right", "right", "down", "enter")
-        self.assertEqual(self.art.picture["palette"][letter], 34)
+        self.art.form.filter = "rust"                         # a palette colour, by name
+        self.keys("enter")
+        self.assertEqual(self.art.picture["palette"][letter], "rust")
+        self.keys("c")
+        self.art.form.filter = "new colour"                   # a new one joins the palette
+        self.keys("enter", "right", "right", "down", "enter", *"leafy", "enter")
+        self.assertEqual(self.art.picture["palette"][letter], "leafy")
+        self.assertEqual(self.pack.find("palette", "leafy").entry["code"], 130 + 2 + 32)   # the grid starts at rust
         self.saved_clean()
 
     def test_removing_a_colour_clears_its_pixels(self):

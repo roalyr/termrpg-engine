@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Mapping, NamedTuple, Tuple
 from core import schema
 from core.pack import KIND_NAMESPACES, KIND_SCHEMAS, SCHEMA_DIR, Report, index_pack
 from engine.frozen import Record, freeze
+from lib.text import DEFAULT_COLOURS
 
 # Vocabulary sections with ids, and the namespace each declares.
 VOCAB_SECTIONS = {
@@ -50,6 +51,7 @@ class Content(NamedTuple):
     stat_roles: Mapping[str, str]              # role -> stat id
     messages: Mapping[str, str]                # engine message key -> the pack's wording
     warnings: Tuple[str, ...]
+    palette: Mapping[str, int]                 # colour name -> terminal number, the defaults included
 
     @property
     def settings(self) -> Record:
@@ -126,6 +128,7 @@ def load_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Content:
         stat_roles=freeze(stat_roles),
         messages=freeze(messages),
         warnings=report.warnings,
+        palette=freeze({**DEFAULT_COLOURS, **{c["id"]: c["code"] for c in index.get("colour", {}).values()}}),
     )
 
 

@@ -101,6 +101,18 @@ class TestLoadPack(unittest.TestCase):
         self.assertEqual([i["label"] for i in placed["interactions"]], ["Search carefully", "Kick it"])
         self.assertEqual(placed["tags"], ("tag_filter",))
 
+    def test_palette_has_the_defaults_and_the_packs_colours(self):
+        self.assertEqual((self.content.palette["grey"], self.content.palette["rust"]), (245, 130))
+        with tempfile.TemporaryDirectory() as tmp:
+            pack = Path(tmp) / "pack"
+            shutil.copytree(TEST_PACK, pack)
+            data = json.loads((pack / "palette.json").read_text())
+            data["entries"] = [e for e in data["entries"] if e["id"] != "grey"]       # left out: the default
+            next(e for e in data["entries"] if e["id"] == "red")["code"] = 160      # changed for this game
+            (pack / "palette.json").write_text(json.dumps(data))
+            palette = load_pack(pack).palette
+        self.assertEqual((palette["grey"], palette["red"]), (245, 160))
+
     def test_text_and_messages(self):
         self.assertEqual(self.content.text("@str_greeting"), "Hello.")
         self.assertEqual(self.content.text("Plain words."), "Plain words.")

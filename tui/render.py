@@ -39,7 +39,7 @@ def max_scroll(content: Content, state: GameState, columns: int, rows: int, pane
 
 def render_shell(content: Content, ui: UI, shell, data, columns: int, rows: int, colour: bool = True) -> str:
     """The start, slots or help screen (tui.shell), before a game is loaded: there's no game state."""
-    frame = Frame(content=content, state=None, ui=ui, style=Style(colour, ui.tokens["styles"]), screen=shell.screen,
+    frame = Frame(content=content, state=None, ui=ui, style=Style(colour, ui.tokens["styles"], content.palette), screen=shell.screen,
                   selected=shell.selected, scroll=shell.scroll, shell=data)
     if not _fits(frame, columns, rows):
         return ui.word("terminal_too_small", columns=frame.size["min_columns"], rows=frame.size["min_rows"]) + "\n"
@@ -47,7 +47,7 @@ def render_shell(content: Content, ui: UI, shell, data, columns: int, rows: int,
 
 
 def shell_scroll_limit(content: Content, ui: UI, shell, data, columns: int, rows: int) -> int:
-    frame = Frame(content=content, state=None, ui=ui, style=Style(False, ui.tokens["styles"]), screen=shell.screen,
+    frame = Frame(content=content, state=None, ui=ui, style=Style(False, ui.tokens["styles"], content.palette), screen=shell.screen,
                   selected=shell.selected, scroll=0, shell=data)
     return scroll_limit(frame, ui.screens[shell.screen], columns, rows) if _fits(frame, columns, rows) else 0
 
@@ -71,6 +71,6 @@ def _frame(content: Content, state: GameState, panel: Optional[str], colour: boo
     in_world = screen != "debrief"                            # fights have a target choice
     if screen == "world" and panel is None and card_shown(ui, content, state):
         panel = "card"                                        # an event's card, or a question
-    return Frame(content=content, state=state, ui=ui, style=Style(colour, ui.tokens["styles"]), screen=screen,
+    return Frame(content=content, state=state, ui=ui, style=Style(colour, ui.tokens["styles"], content.palette), screen=screen,
                  panel=panel if in_world else None, selected=selected, page=page, scroll=scroll,
                  log=tuple(log) if screen == "talk" else (), cursor=cursor if screen == "map" else None)

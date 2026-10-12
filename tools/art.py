@@ -3,9 +3,11 @@ The art editor: the pack's pictures, drawn as the game draws them (half blocks, 
 pixels per text cell), painted pixel by pixel.
 
 Pick a picture (or make a new one), move the cursor over its pixels and paint with
-the current colour; Tab steps through the palette and see-through. Enter lists what
-else works: pick the colour under the cursor, mirror left and right, undo, add or
-change a colour, resize, delete an unused picture, save.
+the current colour; Tab steps through the picture's letters and see-through. Each
+letter is a colour from the pack's palette (palette.json), by name. Enter lists what
+else works: pick the colour under the cursor, mirror left and right, undo, add a
+letter or change its colour (a palette colour, or a new one added to the palette),
+resize, delete an unused picture, save.
 
   python3 -m tools.art packs/test_scifi     on its own
   python3 editor.py                   from the editor's menu
@@ -15,7 +17,6 @@ import sys
 from typing import Callable, List, Optional, Tuple
 
 from lib import pixels, term
-from lib.text import colour_code
 from tools.lib import colours, forms, screen
 from tools.lib.packfiles import Found, PackFiles
 
@@ -138,7 +139,7 @@ class Art:
                 return CURSOR
             if y >= height or x >= len(rows[y]) or rows[y][x] in " .":
                 return None
-            return colour_code(palette.get(rows[y][x], "white"))
+            return self.look.style.code(palette.get(rows[y][x], "white"))
 
         grid = [[pixel(y, x) for x in range(vx, min(vx + across, width))] for y in range(vy, min(vy + down, height))]
         marked = {(self.cursor[0] - vy, self.cursor[1] - vx)}      # without colour the cursor shows inverse
@@ -148,7 +149,7 @@ class Art:
         style, cursor = self.look.style, self.look.glyphs["cursor"]
         lines = []
         for letter, colour in list(self.picture.get("palette", {}).items()) + [(CLEAR, None)]:
-            sample = (style.pixels("█", colour_code(colour), None) if style.colour else "█") if colour is not None else " "
+            sample = colours.sample(self.look, colour) if colour is not None else " "
             words = str(colour) if colour is not None else "see-through"
             mark = cursor if letter == self.current else " "
             lines.append(f"{mark}{letter} {sample} {words}")
