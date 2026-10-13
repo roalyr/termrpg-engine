@@ -8,6 +8,7 @@ Besides plain validation it collects what the pack validator needs next:
 'x-discriminator' names the key ('check', 'op') that picks one branch of a oneOf,
 so a typo reports "unknown op 'dmg'" instead of every branch failing.
 """
+import copy
 import json
 import re
 from pathlib import Path
@@ -57,9 +58,19 @@ class _Acc:
         self.reserved += other.reserved
 
 
+_LOADED: Dict[str, Schemas] = {}
+
+
 def load_schemas(schema_dir: Path) -> Schemas:
-    """Every *.schema.json in the folder, keyed by file name."""
-    return {p.name: json.loads(p.read_text(encoding="utf-8")) for p in sorted(schema_dir.glob("*.schema.json"))}
+    """
+    Every *.schema.json in the folder, keyed by file name. Read once per folder and kept
+    (schemas don't change while a program runs); treat the result as read-only.
+    """
+    key = str(Path(schema_dir).resolve())
+    if key not in _LOADED:
+        _LOADED[key] = {p.name: json.loads(p.read_text(encoding="utf-8"))
+                        for p in sorted(Path(schema_dir).glob("*.schema.json"))}
+    return _LOADED[key]
 
 
 def validate(instance: Any, target: str, schemas: Schemas) -> Result:
@@ -274,7 +285,7 @@ def _default_of(node: dict, file: str, schemas: Schemas) -> Tuple[bool, Any]:
     seen = 0
     while isinstance(node, dict) and seen < 10:
         if "default" in node:
-            return True, node["default"]
+            return True, copy.deepcopy(node["default"])         # never the schema's own list or object
         if "$ref" not in node:
             break
         hit = _resolve(node["$ref"], file, schemas)

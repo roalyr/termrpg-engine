@@ -16,7 +16,6 @@ Kinds of field:
 """
 import json
 import re
-from functools import lru_cache
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from core import schema
@@ -59,7 +58,6 @@ class Spec(NamedTuple):
         return self.node.get("x-status") == "reserved"
 
 
-@lru_cache(maxsize=None)
 def schemas() -> schema.Schemas:
     return schema.load_schemas(SCHEMA_DIR)
 

@@ -27,14 +27,10 @@ from tools.lib.complete import Completer, Suggestion
 
 COMMANDS = {"dev": "the dev menu"}
 FULL = 9999                     # enough to fill any pool
-_SCHEMAS = None
 
 
 def _schemas():
-    global _SCHEMAS
-    if _SCHEMAS is None:
-        _SCHEMAS = schema.load_schemas(SCHEMA_DIR)
-    return _SCHEMAS
+    return schema.load_schemas(SCHEMA_DIR)
 
 
 class Text:

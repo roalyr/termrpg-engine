@@ -6,7 +6,11 @@ Generates schemas/ui.schema.json, the UI pack schema. Edit this file, not the sc
 tests/test_ui_pack.py checks that the committed schema is what this file generates.
 """
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))     # run as a script from anywhere
+from lib.text import DEFAULT_COLOURS  # noqa: E402
 
 C = "common.schema.json#/$defs/"
 D = "#/$defs/"
@@ -23,7 +27,7 @@ def flag(default, desc): return {"type": "boolean", "default": default, "descrip
 SCHEMA_REF = {"type": "string", "description": "Path to this file's schema, for editors. Ignored by the engine."}
 OUT = Path(__file__).resolve().parent.parent / "schemas" / "ui.schema.json"
 
-PALETTE = ["grey", "white", "green", "cyan", "blue", "violet", "yellow", "orange", "red"]
+PALETTE = list(DEFAULT_COLOURS)          # the style roles' colours: the names every pack's palette has
 SCREENS = {"world": "Walking around.", "encounter": "A fight.", "debrief": "The after-action screen at the end of a fight.",
            "gear": "The gear screen: what's equipped by slot, spare gear and designs, and building.",
            "character": "The character screen: who you are, skills, stats, conditions, party and standing.",

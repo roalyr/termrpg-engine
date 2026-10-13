@@ -11,16 +11,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, NamedTuple, Tuple
 
 from core import schema
-from core.pack import KIND_NAMESPACES, KIND_SCHEMAS, SCHEMA_DIR, Report, index_pack
+from core.pack import KIND_NAMESPACES, KIND_SCHEMAS, SCHEMA_DIR, VOCAB_NAMESPACES, Report, index_pack
 from engine.frozen import Record, freeze
 from lib.text import DEFAULT_COLOURS
-
-# Vocabulary sections with ids, and the namespace each declares.
-VOCAB_SECTIONS = {
-    "tags": "tag", "stats": "stat", "damage_types": "damage_type", "statuses": "status",
-    "slot_types": "slot_type", "grades": "grade", "object_states": "object_state",
-    "phases": "phase", "factions": "faction", "flags": "flag",
-}
 
 # Fields a placement takes from its object template.
 TEMPLATE_FIELDS = ("name", "glyph", "colour", "description", "size", "holds_size", "solid", "states",
@@ -118,7 +111,7 @@ def load_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Content:
                 for entry in data.get("entries", []):
                     index.setdefault(KIND_NAMESPACES[kind], {})[entry["id"]] = entry
 
-    for section, namespace in VOCAB_SECTIONS.items():
+    for section, namespace in VOCAB_NAMESPACES.items():
         index[namespace] = {e["id"]: e for e in vocab.get(section, [])}
     index["placement"] = _placements(index.get("location", {}), index.get("object", {}))
 
