@@ -66,7 +66,7 @@ to check your work, and the rules of the data that are easy to get wrong.
 | `VISION.md` | **Never**, unless the user says so | |
 | `AGENTS.md` | Only when asked | |
 | `archive/**` | **No** | Waiting to move to its own repository |
-| `saves/`, `presets/` | **Never commit** | Local runtime data |
+| `saves/` | **Never commit** | Local runtime data |
 
 ## Tools
 
@@ -668,4 +668,4 @@ A pack's `version` in `pack.json` is `major.minor.patch`:
 - Commit only when the user asks. Work on a branch, not directly on `main`.
 - One topic per commit. The subject line says what changed (`feat(pack): add the
   Berth 04 traders`); the body says why.
-- Never rewrite history or force-push. Never commit `saves/` or `presets/`.
+- Never rewrite history or force-push. Never commit `saves/`.
