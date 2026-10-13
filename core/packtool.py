@@ -16,7 +16,7 @@ from typing import List, Optional, Tuple
 
 from core import schema
 from core import uipack
-from core.pack import SCHEMA_DIR, index_pack, main as check_main, _a
+from core.pack import SCHEMA_DIR, article, index_pack, main as check_main
 
 COMMON = "common.schema.json"
 SIMPLE_DEFS = {  # common definitions that read better as a word than as their fields
@@ -101,7 +101,7 @@ def _find(topic: List[str], schemas: schema.Schemas) -> Optional[Tuple[str, dict
 
 def _type_of(node: dict, file: str, schemas: schema.Schemas) -> str:
     if "x-ref" in node:
-        return f"id of {_a(node['x-ref'].replace('_', ' '))}" if node["x-ref"] != "size" else SIMPLE_DEFS["size"]
+        return f"id of {article(node['x-ref'].replace('_', ' '))}" if node["x-ref"] != "size" else SIMPLE_DEFS["size"]
     if "$ref" in node:
         target_file, _, frag = node["$ref"].partition("#")
         name = frag.split("/")[-1]
@@ -150,7 +150,7 @@ def _print_fields(node: dict, file: str, schemas: schema.Schemas, indent: str) -
         if isinstance(inner, dict) and "$ref" in inner and "x-ref" not in inner:
             target_file, _, frag = inner["$ref"].partition("#")
             if not ((target_file or file) == COMMON and frag.split("/")[-1] in SIMPLE_DEFS):
-                hit = schema._resolve(inner["$ref"], file, schemas)
+                hit = schema.resolve(inner["$ref"], file, schemas)
                 inner, inner_file = hit if hit else (inner, file)
         if isinstance(inner, dict) and inner.get("type") == "object" and "properties" in inner and len(indent) < 16:
             _print_fields(inner, inner_file, schemas, indent + "    ")

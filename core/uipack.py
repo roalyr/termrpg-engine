@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from core import schema
-from core.pack import SCHEMA_DIR, Report, _collect, _fmt, _read_json
+from core.pack import SCHEMA_DIR, Report, collect, fmt, read_json
 
 UI_SCHEMA = "ui.schema.json"
 KINDS = ("tokens", "keys", "screens", "words")
@@ -50,10 +50,10 @@ def load_merged(ui_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Tuple[Report, Di
     warnings: List[str] = []
     refs: List[Tuple[str, schema.Ref]] = []
     schemas = schema.load_schemas(schema_dir)
-    manifest = _read_json(ui_dir / "ui.json", "ui.json", errors)
+    manifest = read_json(ui_dir / "ui.json", "ui.json", errors)
     if manifest is None:
         return Report(tuple(errors), tuple(warnings)), {}
-    _collect(schema.validate(manifest, UI_SCHEMA, schemas), "ui.json", errors, warnings, refs)
+    collect(schema.validate(manifest, UI_SCHEMA, schemas), "ui.json", errors, warnings, refs)
 
     merged: Dict[str, Any] = {kind: {} for kind in KINDS}
     files = manifest.get("files") if isinstance(manifest.get("files"), dict) else {}
@@ -61,11 +61,11 @@ def load_merged(ui_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Tuple[Report, Di
         for rel in files.get(kind, []) or []:
             if not isinstance(rel, str):
                 continue
-            data = _read_json(ui_dir / rel, rel, errors)
+            data = read_json(ui_dir / rel, rel, errors)
             if data is None:
                 continue
             result = schema.validate(data, f"{UI_SCHEMA}#/$defs/{kind}_file", schemas)
-            _collect(result, rel, errors, warnings, refs)
+            collect(result, rel, errors, warnings, refs)
             if not result.errors and isinstance(data, dict):
                 _merge(merged[kind], data)
     if errors:
@@ -77,7 +77,7 @@ def load_merged(ui_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Tuple[Report, Di
         errors.append(f"words: duplicate word '{word}'")
     for label, ref in refs:
         if ref.kind == "word" and ref.value not in words:
-            errors.append(_fmt(label, ref.path, f"unknown word '{ref.value}'"))
+            errors.append(fmt(label, ref.path, f"unknown word '{ref.value}'"))
     _check_screens(filled["screens"], schemas, errors, warnings)
     _check_keys(filled["keys"], errors)
     _check_words(filled["words"], schemas, errors)

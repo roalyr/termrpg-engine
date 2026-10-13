@@ -88,11 +88,11 @@ def index_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> PackIndex:
     warnings: List[str] = []
     schemas = schema.load_schemas(schema_dir)
 
-    manifest = _read_json(pack_dir / "pack.json", "pack.json", errors)
+    manifest = read_json(pack_dir / "pack.json", "pack.json", errors)
     if manifest is None:
         return PackIndex(Report(tuple(errors), tuple(warnings)), {}, ())
     refs: List[Tuple[str, schema.Ref]] = []
-    _collect(schema.validate(manifest, "pack.schema.json", schemas), "pack.json", errors, warnings, refs)
+    collect(schema.validate(manifest, "pack.schema.json", schemas), "pack.json", errors, warnings, refs)
 
     ids: Dict[str, Dict[Any, str]] = {}      # namespace -> id -> where it was declared
     checkable: Set[str] = {"size", "colour"}  # namespaces whose ids are known
@@ -116,10 +116,10 @@ def index_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> PackIndex:
         for rel in paths:
             if not isinstance(rel, str):
                 continue
-            data = _read_json(pack_dir / rel, rel, errors)
+            data = read_json(pack_dir / rel, rel, errors)
             if data is None:
                 continue
-            _collect(schema.validate(data, target, schemas), rel, errors, warnings, refs)
+            collect(schema.validate(data, target, schemas), rel, errors, warnings, refs)
             loaded.append((kind, rel, data))
             if kind == "vocab" and isinstance(data, dict):
                 _declare_vocab(data, rel, ids, vocab, errors)
@@ -155,7 +155,7 @@ def index_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> PackIndex:
 
 # --- Loading and bookkeeping ------------------------------------------------------
 
-def _read_json(path: Path, label: str, errors: List[str]) -> Optional[Any]:
+def read_json(path: Path, label: str, errors: List[str]) -> Optional[Any]:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -165,14 +165,14 @@ def _read_json(path: Path, label: str, errors: List[str]) -> Optional[Any]:
     return None
 
 
-def _collect(result: schema.Result, label: str, errors: List[str], warnings: List[str],
+def collect(result: schema.Result, label: str, errors: List[str], warnings: List[str],
              refs: List[Tuple[str, schema.Ref]]) -> None:
-    errors.extend(_fmt(label, e.path, e.message) for e in result.errors)
-    warnings.extend(_fmt(label, r.path, r.message) for r in result.reserved)
+    errors.extend(fmt(label, e.path, e.message) for e in result.errors)
+    warnings.extend(fmt(label, r.path, r.message) for r in result.reserved)
     refs.extend((label, r) for r in result.refs)
 
 
-def _a(word: Any) -> str:
+def article(word: Any) -> str:
     """'a material', 'an item'."""
     word = str(word)
     if word == "gear":                     # a mass noun: 'is gear', not 'is a gear'
@@ -180,7 +180,7 @@ def _a(word: Any) -> str:
     return f"{'an' if word[:1] in 'aeiou' else 'a'} {word}"
 
 
-def _fmt(label: str, path: str, message: str) -> str:
+def fmt(label: str, path: str, message: str) -> str:
     return f"{label}: {path}: {message}" if path else f"{label}: {message}"
 
 
@@ -224,7 +224,7 @@ def _check_refs(refs: List[Tuple[str, schema.Ref]], ids: Dict[str, Dict[Any, str
         if ref.value not in ids.get(ref.kind, {}):
             what = "size class" if ref.kind == "size" else ref.kind.replace("_", " ")
             hint = " (name it in the vocabulary's sizes)" if ref.kind == "size" else ""
-            errors.append(_fmt(label, ref.path, f"unknown {what} '{ref.value}'{hint}"))
+            errors.append(fmt(label, ref.path, f"unknown {what} '{ref.value}'{hint}"))
     for kind, count in sorted(unchecked.items()):
         warnings.append(f"{count} reference(s) to {kind.replace('_', ' ')}s not checked: "
                         f"the pack loads no {kind.replace('_', ' ')}s (or they have no schema yet)")
@@ -405,7 +405,7 @@ def _check_item_rules(entries: Entries, vocab: Dict[str, Any], where: Dict[Tuple
     for mod_id, mod in entries.get("modifications", {}).items():
         material = items.get(mod.get("material"))
         if material is not None and material.get("kind") != "material":
-            errors.append(f"{where[('modifications', mod_id)]}: '{mod['material']}' is {_a(material.get('kind'))}, "
+            errors.append(f"{where[('modifications', mod_id)]}: '{mod['material']}' is {article(material.get('kind'))}, "
                           f"not a material")
         adds = mod.get("adds") if isinstance(mod.get("adds"), dict) else {}
         check_uses(adds.get("uses"), where[("modifications", mod_id)])
@@ -447,7 +447,7 @@ def _loadout_problem(problem: budgets.Problem, stats: Dict[str, dict]) -> str:
     """A loadout problem as the checker words it; '' for unknown items (reported as bad references)."""
     record = stats.get(problem.stat, {})
     if problem.what == "not_gear":
-        return f"equipped lists '{problem.item}', which is {_a(problem.kind)}, not gear"
+        return f"equipped lists '{problem.item}', which is {article(problem.kind)}, not gear"
     if problem.what == "no_slot":
         return (f"no free '{problem.slot_type}' slot for '{problem.item}' "
                 f"(slots come from the body and from gear listed before it)")

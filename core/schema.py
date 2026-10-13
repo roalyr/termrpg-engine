@@ -76,7 +76,7 @@ def load_schemas(schema_dir: Path) -> Schemas:
 def validate(instance: Any, target: str, schemas: Schemas) -> Result:
     """Checks an instance against a schema file's root, or a definition in it ('file#/$defs/name')."""
     acc = _Acc()
-    hit = _resolve(target, target.partition("#")[0], schemas)
+    hit = resolve(target, target.partition("#")[0], schemas)
     if hit is None:
         raise KeyError(f"no schema at '{target}'")
     _check(instance, hit[0], hit[1], "", schemas, acc)
@@ -85,7 +85,29 @@ def validate(instance: Any, target: str, schemas: Schemas) -> Result:
 
 def resolves(target: str, schemas: Schemas) -> bool:
     """Whether 'file' or 'file#/pointer' names a schema node."""
-    return _resolve(target, target.partition("#")[0], schemas) is not None
+    return resolve(target, target.partition("#")[0], schemas) is not None
+
+
+def follow(node: dict, file: str, schemas: Schemas) -> Tuple[dict, str]:
+    """
+    A node with its $ref followed, and the file it's in; the referring node's own
+    keywords (description, x-ref) win over the target's.
+    """
+    seen = 0
+    while isinstance(node, dict) and "$ref" in node and seen < 8:
+        hit = resolve(node["$ref"], file, schemas)
+        if hit is None:
+            break
+        target, file = hit
+        node = {**target, **{k: v for k, v in node.items() if k != "$ref"}}
+        seen += 1
+    return node, file
+
+
+def ref_name(node: dict, common: str = "common.schema.json") -> str:
+    """The shared definition a node refers to by name ('colour', 'subject'…), or ''."""
+    target, _, fragment = node.get("$ref", "").partition("#")
+    return fragment.rsplit("/", 1)[-1] if target in ("", common) or target.endswith(common) else ""
 
 
 def apply_defaults(instance: Any, target: str, schemas: Schemas) -> Any:
@@ -94,7 +116,7 @@ def apply_defaults(instance: Any, target: str, schemas: Schemas) -> Any:
     Defaults come from the field itself or from the definition it refers to, so the
     engine never needs to know them. Run it only on data that passed validate().
     """
-    hit = _resolve(target, target.partition("#")[0], schemas)
+    hit = resolve(target, target.partition("#")[0], schemas)
     if hit is None:
         raise KeyError(f"no schema at '{target}'")
     return _fill(instance, hit[0], hit[1], schemas)
@@ -118,7 +140,7 @@ def schema_problems(schemas: Schemas) -> List[str]:
         for key, value in node.items():
             if key not in SUPPORTED_KEYWORDS:
                 problems.append(f"{file}{where}: unsupported keyword '{key}'")
-            if key == "$ref" and _resolve(value, file, schemas) is None:
+            if key == "$ref" and resolve(value, file, schemas) is None:
                 problems.append(f"{file}{where}: unresolved $ref '{value}'")
             if key in ("$defs", "properties"):
                 walk(value, file, f"{where}/{key}", False)
@@ -132,7 +154,7 @@ def schema_problems(schemas: Schemas) -> List[str]:
 
 # --- Internals ---------------------------------------------------------------
 
-def _resolve(ref: str, file: str, schemas: Schemas) -> Optional[Tuple[dict, str]]:
+def resolve(ref: str, file: str, schemas: Schemas) -> Optional[Tuple[dict, str]]:
     target_file, _, fragment = ref.partition("#")
     target_file = target_file or file
     node: Any = schemas.get(target_file)
@@ -183,7 +205,7 @@ def _branch_const(branch: dict, file: str, key: str, schemas: Schemas) -> Tuple[
     """(value of properties[key].const or None, resolved branch, its file)."""
     resolved, bfile = branch, file
     if "$ref" in branch:
-        hit = _resolve(branch["$ref"], file, schemas)
+        hit = resolve(branch["$ref"], file, schemas)
         if hit:
             resolved, bfile = hit
     prop = resolved.get("properties", {}).get(key, {})
@@ -194,7 +216,7 @@ def _check(inst: Any, node: dict, file: str, path: str, schemas: Schemas, acc: _
     errors_before = len(acc.errors)
 
     if "$ref" in node:
-        hit = _resolve(node["$ref"], file, schemas)
+        hit = resolve(node["$ref"], file, schemas)
         if hit is None:
             acc.errors.append(Issue(path, f"schema error: unresolved $ref '{node['$ref']}'"))
             return
@@ -288,7 +310,7 @@ def _default_of(node: dict, file: str, schemas: Schemas) -> Tuple[bool, Any]:
             return True, copy.deepcopy(node["default"])         # never the schema's own list or object
         if "$ref" not in node:
             break
-        hit = _resolve(node["$ref"], file, schemas)
+        hit = resolve(node["$ref"], file, schemas)
         if hit is None:
             break
         node, file = hit
@@ -298,7 +320,7 @@ def _default_of(node: dict, file: str, schemas: Schemas) -> Tuple[bool, Any]:
 
 def _fill(inst: Any, node: dict, file: str, schemas: Schemas) -> Any:
     if "$ref" in node:
-        hit = _resolve(node["$ref"], file, schemas)
+        hit = resolve(node["$ref"], file, schemas)
         if hit is not None:
             inst = _fill(inst, hit[0], hit[1], schemas)
     for combo in ("oneOf", "anyOf"):
@@ -343,7 +365,7 @@ def _matching_branch(inst: Any, node: dict, branches: List[dict], file: str,
         return None
     for b in branches:
         if not _try(inst, b, file, "", schemas).errors:
-            hit = _resolve(b["$ref"], file, schemas) if "$ref" in b else (b, file)
+            hit = resolve(b["$ref"], file, schemas) if "$ref" in b else (b, file)
             return hit
     return None
 
@@ -424,7 +446,7 @@ def _one_of(inst: Any, node: dict, file: str, path: str, schemas: Schemas, acc: 
 
 def _first_required(branch: dict, file: str, schemas: Schemas) -> str:
     if "$ref" in branch:
-        hit = _resolve(branch["$ref"], file, schemas)
+        hit = resolve(branch["$ref"], file, schemas)
         branch = hit[0] if hit else branch
     required = branch.get("required", [])
     return required[0] if required else ""

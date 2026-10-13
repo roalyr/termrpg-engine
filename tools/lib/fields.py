@@ -62,24 +62,12 @@ def schemas() -> schema.Schemas:
     return schema.load_schemas(SCHEMA_DIR)
 
 
-def _follow(node: dict, file: str) -> Tuple[dict, str]:
-    """A node with its $ref followed; the referring node's own keywords (description, x-ref) win."""
-    seen = 0
-    while isinstance(node, dict) and "$ref" in node and seen < 8:
-        hit = schema._resolve(node["$ref"], file, schemas())
-        if hit is None:
-            break
-        target, file = hit
-        node = {**target, **{k: v for k, v in node.items() if k != "$ref"}}
-        seen += 1
-    return node, file
+def follow(node: dict, file: str) -> Tuple[dict, str]:
+    """A node with its $ref followed (schema.follow, with the project's schemas)."""
+    return schema.follow(node, file, schemas())
 
 
-def _ref_name(node: dict) -> str:
-    """The common definition a node refers to ('colour', 'text'…), or ''."""
-    ref = node.get("$ref", "")
-    target, _, fragment = ref.partition("#")
-    return fragment.rsplit("/", 1)[-1] if target in ("", COMMON) or target.endswith(COMMON) else ""
+ref_name = schema.ref_name
 
 
 def vocab_kinds() -> List[str]:
@@ -110,7 +98,7 @@ def entry_target(kind: str) -> str:
         return f"{KIND_SCHEMAS['vocab'].partition('#')[0]}#/properties/{kind[len(VOCAB):]}/items"
     target = KIND_SCHEMAS[kind]
     file, _, fragment = target.partition("#")
-    root, file = _follow(schema._resolve(target, file, schemas())[0], file)
+    root, file = follow(schema.resolve(target, file, schemas())[0], file)
     items = root["properties"]["entries"]["items"]
     _, _, frag = items["$ref"].partition("#")
     return f"{file}#{frag}"
@@ -119,11 +107,11 @@ def entry_target(kind: str) -> str:
 def _entry_node(kind: str, entry: dict) -> Tuple[dict, str]:
     """The entry's definition; for kinds with variants (items) the variant its discriminator names."""
     file, _, fragment = entry_target(kind).partition("#")
-    node, file = _follow(schema._resolve(entry_target(kind), file, schemas())[0], file)
+    node, file = follow(schema.resolve(entry_target(kind), file, schemas())[0], file)
     key = node.get("x-discriminator")
     if key:
         for branch in node.get("oneOf", []):
-            resolved, bfile = _follow(branch, file)
+            resolved, bfile = follow(branch, file)
             const = resolved.get("properties", {}).get(key, {}).get("const")
             if const == entry.get(key):
                 return resolved, bfile
@@ -133,16 +121,16 @@ def _entry_node(kind: str, entry: dict) -> Tuple[dict, str]:
 def variants(kind: str) -> List[str]:
     """The values of a kind's discriminator (item kinds), or []."""
     file, _, _ = entry_target(kind).partition("#")
-    node, file = _follow(schema._resolve(entry_target(kind), file, schemas())[0], file)
+    node, file = follow(schema.resolve(entry_target(kind), file, schemas())[0], file)
     key = node.get("x-discriminator")
     if not key:
         return []
-    return [_follow(b, file)[0].get("properties", {}).get(key, {}).get("const") for b in node.get("oneOf", [])]
+    return [follow(b, file)[0].get("properties", {}).get(key, {}).get("const") for b in node.get("oneOf", [])]
 
 
 def discriminator(kind: str) -> str:
     file, _, _ = entry_target(kind).partition("#")
-    return _follow(schema._resolve(entry_target(kind), file, schemas())[0], file)[0].get("x-discriminator", "")
+    return follow(schema.resolve(entry_target(kind), file, schemas())[0], file)[0].get("x-discriminator", "")
 
 
 def fields(kind: str, entry: dict) -> List[Spec]:
@@ -158,8 +146,8 @@ def fields(kind: str, entry: dict) -> List[Spec]:
 
 
 def _spec(name: str, raw: dict, file: str, required: bool) -> Spec:
-    common = _ref_name(raw)
-    node, file = _follow(raw, file)
+    common = ref_name(raw)
+    node, file = follow(raw, file)
     if common == "colour":
         return Spec(name, "colour", node, required)
     if "const" in node:
@@ -169,7 +157,7 @@ def _spec(name: str, raw: dict, file: str, required: bool) -> Spec:
     if "x-ref" in node and node.get("type") in ("string", "integer"):
         return Spec(name, "ref", node, required, node["x-ref"])
     if node.get("type") == "array":
-        items, _ = _follow(node.get("items", {}), file)
+        items, _ = follow(node.get("items", {}), file)
         if "x-ref" in items and items.get("type") == "string":
             return Spec(name, "refs", node, required, items["x-ref"])
     if "enum" in node:

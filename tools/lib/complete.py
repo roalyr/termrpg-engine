@@ -18,7 +18,7 @@ import re
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 from core import schema
-from tools.lib.fields import COMMON, _follow, _ref_name, schemas
+from tools.lib.fields import COMMON, follow, ref_name, schemas
 
 Ids = Callable[[str], Sequence[Tuple[str, str]]]      # namespace -> [(id, name)]
 NESTED = ("if", "choose")                              # ops that hold effects: JSON only
@@ -40,7 +40,7 @@ class Completer:
         root = schemas()[COMMON]["$defs"]
         self.ops: Dict[str, Tuple[dict, str]] = {}      # op -> (its definition, schema file)
         for branch in root["effect"]["oneOf"]:
-            node, file = _follow(branch, COMMON)
+            node, file = follow(branch, COMMON)
             op = node["properties"]["op"]["const"]
             if op not in NESTED:
                 self.ops[op] = (node, file)
@@ -64,8 +64,8 @@ class Completer:
     def _kind(self, op: str, name: str) -> Tuple[str, dict]:
         """('subject' | 'agent' | 'object' | 'ref' | 'enum' | 'boolean' | 'other', resolved node)."""
         raw = self.fields(op).get(name, {})
-        common = _ref_name(raw)
-        node, _ = _follow(raw, self.ops[op][1])
+        common = ref_name(raw)
+        node, _ = follow(raw, self.ops[op][1])
         if common in ("subject", "agent"):
             return common, node
         if common == "object_ref":
