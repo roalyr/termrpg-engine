@@ -18,7 +18,7 @@ from typing import Callable, List, Optional, Tuple
 from lib.tiles import map_glyph, room_line
 from lib import forms, screen
 from tools.lib import colours, rooms
-from tools.lib.tool import run_tool, save_safely
+from tools.lib.tool import Tool, run_tool
 from tools.lib.packfiles import Found, PackFiles
 
 Pos = Tuple[int, int]
@@ -26,7 +26,7 @@ MOVES = {"up": (-1, 0), "down": (1, 0), "left": (0, -1), "right": (0, 1)}
 TILE_WORDS = {"#": "wall", ".": "floor", " ": "nothing"}
 
 
-class Room:
+class Room(Tool):
     name = "Room"
     about = "One location's layout: tiles, size, objects, the entry point, doors and open edges."
 
@@ -62,12 +62,6 @@ class Room:
         self.cursor = at or (tuple(entry[1]["at"]) if entry else (height // 2, width // 2))
         self.carrying = None
 
-    def ask(self, form, after: Callable) -> None:
-        self.form, self.after = form, after
-
-    def say(self, text: str, role: str = "quiet") -> None:
-        self.message = (text, role)
-
     def choose_location(self, notice: str = "") -> None:
         choices = []
         for f in self.pack.entries("locations"):
@@ -91,24 +85,12 @@ class Room:
         manifest = self.pack.manifest
         right = f"{manifest.get('name', self.pack.id)}{unsaved}"
         if self.form is not None:
-            title = getattr(self.form, "title", None) or f"Room · {self.location.get('name', '')}"
-            lines, focus = self.form.lines(width)
-            notice = screen.quiet(look, getattr(self.form, "notice", ""), width)
-            bands = [screen.title(look, title, right, width), notice + lines,
-                     self.cut(self.form.about(), width), screen.hints(look, self.form.hints(), width)]
-            return screen.draw(look, [b for b in bands if b], columns, rows, flex=1, focus=focus + len(notice)).text
+            return self.form_screen(columns, rows, lambda: f"Room · {self.location.get('name', '')}")
         shown = self.picking[0].entry if self.picking else self.location
         heading = f"Pick a tile in {shown.get('name', '')}" if self.picking else f"Room · {shown.get('name', '')}"
         bands = [screen.title(look, heading, right, width), self.body(shown, width),
                  self.info(shown, width), screen.hints(look, self.hints(), width)]
         return screen.draw(look, [b for b in bands if b], columns, rows).text
-
-    def cut(self, text: str, width: int, most: int = 3) -> List[str]:
-        """A pick's description, cut to a few lines so the list keeps the room."""
-        lines = screen.wrap(text, width) if text else []
-        if len(lines) > most:
-            lines = lines[:most - 1] + [lines[most - 1][:width - 1] + "…"]
-        return [self.look.style.role(line, "quiet") for line in lines]
 
     def cell(self, location: dict, pos: Pos, people: dict) -> Tuple[str, object, str]:
         """The glyph on a tile, the pack's colour for it (or None) and its map role, as the game draws them."""
@@ -501,7 +483,7 @@ class Room:
 
         def done(answer):
             if answer == "save":
-                self.save(back=True)
+                self.save(then=self.finish)
             else:
                 self.pack.reload()
                 self.finish("Changes discarded.")
@@ -515,20 +497,6 @@ class Room:
             self.closed = True
         else:
             self.choose_location(notice)
-
-    def save(self, back: bool = False) -> None:
-        def write():
-            written = self.pack.save()
-            report = self.pack.check()
-            verdict = f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), {len(report.warnings)} warning(s)."
-            if report.errors:
-                verdict += " " + report.errors[0]
-            if back:
-                self.finish(verdict)
-            else:
-                self.say(verdict, "danger" if report.errors else "quiet")
-        save_safely(self, write)
-
 
 if __name__ == "__main__":
     sys.exit(run_tool(Room, sys.argv[1:]))

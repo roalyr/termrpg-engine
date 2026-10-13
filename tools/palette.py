@@ -18,13 +18,13 @@ from typing import Callable, Dict, List, Optional, Tuple
 from lib.text import DEFAULT_COLOURS
 from lib import forms, screen
 from tools.lib import colours, refs
-from tools.lib.tool import run_tool, save_safely
+from tools.lib.tool import Tool, run_tool
 from tools.lib.packfiles import Found, PackFiles
 
 NAME_WIDTH = 14
 
 
-class Palette:
+class Palette(Tool):
     name = "Palette"
     about = "The pack's named colours: change one and it changes everywhere it's used."
 
@@ -38,12 +38,6 @@ class Palette:
         self._uses: Optional[Dict[str, List[Tuple[str, str]]]] = None
 
     # --- helpers -------------------------------------------------------------------
-
-    def ask(self, form, after: Callable) -> None:
-        self.form, self.after = form, after
-
-    def say(self, text: str, role: str = "quiet") -> None:
-        self.message = (text, role)
 
     def colours(self) -> List[Tuple[str, int]]:
         return colours.names(self.pack)
@@ -123,13 +117,7 @@ class Palette:
         look, width = self.look, screen.inner_width(self.look, columns)
         right = self.pack.manifest.get("name", self.pack.id) + (" *" if self.pack.dirty else "")
         if self.form is not None:
-            title = getattr(self.form, "title", "") or self.name
-            lines, focus = self.form.lines(width)
-            notice = screen.quiet(look, getattr(self.form, "notice", ""), width)
-            about = screen.wrap(self.form.about(), width)[:3] if self.form.about() else []
-            bands = [screen.title(look, title, right, width), notice + lines,
-                     [look.style.role(line, "quiet") for line in about], screen.hints(look, self.form.hints(), width)]
-            return screen.draw(look, [b for b in bands if b], columns, rows, flex=1, focus=focus + len(notice)).text
+            return self.form_screen(columns, rows, lambda: self.name)
         lines, focus = self.body(width)
         bands = [screen.title(look, self.name, right, width), lines, self.detail(width),
                  screen.hints(look, self.hints(), width)]
@@ -238,38 +226,6 @@ class Palette:
                     fn()
                     break
         return not self.closed
-
-    # --- leaving -------------------------------------------------------------------
-
-    def leave(self) -> None:
-        if not self.pack.dirty:
-            self.closed = True
-            return
-
-        def done(answer):
-            if answer == "save":
-                self.save(then=lambda words: self.close())
-            else:
-                self.pack.reload()
-                self.close()
-        self.ask(forms.Question(self.look, "Save your changes?", [("y", "save", "save"), ("n", "discard", "discard")]),
-                 done)
-
-    def close(self) -> None:
-        self.closed = True
-
-    def save(self, then: Optional[Callable[[str], None]] = None) -> None:
-        """Saves (asking first if a file changed on disk meanwhile), then says how it went, or hands that to 'then'."""
-        def write():
-            written = self.pack.save()
-            report = self.pack.check()
-            words = f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), {len(report.warnings)} warning(s)."
-            words += " " + report.errors[0] if report.errors else ""
-            if then:
-                then(words)
-            else:
-                self.say(words, "danger" if report.errors else "quiet")
-        save_safely(self, write)
 
 
 if __name__ == "__main__":

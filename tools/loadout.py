@@ -22,7 +22,7 @@ from lib import forms, screen
 from tools.lib import loadout
 from lib.budgets import Slot
 from tools.lib.loadout import Sheet
-from tools.lib.tool import run_tool, save_safely
+from tools.lib.tool import Tool, run_tool
 from tools.lib.packfiles import Found, PackFiles
 from tools.room import Room
 
@@ -41,7 +41,7 @@ class Row(NamedTuple):
     danger: bool = False
 
 
-class Loadout:
+class Loadout(Tool):
     name = "Loadout"
     about = "A character's equipped gear and inventory, against their budgets, pools and cargo."
 
@@ -65,12 +65,6 @@ class Loadout:
     @property
     def char(self) -> dict:
         return self.found.entry
-
-    def ask(self, form, after: Callable) -> None:
-        self.form, self.after = form, after
-
-    def say(self, text: str, role: str = "quiet") -> None:
-        self.message = (text, role)
 
     def changed(self, words: str) -> None:
         self.pack.touch(self.found.file)
@@ -122,13 +116,7 @@ class Loadout:
         look, width = self.look, screen.inner_width(self.look, columns)
         right = self.pack.manifest.get("name", self.pack.id) + (" *" if self.pack.dirty else "")
         if self.form is not None:
-            title = getattr(self.form, "title", "") or self.heading()
-            lines, focus = self.form.lines(width)
-            notice = screen.quiet(look, getattr(self.form, "notice", ""), width)
-            about = screen.wrap(self.form.about(), width)[:3] if self.form.about() else []
-            bands = [screen.title(look, title, right, width), notice + lines,
-                     [look.style.role(line, "quiet") for line in about], screen.hints(look, self.form.hints(), width)]
-            return screen.draw(look, [b for b in bands if b], columns, rows, flex=1, focus=focus + len(notice)).text
+            return self.form_screen(columns, rows, self.heading)
         sheet = loadout.sheet(self.pack, self.char)
         rows_list = self.rows(sheet)
         self.selected = self.pickable_index(rows_list, self.selected)
@@ -419,36 +407,6 @@ class Loadout:
         at = self.char.get("at")
         if isinstance(at, list) and len(at) == 2 and self.char.get("location"):
             self.room.cursor = tuple(at)
-
-    # --- leaving ------------------------------------------------------------------------
-
-    def leave(self) -> bool:
-        if not self.pack.dirty:
-            self.closed = True
-            return False
-
-        def done(answer):
-            if answer == "save":
-                self.save(then=self.close)
-            else:
-                self.pack.reload()
-                self.close()
-        self.ask(forms.Question(self.look, "Save your changes?", [("y", "save", "save"), ("n", "discard", "discard")]),
-                 done)
-        return True
-
-    def close(self) -> None:
-        self.closed = True
-
-    def save(self, then: Optional[Callable[[], None]] = None) -> None:
-        def write():
-            written = self.pack.save()
-            report = self.pack.check()
-            words = f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), {len(report.warnings)} warning(s)."
-            self.say(words + (" " + report.errors[0] if report.errors else ""), "danger" if report.errors else "quiet")
-            if then:
-                then()
-        save_safely(self, write)
 
 
 if __name__ == "__main__":

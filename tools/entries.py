@@ -22,7 +22,7 @@ from lib import term
 from lib import forms, screen
 from tools.lib import colours, fields, glance, refs, sources
 from tools.lib.fields import Spec
-from tools.lib.tool import run_tool, save_safely
+from tools.lib.tool import Tool, run_tool
 from tools.lib.packfiles import Found, PackFiles
 
 NEW = object()
@@ -39,7 +39,7 @@ def kind_title(kind: str) -> str:
     return kind.split(".")[-1].replace("_", " ").capitalize()
 
 
-class Entries:
+class Entries(Tool):
     name = "Entries"
     about = "Every entry of the pack by kind: objects, items, characters and the rest, field by field."
 
@@ -84,12 +84,6 @@ class Entries:
     @property
     def vocab(self) -> bool:
         return self.kind is not None and self.kind.startswith(fields.VOCAB)
-
-    def ask(self, form, after: Callable) -> None:
-        self.form, self.after = form, after
-
-    def say(self, text: str, role: str = "quiet") -> None:
-        self.message = (text, role)
 
     def specs(self) -> List[Spec]:
         """The entry's fields: the id, then what kind of entry it is, then the rest in the schema's order.
@@ -153,13 +147,7 @@ class Entries:
         look, width = self.look, screen.inner_width(self.look, columns)
         right = self.pack.manifest.get("name", self.pack.id) + (" *" if self.pack.dirty else "")
         if self.form is not None:
-            title = getattr(self.form, "title", "") or self.heading()
-            lines, focus = self.form.lines(width)
-            notice = screen.quiet(look, getattr(self.form, "notice", ""), width)
-            about = screen.wrap(self.form.about(), width)[:3] if self.form.about() else []
-            bands = [screen.title(look, title, right, width), notice + lines,
-                     [look.style.role(line, "quiet") for line in about], screen.hints(look, self.form.hints(), width)]
-            return screen.draw(look, [b for b in bands if b], columns, rows, flex=1, focus=focus + len(notice)).text
+            return self.form_screen(columns, rows, self.heading)
         bands = [screen.title(look, self.heading(), right, width), glance.lines(self.pack, look, self.kind, self.entry, width),
                  self.body(width), self.detail(width), screen.hints(look, self.hints(), width)]
         flex = 2 if bands[1] else 1
@@ -541,36 +529,6 @@ class Entries:
             self.say("Made. Fill in what it's missing (in red below); Enter edits a field.")
         self.new_id_field("Id of the new entry" if self.key == "id" else f"The new entry's {self.key}", prefix, done,
                           "Lower case, words joined by _." if self.key == "id" else "")
-
-    # --- leaving ------------------------------------------------------------------------
-
-    def leave(self) -> bool:
-        if not self.pack.dirty:
-            self.closed = True
-            return False
-
-        def done(answer):
-            if answer == "save":
-                self.save(then=self.close)
-            else:
-                self.pack.reload()
-                self.close()
-        self.ask(forms.Question(self.look, "Save your changes?", [("y", "save", "save"), ("n", "discard", "discard")]),
-                 done)
-        return True
-
-    def close(self) -> None:
-        self.closed = True
-
-    def save(self, then: Optional[Callable[[], None]] = None) -> None:
-        def write():
-            written = self.pack.save()
-            report = self.pack.check()
-            words = f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), {len(report.warnings)} warning(s)."
-            self.say(words + (" " + report.errors[0] if report.errors else ""), "danger" if report.errors else "quiet")
-            if then:
-                then()
-        save_safely(self, write)
 
 
 if __name__ == "__main__":

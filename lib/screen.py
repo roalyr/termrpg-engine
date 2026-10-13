@@ -149,3 +149,24 @@ def draw(look: Look, bands: Sequence[List[str]], columns: int, rows: int,
                 for line in band]
     out.append(border["bottom_left"] + horizontal + border["bottom_right"])
     return Drawn("\n".join(out) + "\n", scroll if flex is not None else 0, limit)
+
+
+def described(look: Look, text: str, width: int, most: int = 3) -> List[str]:
+    """A pick's description, quiet and cut to a few lines ('…' where it's cut), so the list keeps the room."""
+    lines = wrap(text, width) if text else []
+    if len(lines) > most:
+        lines = lines[:most - 1] + [lines[most - 1][:width - 1] + "…"]
+    return [look.style.role(line, "quiet") for line in lines]
+
+
+def form_screen(look: Look, form, heading: str, right: str, columns: int, rows: int) -> str:
+    """
+    A whole screen for an open form (lib.forms: a list, a field, a question): its title
+    (or 'heading'), its notice and lines, the pick's description, and its hints.
+    """
+    width = inner_width(look, columns)
+    lines, focus = form.lines(width)
+    notice = quiet(look, getattr(form, "notice", ""), width)
+    bands = [title(look, getattr(form, "title", "") or heading, right, width), notice + lines,
+             described(look, form.about(), width), hints(look, form.hints(), width)]
+    return draw(look, [b for b in bands if b], columns, rows, flex=1, focus=focus + len(notice)).text

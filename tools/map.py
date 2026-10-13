@@ -22,7 +22,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 from lib import graph
 from lib import forms, screen
 from tools.lib import maps, rooms
-from tools.lib.tool import run_tool, save_safely
+from tools.lib.tool import Tool, run_tool
 from tools.lib.packfiles import PackFiles
 from tools.room import Room
 
@@ -39,7 +39,7 @@ def cut(text: str, width: int) -> str:
     return text if len(text) <= width else text[:width - 1] + "…"
 
 
-class Map:
+class Map(Tool):
     name = "Map"
     about = "The world by region: where locations lie, how they connect, and what needs fixing."
 
@@ -65,12 +65,6 @@ class Map:
             self.choose_region()
 
     # --- helpers --------------------------------------------------------------------
-
-    def ask(self, form, after: Callable) -> None:
-        self.form, self.after = form, after
-
-    def say(self, text: str, role: str = "quiet") -> None:
-        self.message = (text, role)
 
     def nodes(self) -> Dict[Cell, List[Tuple[str, dict]]]:
         return maps.nodes(self.pack, self.region)
@@ -144,12 +138,7 @@ class Map:
         title = screen.title(look, f"Map · {self.region_name()}",
                              self.pack.manifest.get("name", self.pack.id) + (" *" if self.pack.dirty else ""), width)
         if self.form is not None:
-            heading = getattr(self.form, "title", "") or f"Map · {self.region_name()}"
-            lines, focus = self.form.lines(width)
-            about = screen.wrap(self.form.about(), width)[:3] if self.form.about() else []
-            bands = [screen.title(look, heading, "", width), lines,
-                     [look.style.role(line, "quiet") for line in about], screen.hints(look, self.form.hints(), width)]
-            return screen.draw(look, [b for b in bands if b], columns, rows, flex=1, focus=focus).text
+            return self.form_screen(columns, rows, lambda: f"Map · {self.region_name()}")
         facts = maps.facts(self.pack, self.errors)
         others = [self.detail(facts, width), self.legend(facts, width), screen.hints(look, self.hints(), width)]
         others = [b for b in others if b]
@@ -476,35 +465,10 @@ class Map:
             self.say(f"Door made to {other.entry.get('name', '')}." + (f" {note}" if note else ""))
         self.ask(forms.Picker(self.look, "Link to which neighbour?", choices), kind_of_link)
 
-    # --- leaving ------------------------------------------------------------------
+    # --- saving -------------------------------------------------------------------
 
-    def leave(self) -> None:
-        if not self.pack.dirty:
-            self.closed = True
-            return
-
-        def done(answer):
-            if answer == "save":
-                self.save(then=self.close)
-            else:
-                self.pack.reload()
-                self.close()
-        self.ask(forms.Question(self.look, "Save your changes?", [("y", "save", "save"), ("n", "discard", "discard")]),
-                 done)
-
-    def close(self) -> None:
-        self.closed = True
-
-    def save(self, then: Optional[Callable[[], None]] = None) -> None:
-        def write():
-            written = self.pack.save()
-            report = self.pack.check()
-            self.errors = report.errors
-            self.say(f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), "
-                     f"{len(report.warnings)} warning(s).", "danger" if report.errors else "quiet")
-            if then:
-                then()
-        save_safely(self, write)
+    def saved(self, report) -> None:
+        self.errors = report.errors                  # the map marks locations the checker finds fault with
 
 
 if __name__ == "__main__":

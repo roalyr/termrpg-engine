@@ -168,18 +168,15 @@ class Console:
             self.closed = True
 
     def render(self, columns: int, rows: int) -> str:
-        look, width = self.look, screen.inner_width(self.look, columns)
         right = self.content.pack.get("name", "")
-        lines, focus = self.form.lines(width)
-        notice = screen.quiet(look, getattr(self.form, "notice", ""), width)
-        about = screen.wrap(self.form.about(), width)[:3] if self.form.about() else []
-        bands = [screen.title(look, getattr(self.form, "title", "") or "Dev", right, width), notice + lines,
-                 [look.style.role(line, "quiet") for line in about], screen.hints(look, self.form.hints(), width)]
-        if isinstance(self.form, Text):
-            drawn = screen.draw(look, [b for b in bands if b], columns, rows, flex=1, scroll=self.form.top)
-            self.form.top = drawn.scroll
-            return drawn.text
-        return screen.draw(look, [b for b in bands if b], columns, rows, flex=1, focus=focus + len(notice)).text
+        if not isinstance(self.form, Text):
+            return screen.form_screen(self.look, self.form, "Dev", right, columns, rows)
+        width = screen.inner_width(self.look, columns)                 # text to read scrolls, not follows a pick
+        bands = [screen.title(self.look, self.form.title, right, width), self.form.lines(width)[0],
+                 screen.hints(self.look, self.form.hints(), width)]
+        drawn = screen.draw(self.look, bands, columns, rows, flex=1, scroll=self.form.top)
+        self.form.top = drawn.scroll
+        return drawn.text
 
     def handle(self, key: str) -> bool:
         """One key; False once the console has closed."""

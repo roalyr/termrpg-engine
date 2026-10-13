@@ -87,7 +87,11 @@ These hold for every tool. A new tool, or a change to one, follows them.
 
 - A class with `name` and `about` (shown in the editor's menu), built from
   `(PackFiles, Look)`, with `render(columns, rows)` returning the screen as text and
-  `handle(key)` returning False to leave. `tools.tools()` lists the finished tools in
+  `handle(key)` returning False to leave. Editors subclass `tools.lib.tool.Tool`, which
+  holds what they share: `ask(form, after)` opens a list, field or question
+  (`lib.forms`) and `form_screen()` draws it; `say()` sets the message line; `save()`
+  saves, runs the checker and says its verdict (`saved(report)` lets a tool keep the
+  report); `leave()` asks to save or discard changes. `tools.tools()` lists the finished tools in
   menu order; add a tool there when it works.
 - `if __name__ == "__main__": sys.exit(run_tool(MyTool, sys.argv[1:]))` (from
   `tools.lib.tool`) lets it run on its own.

@@ -19,7 +19,7 @@ from typing import Callable, List, Optional, Tuple
 from lib import pixels
 from lib import forms, screen
 from tools.lib import colours
-from tools.lib.tool import run_tool, save_safely
+from tools.lib.tool import Tool, run_tool
 from tools.lib.packfiles import Found, PackFiles
 
 LETTERS = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -36,7 +36,7 @@ def size(picture: dict) -> Tuple[int, int]:
     return (max((len(r) for r in rows), default=0), len(rows))
 
 
-class Art:
+class Art(Tool):
     name = "Art"
     about = "The pack's pictures in pixels, drawn as the game shows them: paint, mirror, undo, colours."
 
@@ -62,12 +62,6 @@ class Art:
     @property
     def picture(self) -> dict:
         return self.found.entry
-
-    def ask(self, form, after: Callable) -> None:
-        self.form, self.after = form, after
-
-    def say(self, text: str, role: str = "quiet") -> None:
-        self.message = (text, role)
 
     def users(self, art_id: str) -> List[str]:
         """The names of the characters that show this picture."""
@@ -102,13 +96,7 @@ class Art:
         look, width = self.look, screen.inner_width(self.look, columns)
         right = self.pack.manifest.get("name", self.pack.id) + (" *" if self.pack.dirty else "")
         if self.form is not None:
-            title = getattr(self.form, "title", "") or f"Art · {self.picture['id']}"
-            lines, focus = self.form.lines(width)
-            notice = screen.quiet(look, getattr(self.form, "notice", ""), width)
-            about = screen.wrap(self.form.about(), width)[:3] if self.form.about() else []
-            bands = [screen.title(look, title, right, width), notice + lines,
-                     [look.style.role(line, "quiet") for line in about], screen.hints(look, self.form.hints(), width)]
-            return screen.draw(look, [b for b in bands if b], columns, rows, flex=1, focus=focus + len(notice)).text
+            return self.form_screen(columns, rows, lambda: f"Art · {self.picture['id']}")
         others = [self.detail(width), screen.hints(look, self.hints(), width)]
         title = screen.title(look, f"Art · {self.picture['id']}", right, width)
         room = max(1, rows - len(title) - sum(len(b) for b in others) - (len(others) + 2) - 1)
@@ -382,39 +370,6 @@ class Art:
                 self.choose_picture("Changes discarded.")
         self.ask(forms.Question(self.look, "Save your changes?", [("y", "save", "save"), ("n", "discard", "discard")]),
                  done)
-
-    def leave(self) -> None:
-        if not self.pack.dirty:
-            self.closed = True
-            return
-
-        def done(answer):
-            if answer == "save":
-                self.save(then=lambda words: self.close())
-            else:
-                self.pack.reload()
-                self.close()
-        self.ask(forms.Question(self.look, "Save your changes?", [("y", "save", "save"), ("n", "discard", "discard")]),
-                 done)
-
-    def save_words(self) -> str:
-        written = self.pack.save()
-        report = self.pack.check()
-        words = f"Saved {len(written)} file(s). Checker: {len(report.errors)} error(s), {len(report.warnings)} warning(s)."
-        return words + (" " + report.errors[0] if report.errors else "")
-
-    def close(self) -> None:
-        self.closed = True
-
-    def save(self, then: Optional[Callable[[str], None]] = None) -> None:
-        """Saves (asking first if a file changed on disk meanwhile), then says how it went, or hands that to 'then'."""
-        def write():
-            words = self.save_words()
-            if then:
-                then(words)
-            else:
-                self.say(words, "danger" if "0 error(s)" not in words else "quiet")
-        save_safely(self, write)
 
 
 if __name__ == "__main__":
