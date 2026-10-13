@@ -89,6 +89,7 @@ All commands run from the project root.
 | `python3 -m core.packtool check packs/ui/default` | Validate a UI pack |
 | `python3 -m core.packtool explain widget status` / `explain ui tokens` | A UI widget's options, or a UI pack file's fields |
 | `python3 play.py --pack packs/test_scifi --new` | Play the pack in the terminal to see your work: `--new` goes straight into a new game (slot 1, or `--slot name`); without flags the start screen opens |
+| `python3 play.py --pack packs/test_scifi --start start_storage` | A new game from one of the pack's starts (`starts.json`), to test content without walking there. In a game, `/` opens the command line: `dev` for the dev menu (give items, go anywhere, set flags, start fights and events, see the state), or any effect as `op field=value`, with Tab completion |
 | `python3 -B -m unittest discover -s tests` | Run all tests. Use `-B` on phone storage |
 | `python3 -B tests/run.py` | The same tests in parallel, about twice as fast. `tests/run.py pack` runs only test files with `pack` in the name |
 
@@ -128,6 +129,9 @@ These are the mistakes the checker catches most often, and a few it can't catch.
   whole pack. **Placement ids are unique across all locations.**
 - Every referenced id must exist: tags, stats, statuses, slot types, grades,
   factions, flags and object states are declared in `vocab.json`.
+- **Old saves don't gain new content.** A save holds the game as it was: a character
+  or item added since won't appear in it (loading says so). To test new content, add
+  a start in `starts.json` that sets the situation up, and play it with `--start`.
 - **Saves refer to ids.** Renaming or deleting an id breaks existing saves. Do it
   only when asked, use `refs` to update every use, and bump the major version.
 
@@ -335,6 +339,7 @@ Prefixes make ids easy to read and search. Use them in game packs:
 | Damage type, slot type, grade | `dmg_`, `slot_`, `grade_` | `dmg_kinetic`, `slot_hand`, `grade_exotic` |
 | Object state, phase, faction, flag | `state_`, `phase_`, `faction_`, `flag_` | `state_open`, `phase_night` |
 | Custom string | `str_` | `str_kael_greeting` |
+| Start | `start_` | `start_storage`, `start_fight` |
 | Art (pictures) | `art_` | `art_kael`, `art_sentry` |
 | Colour (palette) | none: plain words | `rust`, `hull` |
 

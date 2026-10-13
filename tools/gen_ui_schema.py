@@ -205,7 +205,7 @@ hint = obj("One key hint: the keys of some actions (or 1-9), then a label.", {
 keys = obj("Key bindings and the hints each context shows. Number keys 1-9 always pick numbered entries and can't be bound.", {
    "$schema": SCHEMA_REF,
    "bindings": obj("The key for each input action.", {
-        a: {"type": "string", "pattern": r"^[^0-9A-Z\s]$", "default": k, "description": d + " One key: not a digit, a space or an upper-case letter (keys match either case)."} for a, (k, d) in ACTIONS.items()}, default={}),
+        a: {"type": "string", "pattern": r"^[^0-9A-Z\s/]$", "default": k, "description": d + " One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."} for a, (k, d) in ACTIONS.items()}, default={}),
    "hints": obj("The hints shown in each context, in order.", {
         ctx: {**arr(hint, d), "default": []} for ctx, d in CONTEXTS.items()}, default={}),
    "notes": c("notes")})
@@ -303,6 +303,7 @@ WORDS = {
  "round_log": ("Log heading: the round just played.", ["round"]),
  "round_end": ("Log line before what the end of a round brings.", []),
  "terminal_too_small": ("Shown instead of the game when the terminal is too small.", ["columns", "rows"]),
+ "save_older_than_pack": ("Log line when a loaded save was made before the pack changed: what was added since is missing from it.", []),
  "details": ("Board: open the picked item's details.", []),
  "kind_gear": ("Item details: what gear is called.", []), "kind_material": ("Item details: what a material is called.", []),
  "kind_consumable": ("Item details: what a consumable is called.", []), "kind_misc": ("Item details: any other item.", []),

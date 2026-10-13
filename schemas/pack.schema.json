@@ -298,6 +298,17 @@
           "minItems": 1,
           "uniqueItems": true
         },
+        "starts": {
+          "type": "array",
+          "description": "Files holding starts: other ways to begin a game, for playtesting.",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+            "description": "Path relative to the pack folder. No absolute paths or '..'."
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
         "art": {
           "type": "array",
           "description": "Files holding art: pictures in pixels.",

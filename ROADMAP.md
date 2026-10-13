@@ -68,6 +68,15 @@ Games, starting with `vanilla` (now in `archive/`), move to their own repositori
 
 - **Tools and features for makers:** grow, step by step, a set of tools that is
   versatile and intuitive for any genre. Each feature is proven in both test packs.
+  Agreed order (2026-10-13):
+  1. ✓ Playtesting: starts (`starts.json`, `play.py --start`), the stale-save warning,
+     the `/` command line and the `/dev` menu (effects, state, start again).
+  2. Play from the editor; an event trace in the dev menu (why an event did or didn't
+     fire).
+  3. A pack-wide check for dead content (flags never set or never read, states nothing
+     sets, events that can never be cast, unused entries).
+  4. An editor for logic: effects, conditions, dialogue, interactions, events.
+  5. A fight simulator and loot odds; `packtool new` for a minimal new pack.
 - Engine changes are small and incremental, and follow the schema-first workflow:
   schema → test pack → engine with tests → game pack.
 - **Layouts for wide terminals** (lists and details side by side) are a milestone of

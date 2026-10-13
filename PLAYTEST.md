@@ -185,6 +185,16 @@ log, X closes, Q quits, `]` next page, digits pick.
 - [ ] In `palette.json`, change `rust` (Juno's hair) and `red` (hostile people on the
   map): both show in the new colours. Write a number instead of a name in a room's
   `wall_colour`: the game refuses the pack with the checker's message.
+- [ ] `python3 play.py --start start_storage`: the game begins in the storage room
+  with the cutter. An unknown start lists the pack's starts.
+- [ ] In a game, `/` then `dev`: the dev menu. Give an item, go to a location, set a
+  flag, start the drone fight, next day, full heal, State, and Start again from a start
+  (Juno in the party). Esc goes back a step, then closes.
+- [ ] The command line completes: `/`, type `gi`, Tab, `it`, Tab, `gear_c`, Tab: it
+  reads `give_item item=gear_cutter`; Enter gives you the cutter. A wrong id is refused
+  with the reason; JSON works too.
+- [ ] Change any pack file, then Continue a game saved before: the log says the save
+  is older than the pack.
 
 ---
 

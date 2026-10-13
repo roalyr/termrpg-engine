@@ -5,6 +5,7 @@ load_pack() validates a pack, refuses it if it has errors, fills in every defaul
 schemas declare, and returns read-only Content. Everything the engine knows about the
 world comes from here.
 """
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, NamedTuple, Tuple
@@ -52,6 +53,7 @@ class Content(NamedTuple):
     messages: Mapping[str, str]                # engine message key -> the pack's wording
     warnings: Tuple[str, ...]
     palette: Mapping[str, int]                 # colour name -> terminal number, the defaults included
+    fingerprint: str                           # changes whenever any of the pack's files changes
 
     @property
     def settings(self) -> Record:
@@ -93,6 +95,7 @@ def load_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Content:
         raise PackError(pack_dir, report)
     schemas = schema.load_schemas(schema_dir)
 
+    digest = hashlib.sha1((pack_dir / "pack.json").read_bytes())
     manifest = schema.apply_defaults(_read(pack_dir / "pack.json"), "pack.schema.json", schemas)
     manifest.setdefault("settings", schema.apply_defaults({}, "pack.schema.json#/properties/settings", schemas))
 
@@ -101,6 +104,7 @@ def load_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Content:
     messages: Dict[str, str] = {}
     for kind, paths in manifest["files"].items():
         for rel in paths:
+            digest.update((pack_dir / rel).read_bytes())
             data = schema.apply_defaults(_read(pack_dir / rel), KIND_SCHEMAS[kind], schemas)
             if kind == "vocab":
                 for section, entries in data.items():
@@ -129,6 +133,7 @@ def load_pack(pack_dir: Path, schema_dir: Path = SCHEMA_DIR) -> Content:
         messages=freeze(messages),
         warnings=report.warnings,
         palette=freeze({**DEFAULT_COLOURS, **{c["id"]: c["code"] for c in index.get("colour", {}).values()}}),
+        fingerprint=digest.hexdigest(),
     )
 
 

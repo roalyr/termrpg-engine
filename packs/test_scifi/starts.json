@@ -1,0 +1,67 @@
+{
+  "$schema": "../../schemas/starts.schema.json",
+  "entries": [
+    {
+      "id": "start_storage",
+      "name": "Storage, filter fitted",
+      "description": "In the storage room with the gas leak, the cutter and the eye implant carried, the power on.",
+      "effects": [
+        {
+          "op": "give_item",
+          "item": "gear_cutter"
+        },
+        {
+          "op": "give_item",
+          "item": "gear_eye_implant"
+        },
+        {
+          "op": "set_flag",
+          "flag": "flag_power",
+          "value": 1
+        },
+        {
+          "op": "move_to",
+          "location": "loc_storage"
+        }
+      ]
+    },
+    {
+      "id": "start_fight",
+      "name": "Straight into the drones",
+      "description": "The drone fight, with two medkits.",
+      "effects": [
+        {
+          "op": "give_item",
+          "item": "consumable_medkit",
+          "count": 2
+        },
+        {
+          "op": "start_encounter",
+          "encounter": "enc_drones"
+        }
+      ]
+    },
+    {
+      "id": "start_with_juno",
+      "name": "Juno in the party",
+      "description": "Juno travels with you and trusts you.",
+      "effects": [
+        {
+          "op": "change_relation",
+          "of": {
+            "character": "char_juno"
+          },
+          "toward": "self",
+          "amount": 30
+        },
+        {
+          "op": "join_party",
+          "subject": {
+            "character": "char_juno"
+          },
+          "leader": "self"
+        }
+      ]
+    }
+  ]
+}

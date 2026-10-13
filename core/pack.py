@@ -36,6 +36,7 @@ KIND_SCHEMAS = {
     "strings": "strings.schema.json",
     "modifications": "modification.schema.json",
     "palette": "palette.schema.json",
+    "starts": "starts.schema.json",
     "art": "art.schema.json",
 }
 
@@ -44,7 +45,7 @@ KIND_NAMESPACES = {
     "regions": "region", "locations": "location", "zones": "zone", "objects": "object", "items": "item",
     "actions": "action", "skills": "skill", "characters": "character", "encounters": "encounter",
     "loot_tables": "loot_table", "events": "event", "strings": "string", "modifications": "modification",
-    "palette": "colour", "art": "art",
+    "palette": "colour", "starts": "start", "art": "art",
 }
 
 # Vocabulary section -> reference namespace.

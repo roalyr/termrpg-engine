@@ -28,7 +28,8 @@ LONG_TEXT = 100           # text fields longer than this are edited in the text 
 EDITABLE_KINDS = [k for k in KIND_SCHEMAS if k != "vocab"]
 PREFIXES = {"regions": "reg_", "locations": "loc_", "zones": "zone_", "objects": "obj_", "actions": "action_",
             "skills": "skill_", "characters": "char_", "encounters": "enc_", "loot_tables": "loot_",
-            "events": "event_", "strings": "str_", "modifications": "mod_", "art": "art_"}
+            "events": "event_", "strings": "str_", "modifications": "mod_", "art": "art_",
+            "starts": "start_"}
 VOCAB_PREFIXES = {"tags": "tag_", "stats": "stat_", "damage_types": "dmg_", "statuses": "status_",
                   "slot_types": "slot_", "grades": "grade_", "object_states": "state_", "phases": "phase_",
                   "factions": "faction_", "flags": "flag_"}

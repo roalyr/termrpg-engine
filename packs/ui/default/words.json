@@ -36,6 +36,7 @@
     "round_log": "Round {round}:",
     "round_end": "End of round:",
     "terminal_too_small": "Make the terminal at least {columns}x{rows}.",
+    "save_older_than_pack": "This save is older than the pack: anything added since won't appear in it. Start a new game to see it.",
     "details": "Details",
     "kind_gear": "Gear",
     "kind_material": "Material",

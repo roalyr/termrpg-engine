@@ -6,6 +6,9 @@ from another major version of the pack (ids may have changed).
 Every state type is a NamedTuple; it is written as an object tagged with its type
 name and read back into the same type. Mappings become objects, tuples become lists.
 Files are written atomically: a crash mid-save leaves the previous save intact.
+
+A save also notes the pack's fingerprint, so a game made before the pack was edited can
+say so: the state keeps only what existed then (new characters don't appear in it).
 """
 import json
 import os
@@ -51,7 +54,7 @@ def decode(value: Any) -> Any:
 
 def to_json(content: Content, state: st.GameState) -> str:
     return json.dumps({"format": FORMAT, "pack": content.pack["id"], "pack_version": content.pack["version"],
-                       "state": encode(state)}, ensure_ascii=False, indent=1)
+                       "pack_fingerprint": content.fingerprint, "state": encode(state)}, ensure_ascii=False, indent=1)
 
 
 def from_json(content: Content, text: str) -> st.GameState:
@@ -78,4 +81,13 @@ def save(content: Content, state: st.GameState, path: Path) -> None:
 
 def load(content: Content, path: Path) -> st.GameState:
     return from_json(content, path.read_text(encoding="utf-8"))
+
+
+def older_than_pack(content: Content, path: Path) -> bool:
+    """Whether the save was last written with the pack's files as they were before some change."""
+    try:
+        made_with = json.loads(path.read_text(encoding="utf-8")).get("pack_fingerprint")
+    except (OSError, ValueError):
+        return False
+    return made_with is not None and made_with != content.fingerprint
 

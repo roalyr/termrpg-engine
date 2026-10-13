@@ -7,6 +7,9 @@ Play a content pack in the terminal (the new engine).
   python3 play.py --slot two --new      straight into a fresh game in a save named 'two'
   python3 play.py --new                 straight into a fresh game in slot 1
   python3 play.py --ui packs/ui/mine    another UI pack (default: the one the game pack names)
+  python3 play.py --start start_fight   a new game from one of the pack's starts (in a save named 'test')
+
+In a game, '/' opens the command line: 'dev' opens the dev menu.
 """
 import argparse
 import sys
@@ -25,12 +28,14 @@ def main() -> int:
     parser.add_argument("--new", action="store_true", help="go straight into a new game (in --slot, or slot1)")
     parser.add_argument("--no-colour", action="store_true", help="plain text")
     parser.add_argument("--ui", help="UI pack folder (default: the UI pack the game pack names)")
+    parser.add_argument("--start", help="a new game from this start in the pack's starts file (in --slot, or 'test')")
     args = parser.parse_args()
     pack = Path(args.pack)
     saves = ROOT / "saves" / pack.name
-    save_path = saves / f"{args.slot or 'slot1'}.json" if (args.slot or args.new) else None
-    return run(pack, save_path, args.seed, args.new, colour=not args.no_colour,
-               ui_dir=Path(args.ui) if args.ui else None, saves_dir=saves)
+    slot = args.slot or ("test" if args.start else "slot1")
+    save_path = saves / f"{slot}.json" if (args.slot or args.new or args.start) else None
+    return run(pack, save_path, args.seed, args.new or bool(args.start), colour=not args.no_colour,
+               ui_dir=Path(args.ui) if args.ui else None, saves_dir=saves, start=args.start)
 
 
 if __name__ == "__main__":

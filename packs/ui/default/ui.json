@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/ui.schema.json",
   "id": "default",
   "name": "Default UI",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "schema_version": 4,
   "description": "The standard look: six bordered zones on the world screen, art, fighters and tiles in fights.",
   "files": {

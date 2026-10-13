@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "starts.schema.json",
+  "title": "Starts (starts.json)",
+  "description": "Other ways to begin a game: a new game as the pack starts it, then the start's effects, run by the player. Makers use them to playtest from anywhere (play.py --start <id>, or the /dev menu); they never show in normal play.",
+  "x-schema-version": 4,
+  "$ref": "#/$defs/starts_file",
+  "$defs": {
+    "starts_file": {
+      "type": "object",
+      "description": "A file of starts.",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Path to this file's schema, for editors. Ignored by the engine."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Entries.",
+          "items": {
+            "$ref": "#/$defs/start"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "start": {
+      "type": "object",
+      "description": "A way to begin: the pack's usual new game, then these effects, run by the player ('self'). Move them somewhere (move_to), give them things (give_item, learn_design), set the world up (set_flag, set_state, join_party, change_relation), or begin with a fight or an event (start_encounter, trigger_event).",
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/label"
+        },
+        "description": {
+          "$ref": "common.schema.json#/$defs/text",
+          "description": "What the start sets up, for whoever picks it."
+        },
+        "effects": {
+          "$ref": "common.schema.json#/$defs/effects",
+          "description": "Run in order, by the player, right after the new game begins."
+        },
+        "playable": {
+          "type": "boolean",
+          "default": false,
+          "x-status": "reserved",
+          "description": "Offer this start to players on the start screen, as a scenario to begin with."
+        },
+        "notes": {
+          "$ref": "common.schema.json#/$defs/notes"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "effects"
+      ]
+    }
+  }
+}

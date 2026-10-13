@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schemas/starts.schema.json",
+  "entries": [
+    {
+      "id": "start_cellar",
+      "name": "Cellar, sword in hand",
+      "description": "In the cellar with the rats, a sword and bread carried.",
+      "effects": [
+        {
+          "op": "give_item",
+          "item": "gear_sword"
+        },
+        {
+          "op": "give_item",
+          "item": "consumable_bread",
+          "count": 2
+        },
+        {
+          "op": "move_to",
+          "location": "loc_cellar"
+        }
+      ]
+    },
+    {
+      "id": "start_rats_cleared",
+      "name": "Rats already cleared",
+      "description": "The day after the cellar was cleared.",
+      "effects": [
+        {
+          "op": "set_flag",
+          "flag": "flag_rats_cleared",
+          "value": 1
+        }
+      ]
+    }
+  ]
+}

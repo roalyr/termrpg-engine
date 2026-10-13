@@ -2,7 +2,7 @@
   "$schema": "../../schemas/pack.schema.json",
   "id": "test_fantasy",
   "name": "Test pack: fantasy",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "schema_version": 4,
   "purpose": "test",
   "description": "Small content for engine development and automated tests, in a classical fantasy setting: a smithy and a cold cellar with rats, in plain names. The twin of the sci-fi test pack.",
@@ -54,6 +54,9 @@
     ],
     "palette": [
       "palette.json"
+    ],
+    "starts": [
+      "starts.json"
     ],
     "art": [
       "art.json"

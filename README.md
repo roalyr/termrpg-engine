@@ -32,6 +32,7 @@ python3 -m core.packtool check packs/test_scifi  # validate a content pack
 python3 -m core.packtool ids packs/test_scifi item  # list the ids of a kind
 python3 -m core.packtool refs packs/test_scifi workshop_door  # where an id is declared and used
 python3 play.py --pack packs/test_fantasy --new  # the fantasy test pack
+python3 play.py --start start_fight            # a new game from one of the pack's starts; in a game, /dev
 python3 -m core.packtool explain op damage     # document any part of the schemas
 python3 -B -m unittest discover -s tests       # run all tests
 python3 -B tests/run.py                        # the same, in parallel
@@ -101,6 +102,7 @@ its schema:
 | `strings` | `strings.schema.json` | `string` | Engine messages and reusable text |
 | `modifications` | `modification.schema.json` | `modification` | Crafting modifications |
 | `palette` | `palette.schema.json` | `colour` | The pack's named colours (see [Palette](#palette-paletteschemajson)) |
+| `starts` | `starts.schema.json` | `start` | Other ways to begin a game, for playtesting (see [Starts](#starts-startsschemajson)) |
 | `art` | `art.schema.json` | `art` | Pictures in pixels, used by id |
 
 `common.schema.json` holds the shared grammar that all of these use, and
@@ -928,6 +930,31 @@ game. The defaults can't be renamed or deleted. A new palette starts with all ni
 written out; the palette editor (`python3 -m tools.palette`) makes one on its first
 change.
 
+### Starts (`starts.schema.json`)
+
+Other ways to begin a game. A start is the pack's usual new game, then the start's
+`effects`, run by the player (`self`), then whatever they set off (a fight, an event,
+time spent) as after any action. Makers use them to playtest from anywhere instead of
+walking there after every change.
+
+```json
+{ "id": "start_storage", "name": "Storage, filter fitted",
+  "description": "In the storage room, the cutter carried, the power on.",
+  "effects": [ { "op": "give_item", "item": "gear_cutter" },
+               { "op": "set_flag", "flag": "flag_power", "value": 1 },
+               { "op": "move_to", "location": "loc_storage" } ] }
+```
+
+| Field | Meaning |
+|---|---|
+| `name`, `description` | What the start sets up |
+| `effects` | Run in order, by the player. Name other characters as `{"character": "char_juno"}` |
+| `playable` | Reserved: offer it to players on the start screen, as a scenario |
+
+`python3 play.py --start start_storage` begins one in a save named `test` (or
+`--slot`); in a game, `/dev` → **Start again from a start…** does the same in the
+current slot. Starts never show in normal play.
+
 ### Art (`art.schema.json`)
 
 Pictures in pixels, kept apart from what uses them and referred to by id, so one
@@ -1119,7 +1146,40 @@ replace when all are used. Help lists the keys, generated from the bindings, the
 the interface works (the UI pack's `help_interface`) and the game's own `help`. In a
 game, Q asks "Quit to the start screen?": Y quits (the game is saved after every
 turn), N or X goes back to exactly where you were. `--slot` and `--new` go straight
-into a game.
+into a game, `--start` into a new one from one of the pack's
+[starts](#starts-startsschemajson).
+
+A save remembers the pack's fingerprint (all of its files). Loading a save made before
+the pack changed says so in the log: the save keeps only what existed then, so a
+character or item added since won't be in it. Start a new game, or a start, to see it.
+
+#### The command line and the dev menu
+
+`/` in a game opens the **command line**; UI packs can't bind `/`. It takes `dev`,
+which opens the **dev menu**, or one effect, run by the player: as words,
+`op field=value…` (`give_item item=gear_cutter count=2`, `join_party
+subject=char_juno`, `message text="Lights flicker."`), or as JSON. A character's id
+in a subject means that character; a value starting with `{` or `[` is JSON (an
+amount range, a condition); `if` and `choose` are JSON only. **Tab completes:** the
+suggestions under the line come from the schemas and the pack's ids (the op, then its
+fields, the required ones marked, then the values a field takes); up and down pick
+one, Tab completes as far as they agree, or to the pick. The line is checked (unknown
+ops, fields and ids) before it runs. The completer is `tools/lib/complete.py`, shared
+with the tools.
+
+The dev menu is for makers playtesting a pack. Like the command line, it is drawn with
+the tools' look, in place of the game, until it closes:
+
+| Entry | What it does |
+|---|---|
+| Give an item, Go to a location, Set a flag, Change an object here, Start an encounter, Trigger an event, Bring someone into the party | Picks from the pack's ids, then runs that effect as the player |
+| Next day, Full heal | Spends the turns to the next day; restores the party's health |
+| Type an effect | The command line again: any one effect, as words or JSON |
+| State | The day and turn, flags, the objects here, where everyone is, relations with the player, when each event last fired |
+| Start again from a start | A new game in this slot, from the pack's start or one of its starts |
+
+Everything goes through the engine's own effects, so the dev menu can't reach a state
+the rules couldn't. Triggered events still need their cast and `when`.
 
 #### Colour
 
@@ -1446,6 +1506,9 @@ locations. A shorthand for volume.
 **Slot type.** A kind of slot: a worn slot, a hand, an implant socket.
 
 **Stack.** A group of identical items in one cargo space.
+
+**Start.** Another way to begin a game: a new game, then a list of effects. Used to
+playtest from anywhere (`play.py --start`, `/dev`).
 
 **Stat.** A number on characters, items and objects.
 

@@ -1048,81 +1048,81 @@
           "properties": {
             "move_north": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "w",
-              "description": "Step up; scrolls an open sub-window up. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Step up; scrolls an open sub-window up. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "move_west": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "a",
-              "description": "Step left. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Step left. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "move_south": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "s",
-              "description": "Step down; scrolls an open sub-window down. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Step down; scrolls an open sub-window down. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "move_east": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "d",
-              "description": "Step right. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Step right. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "wait": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": ".",
-              "description": "Let a turn pass. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Let a turn pass. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "pack": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "p",
-              "description": "Open or close the pack: what you carry, and storage within reach. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Open or close the pack: what you carry, and storage within reach. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "gear": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "f",
-              "description": "Open the gear screen. It may share its key with Equip, which only works on that screen. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Open the gear screen. It may share its key with Equip, which only works on that screen. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "character": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "c",
-              "description": "Open or close the character screen. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Open or close the character screen. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "map": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "m",
-              "description": "Open or close the map. It may share its key with the gear screen's modifications, which only work there. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Open or close the map. It may share its key with the gear screen's modifications, which only work there. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "history": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "l",
-              "description": "Open or close the message history. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Open or close the message history. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "close": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "x",
-              "description": "Close the menu, panel or target choice. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Close the menu, panel or target choice. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "quit": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "q",
-              "description": "Save and quit. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Save and quit. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             },
             "next_page": {
               "type": "string",
-              "pattern": "^[^0-9A-Z\\s]$",
+              "pattern": "^[^0-9A-Z\\s/]$",
               "default": "]",
-              "description": "Next page of the pack panel, or the next region on the map. One key: not a digit, a space or an upper-case letter (keys match either case)."
+              "description": "Next page of the pack panel, or the next region on the map. One key: not a digit, a space, '/' (the command line) or an upper-case letter (keys match either case)."
             }
           },
           "additionalProperties": false,
@@ -3266,6 +3266,12 @@
                 "columns",
                 "rows"
               ]
+            },
+            "save_older_than_pack": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Log line when a loaded save was made before the pack changed: what was added since is missing from it. No placeholders.",
+              "x-placeholders": []
             },
             "details": {
               "type": "string",

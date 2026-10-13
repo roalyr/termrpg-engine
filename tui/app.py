@@ -6,20 +6,23 @@ character sheet, closing, quitting and the board's next page. Number keys pick
 numbered entries (a choice's options, board items, action tiles, targets); the letters
 shown in menus act. Any key leaves the after-action screen.
 
-When stdin isn't a terminal, keys are read from it one character at a time, so a
-game can be scripted: python3 play.py < keys.txt
+'/' opens the command line for makers ('dev' opens the dev menu, tui.dev). When stdin
+isn't a terminal, keys are read from it one character at a time, so a game can be
+scripted: python3 play.py < keys.txt
 """
 import random
 from pathlib import Path
 from typing import NamedTuple, Optional
 
-from engine import atlas, build, encounter, events, journal, save, turns, world
+from engine import atlas, build, encounter, events, journal, save, starts, turns, world
 from engine.content import Content, PackError, load_pack
 from engine.effects import choose_option
 from engine.state import GameState, Message, new_game
 from lib import graph, term
 from tui import render, shell, widgets
 from lib.ui import ROOT_DIR, UI, UIPackError, default_ui, load_ui, ui_dir_for
+
+COMMAND_KEY = "/"      # opens the command line; UI packs can't bind it
 
 # The engine's step directions, by input action.
 MOVES = {"move_north": "w", "move_west": "a", "move_south": "s", "move_east": "d"}
@@ -349,11 +352,12 @@ def _scrolling(action: Optional[str], view: View) -> View:
 
 
 def run(pack_dir: Path, save_path: Optional[Path] = None, seed: Optional[int] = None, fresh: bool = False,
-        colour: bool = True, ui_dir: Optional[Path] = None, saves_dir: Optional[Path] = None) -> int:
+        colour: bool = True, ui_dir: Optional[Path] = None, saves_dir: Optional[Path] = None,
+        start: Optional[str] = None) -> int:
     """
     The program: the start screen, then a game, then back to the start screen, until Quit.
-    With 'save_path' it goes straight into that game first. The end of input (a script, or
-    Ctrl-D) leaves at once.
+    With 'save_path' it goes straight into that game first, a new one from the pack's
+    start 'start' if given. The end of input (a script, or Ctrl-D) leaves at once.
     """
     try:
         content = load_pack(pack_dir)
@@ -361,9 +365,13 @@ def run(pack_dir: Path, save_path: Optional[Path] = None, seed: Optional[int] = 
     except (PackError, UIPackError) as error:
         print(error)
         return 1
+    if start is not None and start not in content.all("start"):
+        listed = ", ".join(content.all("start")) or "none: add them in a starts file"
+        print(f"No start '{start}' in the pack. Its starts: {listed}.")
+        return 1
     saves_dir = saves_dir or (save_path.parent if save_path else ROOT_DIR / "saves" / Path(pack_dir).name)
     if save_path is not None:
-        outcome = _play(content, ui, save_path, seed, fresh, colour)
+        outcome = _play(content, ui, save_path, seed, fresh, colour, start)
         if outcome != "menu":
             return 1 if outcome == "error" else 0
     while True:
@@ -399,20 +407,36 @@ def _start(content: Content, ui: UI, saves_dir: Path, colour: bool):
     return now["outcome"]
 
 
-def _play(content: Content, ui: UI, save_path: Path, seed: Optional[int], fresh: bool, colour: bool) -> str:
-    """One game in one slot, saved after every turn: returns 'menu' (quit to the start screen), 'eof' or 'error'."""
+def _play(content: Content, ui: UI, save_path: Path, seed: Optional[int], fresh: bool, colour: bool,
+          start: Optional[str] = None) -> str:
+    """
+    One game in one slot, saved after every turn: returns 'menu' (quit to the start
+    screen), 'eof' or 'error'. A new game begins from the pack's start, or from 'start'.
+    """
     if save_path.exists() and not fresh:
         try:
+            older = save.older_than_pack(content, save_path)
             state = save.load(content, save_path)
         except save.SaveError as error:
             print(f"{save_path}: {error}")
             return "error"
+        if older:
+            state = state._replace(messages=state.messages + (Message("danger", ui.word("save_older_than_pack")),))
     else:
-        state = new_game(content, seed if seed is not None else random.randrange(1, 2 ** 31))
+        seed = seed if seed is not None else random.randrange(1, 2 ** 31)
+        state = starts.begin(content, seed, start) if start else new_game(content, seed)
         save.save(content, state, save_path)
-    now = {"state": state, "view": View(), "outcome": "eof"}
+    now = {"state": state, "view": View(), "outcome": "eof", "console": None}
+
+    def put(state: GameState, fresh: bool = False) -> None:
+        now["state"] = state
+        if fresh:
+            now["view"] = View()
+        save.save(content, state, save_path)
 
     def draw(columns: int, rows: int) -> str:
+        if now["console"] is not None:
+            return now["console"].render(columns, rows)
         state, view = now["state"], now["view"]
         limit = render.max_scroll(content, state, columns, rows, view.panel, view.selected, view.page, ui,
                                   view.screen, view.log, view.cursor)
@@ -421,6 +445,14 @@ def _play(content: Content, ui: UI, save_path: Path, seed: Optional[int], fresh:
                              view.page, ui, view.scroll, view.screen, view.log, view.cursor)
 
     def press(key: str) -> bool:
+        if now["console"] is not None:
+            if not now["console"].handle(term.key_name(key)):           # the tools' forms read key names
+                now["console"] = None
+            return True
+        if key == COMMAND_KEY:
+            from tui.dev import Console                       # makers' tools: loaded when first used
+            now["console"] = Console(content, ui, colour, lambda: now["state"], put)
+            return True
         if key in ("\n", "\r", " "):
             return True
         before = now["state"].turn
