@@ -16,8 +16,10 @@ import re
 import sys
 from typing import Callable, List, Optional, Tuple
 
-from lib import pixels, term
-from tools.lib import colours, forms, screen
+from lib import pixels
+from lib import forms, screen
+from tools.lib import colours
+from tools.lib.tool import run_tool, save_safely
 from tools.lib.packfiles import Found, PackFiles
 
 LETTERS = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -412,8 +414,8 @@ class Art:
                 then(words)
             else:
                 self.say(words, "danger" if "0 error(s)" not in words else "quiet")
-        forms.save_safely(self, write)
+        save_safely(self, write)
 
 
 if __name__ == "__main__":
-    sys.exit(term.run_tool(Art, sys.argv[1:]))
+    sys.exit(run_tool(Art, sys.argv[1:]))

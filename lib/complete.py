@@ -18,7 +18,20 @@ import re
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 from core import schema
-from tools.lib.fields import COMMON, follow, ref_name, schemas
+from core.pack import SCHEMA_DIR
+
+COMMON = "common.schema.json"
+
+
+def schemas() -> schema.Schemas:
+    return schema.load_schemas(SCHEMA_DIR)
+
+
+def follow(node: dict, file: str):
+    return schema.follow(node, file, schemas())
+
+
+ref_name = schema.ref_name
 
 Ids = Callable[[str], Sequence[Tuple[str, str]]]      # namespace -> [(id, name)]
 NESTED = ("if", "choose")                              # ops that hold effects: JSON only

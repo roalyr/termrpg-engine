@@ -14,7 +14,7 @@ from engine.content import load_pack
 from engine.state import day_of, new_game
 from lib.ui import default_ui
 from tui import app
-from tools.lib.complete import Completer
+from lib.complete import Completer
 from tui.dev import Console, state_lines
 
 ROOT = Path(__file__).resolve().parent.parent

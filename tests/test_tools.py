@@ -9,7 +9,8 @@ import editor
 from lib import term
 from lib.text import visible_len
 from tools import tools
-from tools.lib import maps, rooms, screen
+from lib import screen
+from tools.lib import maps, rooms
 from tools.lib.packfiles import PackFiles, dumps
 from tools.art import Art
 from tools.entries import Entries

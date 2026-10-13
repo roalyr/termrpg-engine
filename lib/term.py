@@ -4,14 +4,13 @@ render(columns, rows) -> the screen as text, and handle(key) -> False to quit.
 Keys arrive as names: a character, or 'up', 'down', 'left', 'right', 'enter', 'esc',
 'backspace', 'tab'. Raw keys and styles come from lib.text.
 """
-import argparse
 import os
 import shlex
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, Optional
 
 from lib import text
 
@@ -88,15 +87,3 @@ def edit_text(text: str, suffix: str = ".txt") -> Optional[str]:
             sys.stdout.write("\x1b[?1049h\x1b[?25l")
             sys.stdout.flush()
 
-
-def run_tool(tool_class, argv: List[str]) -> int:
-    """Runs one tool on its own: python3 -m tools.<name> [pack] [--no-colour]."""
-    from tools.lib import screen
-    from tools.lib.packfiles import PackFiles
-    parser = argparse.ArgumentParser(description=tool_class.about)
-    parser.add_argument("pack", nargs="?", default="packs/test_scifi", help="pack folder")
-    parser.add_argument("--no-colour", action="store_true", help="plain text")
-    args = parser.parse_args(argv)
-    pack = PackFiles(Path(args.pack))
-    tool = tool_class(pack, screen.look(not args.no_colour, palette=pack.palette))
-    return run(tool.render, tool.handle)

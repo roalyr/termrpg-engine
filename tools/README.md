@@ -60,7 +60,7 @@ These hold for every tool. A new tool, or a change to one, follows them.
 ### 3. The game's look
 
 - Bordered bands drawn with the UI pack's glyphs, padding and styles
-  (`tools.lib.screen`): a **title** band (the tool's name on the left, the pack on the
+  (`lib.screen`, with lists, fields and questions in `lib.forms`): a **title** band (the tool's name on the left, the pack on the
   right), the **body**, an optional **description** of the pick, and the **hints**.
 - Numbered menus with the game's cursor (`screen.menu`), quiet text for explanations,
   the danger colour for problems.
@@ -89,8 +89,8 @@ These hold for every tool. A new tool, or a change to one, follows them.
   `(PackFiles, Look)`, with `render(columns, rows)` returning the screen as text and
   `handle(key)` returning False to leave. `tools.tools()` lists the finished tools in
   menu order; add a tool there when it works.
-- `if __name__ == "__main__": sys.exit(term.run_tool(MyTool, sys.argv[1:]))` lets it
-  run on its own.
+- `if __name__ == "__main__": sys.exit(run_tool(MyTool, sys.argv[1:]))` (from
+  `tools.lib.tool`) lets it run on its own.
 - **Pack files** (`tools.lib.packfiles.PackFiles`): entries are edited as plain dicts
   (as written, no defaults filled in); `touch(file)` marks a change, `save()` writes
   only changed files, each atomically, and a file written back unchanged is byte for

@@ -15,9 +15,10 @@ Nothing is written until you leave the room and say yes; then the checker runs.
 import sys
 from typing import Callable, List, Optional, Tuple
 
-from lib import term
 from lib.tiles import map_glyph, room_line
-from tools.lib import colours, forms, rooms, screen
+from lib import forms, screen
+from tools.lib import colours, rooms
+from tools.lib.tool import run_tool, save_safely
 from tools.lib.packfiles import Found, PackFiles
 
 Pos = Tuple[int, int]
@@ -526,8 +527,8 @@ class Room:
                 self.finish(verdict)
             else:
                 self.say(verdict, "danger" if report.errors else "quiet")
-        forms.save_safely(self, write)
+        save_safely(self, write)
 
 
 if __name__ == "__main__":
-    sys.exit(term.run_tool(Room, sys.argv[1:]))
+    sys.exit(run_tool(Room, sys.argv[1:]))

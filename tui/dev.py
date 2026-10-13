@@ -3,12 +3,12 @@ The command line and the dev menu, for makers playtesting a pack.
 
 '/' in a game opens the command line. It takes 'dev', which opens the dev menu, or any
 effect as 'op field=value…' (give_item item=gear_cutter count=2) or as JSON; Tab
-completes what's being typed from the schemas and the pack's ids (tools.lib.complete).
+completes what's being typed from the schemas and the pack's ids (lib.complete).
 The menu changes the game through the engine's own effects, run by the player as if an
 interaction had run them (give an item, go somewhere, set a flag, start a fight…), so
 nothing it does is out of the rules' reach. It also shows the game's state and starts
 the game again from one of the pack's starts. Everything is drawn with the tools' look
-(tools.lib), in place of the game, until it closes.
+(lib.screen, lib.forms), in place of the game, until it closes.
 """
 import json
 import random
@@ -22,8 +22,8 @@ from engine.effects import run
 from engine.frozen import freeze
 from engine.state import Ctx, GameState, Message, char_key, day_length, day_of, new_game, phase_of
 from lib.ui import UI
-from tools.lib import forms, screen
-from tools.lib.complete import Completer, Suggestion
+from lib import forms, screen
+from lib.complete import Completer, Suggestion
 
 COMMANDS = {"dev": "the dev menu"}
 FULL = 9999                     # enough to fill any pool

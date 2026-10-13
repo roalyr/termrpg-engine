@@ -55,7 +55,7 @@ timestamps can make Python run stale cached bytecode.
 | `core/uipack.py` | UI pack validator |
 | `core/packtool.py` | Command-line tools: `check`, `ids`, `refs`, `explain` |
 | `engine/` | The engine: `content.py` loads packs, `state.py` the game state, `stats.py` derived stats, `conditions.py` and `effects.py` the grammar, `context.py` references, `world.py` and `turns.py` walking and time, `build.py` equipping and storage, `encounter.py` fights, `craft.py` workshops, `events.py` the living world, `atlas.py` the map the player knows, `save.py` saves, `rng.py` seeded randomness |
-| `lib/` | Code the game and the tools share: `text.py` styles, colours, bars, wrapping and keys, `ui.py` loading a UI pack, `term.py` the key loop and the text editor, `graph.py` region maps, `tiles.py` a room's tiles and how they're drawn, `pixels.py` pictures in half-block pixels, `budgets.py` whether a loadout fits (slots, power, mass, heat, cargo), for the checker and the loadout editor. It depends only on the validator (`core/pack.py`, `core/uipack.py`) |
+| `lib/` | Code the game and the tools share: `text.py` styles, colours, bars, wrapping and keys, `ui.py` loading a UI pack, `term.py` the key loop and the text editor, `graph.py` region maps, `tiles.py` a room's tiles and how they're drawn, `pixels.py` pictures in half-block pixels, `budgets.py` whether a loadout fits (slots, power, mass, heat, cargo), for the checker and the loadout editor, `screen.py` and `forms.py` the tools' bordered screens, lists, fields and questions (also the game's `/` console), `complete.py` completion for effects typed as a line. It depends only on the validator (`core/`), never on `tools/` |
 | `tui/`, `play.py` | The terminal UI, and how to start it |
 | `tools/`, `editor.py` | Terminal tools for editing packs, all reached from `python3 editor.py` (see `tools/README.md`) |
 | `docs/design/` | Design pages for engine work in progress |
@@ -1164,7 +1164,7 @@ amount range, a condition); `if` and `choose` are JSON only. **Tab completes:** 
 suggestions under the line come from the schemas and the pack's ids (the op, then its
 fields, the required ones marked, then the values a field takes); up and down pick
 one, Tab completes as far as they agree, or to the pick. The line is checked (unknown
-ops, fields and ids) before it runs. The completer is `tools/lib/complete.py`, shared
+ops, fields and ids) before it runs. The completer is `lib/complete.py`, shared
 with the tools.
 
 The dev menu is for makers playtesting a pack. Like the command line, it is drawn with

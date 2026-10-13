@@ -7,7 +7,7 @@ import re
 from typing import Callable, Dict, List, Optional, Tuple
 
 from lib.text import DEFAULT_COLOURS
-from tools.lib import forms, screen
+from lib import forms, screen
 from tools.lib.packfiles import PackFiles
 
 DEFAULT = object()                            # "leave it to the UI pack": the field is removed

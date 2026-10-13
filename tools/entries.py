@@ -19,8 +19,10 @@ import sys
 from typing import Any, Callable, List, Optional, Tuple
 
 from lib import term
-from tools.lib import colours, fields, forms, glance, refs, screen, sources
+from lib import forms, screen
+from tools.lib import colours, fields, glance, refs, sources
 from tools.lib.fields import Spec
+from tools.lib.tool import run_tool, save_safely
 from tools.lib.packfiles import Found, PackFiles
 
 NEW = object()
@@ -568,8 +570,8 @@ class Entries:
             self.say(words + (" " + report.errors[0] if report.errors else ""), "danger" if report.errors else "quiet")
             if then:
                 then()
-        forms.save_safely(self, write)
+        save_safely(self, write)
 
 
 if __name__ == "__main__":
-    sys.exit(term.run_tool(Entries, sys.argv[1:]))
+    sys.exit(run_tool(Entries, sys.argv[1:]))

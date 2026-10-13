@@ -16,11 +16,13 @@ G opens the character's room, V shows or hides the picture.
 import sys
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
-from lib import pixels, term
+from lib import pixels
 from lib.text import bar as text_bar
-from tools.lib import forms, loadout, screen
+from lib import forms, screen
+from tools.lib import loadout
 from lib.budgets import Slot
 from tools.lib.loadout import Sheet
+from tools.lib.tool import run_tool, save_safely
 from tools.lib.packfiles import Found, PackFiles
 from tools.room import Room
 
@@ -446,8 +448,8 @@ class Loadout:
             self.say(words + (" " + report.errors[0] if report.errors else ""), "danger" if report.errors else "quiet")
             if then:
                 then()
-        forms.save_safely(self, write)
+        save_safely(self, write)
 
 
 if __name__ == "__main__":
-    sys.exit(term.run_tool(Loadout, sys.argv[1:]))
+    sys.exit(run_tool(Loadout, sys.argv[1:]))

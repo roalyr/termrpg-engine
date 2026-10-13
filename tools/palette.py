@@ -15,9 +15,10 @@ without a palette file gets palette.json, with the default colours, on its first
 import sys
 from typing import Callable, Dict, List, Optional, Tuple
 
-from lib import term
 from lib.text import DEFAULT_COLOURS
-from tools.lib import colours, forms, refs, screen
+from lib import forms, screen
+from tools.lib import colours, refs
+from tools.lib.tool import run_tool, save_safely
 from tools.lib.packfiles import Found, PackFiles
 
 NAME_WIDTH = 14
@@ -268,8 +269,8 @@ class Palette:
                 then(words)
             else:
                 self.say(words, "danger" if report.errors else "quiet")
-        forms.save_safely(self, write)
+        save_safely(self, write)
 
 
 if __name__ == "__main__":
-    sys.exit(term.run_tool(Palette, sys.argv[1:]))
+    sys.exit(run_tool(Palette, sys.argv[1:]))

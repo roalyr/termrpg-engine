@@ -19,8 +19,10 @@ import sys
 from collections import Counter
 from typing import Callable, Dict, List, Optional, Tuple
 
-from lib import graph, term
-from tools.lib import forms, maps, rooms, screen
+from lib import graph
+from lib import forms, screen
+from tools.lib import maps, rooms
+from tools.lib.tool import run_tool, save_safely
 from tools.lib.packfiles import PackFiles
 from tools.room import Room
 
@@ -502,8 +504,8 @@ class Map:
                      f"{len(report.warnings)} warning(s).", "danger" if report.errors else "quiet")
             if then:
                 then()
-        forms.save_safely(self, write)
+        save_safely(self, write)
 
 
 if __name__ == "__main__":
-    sys.exit(term.run_tool(Map, sys.argv[1:]))
+    sys.exit(run_tool(Map, sys.argv[1:]))

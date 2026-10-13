@@ -6,9 +6,9 @@ came of it.
 
 In a list or a field, letters are typed, so only the arrows move and Esc goes back.
 """
-from typing import Any, Callable, List, NamedTuple, Optional, Sequence
+from typing import Any, List, NamedTuple, Optional, Sequence
 
-from tools.lib import screen
+from lib import screen
 
 CANCEL = object()     # handle() returns this when Esc closes a list or a field
 
@@ -139,22 +139,3 @@ class Question:
             return CANCEL
         return None
 
-
-def save_safely(tool, write: Callable[[], None]) -> None:
-    """
-    Saves with 'write', unless a file about to be written was also changed on disk by
-    something else since the tool read it: then it asks first, so nobody's work is lost
-    without a word. Not saving keeps the tool's changes open.
-    """
-    clash = tool.pack.changed_elsewhere()
-    if not clash:
-        return write()
-
-    def done(answer):
-        if answer == "overwrite":
-            write()
-        else:
-            tool.say("Not saved. To keep the other changes, leave without saving and open the pack again.", "danger")
-    names = ", ".join(clash)
-    tool.ask(Question(tool.look, f"{names} changed on disk since you opened it. Saving overwrites those changes.",
-                      [("o", "overwrite", "overwrite"), ("n", "don't save", "keep")]), done)

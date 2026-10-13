@@ -8,7 +8,8 @@ from typing import List
 
 from lib import budgets
 from lib.tiles import map_glyph
-from tools.lib import loadout, screen, sources
+from lib import screen
+from tools.lib import loadout, sources
 from tools.lib.fields import ids
 from tools.lib.packfiles import PackFiles
 

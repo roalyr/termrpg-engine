@@ -7,8 +7,8 @@ The smallest tool, and the template for the others.
 """
 import sys
 
-from lib import term
-from tools.lib import screen
+from lib import screen
+from tools.lib.tool import run_tool
 from tools.lib.packfiles import PackFiles
 
 
@@ -64,4 +64,4 @@ class Overview:
 
 
 if __name__ == "__main__":
-    sys.exit(term.run_tool(Overview, sys.argv[1:]))
+    sys.exit(run_tool(Overview, sys.argv[1:]))

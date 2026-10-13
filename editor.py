@@ -15,7 +15,7 @@ from typing import List, Optional
 
 from tools import tools
 from lib import term
-from tools.lib import screen
+from lib import screen
 from tools.lib.packfiles import PackFiles
 
 ROOT = Path(__file__).resolve().parent
