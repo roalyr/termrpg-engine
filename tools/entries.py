@@ -108,7 +108,7 @@ class Entries:
 
     # --- choosing --------------------------------------------------------------------
 
-    def choose_kind(self, notice: str = "") -> None:
+    def choose_kind(self, notice: str = "", selected: Optional[str] = None) -> None:
         self.kind, self.found = None, None
         choices = [forms.Choice(kind_title(kind), kind, str(sum(1 for _ in self.pack.entries(kind))))
                    for kind in fields.EDITABLE_KINDS if kind in self.pack.kinds]
@@ -116,7 +116,7 @@ class Entries:
             choices.append(forms.Choice("Vocabulary…", VOCABULARY, "tags, stats, sizes…",
                                         "The words the rest of the pack refers to: tags, stats, slot types, sizes, "
                                         "factions, flags and the rest."))
-        picker = forms.Picker(self.look, "Entries", choices)
+        picker = forms.Picker(self.look, "Entries", choices, selected)
         picker.notice = notice
         self.ask(picker, lambda kind: self.choose_section() if kind == VOCABULARY else self.choose_entry(kind))
 
@@ -236,8 +236,8 @@ class Entries:
                     return self.leave()
                 if self.found is None and self.vocab:       # a section's entries: back to the sections
                     self.choose_section(self.kind)
-                elif self.found is None:                    # an entry list or the sections: back to the kinds
-                    self.choose_kind()
+                elif self.found is None:                    # an entry list or the sections: back to the kinds,
+                    self.choose_kind(selected=self.kind)    # on the one just left
             elif result is not None:
                 self.form, after = None, self.after
                 after(result)
