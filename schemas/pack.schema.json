@@ -134,191 +134,72 @@
       "description": "Data files to load, grouped by kind. Files of one kind are merged; ids must be unique across them.",
       "properties": {
         "vocab": {
-          "type": "array",
-          "description": "Files holding vocab.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding vocab."
         },
         "regions": {
-          "type": "array",
-          "description": "Files holding regions.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding regions."
         },
         "locations": {
-          "type": "array",
-          "description": "Files holding locations.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding locations."
         },
         "zones": {
-          "type": "array",
-          "description": "Files holding zones.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding zones."
         },
         "objects": {
-          "type": "array",
-          "description": "Files holding objects.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding objects."
         },
         "items": {
-          "type": "array",
-          "description": "Files holding items.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding items."
         },
         "actions": {
-          "type": "array",
-          "description": "Files holding actions.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding actions."
         },
         "skills": {
-          "type": "array",
-          "description": "Files holding skills.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding skills."
         },
         "characters": {
-          "type": "array",
-          "description": "Files holding characters.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding characters."
         },
         "encounters": {
-          "type": "array",
-          "description": "Files holding encounters.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding encounters."
         },
         "loot_tables": {
-          "type": "array",
-          "description": "Files holding loot tables.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding loot tables."
         },
         "events": {
-          "type": "array",
-          "description": "Files holding events.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding events."
         },
         "strings": {
-          "type": "array",
-          "description": "Files holding strings.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding strings."
         },
         "modifications": {
-          "type": "array",
-          "description": "Files holding modifications.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding modifications."
         },
         "palette": {
-          "type": "array",
-          "description": "Files holding the palette: the pack's named colours. Every colour in the pack is a name from it.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding the palette: the pack's named colours. Every colour in the pack is a name from it."
         },
         "starts": {
-          "type": "array",
-          "description": "Files holding starts: other ways to begin a game, for playtesting.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding starts: other ways to begin a game, for playtesting."
         },
         "art": {
-          "type": "array",
-          "description": "Files holding art: pictures in pixels.",
-          "items": {
-            "type": "string",
-            "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
-            "description": "Path relative to the pack folder. No absolute paths or '..'."
-          },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/file_list",
+          "description": "Files holding art: pictures in pixels."
         }
       },
       "additionalProperties": false,
@@ -337,6 +218,19 @@
     },
     "notes": {
       "$ref": "common.schema.json#/$defs/notes"
+    }
+  },
+  "$defs": {
+    "file_list": {
+      "type": "array",
+      "description": "Files of one kind, relative to the pack folder.",
+      "items": {
+        "type": "string",
+        "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9_\\-/]+\\.json$",
+        "description": "Path relative to the pack folder. No absolute paths or '..'."
+      },
+      "minItems": 1,
+      "uniqueItems": true
     }
   }
 }
