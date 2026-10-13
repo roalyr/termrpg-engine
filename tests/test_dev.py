@@ -164,7 +164,9 @@ class ConsoleTest(unittest.TestCase):
 
     def test_an_effect_as_json_is_checked_first(self):
         self.menu("type an effect")
-        self.keys('{"op": "nonsense"}', "enter")
+        self.keys('{"op": "give_item", "item": "gear_nope"}', "enter")
+        self.assertIn("unknown item 'gear_nope'", self.console.render(48, 24))      # ids checked, as typed lines
+        self.keys(*["backspace"] * 50, '{"op": "nonsense"}', "enter")
         self.assertFalse(self.console.closed)
         self.keys(*["backspace"] * 30, '{"op": "set_flag", "flag": "flag_power", "add": 3}', "enter")
         self.assertTrue(self.console.closed)

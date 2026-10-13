@@ -214,11 +214,8 @@ class Console:
             effect = json.loads(text)
         except ValueError as error:
             return None, f"Not JSON: {error}"
-        found = schema.validate(effect, "common.schema.json#/$defs/effect", _schemas())
-        if found.errors:
-            first = found.errors[0]
-            return None, f"{first.path}: {first.message}" if first.path else first.message
-        return effect, ""
+        problem = self.completer.check(effect)
+        return (None, problem) if problem else (effect, "")
 
     # --- the dev menu --------------------------------------------------------------
 

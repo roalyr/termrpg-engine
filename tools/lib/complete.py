@@ -159,15 +159,20 @@ class Completer:
                 effect[name] = self._value(op, name, value)
             except ValueError as error:
                 return None, f"{name}: {error}"
+        problem = self.check(effect)
+        return (None, problem) if problem else (effect, "")
+
+    def check(self, effect: Any) -> str:
+        """What's wrong with an effect (written any way), or '': the schema, then that every id it names exists."""
         found = schema.validate(effect, f"{COMMON}#/$defs/effect", schemas())
         if found.errors:
             first = found.errors[0]
-            return None, f"{first.path}: {first.message}" if first.path else first.message
+            return f"{first.path}: {first.message}" if first.path else first.message
         for ref in found.refs:
             known = {i for i, _ in self.ids(ref.kind)}
             if known and ref.value not in known:
-                return None, f"{ref.path}: unknown {ref.kind.replace('_', ' ')} '{ref.value}'"
-        return effect, ""
+                return f"{ref.path}: unknown {ref.kind.replace('_', ' ')} '{ref.value}'"
+        return ""
 
     def _value(self, op: str, name: str, text: str) -> Any:
         if text[:1] in "{[":
